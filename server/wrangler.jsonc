@@ -1,0 +1,28 @@
+{
+  // StatCite — Cloudflare Workers configuration.
+  // Free plan is sufficient: 100k requests/day, static assets free & unlimited.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "statcite",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-01",
+  "assets": {
+    "directory": "../site",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    // API routes are handled by the Worker; everything else is served as a static asset.
+    "run_worker_first": ["/mcp", "/mcp/*", "/v1/*", "/health"]
+  },
+  "vars": {
+    // Public base URL of this deployment. Update after wiring the custom domain.
+    "BASE_URL": "https://statcite.com"
+  },
+  // Custom domain routes — uncomment after the domain is added to the Cloudflare account.
+  // "routes": [
+  //   { "pattern": "statcite.com", "custom_domain": true },
+  //   { "pattern": "www.statcite.com", "custom_domain": true }
+  // ],
+  "observability": { "enabled": true }
+  // Secrets (set via `wrangler secret put`):
+  //   FRED_API_KEY  — optional; unlocks FRED (US monthly) series. Get a free key:
+  //                   https://fredaccount.stlouisfed.org/apikeys
+}

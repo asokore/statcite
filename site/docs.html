@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StatCite Docs — MCP tools, REST API, indicator registry</title>
+<meta name="description" content="Full reference for the StatCite MCP server and REST API: tools, parameters, indicator registry, citation object spec, sources and licensing.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="canonical" href="https://statcite.com/docs.html">
+<style>
+:root{--bg:#0b0f14;--card:#141c25;--line:#22303d;--text:#dbe4ec;--dim:#8fa1b0;--faint:#5c6f7e;--accent:#4cc38a;--accent2:#7cb8ff;--warn:#e5b567;
+--mono:ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.65;font-size:15.5px}
+a{color:var(--accent2);text-decoration:none} a:hover{text-decoration:underline}
+.wrap{max-width:940px;margin:0 auto;padding:0 24px 80px}
+nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0;border-bottom:1px solid var(--line);margin-bottom:36px}
+.logo{font-weight:700;font-size:18px;color:var(--text)}
+nav .links{display:flex;gap:20px;font-size:14px}
+nav .links a{color:var(--dim)}
+h1{font-size:32px;letter-spacing:-.02em;margin:10px 0 6px}
+h2{font-size:23px;letter-spacing:-.01em;margin:44px 0 10px;padding-top:18px;border-top:1px solid var(--line)}
+h3{font-size:17px;margin:26px 0 6px;font-family:var(--mono);color:var(--accent)}
+p{color:var(--dim);margin:8px 0;max-width:800px}
+p strong, li strong{color:var(--text)}
+pre{background:#0d1319;border:1px solid var(--line);border-radius:8px;padding:13px 15px;overflow-x:auto;font-family:var(--mono);font-size:12.8px;line-height:1.55;color:#c6d5e2;margin:10px 0}
+code{font-family:var(--mono);font-size:.92em;color:var(--accent)}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin:14px 0}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-size:12.5px}
+ul,ol{margin:8px 0 8px 22px;color:var(--dim)}
+li{margin:4px 0}
+.note{background:#152030;border:1px solid #24405c;border-radius:8px;padding:12px 16px;font-size:14px;color:var(--dim);margin:14px 0}
+.toc{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 22px;font-size:14px;columns:2;column-gap:40px}
+.toc a{display:block;padding:3px 0;color:var(--dim)}
+@media(max-width:640px){.toc{columns:1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="logo" href="/">StatCite</a>
+    <div class="links"><a href="/">Home</a><a href="/openapi.json">OpenAPI</a><a href="/llms-full.txt">llms-full.txt</a></div>
+  </nav>
+  <h1>Documentation</h1>
+  <p>StatCite is a free remote MCP server and REST API serving official economic statistics where every number carries a full citation, plus verification and conversion utilities. Base URL: <code>https://statcite.com</code>.</p>
+  <div class="toc">
+    <a href="#connect">1. Connecting (all clients)</a>
+    <a href="#concepts">2. Core concepts</a>
+    <a href="#citation">3. The citation object</a>
+    <a href="#tools">4. MCP tools reference</a>
+    <a href="#rest">5. REST API</a>
+    <a href="#indicators">6. Indicator registry (42)</a>
+    <a href="#countries">7. Countries &amp; aggregates</a>
+    <a href="#sources-licensing">8. Sources &amp; licensing</a>
+    <a href="#fair-use">9. Fair use &amp; caching</a>
+    <a href="#changelog">10. Changelog</a>
+  </div>
+
+  <h2 id="connect">1. Connecting</h2>
+  <p><strong>MCP endpoint:</strong> <code>https://statcite.com/mcp</code> — Streamable HTTP, stateless, no authentication. Protocol revisions 2025-03-26 / 2025-06-18 / 2025-11-25.</p>
+  <ul>
+    <li><strong>Claude</strong> (web/desktop/mobile): Settings → Connectors → Add custom connector → paste the URL. All plans (Free: one custom connector).</li>
+    <li><strong>Claude Code:</strong> <code>claude mcp add --transport http statcite https://statcite.com/mcp</code></li>
+    <li><strong>ChatGPT:</strong> Settings → Apps &amp; Connectors → Developer mode (paid plans) → add MCP server, “No Authentication”. The <code>search</code>/<code>fetch</code> tool pair required by deep-research connectors is implemented.</li>
+    <li><strong>Cursor:</strong> <code>{"mcpServers":{"statcite":{"url":"https://statcite.com/mcp"}}}</code> in <code>mcp.json</code>.</li>
+    <li><strong>VS Code:</strong> <code>{"servers":{"statcite":{"type":"http","url":"https://statcite.com/mcp"}}}</code> in <code>.vscode/mcp.json</code>.</li>
+    <li><strong>stdio-only clients:</strong> <code>npx -y mcp-remote@latest https://statcite.com/mcp</code> (mcp-remote ≥ 0.1.16).</li>
+  </ul>
+
+  <h2 id="concepts">2. Core concepts</h2>
+  <p><strong>Registry indicators</strong> are friendly keys (<code>inflation_cpi</code>, <code>gdp_growth</code>, <code>govt_debt_gdp</code>, …) curated by an economist and mapped to authoritative series with fallbacks: World Bank WDI for cross-country annual data, IMF WEO (via DBnomics) for fiscal series and gap-filling, FRED for US high-frequency series.</p>
+  <p><strong>Explicit series ids</strong> address any supported series directly: <code>worldbank/NY.GDP.MKTP.KD.ZG</code> (needs <code>country</code>), <code>fred/CPIAUCSL</code>, <code>dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change</code>.</p>
+  <p><strong>Projections are labeled.</strong> IMF WEO forward-year values carry a per-observation note and a series-level note; “latest” semantics prefer published outturns over projections.</p>
+  <p><strong>Errors are advice.</strong> Failed calls return actionable messages (closest country matches, available year ranges, alternative series) as tool errors — never bare stack traces.</p>
+
+  <h2 id="citation">3. The citation object</h2>
+  <p>Every numeric payload includes:</p>
+  <pre>{
+  "source":        "World Bank",
+  "dataset":       "World Development Indicators",
+  "series_id":     "FP.CPI.TOTL.ZG",
+  "series_name":   "Inflation, consumer prices (annual %)",
+  "source_url":    "https://data.worldbank.org/indicator/FP.CPI.TOTL.ZG?locations=BB",
+  "api_url":       "…exact API call for reproducibility…",
+  "license":       "CC BY 4.0",
+  "attribution":   "The World Bank: World Development Indicators: Inflation, consumer prices (annual %)",
+  "retrieved_at":  "2026-07-25",
+  "citation_text": "World Bank, World Development Indicators, series FP.CPI.TOTL.ZG (…), data last updated 2026-07-13. Retrieved 2026-07-25 via StatCite. https://…",
+  "notices":       ["…source-mandated disclaimers when applicable (e.g. FRED)…"]
+}</pre>
+  <p>Agents should reproduce <code>citation_text</code> (or construct a citation from the fields) whenever presenting the number. These fields are stable API surface.</p>
+
+  <h2 id="tools">4. MCP tools reference</h2>
+
+  <h3>get_indicator</h3>
+  <p>Official values for a registry indicator, any country. Params: <code>indicator</code> (required), <code>country</code> (required, ISO3/ISO2/name), <code>start_year</code>, <code>end_year</code>, <code>transform</code> (<code>none|yoy|pct_change|index</code>), <code>latest_only</code> (bool). Returns observations + citation + notes.</p>
+
+  <h3>verify_stat</h3>
+  <p>Verdict on a claimed figure vs. the official series. Params: <code>indicator</code> (registry key or series id), <code>country</code>, <code>period</code> (usually a year, "2024"), <code>claimed_value</code> (number), optional <code>tolerance_abs</code> (series units) / <code>tolerance_pct</code> (relative %).</p>
+  <p>Verdicts: <code>match</code> (within rounding: ≤0.06 pp for percent-kind series, ≤0.5% relative for levels), <code>close</code> (≤0.3 pp / ≤5%), <code>mismatch</code>, <code>cannot_verify</code> (no observation for that period — response lists the available range and nearby values). Diagnostics flag year misattribution (claim matches an adjacent year), percent-vs-decimal slips (~100× ratio), and scale confusion (10³/10⁶/10⁹ ratios). Every response repeats the revision caveat: the official value is the source's currently published figure.</p>
+
+  <h3>get_series</h3>
+  <p>Raw series by explicit id. Params: <code>series_id</code> (required), <code>country</code> (for worldbank/*), <code>start_year</code>, <code>end_year</code>, <code>transform</code>. FRED series require the server operator's FRED key and are otherwise declined with cross-country alternatives suggested.</p>
+
+  <h3>search_indicators</h3>
+  <p>Free-text search over the registry, plus DBnomics dataset discovery (IMF, OECD, Eurostat, BIS…). Param: <code>query</code>.</p>
+
+  <h3>country_snapshot</h3>
+  <p>Headline picture in one call: GDP, growth, GDP per capita, inflation, unemployment, population, current account, trade, FDI, life expectancy (World Bank, single batched request) + general government debt (IMF WEO). Param: <code>country</code>. Items each carry their own citation; unavailable indicators are listed in <code>missing</code>.</p>
+
+  <h3>inflation_adjust</h3>
+  <p>Params: <code>amount</code>, <code>from_year</code>, <code>to_year</code>, <code>country</code> (default USA). Method: CPI ratio on World Bank <code>FP.CPI.TOTL</code> (base-invariant); formula and both index values are disclosed. Annual-average precision, with the CPI-vs-deflator caveat noted.</p>
+
+  <h3>fx_convert</h3>
+  <p>Params: <code>amount</code>, <code>from</code>, <code>to</code> (ISO 4217), <code>date</code> (<code>YYYY-MM-DD</code> daily / <code>YYYY</code> annual / omit for latest). Rails: ECB daily reference rates (~30 currencies, since 1999) via Frankfurter; World Bank official annual-average rates (<code>PA.NUS.FCRF</code>) for ~90 more currencies via a USD bridge. <code>precision</code> field reports <code>daily</code>, <code>annual_average</code>, or <code>mixed</code>; the method string shows the arithmetic.</p>
+
+  <h3>list_sources</h3>
+  <p>Sources, coverage, licenses, required attribution lines.</p>
+
+  <h3>search / fetch</h3>
+  <p>Deep-research compatibility pair (OpenAI connector schema). <code>search(query)</code> returns <code>{results:[{id,title,url}]}</code> with ids like <code>indicator/inflation_cpi/BRB</code>; <code>fetch(id)</code> returns <code>{id,title,text,url,metadata}</code> where <code>text</code> contains recent observations and the full citation.</p>
+
+  <h2 id="rest">5. REST API</h2>
+  <p>Same engine over plain GET — for scripts, notebooks, spreadsheets, and Custom GPT Actions. Machine-readable spec: <a href="/openapi.json">/openapi.json</a>. CORS: open. Responses are cacheable (<code>Cache-Control: public</code>).</p>
+  <pre>GET /v1                                   → endpoint index
+GET /v1/indicators                        → the 42-indicator registry
+GET /v1/indicator/{key}?country=BRB&start_year=2015&transform=yoy&latest_only=true
+GET /v1/series?id=worldbank/NY.GDP.MKTP.KD.ZG&country=USA
+GET /v1/search?q=government+debt
+GET /v1/snapshot/{country}
+GET /v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=4.1
+GET /v1/inflation?amount=100&from_year=1995&to_year=2025&country=USA
+GET /v1/fx?amount=100&from=USD&to=BBD&date=2024
+GET /v1/sources
+GET /health</pre>
+  <p>Errors: <code>400</code> missing/invalid parameters, <code>422</code> resolvable-but-failed requests (unknown country, out-of-range year — message includes suggestions), <code>502</code> upstream source trouble, <code>404</code> unknown endpoint.</p>
+
+  <h2 id="indicators">6. Indicator registry</h2>
+  <p>42 curated indicators. Keys are stable; new indicators are added without breaking existing ones.</p>
+  <table>
+    <tr><th>Key</th><th>Series</th><th>Unit</th><th>Sources (order = fallback chain)</th></tr>
+            <tr><td><code>gdp_growth</code></td><td>GDP growth (annual %)</td><td>% (annual, real)</td><td>World Bank WDI; IMF WEO (via DBnomics)</td></tr>
+            <tr><td><code>gdp_current_usd</code></td><td>GDP (current US$)</td><td>current US$</td><td>World Bank WDI</td></tr>
+            <tr><td><code>gdp_per_capita_usd</code></td><td>GDP per capita (current US$)</td><td>current US$</td><td>World Bank WDI</td></tr>
+            <tr><td><code>gdp_per_capita_ppp</code></td><td>GDP per capita, PPP (current international $)</td><td>current international $ (PPP)</td><td>World Bank WDI</td></tr>
+            <tr><td><code>gni_per_capita_atlas</code></td><td>GNI per capita, Atlas method (current US$)</td><td>current US$</td><td>World Bank WDI</td></tr>
+            <tr><td><code>inflation_cpi</code></td><td>Inflation, consumer prices (annual %)</td><td>% (annual average)</td><td>World Bank WDI; FRED (US)</td></tr>
+            <tr><td><code>cpi_index</code></td><td>Consumer price index (2010 = 100)</td><td>index, 2010 = 100</td><td>World Bank WDI; FRED (US)</td></tr>
+            <tr><td><code>gdp_deflator_growth</code></td><td>Inflation, GDP deflator (annual %)</td><td>%</td><td>World Bank WDI</td></tr>
+            <tr><td><code>unemployment_rate</code></td><td>Unemployment, total (% of labor force, modeled ILO estimate)</td><td>% of labor force</td><td>World Bank WDI; FRED (US)</td></tr>
+            <tr><td><code>labor_force_participation</code></td><td>Labor force participation rate (% of population 15+, modeled ILO)</td><td>% of population ages 15+</td><td>World Bank WDI</td></tr>
+            <tr><td><code>population</code></td><td>Population, total</td><td>people</td><td>World Bank WDI</td></tr>
+            <tr><td><code>population_growth</code></td><td>Population growth (annual %)</td><td>%</td><td>World Bank WDI</td></tr>
+            <tr><td><code>current_account_gdp</code></td><td>Current account balance (% of GDP)</td><td>% of GDP</td><td>World Bank WDI; IMF WEO (via DBnomics)</td></tr>
+            <tr><td><code>govt_debt_gdp</code></td><td>General government gross debt (% of GDP)</td><td>% of GDP</td><td>World Bank WDI; IMF WEO (via DBnomics)</td></tr>
+            <tr><td><code>fiscal_balance_gdp</code></td><td>General government net lending/borrowing (% of GDP)</td><td>% of GDP</td><td>IMF WEO (via DBnomics)</td></tr>
+            <tr><td><code>govt_revenue_gdp</code></td><td>General government revenue (% of GDP)</td><td>% of GDP</td><td>IMF WEO (via DBnomics)</td></tr>
+            <tr><td><code>govt_expenditure_gdp</code></td><td>General government total expenditure (% of GDP)</td><td>% of GDP</td><td>IMF WEO (via DBnomics)</td></tr>
+            <tr><td><code>tax_revenue_gdp</code></td><td>Tax revenue (% of GDP)</td><td>% of GDP</td><td>World Bank WDI</td></tr>
+            <tr><td><code>trade_gdp</code></td><td>Trade (% of GDP)</td><td>% of GDP</td><td>World Bank WDI</td></tr>
+            <tr><td><code>exports_gdp</code></td><td>Exports of goods and services (% of GDP)</td><td>% of GDP</td><td>World Bank WDI</td></tr>
+            <tr><td><code>imports_gdp</code></td><td>Imports of goods and services (% of GDP)</td><td>% of GDP</td><td>World Bank WDI</td></tr>
+            <tr><td><code>fdi_inflows_gdp</code></td><td>Foreign direct investment, net inflows (% of GDP)</td><td>% of GDP</td><td>World Bank WDI</td></tr>
+            <tr><td><code>remittances_gdp</code></td><td>Personal remittances, received (% of GDP)</td><td>% of GDP</td><td>World Bank WDI</td></tr>
+            <tr><td><code>gross_capital_formation_gdp</code></td><td>Gross capital formation (% of GDP)</td><td>% of GDP</td><td>World Bank WDI</td></tr>
+            <tr><td><code>gross_savings_gdp</code></td><td>Gross savings (% of GDP)</td><td>% of GDP</td><td>World Bank WDI</td></tr>
+            <tr><td><code>official_fx_rate</code></td><td>Official exchange rate (LCU per US$, period average)</td><td>LCU per US$</td><td>World Bank WDI</td></tr>
+            <tr><td><code>reserves_months_imports</code></td><td>Total reserves in months of imports</td><td>months of imports</td><td>World Bank WDI</td></tr>
+            <tr><td><code>reserves_total_usd</code></td><td>Total reserves (includes gold, current US$)</td><td>current US$</td><td>World Bank WDI</td></tr>
+            <tr><td><code>lending_rate</code></td><td>Lending interest rate (%)</td><td>%</td><td>World Bank WDI</td></tr>
+            <tr><td><code>deposit_rate</code></td><td>Deposit interest rate (%)</td><td>%</td><td>World Bank WDI</td></tr>
+            <tr><td><code>real_interest_rate</code></td><td>Real interest rate (%)</td><td>%</td><td>World Bank WDI</td></tr>
+            <tr><td><code>broad_money_gdp</code></td><td>Broad money (% of GDP)</td><td>% of GDP</td><td>World Bank WDI</td></tr>
+            <tr><td><code>gini</code></td><td>Gini index</td><td>index (0–100)</td><td>World Bank WDI</td></tr>
+            <tr><td><code>poverty_headcount_intl</code></td><td>Poverty headcount ratio at $2.15/day, 2017 PPP (% of population)</td><td>% of population</td><td>World Bank WDI</td></tr>
+            <tr><td><code>life_expectancy</code></td><td>Life expectancy at birth, total (years)</td><td>years</td><td>World Bank WDI</td></tr>
+            <tr><td><code>urban_population_share</code></td><td>Urban population (% of total population)</td><td>% of population</td><td>World Bank WDI</td></tr>
+            <tr><td><code>us_fed_funds_rate</code></td><td>US federal funds effective rate (monthly, %)</td><td>%</td><td>FRED (US)</td></tr>
+            <tr><td><code>us_10y_treasury</code></td><td>US 10-year Treasury constant maturity yield (daily, %)</td><td>%</td><td>FRED (US)</td></tr>
+            <tr><td><code>us_cpi_monthly</code></td><td>US CPI for all urban consumers (monthly index, 1982–84 = 100)</td><td>index, 1982–84 = 100</td><td>FRED (US)</td></tr>
+            <tr><td><code>us_unemployment_monthly</code></td><td>US unemployment rate (monthly, %)</td><td>%</td><td>FRED (US)</td></tr>
+            <tr><td><code>us_nonfarm_payrolls</code></td><td>US total nonfarm payrolls (monthly, thousands of persons)</td><td>thousands of persons</td><td>FRED (US)</td></tr>
+            <tr><td><code>us_real_gdp</code></td><td>US real GDP (quarterly, chained 2017 dollars, SAAR)</td><td>billions of chained 2017 US$</td><td>FRED (US)</td></tr>
+  </table>
+  <div class="note">Fiscal indicators (<code>govt_debt_gdp</code>, <code>fiscal_balance_gdp</code>, <code>govt_revenue_gdp</code>, <code>govt_expenditure_gdp</code>) intentionally use IMF WEO general-government series as primary — the World Bank WDI central-government debt series has far patchier coverage. US-prefixed keys are FRED-backed high-frequency series available when the deployment has a FRED key.</div>
+
+  <h2 id="countries">7. Countries &amp; aggregates</h2>
+  <p>Pass ISO3 (<code>USA</code>, <code>BRB</code>), ISO2 (<code>US</code>, <code>BB</code>), or English names — common aliases resolve (<code>UK</code>, <code>South Korea</code>, <code>Ivory Coast</code>, <code>Türkiye</code>). Aggregates: <code>WLD</code> (world), <code>EUU</code> (EU), <code>EMU</code> (euro area), <code>OED</code> (OECD), income groups (<code>HIC</code>, <code>LIC</code>, <code>LMC</code>, <code>UMC</code>), and World Bank regions. Unresolvable names return suggestions.</p>
+
+  <h2 id="sources-licensing">8. Sources &amp; licensing</h2>
+  <p>StatCite relays official statistics with attribution; it adds no numbers of its own. Underlying licenses: World Bank CC BY 4.0; IMF terms (free reuse/redistribution with attribution); ECB reference rates (informational, attribution); Eurostat CC BY 4.0 via DBnomics; FRED per its API terms (the mandated disclaimer ships in every FRED citation; FRED series owned by third parties are the user's responsibility to license for redistribution). The <code>license</code> and <code>attribution</code> fields in each citation state what applies to that exact number.</p>
+
+  <h2 id="fair-use">9. Fair use &amp; caching</h2>
+  <ul>
+    <li>Free, no key. Please keep sustained automated load reasonable; the service may throttle abuse.</li>
+    <li>Responses carry cache headers; repeated identical queries are served from edge cache. Upstream sources are queried at most once per cache window per query.</li>
+    <li>Need volume, SLAs, or invoicing? Use the Apify actor (metered) or email <a href="mailto:hello@statcite.com">hello@statcite.com</a>.</li>
+  </ul>
+
+  <h2 id="changelog">10. Changelog</h2>
+  <ul>
+    <li><strong>1.0.0</strong> — Initial release: 10 tools, 42-indicator registry, World Bank + IMF WEO + ECB + optional FRED, REST mirror, OpenAPI, llms.txt.</li>
+  </ul>
+
+  <p style="margin-top:40px;color:var(--faint);font-size:13px">© 2026 StatCite · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · <a href="mailto:hello@statcite.com">hello@statcite.com</a></p>
+</div>
+</body>
+</html>

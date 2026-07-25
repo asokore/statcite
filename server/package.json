@@ -1,0 +1,38 @@
+{
+  "name": "statcite",
+  "version": "1.0.0",
+  "description": "StatCite — official economic statistics for AI agents, every number with a full citation. Remote MCP server + REST API.",
+  "private": true,
+  "type": "module",
+  "mcpName": "io.github.asokore/statcite",
+  "scripts": {
+    "dev": "npx wrangler dev",
+    "deploy": "npx wrangler deploy",
+    "test": "node --import tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "fixtures": "node scripts/record-fixtures.mjs",
+    "smoke": "node --import tsx scripts/smoke-live.mjs"
+  },
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "economics",
+    "economic-data",
+    "statistics",
+    "citations",
+    "fact-checking",
+    "world-bank",
+    "imf",
+    "fred",
+    "inflation",
+    "gdp",
+    "ai-agents"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250705.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

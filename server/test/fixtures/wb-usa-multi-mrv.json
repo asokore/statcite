@@ -1,0 +1,157 @@
+[
+ {
+  "page": 1,
+  "pages": 1,
+  "per_page": 50,
+  "total": 9,
+  "sourceid": null,
+  "lastupdated": "2026-07-13"
+ },
+ [
+  {
+   "indicator": {
+    "id": "NY.GDP.MKTP.KD.ZG",
+    "value": "GDP growth (annual %)"
+   },
+   "country": {
+    "id": "US",
+    "value": "United States"
+   },
+   "countryiso3code": "USA",
+   "date": "2025",
+   "value": 2.16138195623856,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "NY.GDP.MKTP.KD.ZG",
+    "value": "GDP growth (annual %)"
+   },
+   "country": {
+    "id": "US",
+    "value": "United States"
+   },
+   "countryiso3code": "USA",
+   "date": "2024",
+   "value": 2.79318715363841,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "NY.GDP.MKTP.KD.ZG",
+    "value": "GDP growth (annual %)"
+   },
+   "country": {
+    "id": "US",
+    "value": "United States"
+   },
+   "countryiso3code": "USA",
+   "date": "2023",
+   "value": 2.93436322440155,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "SL.UEM.TOTL.ZS",
+    "value": "Unemployment, total (% of total labor force) (modeled ILO estimate)"
+   },
+   "country": {
+    "id": "US",
+    "value": "United States"
+   },
+   "countryiso3code": "USA",
+   "date": "2025",
+   "value": 4.198,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "SL.UEM.TOTL.ZS",
+    "value": "Unemployment, total (% of total labor force) (modeled ILO estimate)"
+   },
+   "country": {
+    "id": "US",
+    "value": "United States"
+   },
+   "countryiso3code": "USA",
+   "date": "2024",
+   "value": 4.022,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "SL.UEM.TOTL.ZS",
+    "value": "Unemployment, total (% of total labor force) (modeled ILO estimate)"
+   },
+   "country": {
+    "id": "US",
+    "value": "United States"
+   },
+   "countryiso3code": "USA",
+   "date": "2023",
+   "value": 3.638,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "US",
+    "value": "United States"
+   },
+   "countryiso3code": "USA",
+   "date": "2025",
+   "value": null,
+   "scale": "",
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "US",
+    "value": "United States"
+   },
+   "countryiso3code": "USA",
+   "date": "2024",
+   "value": 2.94952520485207,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "US",
+    "value": "United States"
+   },
+   "countryiso3code": "USA",
+   "date": "2023",
+   "value": 4.11633838374488,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  }
+ ]
+]

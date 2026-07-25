@@ -1,0 +1,77 @@
+{
+ "_meta": {
+  "args": {
+   "limit": 5,
+   "offset": 0,
+   "q": "barbados gdp"
+  },
+  "version": "22.1.17"
+ },
+ "results": {
+  "docs": [
+   {
+    "code": "GFSIBS",
+    "description": "This dataset provides a comprehensive view of the integrated balance sheet. In other words, changes between the opening and closing stock positions in assets and liabilities are explained through transactions, holding gains/losses, and other changes in the volume of assets and liabilities. Data on net investment in nonfinancial assets – a component of total expenditure – on its components and related stock positions are provided.",
+    "dir_hash": "9aab9fb846216d3a30c75027d79a72408719ac56",
+    "indexed_at": "2025-08-31T11:54:51.710Z",
+    "name": "Government Finance Statistics (GFS), Integrated Balance Sheet (Stock Positions and Flows in Assets and Liabilities)",
+    "nb_matching_series": 1776,
+    "nb_series": 689088,
+    "provider_code": "IMF",
+    "provider_name": "International Monetary Fund",
+    "updated_at": "2025-08-30T00:00:00Z"
+   },
+   {
+    "code": "GFSR",
+    "description": "This dataset provides a comprehensive view of government revenue, including detailed classifications of taxes, social contributions, grants receivable, and other revenue.",
+    "dir_hash": "de8c1333bd50edaec53f238ae766ae12e94731ef",
+    "indexed_at": "2025-08-31T11:54:51.710Z",
+    "name": "Government Finance Statistics (GFS), Revenue",
+    "nb_matching_series": 672,
+    "nb_series": 262080,
+    "provider_code": "IMF",
+    "provider_name": "International Monetary Fund",
+    "updated_at": "2025-08-30T00:00:00Z"
+   },
+   {
+    "code": "GFSCOFOG",
+    "description": "This dataset provides a comprehensive view of  the functions, or socioeconomic objectives, that government aims to achieve through various kinds of expenditure, comprising detailed classifications of general public service, defense, public order and safety, economic affairs, environment protection, housing and community services, health, recreation, culture and religion, education, and social protection services.",
+    "dir_hash": "8ffbd509863ac6d11401ab6af8d97db9b46eaf18",
+    "indexed_at": "2025-08-31T11:54:51.710Z",
+    "name": "Government Finance Statistics (GFS), Expenditure by Function of Government (COFOG)",
+    "nb_matching_series": 640,
+    "nb_series": 265192,
+    "provider_code": "IMF",
+    "provider_name": "International Monetary Fund",
+    "updated_at": "2025-08-30T00:00:00Z"
+   },
+   {
+    "code": "GFSFALCS",
+    "description": "This dataset provides an overview of total financial assets and liabilities classified by the sector to which the counterparty claim belongs. The counterpart sectors include nonfinancial corporations, the central bank, deposit taking corporations, other financial corporation sectors, government sectors, international organizations, external financial corporations, external general government, and other external sectors.",
+    "dir_hash": "6bb29b02ac21a1578dd010d90844908dbc4281d9",
+    "indexed_at": "2025-08-31T11:54:51.710Z",
+    "name": "Government Finance Statistics (GFS), Financial Assets and Liabilities by Counterpart Sector",
+    "nb_matching_series": 512,
+    "nb_series": 199680,
+    "provider_code": "IMF",
+    "provider_name": "International Monetary Fund",
+    "updated_at": "2025-08-30T00:00:00Z"
+   },
+   {
+    "code": "GFSE",
+    "description": "This dataset provides a comprehensive view of government expense, including detailed classifications of compensation of employees, use of goods and services, consumption of fixed capital, interest payable, subsidies payable, grants payable, social benefits, and other expense.",
+    "dir_hash": "6d5d00a7b7e994e79bc9b6365e2f8f236485eafb",
+    "indexed_at": "2025-08-31T11:54:51.710Z",
+    "name": "Government Finance Statistics (GFS), Expense",
+    "nb_matching_series": 384,
+    "nb_series": 149760,
+    "provider_code": "IMF",
+    "provider_name": "International Monetary Fund",
+    "updated_at": "2025-08-30T00:00:00Z"
+   }
+  ],
+  "limit": 5,
+  "num_found": 114,
+  "offset": 0
+ }
+}

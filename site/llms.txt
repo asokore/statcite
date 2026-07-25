@@ -1,0 +1,18 @@
+# StatCite
+
+> Free remote MCP server + REST API serving official economic statistics — World Bank, IMF WEO, ECB reference rates, optional FRED — where every number ships with a full citation (source, dataset, series id, canonical URL, license, retrieval date). Includes verify_stat: check a claimed economic figure against the official series and get a verdict with diagnostics.
+
+Key facts: no API key, no auth, CORS open, read-only. MCP endpoint: https://statcite.com/mcp (Streamable HTTP, stateless). REST base: https://statcite.com/v1. 42 curated indicators, 200+ economies, ~120 currencies.
+
+## Docs
+
+- [Full documentation](https://statcite.com/docs.html): tools, parameters, indicator registry, citation spec
+- [llms-full.txt](https://statcite.com/llms-full.txt): complete agent-readable reference
+- [OpenAPI spec](https://statcite.com/openapi.json): REST API machine spec
+
+## Quick use
+
+- [Verify a stat](https://statcite.com/v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=4.1): GET /v1/verify?indicator=…&country=…&period=…&value=…
+- [Get an indicator](https://statcite.com/v1/indicator/gdp_growth?country=BRB&latest_only=true): GET /v1/indicator/{key}?country=…
+- [Country snapshot](https://statcite.com/v1/snapshot/Japan): GET /v1/snapshot/{country}
+- [Sources & licenses](https://statcite.com/v1/sources): what backs every number

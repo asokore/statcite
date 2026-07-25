@@ -1,0 +1,60 @@
+[
+ {
+  "page": 1,
+  "pages": 1,
+  "per_page": 50,
+  "total": 3,
+  "sourceid": "2",
+  "lastupdated": "2026-07-13"
+ },
+ [
+  {
+   "indicator": {
+    "id": "PA.NUS.FCRF",
+    "value": "Official exchange rate (LCU per US$, period average)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2025",
+   "value": 2,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 2
+  },
+  {
+   "indicator": {
+    "id": "PA.NUS.FCRF",
+    "value": "Official exchange rate (LCU per US$, period average)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2024",
+   "value": 2,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 2
+  },
+  {
+   "indicator": {
+    "id": "PA.NUS.FCRF",
+    "value": "Official exchange rate (LCU per US$, period average)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2023",
+   "value": 2,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 2
+  }
+ ]
+]
