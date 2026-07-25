@@ -15,7 +15,7 @@ import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { fetchJson, isTransientUpstreamError, UpstreamError, _clearMemCache } from "../src/core/upstream.ts";
 import { ToolError } from "../src/core/types.ts";
-import { getIndicator } from "../src/core/series.ts";
+import { getIndicator, listRegistry, expectedWeoEdition, weoVintageStaleNote } from "../src/core/series.ts";
 import type { Ctx } from "../src/core/types.ts";
 
 const ctx: Ctx = { baseUrl: "https://statcite.test" };
@@ -154,4 +154,84 @@ test("getIndicator: WB exhausted after 3 attempts still falls back to WEO (resil
   const result = await getIndicator(ctx, "current_account_gdp", "GEO", { start: "2022", end: "2022" });
   assert.equal(result.series_id.startsWith("dbnomics/"), true);
   assert.ok(result.notes.some((n) => /transiently unavailable/.test(n)));
+  assert.equal(result.fallback_used, true, "fallback responses must carry the machine-readable fallback_used flag");
+});
+
+// ——— 4. strict_source: reproducibility mode ———
+
+test("strict_source: primary failure errors instead of falling back, with actionable advice", async () => {
+  const bad = () => new Response("down", { status: 503 });
+  let dbnomicsCalled = false;
+  installStub((url: string) => {
+    if (WB_URL.test(url)) return bad();
+    if (DBN_URL.test(url)) {
+      dbnomicsCalled = true;
+      return dbnomicsCurrentAccountFixture();
+    }
+    return new Response("{}", { status: 200 });
+  });
+  await assert.rejects(
+    () => getIndicator(ctx, "current_account_gdp", "GEO", { start: "2022", end: "2022", strictSource: true }),
+    (e: unknown) => {
+      assert.ok(e instanceof ToolError);
+      assert.match((e as Error).message, /strict_source=true prevented fallback/);
+      assert.match((e as Error).message, /transient/i);
+      return true;
+    },
+  );
+  assert.equal(dbnomicsCalled, false, "strict mode must never even consult the fallback source");
+});
+
+test("strict_source: healthy primary serves normally, no fallback_used flag", async () => {
+  installStub((url: string) => {
+    if (WB_URL.test(url)) {
+      return new Response(
+        JSON.stringify([
+          { page: 1, pages: 1, total: 1, lastupdated: "2026-07-13" },
+          [
+            {
+              indicator: { id: "BN.CAB.XOKA.GD.ZS", value: "Current account balance (% of GDP)" },
+              country: { id: "GE", value: "Georgia" },
+              countryiso3code: "GEO",
+              date: "2022",
+              value: -2.58183727549166,
+            },
+          ],
+        ]),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }
+    return new Response("{}", { status: 200 });
+  });
+  const result = await getIndicator(ctx, "current_account_gdp", "GEO", { start: "2022", end: "2022", strictSource: true });
+  assert.equal(result.series_id, "worldbank/BN.CAB.XOKA.GD.ZS");
+  assert.equal(result.fallback_used, undefined);
+});
+
+// ——— 5. WEO vintage staleness disclosure ———
+
+test("expectedWeoEdition follows the IMF April/October release calendar", () => {
+  assert.equal(expectedWeoEdition(new Date("2026-07-25T12:00:00Z")), "2026-04");
+  assert.equal(expectedWeoEdition(new Date("2026-11-15T12:00:00Z")), "2026-10");
+  assert.equal(expectedWeoEdition(new Date("2026-02-01T12:00:00Z")), "2025-10");
+  assert.equal(expectedWeoEdition(new Date("2026-05-01T12:00:00Z")), "2026-04");
+});
+
+test("weoVintageStaleNote fires only when the resolved vintage trails the release calendar", () => {
+  const now = new Date("2026-07-25T12:00:00Z");
+  assert.match(weoVintageStaleNote("WEO:2025-04", now)!, /newest edition available via DBnomics/);
+  assert.match(weoVintageStaleNote("WEO:2025-04", now)!, /expected 2026-04/);
+  assert.equal(weoVintageStaleNote("WEO:2026-04", now), undefined);
+  assert.equal(weoVintageStaleNote("NOT_WEO_DATASET", now), undefined);
+});
+
+// ——— 6. listRegistry source order mirrors actual resolution order ———
+
+test("listRegistry: IMF-primary fiscal indicators list IMF WEO first, WDI-primary list World Bank first", () => {
+  const reg = new Map(listRegistry().map((r) => [r.key, r.sources]));
+  for (const key of ["govt_debt_gdp", "fiscal_balance_gdp", "govt_revenue_gdp", "govt_expenditure_gdp"]) {
+    assert.match(reg.get(key)![0], /^IMF WEO/, `${key} is DB_PRIMARY — IMF must be listed first`);
+  }
+  assert.equal(reg.get("gdp_growth")![0], "World Bank WDI");
+  assert.equal(reg.get("inflation_cpi")![0], "World Bank WDI");
 });

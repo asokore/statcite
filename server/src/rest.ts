@@ -148,8 +148,11 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
         end: qYear(q, "end_year"),
         transform: parseTransform(q.get("transform")),
         limit: latestOnly ? 1 : 80,
+        strictSource: q.get("strict_source") === "true",
       });
-      return json(200, result);
+      // A fallback-sourced response must not linger in shared caches: once the
+      // primary recovers, the same URL should serve the primary's value again.
+      return json(200, result, result.fallback_used ? 0 : 3600);
     }
 
     if (path === "/v1/series") {
@@ -161,8 +164,9 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
         end: qYear(q, "end_year"),
         transform: parseTransform(q.get("transform")),
         limit: 120,
+        strictSource: q.get("strict_source") === "true",
       });
-      return json(200, result);
+      return json(200, result, result.fallback_used ? 0 : 3600);
     }
 
     if (path === "/v1/search") {
@@ -189,9 +193,10 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
         claimed_value: qNum(q, "value", true)!,
         tolerance_abs: qNum(q, "tolerance_abs", false),
         tolerance_pct: qNum(q, "tolerance_pct", false),
+        strict_source: q.get("strict_source") === "true",
       });
       usage.verdict = result.verdict;
-      return json(200, result, 1800);
+      return json(200, result, result.fallback_used ? 0 : 1800);
     }
 
     if (path === "/v1/inflation") {
@@ -243,7 +248,8 @@ async function verifyClaimsRoute(request: Request, ctx: Ctx): Promise<Response> 
     return errJson(422, 'Body must be a JSON object with a \'claims\' array — wrap the claims as { "claims": [...] }.');
   }
   try {
-    return json(200, await runVerifyClaims(ctx, (body as Record<string, unknown>).claims), 0);
+    const b = body as Record<string, unknown>;
+    return json(200, await runVerifyClaims(ctx, b.claims, b.strict_source === true), 0);
   } catch (e) {
     if (e instanceof ToolError) return errJson(422, e.message, e.details);
     if (e instanceof UpstreamError) return errJson(502, `Upstream data source problem: ${e.message}`, { upstream_url: e.url });

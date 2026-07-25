@@ -25,7 +25,7 @@
 
 This runbook takes the repo from `C:\dev\statcite` to a running product. Total time: **~60–90 minutes** of guided steps. It is written for Claude Code to execute with you (open Claude Code in this folder and say *"execute HANDOFF.md"*), or for you to follow manually.
 
-**State of the build:** code complete and verified — 119 fixture-backed tests pass, a live smoke suite passed against the real World Bank / IMF-DBnomics / Frankfurter APIs from the build environment, and the site is ready. Nothing below writes code; it's accounts, wiring, and submissions.
+**State of the build:** code complete and verified — 132 fixture-backed tests pass, a live smoke suite passed against the real World Bank / IMF-DBnomics / Frankfurter APIs from the build environment, and the site is ready. Nothing below writes code; it's accounts, wiring, and submissions.
 
 **You already have:** GitHub (paid), Cloudflare, Apify accounts. ✔
 
@@ -56,7 +56,7 @@ Commit and push. Add repo topics per `distribution/submissions.md` §2.
 ```bash
 cd server
 npm install
-npm test        # expect: 119 pass
+npm test        # expect: 132 pass
 npm run smoke   # expect: SMOKE: ALL PASS (live network calls)
 npm run dev     # wrangler dev → open http://localhost:8787 (site) and check /health
 ```

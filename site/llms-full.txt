@@ -6,25 +6,25 @@ StatCite serves official economic statistics with full citations. Free, no auth,
 - REST base: https://statcite.com/v1  (OpenAPI: https://statcite.com/openapi.json)
 - Every numeric response includes a citation object: {source, dataset, series_id, series_name, source_url, api_url, license, attribution, retrieved_at, citation_text, notices?}. Reproduce citation_text when presenting numbers to users.
 - Data sources: World Bank WDI (CC BY 4.0), IMF WEO via DBnomics (attribution: "Source: International Monetary Fund"), ECB euro reference rates via Frankfurter, optional FRED (US high-frequency; carries the mandated FRED disclaimer).
-- IMF WEO forward-year values are labeled as estimates/projections per-observation; "latest" prefers published outturns.
+- IMF WEO forward-year values are labeled as estimates/projections per-observation; "latest" prefers published outturns. The projection boundary is a vintage-year heuristic (the IMF's "latest actual" varies by country; some earlier observations may also be staff estimates — notes say so). WEO is served via DBnomics, which can lag the IMF's April/October release calendar: citations state the resolved vintage, and responses carry a stale-vintage note when it trails the expected current release.
 - Statistics get revised: values reflect the source's currently published figure.
 
 ## MCP tools
 
 ### get_indicator
 Official values for a curated indicator, any country.
-Args: indicator (registry key, required), country (ISO3/ISO2/name, required), start_year?, end_year?, transform? (none|yoy|pct_change|index), latest_only? (bool).
+Args: indicator (registry key, required), country (ISO3/ISO2/name, required), start_year?, end_year?, transform? (none|yoy|pct_change|index), latest_only? (bool), strict_source? (bool — reproducibility mode: if the primary source fails, error instead of serving the fallback source). Fallback-served responses carry fallback_used: true plus a disclosure note naming both sources.
 Example: {"indicator":"inflation_cpi","country":"BRB","latest_only":true}
 
 ### verify_stat
 Check a claimed figure against the official series. THE tool to call before publishing any economic number.
-Args: indicator (registry key or explicit series id), country?, period (usually "YYYY"; quarters as "YYYY-Qn"/"YYYYQn"/"YYYY Qn", months as "YYYY-MM"/"YYYYMM"), claimed_value (number), tolerance_abs?, tolerance_pct?.
+Args: indicator (registry key or explicit series id), country?, period (usually "YYYY"; quarters as "YYYY-Qn"/"YYYYQn"/"YYYY Qn", months as "YYYY-MM"/"YYYYMM"), claimed_value (number), tolerance_abs?, tolerance_pct?, strict_source? (bool — never verify against a fallback source; error instead). Fallback-based verdicts carry fallback_used: true.
 Returns verdict: match | close | mismatch | cannot_verify, plus official_value, difference, is_projection (true when the matched official observation is an IMF WEO estimate/projection, with the explanation qualified accordingly), diagnostics (year misattribution, percent-vs-decimal, scale confusion up to 10^12, sign flips), citation.
 Default thresholds: percent-kind series → match ≤0.06pp or ≤0.5% rel, close ≤0.3pp or ≤2% rel; levels → match ≤0.5% rel, close ≤5% rel.
 
 ### verify_claims
 Batch fact-check: verify a whole draft's macro claims in one call instead of one verify_stat call each. Extract every checkable claim (indicator + country + period + claimed value) from the text, then submit them together.
-Args: claims — array of 1–15 objects, each {indicator, country?, period, claimed_value, tolerance_abs?, tolerance_pct?} (same fields as verify_stat). Max 15 per call (free-tier subrequest budget); split larger drafts into batches.
+Args: claims — array of 1–15 objects, each {indicator, country?, period, claimed_value, tolerance_abs?, tolerance_pct?} (same fields as verify_stat); optional call-level strict_source? (bool) applies reproducibility mode to every claim. Max 15 per call (free-tier subrequest budget); split larger drafts into batches.
 Returns: {summary, results, note?}.
 - summary: {total, match, close, mismatch, cannot_verify, error} — verdict counts across the batch.
 - results: in input order; each item is {ok:true, claim, verification} where verification is the full verify_stat payload (verdict, official_value, difference, diagnostics, is_projection, citation) — or {ok:false, claim, error} when that claim could not be resolved (unknown indicator/country, upstream trouble). Per-claim errors never sink the rest of the batch; they count under summary.error.
@@ -63,8 +63,8 @@ fetch({id}) → {id,title,text,url,metadata}; text contains recent observations 
 - /v1/series?id=&country=&start_year=&end_year=&transform=
 - /v1/search?q=
 - /v1/snapshot/{country}
-- /v1/verify?indicator=&country=&period=&value=&tolerance_abs=&tolerance_pct=
-- /v1/verify_claims — POST, JSON body {"claims":[{indicator, country?, period, claimed_value, tolerance_abs?, tolerance_pct?}]}, 1–15 claims (the only non-GET route)
+- /v1/verify?indicator=&country=&period=&value=&tolerance_abs=&tolerance_pct=&strict_source=
+- /v1/verify_claims — POST, JSON body {"claims":[...], "strict_source"?: bool}, 1–15 claims (the only non-GET route)
 - /v1/inflation?amount=&from_year=&to_year=&country=
 - /v1/fx?amount=&from=&to=&date=
 - /v1/sources
@@ -87,7 +87,7 @@ Errors: 400 missing params, 422 helpful failure (suggestions included), 502 upst
 - population — Population, total [people] (sources: World Bank WDI)
 - population_growth — Population growth (annual %) [%] (sources: World Bank WDI)
 - current_account_gdp — Current account balance (% of GDP) [% of GDP] (sources: World Bank WDI; IMF WEO (via DBnomics))
-- govt_debt_gdp — General government gross debt (% of GDP) [% of GDP] (sources: World Bank WDI; IMF WEO (via DBnomics))
+- govt_debt_gdp — General government gross debt (% of GDP) [% of GDP] (sources: IMF WEO (via DBnomics); World Bank WDI)
 - fiscal_balance_gdp — General government net lending/borrowing (% of GDP) [% of GDP] (sources: IMF WEO (via DBnomics))
 - govt_revenue_gdp — General government revenue (% of GDP) [% of GDP] (sources: IMF WEO (via DBnomics))
 - govt_expenditure_gdp — General government total expenditure (% of GDP) [% of GDP] (sources: IMF WEO (via DBnomics))

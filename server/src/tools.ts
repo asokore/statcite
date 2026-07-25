@@ -159,11 +159,11 @@ function claimErrorMessage(e: unknown): string {
   return "Internal error verifying this claim. Please retry; if persistent, verify it individually with verify_stat.";
 }
 
-export async function runVerifyClaims(ctx: Ctx, claimsRaw: unknown): Promise<VerifyClaimsResult> {
+export async function runVerifyClaims(ctx: Ctx, claimsRaw: unknown, strictSource = false): Promise<VerifyClaimsResult> {
   const claims = parseClaims(claimsRaw);
   const results = await mapLimit(claims, CLAIM_CONCURRENCY, async (claim): Promise<ClaimResult> => {
     try {
-      return { ok: true, claim, verification: await verifyStat(ctx, claim) };
+      return { ok: true, claim, verification: await verifyStat(ctx, { ...claim, strict_source: strictSource }) };
     } catch (e) {
       return { ok: false, claim, error: claimErrorMessage(e) };
     }
@@ -201,6 +201,11 @@ export const TOOLS: ToolDef[] = [
         end_year: { type: "integer", description: "Last year to include (optional)." },
         transform: { type: "string", enum: TRANSFORMS, description: "Optional transform computed by StatCite." },
         latest_only: { type: "boolean", description: "Return only the most recent non-null observation." },
+        strict_source: {
+          type: "boolean",
+          description:
+            "Reproducibility mode: if the primary source fails, return an error instead of silently serving the fallback source (a fallback can report a different value for the same nominal indicator). Default false; fallback responses always carry fallback_used=true and a disclosure note.",
+        },
       },
       required: ["indicator", "country"],
       additionalProperties: false,
@@ -212,6 +217,7 @@ export const TOOLS: ToolDef[] = [
         end: args.end_year != null ? String(num(args, "end_year")) : undefined,
         transform: parseTransform(args.transform),
         limit: latestOnly ? 1 : 80,
+        strictSource: args.strict_source === true,
       });
       return result;
     },
@@ -233,6 +239,11 @@ export const TOOLS: ToolDef[] = [
         claimed_value: { type: "number", description: "The value as claimed (in the series' own units)." },
         tolerance_abs: { type: "number", description: "Optional absolute tolerance in series units (e.g. 0.1 percentage points)." },
         tolerance_pct: { type: "number", description: "Optional relative tolerance in percent." },
+        strict_source: {
+          type: "boolean",
+          description:
+            "Reproducibility mode: never verify against a fallback source — error instead if the primary source fails. Default false; fallback-based verdicts always carry fallback_used=true.",
+        },
       },
       required: ["indicator", "period", "claimed_value"],
       additionalProperties: false,
@@ -245,6 +256,7 @@ export const TOOLS: ToolDef[] = [
         claimed_value: num(args, "claimed_value"),
         tolerance_abs: args.tolerance_abs != null ? num(args, "tolerance_abs") : undefined,
         tolerance_pct: args.tolerance_pct != null ? num(args, "tolerance_pct") : undefined,
+        strict_source: args.strict_source === true,
       }),
   },
   {
@@ -277,11 +289,16 @@ export const TOOLS: ToolDef[] = [
             additionalProperties: false,
           },
         },
+        strict_source: {
+          type: "boolean",
+          description:
+            "Reproducibility mode for the whole batch: never verify any claim against a fallback source — such claims error in place instead. Default false.",
+        },
       },
       required: ["claims"],
       additionalProperties: false,
     },
-    handler: async (ctx, args) => runVerifyClaims(ctx, args.claims),
+    handler: async (ctx, args) => runVerifyClaims(ctx, args.claims, args.strict_source === true),
   },
   {
     name: "get_series",
@@ -296,6 +313,10 @@ export const TOOLS: ToolDef[] = [
         start_year: { type: "integer" },
         end_year: { type: "integer" },
         transform: { type: "string", enum: TRANSFORMS },
+        strict_source: {
+          type: "boolean",
+          description: "Reproducibility mode for registry-key ids: never substitute the fallback source. No effect on explicit source-prefixed ids (they already pin one source).",
+        },
       },
       required: ["series_id"],
       additionalProperties: false,
@@ -307,6 +328,7 @@ export const TOOLS: ToolDef[] = [
         end: args.end_year != null ? String(num(args, "end_year")) : undefined,
         transform: parseTransform(args.transform),
         limit: 120,
+        strictSource: args.strict_source === true,
       }),
   },
   {

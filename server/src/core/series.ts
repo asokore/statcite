@@ -18,6 +18,11 @@ export interface SeriesOpts {
   transform?: Transform;
   /** Trim to the most recent N non-trailing-null observations (after transform). */
   limit?: number;
+  /** Reproducibility mode: never substitute the fallback source when the primary
+   * fails — surface the primary's error instead. Two calls to the same query can
+   * otherwise return different values from different statistical sources when the
+   * primary has a transient outage. */
+  strictSource?: boolean;
 }
 
 export function requireCountry(input: string): Country {
@@ -85,8 +90,28 @@ function weoProjectionNote(datasetCode: string, observations: { period: string }
   const vintage = parseInt(m[1], 10);
   const hasFuture = observations.some((o) => parseInt(o.period.slice(0, 4), 10) >= vintage);
   return hasFuture
-    ? `Values for ${vintage} onward are IMF WEO estimates/projections from the ${datasetCode.replace("WEO:", "")} vintage, not final outturns.`
+    ? `Values for ${vintage} onward are IMF WEO estimates/projections from the ${datasetCode.replace("WEO:", "")} vintage, not final outturns. This boundary is a vintage-year heuristic: the IMF's "latest actual" year varies by country and series, so some observations before ${vintage} may also be IMF staff estimates rather than final outturns.`
     : undefined;
+}
+
+/** The WEO edition the IMF should have published by `now` (releases: April & October). */
+export function expectedWeoEdition(now: Date = new Date()): string {
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth() + 1;
+  if (m >= 11) return `${y}-10`;
+  if (m >= 5) return `${y}-04`;
+  return `${y - 1}-10`;
+}
+
+/** Stale-vintage disclosure when the resolved WEO edition lags the IMF's release
+ * calendar — i.e. the aggregator (DBnomics) has not yet ingested the newest WEO. */
+export function weoVintageStaleNote(datasetCode: string, now: Date = new Date()): string | undefined {
+  const m = datasetCode.match(/WEO:(\d{4}-\d{2})/);
+  if (!m) return undefined;
+  const resolved = m[1];
+  const expected = expectedWeoEdition(now);
+  if (resolved >= expected) return undefined;
+  return `IMF WEO vintage ${resolved} is the newest edition available via DBnomics (this server's IMF data path); the IMF has likely published a newer WEO release (expected ${expected}) that DBnomics has not yet ingested. Values, estimates, and projections reflect the ${resolved} vintage, not necessarily the IMF's current release.`;
 }
 
 /** Mark per-observation projection notes for WEO-style series. */
@@ -137,6 +162,8 @@ async function indicatorFromDbnomics(ctx: Ctx, def: IndicatorDef, country: Count
   const notes = def.notes ? [def.notes] : [];
   const projNote = weoProjectionNote(s.datasetCode, s.observations);
   if (projNote) notes.push(projNote);
+  const staleNote = weoVintageStaleNote(s.datasetCode);
+  if (staleNote) notes.push(staleNote);
   markWeoProjections(s.datasetCode, s.observations);
   const result: SeriesResult = {
     series_id: `dbnomics/${s.providerCode}/${s.datasetCode}/${s.seriesCode}`,
@@ -208,14 +235,18 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
     attempts.push({ label: "FRED", run: () => indicatorFromFred(ctx, def, opts) });
   }
 
+  // Reproducibility mode: only the primary source is ever consulted.
+  const tried = opts.strictSource ? attempts.slice(0, 1) : attempts;
+
   const errors: string[] = [];
   let firstErrorWasTransient = false;
-  for (let i = 0; i < attempts.length; i++) {
+  for (let i = 0; i < tried.length; i++) {
     try {
-      const result = await attempts[i].run();
+      const result = await tried[i].run();
       if (i > 0) {
-        const primaryLabel = attempts[0].label;
-        const servedLabel = attempts[i].label;
+        result.fallback_used = true;
+        const primaryLabel = tried[0].label;
+        const servedLabel = tried[i].label;
         // Two distinct classes of fallback, disclosed differently: a transient
         // upstream failure (retries already exhausted in fetchJson) can recur on
         // a later call to the SAME query and get the primary source back — and
@@ -236,6 +267,15 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
       if (i === 0) firstErrorWasTransient = isTransientUpstreamError(e);
       errors.push(e instanceof Error ? e.message : String(e));
     }
+  }
+  if (opts.strictSource && attempts.length > tried.length) {
+    throw new ToolError(
+      `Could not retrieve '${def.key}' for ${country.name} from its primary source (${tried[0].label}): ${errors.join(" | ")}. ` +
+        `strict_source=true prevented fallback to ${attempts[1].label}` +
+        (firstErrorWasTransient ? "; the failure looks transient — retrying this query may succeed, or drop strict_source to accept the fallback source" : "") +
+        ".",
+      { indicator: def.key, country: country.iso3, strict_source: true },
+    );
   }
   throw new ToolError(
     `Could not retrieve '${def.key}' for ${country.name}: ${errors.join(" | ")}`,
@@ -323,6 +363,8 @@ export async function getSeries(
     const notes: string[] = [];
     const projNote = weoProjectionNote(s.datasetCode, s.observations);
     if (projNote) notes.push(projNote);
+    const staleNote = weoVintageStaleNote(s.datasetCode);
+    if (staleNote) notes.push(staleNote);
     markWeoProjections(s.datasetCode, s.observations);
     return finishSeries(
       {
@@ -392,15 +434,23 @@ export async function searchIndicators(ctx: Ctx, query: string, opts: { includeD
 }
 
 export function listRegistry(): Array<{ key: string; label: string; unit: string; sources: string[]; notes?: string }> {
-  return INDICATORS.map((d) => ({
-    key: d.key,
-    label: d.label,
-    unit: d.unit,
-    sources: [
-      ...(d.wb ? ["World Bank WDI"] : []),
-      ...(d.dbnomics ? [`${d.dbnomics[0]} ${d.dbnomics[1].replace(":latest", "")} (via DBnomics)`] : []),
-      ...(d.fred ? ["FRED (US)"] : []),
-    ],
-    notes: d.notes,
-  }));
+  return INDICATORS.map((d) => {
+    // Source order mirrors the actual resolution order in getIndicator: for
+    // DB_PRIMARY keys (and dbnomics-only defs) IMF WEO is the primary source,
+    // not a fallback — the docs table is generated from this list, so listing
+    // WB first here previously contradicted the served behavior.
+    const dbLabel = d.dbnomics ? `${d.dbnomics[0]} ${d.dbnomics[1].replace(":latest", "")} (via DBnomics)` : undefined;
+    const wbLabel = d.wb ? "World Bank WDI" : undefined;
+    const dbFirst = d.dbnomics && (!d.wb || DB_PRIMARY.has(d.key));
+    return {
+      key: d.key,
+      label: d.label,
+      unit: d.unit,
+      sources: [
+        ...(dbFirst ? [dbLabel!, ...(wbLabel ? [wbLabel] : [])] : [...(wbLabel ? [wbLabel] : []), ...(dbLabel ? [dbLabel] : [])]),
+        ...(d.fred ? ["FRED (US)"] : []),
+      ],
+      notes: d.notes,
+    };
+  });
 }
