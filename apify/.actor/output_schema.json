@@ -1,0 +1,14 @@
+{
+  "actorOutputSchemaVersion": 1,
+  "title": "StatCite results",
+  "description": "One row per query item, in the order submitted. Successful rows carry the cited value under `result` (the same shape statcite.com/v1 and the MCP tools return); failed rows carry an `error` message instead. Successes and failures share the same dataset — failed items are never charged.",
+  "type": "object",
+  "properties": {
+    "results": {
+      "type": "string",
+      "title": "Query results",
+      "description": "Every item from this run: `ok`, `operation`, plus `result` (with citation) or `error`.",
+      "template": "{{links.apiDefaultDatasetUrl}}/items"
+    }
+  }
+}

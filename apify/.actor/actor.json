@@ -5,6 +5,7 @@
   "description": "Official economic statistics with full citations — World Bank, IMF WEO, ECB — plus verify_stat: check any claimed figure against the official series. 42 indicators, 200+ economies, ~120 currencies, inflation adjustment, historical FX.",
   "version": "1.0",
   "input": "./input_schema.json",
+  "output": "./output_schema.json",
   "meta": {
     "templateId": "js-empty"
   },
