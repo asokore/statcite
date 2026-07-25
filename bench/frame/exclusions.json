@@ -1,0 +1,27 @@
+{
+  "generated_at": "2026-07-25T20:02:03.910Z",
+  "spec": "METHODOLOGY §1.3 contested-data exclusion list. Every entry carries a justification. generate_bank.mjs applies these on top of frame eligibility.",
+  "exclusions": [
+    {
+      "iso3": "VEN",
+      "country_name": "Venezuela",
+      "indicators": [
+        "gdp_growth",
+        "gdp_current_usd",
+        "govt_debt_gdp",
+        "fiscal_balance_gdp",
+        "current_account_gdp",
+        "fdi_inflows_gdp"
+      ],
+      "years": [
+        2018,
+        2019,
+        2020,
+        2021,
+        2022
+      ],
+      "reason": "contested_official_data",
+      "justification": "Venezuela's Class-C macro aggregates for 2018-2022 (GDP levels and growth, debt, fiscal and external balances, FDI ratios) span a hyperinflation and reporting breakdown in which official figures are disputed and heavily model-imputed; grading recall against them measures politics, not memory (METHODOLOGY §1.3)."
+    }
+  ]
+}

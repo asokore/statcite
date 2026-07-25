@@ -1,0 +1,1657 @@
+{
+  "generated_at": "2026-07-25T16:39:30.769Z",
+  "rule": "ranked by nominal GDP (current US$, latest published outturn at enumeration time); T1 ranks 1-20, T2 21-60, T3 61-120, T4 121+; economies with no retrievable GDP rank last (T4), ties broken by ISO3",
+  "economies": [
+    {
+      "iso3": "USA",
+      "name": "United States",
+      "rank": 1,
+      "tier": "T1",
+      "gdp_usd": 30769700000000,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "CHN",
+      "name": "China",
+      "rank": 2,
+      "tier": "T1",
+      "gdp_usd": 19498039388042.6,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "DEU",
+      "name": "Germany",
+      "rank": 3,
+      "tier": "T1",
+      "gdp_usd": 5050922925047.05,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "JPN",
+      "name": "Japan",
+      "rank": 4,
+      "tier": "T1",
+      "gdp_usd": 4435162999976.94,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "GBR",
+      "name": "United Kingdom",
+      "rank": 5,
+      "tier": "T1",
+      "gdp_usd": 4002587541846.01,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "IND",
+      "name": "India",
+      "rank": 6,
+      "tier": "T1",
+      "gdp_usd": 3956067115771.63,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "FRA",
+      "name": "France",
+      "rank": 7,
+      "tier": "T1",
+      "gdp_usd": 3366315927447.33,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "RUS",
+      "name": "Russian Federation",
+      "rank": 8,
+      "tier": "T1",
+      "gdp_usd": 2561310169358.74,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "ITA",
+      "name": "Italy",
+      "rank": 9,
+      "tier": "T1",
+      "gdp_usd": 2551556954100.35,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "CAN",
+      "name": "Canada",
+      "rank": 10,
+      "tier": "T1",
+      "gdp_usd": 2319899772425.92,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "BRA",
+      "name": "Brazil",
+      "rank": 11,
+      "tier": "T1",
+      "gdp_usd": 2279920092492.13,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "ESP",
+      "name": "Spain",
+      "rank": 12,
+      "tier": "T1",
+      "gdp_usd": 1906453309985.88,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "KOR",
+      "name": "Korea, Rep.",
+      "rank": 13,
+      "tier": "T1",
+      "gdp_usd": 1872374961553.15,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "MEX",
+      "name": "Mexico",
+      "rank": 14,
+      "tier": "T1",
+      "gdp_usd": 1832641364775.52,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "AUS",
+      "name": "Australia",
+      "rank": 15,
+      "tier": "T1",
+      "gdp_usd": 1798518933689.21,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "TUR",
+      "name": "Turkiye",
+      "rank": 16,
+      "tier": "T1",
+      "gdp_usd": 1597293229287,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "IDN",
+      "name": "Indonesia",
+      "rank": 17,
+      "tier": "T1",
+      "gdp_usd": 1445642584163.81,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "NLD",
+      "name": "Netherlands",
+      "rank": 18,
+      "tier": "T1",
+      "gdp_usd": 1332767651100.39,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "SAU",
+      "name": "Saudi Arabia",
+      "rank": 19,
+      "tier": "T1",
+      "gdp_usd": 1276942933333.33,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "CHE",
+      "name": "Switzerland",
+      "rank": 20,
+      "tier": "T1",
+      "gdp_usd": 1043529899250.92,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "POL",
+      "name": "Poland",
+      "rank": 21,
+      "tier": "T2",
+      "gdp_usd": 1035491784197.44,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "BEL",
+      "name": "Belgium",
+      "rank": 22,
+      "tier": "T2",
+      "gdp_usd": 725466462859.646,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "IRL",
+      "name": "Ireland",
+      "rank": 23,
+      "tier": "T2",
+      "gdp_usd": 721701359046.313,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "ARG",
+      "name": "Argentina",
+      "rank": 24,
+      "tier": "T2",
+      "gdp_usd": 683097891618.597,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "SWE",
+      "name": "Sweden",
+      "rank": 25,
+      "tier": "T2",
+      "gdp_usd": 668998664082.081,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "ISR",
+      "name": "Israel",
+      "rank": 26,
+      "tier": "T2",
+      "gdp_usd": 610777842873.595,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "SGP",
+      "name": "Singapore",
+      "rank": 27,
+      "tier": "T2",
+      "gdp_usd": 603869516998.738,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "AUT",
+      "name": "Austria",
+      "rank": 28,
+      "tier": "T2",
+      "gdp_usd": 579470021095.418,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "THA",
+      "name": "Thailand",
+      "rank": 29,
+      "tier": "T2",
+      "gdp_usd": 577009981112.015,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "ARE",
+      "name": "United Arab Emirates",
+      "rank": 30,
+      "tier": "T2",
+      "gdp_usd": 552324919095.872,
+      "gdp_year": "2024"
+    },
+    {
+      "iso3": "NOR",
+      "name": "Norway",
+      "rank": 31,
+      "tier": "T2",
+      "gdp_usd": 530755719438.879,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "VNM",
+      "name": "Viet Nam",
+      "rank": 32,
+      "tier": "T2",
+      "gdp_usd": 514697215165.065,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "PHL",
+      "name": "Philippines",
+      "rank": 33,
+      "tier": "T2",
+      "gdp_usd": 487086123720.417,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "MYS",
+      "name": "Malaysia",
+      "rank": 34,
+      "tier": "T2",
+      "gdp_usd": 472193128644.597,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "DNK",
+      "name": "Denmark",
+      "rank": 35,
+      "tier": "T2",
+      "gdp_usd": 462526660468.393,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "COL",
+      "name": "Colombia",
+      "rank": 36,
+      "tier": "T2",
+      "gdp_usd": 457410034202.523,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "BGD",
+      "name": "Bangladesh",
+      "rank": 37,
+      "tier": "T2",
+      "gdp_usd": 456319229255.578,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "ROU",
+      "name": "Romania",
+      "rank": 38,
+      "tier": "T2",
+      "gdp_usd": 428677977854.826,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "HKG",
+      "name": "Hong Kong SAR, China",
+      "rank": 39,
+      "tier": "T2",
+      "gdp_usd": 427310315921.993,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "ZAF",
+      "name": "South Africa",
+      "rank": 40,
+      "tier": "T2",
+      "gdp_usd": 427184325997.307,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "PAK",
+      "name": "Pakistan",
+      "rank": 41,
+      "tier": "T2",
+      "gdp_usd": 407307214476.222,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "CZE",
+      "name": "Czechia",
+      "rank": 42,
+      "tier": "T2",
+      "gdp_usd": 391026962800.475,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "EGY",
+      "name": "Egypt",
+      "rank": 43,
+      "tier": "T2",
+      "gdp_usd": 365254630179.737,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "IRN",
+      "name": "Iran, Islamic Rep.",
+      "rank": 44,
+      "tier": "T2",
+      "gdp_usd": 362682115433.364,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "CHL",
+      "name": "Chile",
+      "rank": 45,
+      "tier": "T2",
+      "gdp_usd": 357371159574.862,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "PRT",
+      "name": "Portugal",
+      "rank": 46,
+      "tier": "T2",
+      "gdp_usd": 346639825141.821,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "PER",
+      "name": "Peru",
+      "rank": 47,
+      "tier": "T2",
+      "gdp_usd": 334854659181.893,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "FIN",
+      "name": "Finland",
+      "rank": 48,
+      "tier": "T2",
+      "gdp_usd": 317039368819.607,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "KAZ",
+      "name": "Kazakhstan",
+      "rank": 49,
+      "tier": "T2",
+      "gdp_usd": 306239209650.024,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "NGA",
+      "name": "Nigeria",
+      "rank": 50,
+      "tier": "T2",
+      "gdp_usd": 290794361542.112,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "DZA",
+      "name": "Algeria",
+      "rank": 51,
+      "tier": "T2",
+      "gdp_usd": 287031225987.736,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "GRC",
+      "name": "Greece",
+      "rank": 52,
+      "tier": "T2",
+      "gdp_usd": 280635521324.441,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "NZL",
+      "name": "New Zealand",
+      "rank": 53,
+      "tier": "T2",
+      "gdp_usd": 264057413739.965,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "IRQ",
+      "name": "Iraq",
+      "rank": 54,
+      "tier": "T2",
+      "gdp_usd": 254367293538.462,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "HUN",
+      "name": "Hungary",
+      "rank": 55,
+      "tier": "T2",
+      "gdp_usd": 246490213513.054,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "QAT",
+      "name": "Qatar",
+      "rank": 56,
+      "tier": "T2",
+      "gdp_usd": 215559615384.615,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "UKR",
+      "name": "Ukraine",
+      "rank": 57,
+      "tier": "T2",
+      "gdp_usd": 214233312784.397,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "MAR",
+      "name": "Morocco",
+      "rank": 58,
+      "tier": "T2",
+      "gdp_usd": 182374250612.28,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "KWT",
+      "name": "Kuwait",
+      "rank": 59,
+      "tier": "T2",
+      "gdp_usd": 157209026926.418,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "SVK",
+      "name": "Slovak Republic",
+      "rank": 60,
+      "tier": "T2",
+      "gdp_usd": 154530066506.895,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "UZB",
+      "name": "Uzbekistan",
+      "rank": 61,
+      "tier": "T3",
+      "gdp_usd": 147038081129.405,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "KEN",
+      "name": "Kenya",
+      "rank": 62,
+      "tier": "T3",
+      "gdp_usd": 135941278878.815,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "BGR",
+      "name": "Bulgaria",
+      "rank": 63,
+      "tier": "T3",
+      "gdp_usd": 130777235529.606,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "ECU",
+      "name": "Ecuador",
+      "rank": 64,
+      "tier": "T3",
+      "gdp_usd": 130320560400,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "PRI",
+      "name": "Puerto Rico",
+      "rank": 65,
+      "tier": "T3",
+      "gdp_usd": 129368484000,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "DOM",
+      "name": "Dominican Republic",
+      "rank": 66,
+      "tier": "T3",
+      "gdp_usd": 127407463759.043,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "ETH",
+      "name": "Ethiopia",
+      "rank": 67,
+      "tier": "T3",
+      "gdp_usd": 126358758448.356,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "GTM",
+      "name": "Guatemala",
+      "rank": 68,
+      "tier": "T3",
+      "gdp_usd": 123306008821.471,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "AGO",
+      "name": "Angola",
+      "rank": 69,
+      "tier": "T3",
+      "gdp_usd": 122174889423.635,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "GHA",
+      "name": "Ghana",
+      "rank": 70,
+      "tier": "T3",
+      "gdp_usd": 114209905278.717,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "OMN",
+      "name": "Oman",
+      "rank": 71,
+      "tier": "T3",
+      "gdp_usd": 109604780696.23,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "LKA",
+      "name": "Sri Lanka",
+      "rank": 72,
+      "tier": "T3",
+      "gdp_usd": 108825231671.196,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "CUB",
+      "name": "Cuba",
+      "rank": 73,
+      "tier": "T3",
+      "gdp_usd": 107352000000,
+      "gdp_year": "2020"
+    },
+    {
+      "iso3": "HRV",
+      "name": "Croatia",
+      "rank": 74,
+      "tier": "T3",
+      "gdp_usd": 105060182186.274,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "CRI",
+      "name": "Costa Rica",
+      "rank": 75,
+      "tier": "T3",
+      "gdp_usd": 102904921157.478,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "LUX",
+      "name": "Luxembourg",
+      "rank": 76,
+      "tier": "T3",
+      "gdp_usd": 101157829491.107,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "SRB",
+      "name": "Serbia",
+      "rank": 77,
+      "tier": "T3",
+      "gdp_usd": 99953324472.9042,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "CIV",
+      "name": "Cote d'Ivoire",
+      "rank": 78,
+      "tier": "T3",
+      "gdp_usd": 99773555666.1988,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "VEN",
+      "name": "Venezuela, RB",
+      "rank": 79,
+      "tier": "T3",
+      "gdp_usd": 99661244155.6306,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "LTU",
+      "name": "Lithuania",
+      "rank": 80,
+      "tier": "T3",
+      "gdp_usd": 95210150818.3512,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "BLR",
+      "name": "Belarus",
+      "rank": 81,
+      "tier": "T3",
+      "gdp_usd": 93397215864.198,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "COD",
+      "name": "Congo, Dem. Rep.",
+      "rank": 82,
+      "tier": "T3",
+      "gdp_usd": 91030531316.9936,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "PAN",
+      "name": "Panama",
+      "rank": 83,
+      "tier": "T3",
+      "gdp_usd": 90462600000,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "TZA",
+      "name": "Tanzania",
+      "rank": 84,
+      "tier": "T3",
+      "gdp_usd": 90143496090.4411,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "URY",
+      "name": "Uruguay",
+      "rank": 85,
+      "tier": "T3",
+      "gdp_usd": 85347696277.6859,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "MMR",
+      "name": "Myanmar",
+      "rank": 86,
+      "tier": "T3",
+      "gdp_usd": 81665773809.5238,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "SVN",
+      "name": "Slovenia",
+      "rank": 87,
+      "tier": "T3",
+      "gdp_usd": 79648204979.3618,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "AZE",
+      "name": "Azerbaijan",
+      "rank": 88,
+      "tier": "T3",
+      "gdp_usd": 75937647058.8235,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "BOL",
+      "name": "Bolivia",
+      "rank": 89,
+      "tier": "T3",
+      "gdp_usd": 64768947525.3256,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "UGA",
+      "name": "Uganda",
+      "rank": 90,
+      "tier": "T3",
+      "gdp_usd": 61985829288.1496,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "JOR",
+      "name": "Jordan",
+      "rank": 91,
+      "tier": "T3",
+      "gdp_usd": 61610052535.2113,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "SDN",
+      "name": "Sudan",
+      "rank": 92,
+      "tier": "T3",
+      "gdp_usd": 60162634574.4689,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "CMR",
+      "name": "Cameroon",
+      "rank": 93,
+      "tier": "T3",
+      "gdp_usd": 58933453923.761,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "TUN",
+      "name": "Tunisia",
+      "rank": 94,
+      "tier": "T3",
+      "gdp_usd": 57502836548.0878,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "MAC",
+      "name": "Macao SAR, China",
+      "rank": 95,
+      "tier": "T3",
+      "gdp_usd": 52061007670.169,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "KHM",
+      "name": "Cambodia",
+      "rank": 96,
+      "tier": "T3",
+      "gdp_usd": 51267065842.9641,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "ZWE",
+      "name": "Zimbabwe",
+      "rank": 97,
+      "tier": "T3",
+      "gdp_usd": 51215643905.5886,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "TKM",
+      "name": "Turkmenistan",
+      "rank": 98,
+      "tier": "T3",
+      "gdp_usd": 49828621355.6516,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "PRY",
+      "name": "Paraguay",
+      "rank": 99,
+      "tier": "T3",
+      "gdp_usd": 49278227554.3339,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "BHR",
+      "name": "Bahrain",
+      "rank": 100,
+      "tier": "T3",
+      "gdp_usd": 48965725531.9149,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "LVA",
+      "name": "Latvia",
+      "rank": 101,
+      "tier": "T3",
+      "gdp_usd": 48618869160.3254,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "LBY",
+      "name": "Libya",
+      "rank": 102,
+      "tier": "T3",
+      "gdp_usd": 48098909613.6316,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "EST",
+      "name": "Estonia",
+      "rank": 103,
+      "tier": "T3",
+      "gdp_usd": 47030833798.5866,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "NPL",
+      "name": "Nepal",
+      "rank": 104,
+      "tier": "T3",
+      "gdp_usd": 45489810283.1132,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "CYP",
+      "name": "Cyprus",
+      "rank": 105,
+      "tier": "T3",
+      "gdp_usd": 41225787247.3309,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "HND",
+      "name": "Honduras",
+      "rank": 106,
+      "tier": "T3",
+      "gdp_usd": 39601409103.3005,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "ISL",
+      "name": "Iceland",
+      "rank": 107,
+      "tier": "T3",
+      "gdp_usd": 38582528789.0033,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "GEO",
+      "name": "Georgia",
+      "rank": 108,
+      "tier": "T3",
+      "gdp_usd": 38143612855.1367,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "SEN",
+      "name": "Senegal",
+      "rank": 109,
+      "tier": "T3",
+      "gdp_usd": 37006536238.3731,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "SLV",
+      "name": "El Salvador",
+      "rank": 110,
+      "tier": "T3",
+      "gdp_usd": 36708110000,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "BIH",
+      "name": "Bosnia and Herzegovina",
+      "rank": 111,
+      "tier": "T3",
+      "gdp_usd": 32599982936.3931,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "PNG",
+      "name": "Papua New Guinea",
+      "rank": 112,
+      "tier": "T3",
+      "gdp_usd": 32498658653.8415,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "HTI",
+      "name": "Haiti",
+      "rank": 113,
+      "tier": "T3",
+      "gdp_usd": 32077278409.2339,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "ALB",
+      "name": "Albania",
+      "rank": 114,
+      "tier": "T3",
+      "gdp_usd": 30540188271.3421,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "MLI",
+      "name": "Mali",
+      "rank": 115,
+      "tier": "T3",
+      "gdp_usd": 30069148580.7688,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "ARM",
+      "name": "Armenia",
+      "rank": 116,
+      "tier": "T3",
+      "gdp_usd": 29243452882.3545,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "ZMB",
+      "name": "Zambia",
+      "rank": 117,
+      "tier": "T3",
+      "gdp_usd": 28879806220.1264,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "GIN",
+      "name": "Guinea",
+      "rank": 118,
+      "tier": "T3",
+      "gdp_usd": 28346024753.2924,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "MLT",
+      "name": "Malta",
+      "rank": 119,
+      "tier": "T3",
+      "gdp_usd": 27771821560.9411,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "BFA",
+      "name": "Burkina Faso",
+      "rank": 120,
+      "tier": "T3",
+      "gdp_usd": 27627297461.3181,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "GUY",
+      "name": "Guyana",
+      "rank": 121,
+      "tier": "T4",
+      "gdp_usd": 27097477218.2254,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "LBN",
+      "name": "Lebanon",
+      "rank": 122,
+      "tier": "T4",
+      "gdp_usd": 25971643441.3408,
+      "gdp_year": "2024"
+    },
+    {
+      "iso3": "TTO",
+      "name": "Trinidad and Tobago",
+      "rank": 123,
+      "tier": "T4",
+      "gdp_usd": 25942749718.4685,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "MNG",
+      "name": "Mongolia",
+      "rank": 124,
+      "tier": "T4",
+      "gdp_usd": 25369107325.4549,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "BEN",
+      "name": "Benin",
+      "rank": 125,
+      "tier": "T4",
+      "gdp_usd": 24566420903.5337,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "SYR",
+      "name": "Syrian Arab Republic",
+      "rank": 126,
+      "tier": "T4",
+      "gdp_usd": 23737634644.3994,
+      "gdp_year": "2022"
+    },
+    {
+      "iso3": "JAM",
+      "name": "Jamaica",
+      "rank": 127,
+      "tier": "T4",
+      "gdp_usd": 22704903217.5631,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "MOZ",
+      "name": "Mozambique",
+      "rank": 128,
+      "tier": "T4",
+      "gdp_usd": 22337997046.1913,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "NIC",
+      "name": "Nicaragua",
+      "rank": 129,
+      "tier": "T4",
+      "gdp_usd": 22237167113.0916,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "NER",
+      "name": "Niger",
+      "rank": 130,
+      "tier": "T4",
+      "gdp_usd": 21646191388.2507,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "YEM",
+      "name": "Yemen, Rep.",
+      "rank": 131,
+      "tier": "T4",
+      "gdp_usd": 21606160663.0318,
+      "gdp_year": "2018"
+    },
+    {
+      "iso3": "TCD",
+      "name": "Chad",
+      "rank": 132,
+      "tier": "T4",
+      "gdp_usd": 21472835225.4338,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "GAB",
+      "name": "Gabon",
+      "rank": 133,
+      "tier": "T4",
+      "gdp_usd": 21427119323.2764,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "MDA",
+      "name": "Moldova",
+      "rank": 134,
+      "tier": "T4",
+      "gdp_usd": 20351796275.2943,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "BWA",
+      "name": "Botswana",
+      "rank": 135,
+      "tier": "T4",
+      "gdp_usd": 19928479839.4476,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "MDG",
+      "name": "Madagascar",
+      "rank": 136,
+      "tier": "T4",
+      "gdp_usd": 19620352035.7899,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "MKD",
+      "name": "North Macedonia",
+      "rank": 137,
+      "tier": "T4",
+      "gdp_usd": 19101199817.0174,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "LAO",
+      "name": "Lao PDR",
+      "rank": 138,
+      "tier": "T4",
+      "gdp_usd": 18302970218.5902,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "AFG",
+      "name": "Afghanistan",
+      "rank": 139,
+      "tier": "T4",
+      "gdp_usd": 17778508875.7396,
+      "gdp_year": "2024"
+    },
+    {
+      "iso3": "TJK",
+      "name": "Tajikistan",
+      "rank": 140,
+      "tier": "T4",
+      "gdp_usd": 17660626562.4832,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "PSE",
+      "name": "West Bank and Gaza",
+      "rank": 141,
+      "tier": "T4",
+      "gdp_usd": 17167100000,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "RWA",
+      "name": "Rwanda",
+      "rank": 142,
+      "tier": "T4",
+      "gdp_usd": 16372132990.2271,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "COG",
+      "name": "Congo, Rep.",
+      "rank": 143,
+      "tier": "T4",
+      "gdp_usd": 16306633778.765,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "MUS",
+      "name": "Mauritius",
+      "rank": 144,
+      "tier": "T4",
+      "gdp_usd": 16157804491.7614,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "BHS",
+      "name": "Bahamas",
+      "rank": 145,
+      "tier": "T4",
+      "gdp_usd": 15832800000,
+      "gdp_year": "2024"
+    },
+    {
+      "iso3": "NAM",
+      "name": "Namibia",
+      "rank": 146,
+      "tier": "T4",
+      "gdp_usd": 15080340653.5276,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "BRN",
+      "name": "Brunei Darussalam",
+      "rank": 147,
+      "tier": "T4",
+      "gdp_usd": 15031980994.1121,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "MWI",
+      "name": "Malawi",
+      "rank": 148,
+      "tier": "T4",
+      "gdp_usd": 14918276698.303,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "SOM",
+      "name": "Somalia",
+      "rank": 149,
+      "tier": "T4",
+      "gdp_usd": 12995200000.2658,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "GNQ",
+      "name": "Equatorial Guinea",
+      "rank": 150,
+      "tier": "T4",
+      "gdp_usd": 12823210425.9217,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "XKX",
+      "name": "Kosovo",
+      "rank": 151,
+      "tier": "T4",
+      "gdp_usd": 12456403306.8191,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "SSD",
+      "name": "South Sudan",
+      "rank": 152,
+      "tier": "T4",
+      "gdp_usd": 11997800760.2242,
+      "gdp_year": "2015"
+    },
+    {
+      "iso3": "TGO",
+      "name": "Togo",
+      "rank": 153,
+      "tier": "T4",
+      "gdp_usd": 11889949067.4697,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "MRT",
+      "name": "Mauritania",
+      "rank": 154,
+      "tier": "T4",
+      "gdp_usd": 11679910946.4371,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "MCO",
+      "name": "Monaco",
+      "rank": 155,
+      "tier": "T4",
+      "gdp_usd": 11125788838.2812,
+      "gdp_year": "2024"
+    },
+    {
+      "iso3": "MNE",
+      "name": "Montenegro",
+      "rank": 156,
+      "tier": "T4",
+      "gdp_usd": 9232801464.79257,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "BMU",
+      "name": "Bermuda",
+      "rank": 157,
+      "tier": "T4",
+      "gdp_usd": 9194499000,
+      "gdp_year": "2024"
+    },
+    {
+      "iso3": "LIE",
+      "name": "Liechtenstein",
+      "rank": 158,
+      "tier": "T4",
+      "gdp_usd": 8905764270.4054,
+      "gdp_year": "2024"
+    },
+    {
+      "iso3": "NCL",
+      "name": "New Caledonia",
+      "rank": 159,
+      "tier": "T4",
+      "gdp_usd": 8548919387.12607,
+      "gdp_year": "2024"
+    },
+    {
+      "iso3": "BRB",
+      "name": "Barbados",
+      "rank": 160,
+      "tier": "T4",
+      "gdp_usd": 8016550000,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "CYM",
+      "name": "Cayman Islands",
+      "rank": 161,
+      "tier": "T4",
+      "gdp_usd": 7765336505.34319,
+      "gdp_year": "2024"
+    },
+    {
+      "iso3": "MDV",
+      "name": "Maldives",
+      "rank": 162,
+      "tier": "T4",
+      "gdp_usd": 7741066860.6337,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "SLE",
+      "name": "Sierra Leone",
+      "rank": 163,
+      "tier": "T4",
+      "gdp_usd": 7464157904.43509,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "PYF",
+      "name": "French Polynesia",
+      "rank": 164,
+      "tier": "T4",
+      "gdp_usd": 6323716355.05009,
+      "gdp_year": "2024"
+    },
+    {
+      "iso3": "FJI",
+      "name": "Fiji",
+      "rank": 165,
+      "tier": "T4",
+      "gdp_usd": 6198013062.06553,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "LBR",
+      "name": "Liberia",
+      "rank": 166,
+      "tier": "T4",
+      "gdp_usd": 5245938900,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "SWZ",
+      "name": "Eswatini",
+      "rank": 167,
+      "tier": "T4",
+      "gdp_usd": 5160679612.81734,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "DJI",
+      "name": "Djibouti",
+      "rank": 168,
+      "tier": "T4",
+      "gdp_usd": 4624533092.31886,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "SUR",
+      "name": "Suriname",
+      "rank": 169,
+      "tier": "T4",
+      "gdp_usd": 4523657796.86421,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "AND",
+      "name": "Andorra",
+      "rank": 170,
+      "tier": "T4",
+      "gdp_usd": 4500982731.80784,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "ABW",
+      "name": "Aruba",
+      "rank": 171,
+      "tier": "T4",
+      "gdp_usd": 4167588070.29217,
+      "gdp_year": "2024"
+    },
+    {
+      "iso3": "BTN",
+      "name": "Bhutan",
+      "rank": 172,
+      "tier": "T4",
+      "gdp_usd": 3579320145.13077,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "CUW",
+      "name": "Curacao",
+      "rank": 173,
+      "tier": "T4",
+      "gdp_usd": 3561178212.2905,
+      "gdp_year": "2024"
+    },
+    {
+      "iso3": "BDI",
+      "name": "Burundi",
+      "rank": 174,
+      "tier": "T4",
+      "gdp_usd": 3364713864.08488,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "BLZ",
+      "name": "Belize",
+      "rank": 175,
+      "tier": "T4",
+      "gdp_usd": 3326500000,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "CAF",
+      "name": "Central African Republic",
+      "rank": 176,
+      "tier": "T4",
+      "gdp_usd": 3066109226.40165,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "CPV",
+      "name": "Cabo Verde",
+      "rank": 177,
+      "tier": "T4",
+      "gdp_usd": 3056630435.32463,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "LCA",
+      "name": "St. Lucia",
+      "rank": 178,
+      "tier": "T4",
+      "gdp_usd": 2656444444.44444,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "GMB",
+      "name": "Gambia",
+      "rank": 179,
+      "tier": "T4",
+      "gdp_usd": 2593673987.53306,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "LSO",
+      "name": "Lesotho",
+      "rank": 180,
+      "tier": "T4",
+      "gdp_usd": 2573572920.05159,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "GNB",
+      "name": "Guinea-Bissau",
+      "rank": 181,
+      "tier": "T4",
+      "gdp_usd": 2527930272.92988,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "SYC",
+      "name": "Seychelles",
+      "rank": 182,
+      "tier": "T4",
+      "gdp_usd": 2387022853.48583,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "ATG",
+      "name": "Antigua and Barbuda",
+      "rank": 183,
+      "tier": "T4",
+      "gdp_usd": 2338196296.2963,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "ERI",
+      "name": "Eritrea",
+      "rank": 184,
+      "tier": "T4",
+      "gdp_usd": 2065001626.01626,
+      "gdp_year": "2011"
+    },
+    {
+      "iso3": "SMR",
+      "name": "San Marino",
+      "rank": 185,
+      "tier": "T4",
+      "gdp_usd": 2027243193.5116,
+      "gdp_year": "2023"
+    },
+    {
+      "iso3": "TLS",
+      "name": "Timor-Leste",
+      "rank": 186,
+      "tier": "T4",
+      "gdp_usd": 1902180257.82737,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "SXM",
+      "name": "Sint Maarten (Dutch part)",
+      "rank": 187,
+      "tier": "T4",
+      "gdp_usd": 1887728480.44693,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "COM",
+      "name": "Comoros",
+      "rank": 188,
+      "tier": "T4",
+      "gdp_usd": 1814920856.27026,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "SLB",
+      "name": "Solomon Islands",
+      "rank": 189,
+      "tier": "T4",
+      "gdp_usd": 1749572442.95016,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "TCA",
+      "name": "Turks and Caicos Islands",
+      "rank": 190,
+      "tier": "T4",
+      "gdp_usd": 1745378000,
+      "gdp_year": "2024"
+    },
+    {
+      "iso3": "GRD",
+      "name": "Grenada",
+      "rank": 191,
+      "tier": "T4",
+      "gdp_usd": 1420173228.56948,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "VUT",
+      "name": "Vanuatu",
+      "rank": 192,
+      "tier": "T4",
+      "gdp_usd": 1353658840.63993,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "WSM",
+      "name": "Samoa",
+      "rank": 193,
+      "tier": "T4",
+      "gdp_usd": 1287936621.64619,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "VCT",
+      "name": "St. Vincent and the Grenadines",
+      "rank": 194,
+      "tier": "T4",
+      "gdp_usd": 1255222222.22222,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "KNA",
+      "name": "St. Kitts and Nevis",
+      "rank": 195,
+      "tier": "T4",
+      "gdp_usd": 1183514814.81481,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "STP",
+      "name": "Sao Tome and Principe",
+      "rank": 196,
+      "tier": "T4",
+      "gdp_usd": 981293586.906408,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "DMA",
+      "name": "Dominica",
+      "rank": 197,
+      "tier": "T4",
+      "gdp_usd": 723859259.259259,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "TON",
+      "name": "Tonga",
+      "rank": 198,
+      "tier": "T4",
+      "gdp_usd": 679218218.578017,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "FSM",
+      "name": "Micronesia, Fed. Sts.",
+      "rank": 199,
+      "tier": "T4",
+      "gdp_usd": 501797600,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "KIR",
+      "name": "Kiribati",
+      "rank": 200,
+      "tier": "T4",
+      "gdp_usd": 349227254.158833,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "PLW",
+      "name": "Palau",
+      "rank": 201,
+      "tier": "T4",
+      "gdp_usd": 345000000,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "MHL",
+      "name": "Marshall Islands",
+      "rank": 202,
+      "tier": "T4",
+      "gdp_usd": 308000000,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "NRU",
+      "name": "Nauru",
+      "rank": 203,
+      "tier": "T4",
+      "gdp_usd": 176040043.932346,
+      "gdp_year": "2025"
+    },
+    {
+      "iso3": "KGZ",
+      "name": "Kyrgyz Republic",
+      "rank": 204,
+      "tier": "T4",
+      "gdp_usd": null,
+      "gdp_year": null,
+      "gdp_error": "\"Could not retrieve 'gdp_current_usd' for Kyrgyz Republic: Failed to reach upstream: The operation was aborted\""
+    },
+    {
+      "iso3": "PRK",
+      "name": "Korea, Dem. People's Rep.",
+      "rank": 205,
+      "tier": "T4",
+      "gdp_usd": null,
+      "gdp_year": null,
+      "gdp_error": "\"Could not retrieve 'gdp_current_usd' for Korea, Dem. People's Rep.: No observations available for worldbank/NY.GDP.MKTP.CD (Korea, Dem. People's Rep.) in the r"
+    },
+    {
+      "iso3": "TUV",
+      "name": "Tuvalu",
+      "rank": 206,
+      "tier": "T4",
+      "gdp_usd": null,
+      "gdp_year": null,
+      "gdp_error": "\"Could not retrieve 'gdp_current_usd' for Tuvalu: Upstream returned HTTP 400: <?xml version=\\\"1.0\\\" encoding=\\\"utf-8\\\"?>\\r\\n<!DOCTYPE html PUBLIC \\\"-//W3C//DTD "
+    }
+  ]
+}

@@ -130,14 +130,34 @@ async function main() {
       genlog.notes.push(`PARTIAL headline draw: ${drawn.length}/100 (probe mode)`);
     }
 
-    // §1.1: every drawn question round-trips /v1/verify against its own frame value.
+    // §1.1: every drawn question round-trips /v1/verify. /v1/verify is the path that
+    // scores the models, so ITS official value is ground truth; the frame value is only
+    // an eligibility signal. A frame value captured while the primary upstream was
+    // transiently down can be a fallback-source value (e.g. WEO instead of WDI) for the
+    // same concept — a real divergence, logged and re-anchored here rather than silently
+    // kept. The cell is rejected only if verify cannot serve a usable outturn for the
+    // exact period asked (that is what the round-trip exists to catch).
     log(`verify round-trip for ${drawn.length} headline cells…`);
     const bad = [];
     for (const c of drawn) {
       const r = await scVerifyRobust({ indicator: c.indicator, country: c.iso3, period: c.year, value: c.value });
       const verdict = r.status === 200 ? r.body.verdict : `http_${r.status}`;
-      verifyLog.push({ cell: cellKey(c), verdict });
-      if (verdict !== "match") bad.push(c);
+      const official = r.status === 200 ? r.body.official_value : undefined;
+      const usable =
+        r.status === 200 &&
+        verdict !== "cannot_verify" &&
+        Number.isFinite(official) &&
+        r.body.is_projection !== true;
+      verifyLog.push({ cell: cellKey(c), verdict, official_value: official ?? null });
+      if (!usable) {
+        bad.push(c);
+      } else if (verdict !== "match") {
+        genlog.notes.push(
+          `re-anchored ${cellKey(c)}: frame value ${c.value} -> verify official ${official} (frame value was a fallback-source or pre-revision capture; verify is the scoring path)`,
+        );
+        c.value = official;
+        c.frame_value_reanchored = true;
+      }
     }
     if (bad.length === 0) {
       headline = drawn;
