@@ -7,6 +7,12 @@ export interface Ctx {
   fredApiKey?: string;
   /** Injected clock for testability. */
   now?: () => Date;
+  /**
+   * Optional aggregate usage sink (Workers Analytics Engine binding).
+   * Structural type so core/ stays free of Workers imports. Carries only
+   * aggregate, non-identifying fields — see core/analytics.ts.
+   */
+  analytics?: { writeDataPoint(point: { indexes?: string[]; blobs?: string[]; doubles?: number[] }): void };
 }
 
 export interface Observation {

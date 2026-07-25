@@ -12,7 +12,7 @@
 import type { Ctx } from "./core/types.ts";
 import { ToolError } from "./core/types.ts";
 import { UpstreamError } from "./core/upstream.ts";
-import { TOOLS, toolByName } from "./tools.ts";
+import { TOOLS, toolByName, callTool } from "./tools.ts";
 
 export const SERVER_VERSION = "1.0.0";
 export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-03-26", "2025-06-18", "2025-11-25"];
@@ -145,7 +145,7 @@ async function dispatchMessage(
       }
       const args = (params.arguments ?? {}) as Record<string, unknown>;
       try {
-        const payload = await tool.handler(ctx, args);
+        const payload = await callTool(ctx, tool, args);
         return { httpStatus: 200, body: toolTextObj(id, payload) };
       } catch (e) {
         // Tool-level failures are tool results (isError), not protocol errors (SEP-1303).

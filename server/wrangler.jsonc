@@ -21,6 +21,19 @@
     { "pattern": "statcite.com", "custom_domain": true },
     { "pattern": "www.statcite.com", "custom_domain": true }
   ],
+  // Aggregate usage analytics — see core/analytics.ts. Privacy: only
+  // tool/endpoint, indicator key, country ISO3, verdict kind, transport,
+  // outcome and a duration bucket are recorded; never IP, UA or free text.
+  //
+  // The Analytics Engine binding below is DISABLED: the dataset exists
+  // (statcite_usage / STATCITE_USAGE, created 2026-07-25) but this account's
+  // deploys are rejected with API error 10089 "You need to enable Analytics
+  // Engine" — it is gated behind Workers Paid despite the free-tier pricing
+  // page. recordUsage() emits its `STATCITE_USAGE {json}` console line
+  // unconditionally, so usage telemetry works today at zero cost via
+  // observability (npx wrangler tail --search STATCITE_USAGE). Uncomment this
+  // line only if the account moves to Workers Paid.
+  // "analytics_engine_datasets": [{ "binding": "STATCITE_USAGE", "dataset": "statcite_usage" }],
   "observability": { "enabled": true }
   // Secrets (set via `wrangler secret put`):
   //   FRED_API_KEY  — optional; unlocks FRED (US monthly) series. Get a free key:
