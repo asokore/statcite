@@ -1,5 +1,26 @@
 # HANDOFF — Take StatCite live
 
+> **STATUS: LIVE as of 2026-07-25.** Steps 1–6 below are DONE. See "Launch status" immediately below before following anything else here — most of this runbook is now historical record, not to-do.
+
+## Launch status (2026-07-25)
+
+**Done and verified:**
+- `statcite.com` registered (Cloudflare) · Worker + site deployed · apex and `www` both serving · `/v1`, `/mcp`, `/health` all 200
+- Public repo: https://github.com/asokore/statcite (topics + homepage set)
+- **Official MCP registry: published, status `active`** — `io.github.asokore/statcite`
+- `hello@statcite.com` → Gmail via Cloudflare Email Routing (MX + SPF live, destination pre-verified)
+- Usage analytics live (`core/analytics.ts`) — verified in production via `wrangler tail --search STATCITE_USAGE`
+- WAF rate limit: 200 req/10s per IP on `/v1*` + `/mcp*`, block for 10s (free plan allows exactly 1 rule)
+- Directory PRs open: [awesome-mcp-servers#10881](https://github.com/punkpeye/awesome-mcp-servers/pull/10881) · [awesome-remote-mcp-servers#527](https://github.com/jaw9c/awesome-remote-mcp-servers/pull/527)
+
+**Blocked on the owner (nothing else is):**
+1. **Apify** — needs a token from https://console.apify.com/settings/integrations, then `cd apify && npx apify login -t <token> && npx apify push`, then set the pay-per-event `statcite-query` event in Console. CLI is already installed and the actor passes locally.
+2. **Claude Connectors Directory** — requires a paid Team/Enterprise Claude.ai org (see §3).
+3. **FRED key** (optional) — account creation at https://fredaccount.stlouisfed.org/apikeys, then `npx wrangler secret put FRED_API_KEY`.
+4. **Analytics Engine** (optional) — the dataset exists but deploys are rejected with API error 10089 on this account (gated behind Workers Paid). The console-log sink covers the need at zero cost; re-enable the binding in `wrangler.jsonc` only if the account ever moves to Workers Paid.
+
+---
+
 > **This is the mechanical runbook, not the mandate.** If you're an agent picking this project up, read `BRIEF.md` first — it explains what the owner actually wants, what's questionable about this build, and what else could be built instead. Deploying is one legitimate path among several. Come back here once you've decided it's the right one.
 
 This runbook takes the repo from `C:\dev\statcite` to a running product. Total time: **~60–90 minutes** of guided steps. It is written for Claude Code to execute with you (open Claude Code in this folder and say *"execute HANDOFF.md"*), or for you to follow manually.
