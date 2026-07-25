@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StatCite API",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Official economic statistics with full citations, built for AI agents. Every numeric response includes a citation object (source, dataset, series_id, source_url, license, attribution, retrieved_at, citation_text). Free, no auth, read-only. MCP endpoint at https://statcite.com/mcp.",
     "contact": { "email": "hello@statcite.com", "url": "https://statcite.com" },
     "license": { "name": "Service terms", "url": "https://statcite.com/terms.html" }
@@ -97,6 +97,86 @@
         "responses": {
           "200": { "description": "Verdict with citation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VerifyResult" } } } },
           "400": { "$ref": "#/components/responses/BadRequest" },
+          "422": { "$ref": "#/components/responses/Unprocessable" }
+        }
+      }
+    },
+    "/v1/verify_claims": {
+      "post": {
+        "operationId": "verifyClaims",
+        "summary": "Verify a batch of claimed figures (fact-check a whole draft) — the API's only non-GET route",
+        "description": "Extract every checkable macro claim from a draft (indicator + country + period + claimed value) and submit up to 15 together. Each claim gets the same verdict engine as /v1/verify; results return in input order with a verdict-count summary. A claim that cannot be resolved reports its error in place without failing the batch. The 15-claim cap reflects the free-tier upstream subrequest budget — split larger drafts into batches.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["claims"],
+                "properties": {
+                  "claims": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 15,
+                    "description": "The claims extracted from the draft, in the order they appear (max 15 per call).",
+                    "items": {
+                      "type": "object",
+                      "required": ["indicator", "period", "claimed_value"],
+                      "properties": {
+                        "indicator": { "type": "string", "description": "Registry key (inflation_cpi, gdp_growth, …) or explicit series id (worldbank/FP.CPI.TOTL.ZG, fred/UNRATE, dbnomics/…)" },
+                        "country": { "type": "string", "description": "ISO3/ISO2 code or English name; required for registry indicators / worldbank series" },
+                        "period": { "type": "string", "description": "Period of the claim, usually a year, e.g. 2024" },
+                        "claimed_value": { "type": "number", "description": "The value as claimed, in the series' own units" },
+                        "tolerance_abs": { "type": "number", "description": "Optional absolute tolerance in series units" },
+                        "tolerance_pct": { "type": "number", "description": "Optional relative tolerance in percent" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Batch verification result: verdict-count summary plus per-claim results in input order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "integer" },
+                        "match": { "type": "integer" },
+                        "close": { "type": "integer" },
+                        "mismatch": { "type": "integer" },
+                        "cannot_verify": { "type": "integer" },
+                        "error": { "type": "integer" }
+                      }
+                    },
+                    "results": {
+                      "type": "array",
+                      "description": "One entry per claim, in input order. ok:true entries carry the full verification payload; ok:false entries carry a per-claim error message (errors never sink the rest of the batch).",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ok": { "type": "boolean" },
+                          "claim": { "type": "object" },
+                          "verification": { "$ref": "#/components/schemas/VerifyResult" },
+                          "error": { "type": "string" }
+                        }
+                      }
+                    },
+                    "note": { "type": "string", "description": "Present when some claims were verified against IMF WEO projections rather than outturns" }
+                  }
+                }
+              }
+            }
+          },
+          "405": { "description": "Method not allowed — this endpoint accepts POST only; GET returns usage advice" },
+          "415": { "description": "Unsupported media type — set content-type: application/json" },
           "422": { "$ref": "#/components/responses/Unprocessable" }
         }
       }

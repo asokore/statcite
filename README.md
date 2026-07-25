@@ -25,11 +25,13 @@ StatCite is a free remote MCP server + REST API serving official economic statis
 curl "https://statcite.com/v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=4.1"
 curl "https://statcite.com/v1/indicator/govt_debt_gdp?country=JPN&latest_only=true"
 curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"
+curl -X POST "https://statcite.com/v1/verify_claims" -H "content-type: application/json" \
+  -d '{"claims":[{"indicator":"inflation_cpi","country":"USA","period":"2023","claimed_value":4.1}]}'
 ```
 
 ## Tools
 
-`get_indicator` · `verify_stat` · `get_series` · `search_indicators` · `country_snapshot` · `inflation_adjust` · `fx_convert` · `list_sources` · `search` · `fetch` — 42 curated indicators, 200+ economies, ~120 currencies. All read-only. Details: [docs](https://statcite.com/docs.html).
+`get_indicator` · `verify_stat` · `verify_claims` · `get_series` · `search_indicators` · `country_snapshot` · `inflation_adjust` · `fx_convert` · `list_sources` · `search` · `fetch` — 42 curated indicators, 200+ economies, ~120 currencies. All read-only. Details: [docs](https://statcite.com/docs.html).
 
 ## Repo layout
 
@@ -50,7 +52,7 @@ CLAUDE.md      Working guide: commands, architecture, invariants
 ```bash
 cd server
 npm install
-npm test          # 37 tests, fixture-backed, no network
+npm test          # 119 tests, fixture-backed, no network
 npm run smoke     # live end-to-end against real upstream APIs
 npm run dev       # wrangler dev (local Workers runtime + static site)
 npm run deploy    # wrangler deploy

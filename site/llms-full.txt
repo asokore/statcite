@@ -22,6 +22,15 @@ Args: indicator (registry key or explicit series id), country?, period (usually 
 Returns verdict: match | close | mismatch | cannot_verify, plus official_value, difference, is_projection (true when the matched official observation is an IMF WEO estimate/projection, with the explanation qualified accordingly), diagnostics (year misattribution, percent-vs-decimal, scale confusion up to 10^12, sign flips), citation.
 Default thresholds: percent-kind series → match ≤0.06pp or ≤0.5% rel, close ≤0.3pp or ≤2% rel; levels → match ≤0.5% rel, close ≤5% rel.
 
+### verify_claims
+Batch fact-check: verify a whole draft's macro claims in one call instead of one verify_stat call each. Extract every checkable claim (indicator + country + period + claimed value) from the text, then submit them together.
+Args: claims — array of 1–15 objects, each {indicator, country?, period, claimed_value, tolerance_abs?, tolerance_pct?} (same fields as verify_stat). Max 15 per call (free-tier subrequest budget); split larger drafts into batches.
+Returns: {summary, results, note?}.
+- summary: {total, match, close, mismatch, cannot_verify, error} — verdict counts across the batch.
+- results: in input order; each item is {ok:true, claim, verification} where verification is the full verify_stat payload (verdict, official_value, difference, diagnostics, is_projection, citation) — or {ok:false, claim, error} when that claim could not be resolved (unknown indicator/country, upstream trouble). Per-claim errors never sink the rest of the batch; they count under summary.error.
+- note: present when some claims were verified against IMF WEO projections rather than outturns.
+REST: POST /v1/verify_claims with JSON body {"claims":[...]} — the API's only non-GET route. GET → 405 advice; non-JSON content-type → 415; malformed body → 422.
+
 ### get_series
 Raw series by explicit id: "worldbank/<WDI code>" (+country), "fred/<ID>" (US; needs server FRED key), "dbnomics/<PROVIDER>/<DATASET>/<SERIES>" e.g. "dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change".
 Args: series_id, country?, start_year?, end_year?, transform?.
@@ -46,7 +55,7 @@ Sources, coverage, licenses, required attribution lines.
 search({query}) → {results:[{id,title,url}]} with ids like "indicator/inflation_cpi/BRB".
 fetch({id}) → {id,title,text,url,metadata}; text contains recent observations + full citation.
 
-## REST endpoints (GET)
+## REST endpoints (GET unless noted)
 
 - /v1 — endpoint index
 - /v1/indicators — full registry
@@ -55,12 +64,13 @@ fetch({id}) → {id,title,text,url,metadata}; text contains recent observations 
 - /v1/search?q=
 - /v1/snapshot/{country}
 - /v1/verify?indicator=&country=&period=&value=&tolerance_abs=&tolerance_pct=
+- /v1/verify_claims — POST, JSON body {"claims":[{indicator, country?, period, claimed_value, tolerance_abs?, tolerance_pct?}]}, 1–15 claims (the only non-GET route)
 - /v1/inflation?amount=&from_year=&to_year=&country=
 - /v1/fx?amount=&from=&to=&date=
 - /v1/sources
 - /health
 
-Errors: 400 missing params, 422 helpful failure (suggestions included), 502 upstream trouble.
+Errors: 400 missing params, 422 helpful failure (suggestions included), 502 upstream trouble. /v1/verify_claims: 405 on GET, 415 on non-JSON content-type, 422 on malformed body.
 
 ## Indicator registry (42 keys)
 
@@ -111,4 +121,4 @@ Errors: 400 missing params, 422 helpful failure (suggestions included), 502 upst
 ISO3/ISO2 codes or English names; aliases resolve (UK, South Korea, Ivory Coast, Türkiye…). Aggregates: WLD, EUU, EMU, OED, HIC/LIC/LMC/UMC, regions (LCN, SSF, EAS, ECS, MEA, NAC, SAS).
 
 ## Fair use
-Free, no key. Cache-friendly; keep sustained automated load reasonable. Metered alternative: the StatCite actor on Apify. Contact: hello@statcite.com
+Free, no key. Cache-friendly; keep sustained automated load reasonable. Metered alternative: "StatCite — Economic Data & Stat Verification" on Apify (https://apify.com/asokore/statcite-economic-data). Contact: hello@statcite.com
