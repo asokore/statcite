@@ -1,0 +1,47 @@
+{
+  "spec": "Token tables for declared-unit-only normalization (METHODOLOGY §4: unit normalization uses only the model's declared unit string, never the value's magnitude). Consumed by lib.mjs normalizeDeclaredUnit. Tokens are matched after lowercasing, NFKC normalization, $/US$ -> 'usd', '%' isolation, and punctuation stripping.",
+  "percent_tokens": ["%", "percent", "percents", "pct", "percentage", "pp", "ppt", "ppts", "bps", "bp"],
+  "ratio_tokens": ["ratio", "fraction", "decimal", "proportion", "share"],
+  "percent_scale_tokens": {
+    "bps": 0.01,
+    "bp": 0.01
+  },
+  "scale_words": {
+    "hundred": 100,
+    "hundreds": 100,
+    "thousand": 1000,
+    "thousands": 1000,
+    "k": 1000,
+    "million": 1000000,
+    "millions": 1000000,
+    "mn": 1000000,
+    "mm": 1000000,
+    "billion": 1000000000,
+    "billions": 1000000000,
+    "bn": 1000000000,
+    "trillion": 1000000000000,
+    "trillions": 1000000000000,
+    "tn": 1000000000000
+  },
+  "neutral_tokens": [
+    "usd", "us", "u", "s", "dollar", "dollars", "current",
+    "people", "person", "persons", "inhabitants", "population",
+    "years", "year", "yrs", "of", "gdp", "total", "the", "in", "at",
+    "nominal", "international", "reserves", "index", "annual",
+    "labor", "labour", "force", "gold", "including", "incl", "end"
+  ],
+  "rejected_tokens": [
+    "eur", "euro", "euros", "gbp", "pound", "pounds", "sterling",
+    "yen", "jpy", "cny", "rmb", "yuan", "inr", "rupee", "rupees",
+    "lcu", "local", "national", "domestic",
+    "ppp", "constant", "real", "chained",
+    "per", "capita", "head",
+    "months", "month"
+  ],
+  "notes": [
+    "'per'/'capita' rejected for level-kind so a per-capita figure declared as such is answer_failure, not a silently wrong level.",
+    "'ppp'/'constant'/'real' rejected for level-kind: the GDP question asks current US$ at market rates.",
+    "Currency tokens other than USD rejected: level ground truth is current US$ (or people/years).",
+    "percent-kind path never consults neutral/rejected tables (any token set containing a percent token normalizes with factor 1, bps with 0.01), matching lib.mjs normalizeDeclaredUnit."
+  ]
+}
