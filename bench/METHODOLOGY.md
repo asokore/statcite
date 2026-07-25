@@ -136,7 +136,7 @@ Bands start from StatCite's published verify bands but are **class-widened for r
 |---|---|---|
 | A (percent-kind) | ≤ 0.06pp or ≤ 0.5% rel | ≤ 0.3pp or ≤ 2% rel (StatCite defaults) |
 | B percent-kind | ≤ 0.06pp or ≤ 0.5% rel | ≤ max(0.5pp, 3% rel) |
-| B level-kind | ≤ 0.5% rel | ≤ 3% rel (covers documented WPP back-revisions of 1–3%) |
+| B level-kind | ≤ 0.5% rel | ≤ 5% rel (product default retained — already covers documented WPP back-revisions of 1–3%; the benchmark never tightens below the product's public bands) |
 | C percent-kind | ≤ 0.06pp or ≤ 0.5% rel | ≤ max(1.0pp, 5% rel) (WEO first-print→current drift routinely ≥ 0.3pp) |
 | C level-kind | ≤ 0.5% rel | ≤ 5% rel |
 

@@ -1,0 +1,136 @@
+{
+  "version": "questions_v1",
+  "spec": "bench/METHODOLOGY.md §2.1 — one canonical, human-reviewed phrasing per indicator. Every template names source, definition, period basis, and required answer unit, and disambiguates the nearest sibling concept so a model is never marked wrong for answering a legitimate sibling definition it was not asked about. Placeholders: {COUNTRY}, {YEAR}, {UNIT_HINT}. unit_rule 'fixed' = the unit in expected_unit is asked verbatim; 'magnitude_scaled' = {UNIT_HINT} is chosen per the frozen §2.1 unit_scale rule (implemented in bench/tools/lib.mjs unitScaleFor).",
+  "templates": [
+    {
+      "template_id": "inflation_cpi_v1",
+      "indicator": "inflation_cpi",
+      "revision_class": "A",
+      "text_template": "What was consumer price inflation in {COUNTRY} in {YEAR}, measured as the annual average change in the consumer price index, in percent (World Bank WDI definition)? Note: annual average, not December-over-December. Answer in percent.",
+      "expected_unit_kind": "percent",
+      "expected_unit": "percent",
+      "unit_rule": "fixed",
+      "binding": true
+    },
+    {
+      "template_id": "govt_debt_gdp_v1",
+      "indicator": "govt_debt_gdp",
+      "revision_class": "C",
+      "text_template": "What was {COUNTRY}'s general government gross debt in {YEAR}, as a percentage of GDP (IMF World Economic Outlook definition)? Answer in percent of GDP.",
+      "expected_unit_kind": "percent",
+      "expected_unit": "percent of GDP",
+      "unit_rule": "fixed",
+      "binding": true
+    },
+    {
+      "template_id": "population_v1",
+      "indicator": "population",
+      "revision_class": "B",
+      "text_template": "What was the total population of {COUNTRY} in {YEAR} (World Bank definition, mid-year estimate)? Answer in {UNIT_HINT}.",
+      "expected_unit_kind": "level",
+      "expected_unit": "{UNIT_HINT}",
+      "unit_rule": "magnitude_scaled",
+      "binding": true,
+      "note": "The §2.1 binding example reads 'Answer in millions of people.' — reproduced verbatim whenever the frozen unit_scale rule selects millions (population >= 1m); the same §2.1 rule mandates thousands below 1m, hence the {UNIT_HINT} placeholder."
+    },
+    {
+      "template_id": "gdp_growth_v1",
+      "indicator": "gdp_growth",
+      "revision_class": "C",
+      "text_template": "What was {COUNTRY}'s real GDP growth in {YEAR}, measured as the annual percentage change in GDP at constant prices (World Bank WDI / IMF WEO definition)? Note: real (inflation-adjusted) growth, not nominal growth. Answer in percent.",
+      "expected_unit_kind": "percent",
+      "expected_unit": "percent",
+      "unit_rule": "fixed"
+    },
+    {
+      "template_id": "gdp_current_usd_v1",
+      "indicator": "gdp_current_usd",
+      "revision_class": "C",
+      "text_template": "What was {COUNTRY}'s nominal GDP in {YEAR}, in current US dollars converted at official market exchange rates (World Bank WDI definition)? Note: current US$ at market exchange rates, not PPP international dollars. Answer in {UNIT_HINT}.",
+      "expected_unit_kind": "level",
+      "expected_unit": "{UNIT_HINT}",
+      "unit_rule": "magnitude_scaled"
+    },
+    {
+      "template_id": "unemployment_rate_v1",
+      "indicator": "unemployment_rate",
+      "revision_class": "B",
+      "text_template": "What was the unemployment rate in {COUNTRY} in {YEAR}, as a percentage of the total labor force (ILO modeled estimate, World Bank WDI definition)? Note: the ILO modeled estimate, which can differ from nationally published survey rates. Answer in percent.",
+      "expected_unit_kind": "percent",
+      "expected_unit": "percent",
+      "unit_rule": "fixed"
+    },
+    {
+      "template_id": "life_expectancy_v1",
+      "indicator": "life_expectancy",
+      "revision_class": "B",
+      "text_template": "What was life expectancy at birth in {COUNTRY} in {YEAR}, total for both sexes combined (World Bank WDI definition)? Note: total population, not male-only or female-only. Answer in years.",
+      "expected_unit_kind": "level",
+      "expected_unit": "years",
+      "unit_rule": "fixed"
+    },
+    {
+      "template_id": "trade_gdp_v1",
+      "indicator": "trade_gdp",
+      "revision_class": "B",
+      "text_template": "What was {COUNTRY}'s trade openness in {YEAR}, measured as exports plus imports of goods and services as a percentage of GDP (World Bank WDI 'Trade (% of GDP)' definition)? Note: the sum of exports and imports, not the trade balance and not exports alone. Answer in percent of GDP.",
+      "expected_unit_kind": "percent",
+      "expected_unit": "percent of GDP",
+      "unit_rule": "fixed"
+    },
+    {
+      "template_id": "reserves_total_usd_v1",
+      "indicator": "reserves_total_usd",
+      "revision_class": "B",
+      "text_template": "What were {COUNTRY}'s total international reserves, including gold, at the end of {YEAR}, in current US dollars (World Bank WDI definition)? Note: total reserves including gold, not foreign-exchange holdings only and not months of import cover. Answer in {UNIT_HINT}.",
+      "expected_unit_kind": "level",
+      "expected_unit": "{UNIT_HINT}",
+      "unit_rule": "magnitude_scaled"
+    },
+    {
+      "template_id": "fiscal_balance_gdp_v1",
+      "indicator": "fiscal_balance_gdp",
+      "revision_class": "C",
+      "text_template": "What was {COUNTRY}'s general government net lending/borrowing (overall fiscal balance) in {YEAR}, as a percentage of GDP (IMF World Economic Outlook definition)? Note: general government, not central government only; a deficit is a negative number. Answer in percent of GDP.",
+      "expected_unit_kind": "percent",
+      "expected_unit": "percent of GDP",
+      "unit_rule": "fixed"
+    },
+    {
+      "template_id": "current_account_gdp_v1",
+      "indicator": "current_account_gdp",
+      "revision_class": "C",
+      "text_template": "What was {COUNTRY}'s current account balance in {YEAR}, as a percentage of GDP (balance-of-payments definition, World Bank WDI / IMF WEO)? Note: the current account, not the trade balance or the fiscal balance; a deficit is a negative number. Answer in percent of GDP.",
+      "expected_unit_kind": "percent",
+      "expected_unit": "percent of GDP",
+      "unit_rule": "fixed"
+    },
+    {
+      "template_id": "fdi_inflows_gdp_v1",
+      "indicator": "fdi_inflows_gdp",
+      "revision_class": "C",
+      "text_template": "What were net inflows of foreign direct investment into {COUNTRY} in {YEAR}, as a percentage of GDP (World Bank WDI definition)? Note: net inflows into the country (new investment less disinvestment), not outflows and not the accumulated FDI stock. Answer in percent of GDP.",
+      "expected_unit_kind": "percent",
+      "expected_unit": "percent of GDP",
+      "unit_rule": "fixed"
+    }
+  ],
+  "null_probe_templates": [
+    {
+      "template_id": "gini_v1",
+      "indicator": "gini",
+      "text_template": "What was the Gini index of income inequality in {COUNTRY} in {YEAR} (World Bank estimate, scale 0–100)? Note: the survey-based World Bank estimate, not a national statistical office variant. Answer as an index value between 0 and 100.",
+      "expected_unit_kind": "level",
+      "expected_unit": "index (0-100)",
+      "unit_rule": "fixed"
+    },
+    {
+      "template_id": "poverty_headcount_intl_v1",
+      "indicator": "poverty_headcount_intl",
+      "text_template": "What share of the population of {COUNTRY} lived below the international poverty line of $2.15 a day (2017 PPP) in {YEAR} (World Bank WDI definition)? Note: the international $2.15/day line, not a national poverty line. Answer in percent of population.",
+      "expected_unit_kind": "percent",
+      "expected_unit": "percent of population",
+      "unit_rule": "fixed"
+    }
+  ]
+}

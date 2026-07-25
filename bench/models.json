@@ -1,0 +1,41 @@
+{
+  "run": "P0",
+  "spec": "METHODOLOGY §2.5 and §7 — pilot roster with honest, exact settings. P0 models are invoked as Claude Code subagents, not raw API calls.",
+  "roster": [
+    {
+      "model": "claude-haiku-4-5",
+      "invocation": "Claude Code subagent (Task tool), one call per batch",
+      "temperature": "not controllable in this harness (vendor-managed); disclosed per METHODOLOGY §7 deviation (2)",
+      "reasoning_effort": "minimum available for this harness",
+      "tools": "no structured-output tool provided; memory-only enforcement is instruction-based (system_prompt_v1.txt); per-agent tool-call counts are published as the compliance check"
+    },
+    {
+      "model": "claude-sonnet-5",
+      "invocation": "Claude Code subagent (Task tool), one call per batch",
+      "temperature": "not controllable in this harness (vendor-managed); disclosed per METHODOLOGY §7 deviation (2)",
+      "reasoning_effort": "minimum available for this harness",
+      "tools": "no structured-output tool provided; memory-only enforcement is instruction-based (system_prompt_v1.txt); per-agent tool-call counts are published as the compliance check"
+    },
+    {
+      "model": "claude-opus-5",
+      "invocation": "Claude Code subagent (Task tool), one call per batch",
+      "temperature": "not controllable in this harness (vendor-managed); disclosed per METHODOLOGY §7 deviation (2)",
+      "reasoning_effort": "minimum available for this harness",
+      "tools": "no structured-output tool provided; memory-only enforcement is instruction-based (system_prompt_v1.txt); per-agent tool-call counts are published as the compliance check"
+    },
+    {
+      "model": "claude-fable-5",
+      "invocation": "Claude Code subagent (Task tool), one call per batch",
+      "temperature": "not controllable in this harness (vendor-managed); disclosed per METHODOLOGY §7 deviation (2)",
+      "reasoning_effort": "minimum available for this harness",
+      "tools": "no structured-output tool provided; memory-only enforcement is instruction-based (system_prompt_v1.txt); per-agent tool-call counts are published as the compliance check"
+    }
+  ],
+  "settings_notes": [
+    "Uniform protocol arm only (§2.5): minimum reasoning/thinking settings across the roster; an as-deployed arm starts with the first multi-vendor wave.",
+    "Temperature is not exposed by the Claude Code subagent harness; this is disclosed deviation (2) of METHODOLOGY §7 and recorded here rather than hidden behind a nominal value.",
+    "The platform's own system prompt is vendor-controlled and not publishable — disclosed limitation, METHODOLOGY §7 deviation (1); full harness prompt texts and raw outputs are published verbatim.",
+    "Pilot seed is commit-hash-derived (§6, §7 deviation (3)); beacon seeding starts Wave 1.",
+    "P0 results are quarantined per METHODOLOGY §7: methodology validation only, never citable as a finding about Claude or about AI."
+  ]
+}
