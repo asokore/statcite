@@ -2,19 +2,38 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StatCite API",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Official economic statistics with full citations, built for AI agents. Every numeric response includes a citation object (source, dataset, series_id, source_url, license, attribution, retrieved_at, citation_text). Free, no auth, read-only. MCP endpoint at https://statcite.com/mcp.",
-    "contact": { "email": "hello@statcite.com", "url": "https://statcite.com" },
-    "license": { "name": "Service terms", "url": "https://statcite.com/terms.html" }
+    "contact": {
+      "email": "hello@statcite.com",
+      "url": "https://statcite.com"
+    },
+    "license": {
+      "name": "Service terms",
+      "url": "https://statcite.com/terms.html"
+    }
   },
-  "servers": [{ "url": "https://statcite.com" }],
+  "servers": [
+    {
+      "url": "https://statcite.com"
+    }
+  ],
   "paths": {
     "/v1": {
       "get": {
         "operationId": "apiIndex",
         "summary": "Endpoint index — service info and list of available /v1 routes",
         "responses": {
-          "200": { "description": "Service info and endpoint list", "content": { "application/json": { "schema": { "type": "object" } } } }
+          "200": {
+            "description": "Service info and endpoint list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -22,7 +41,18 @@
       "get": {
         "operationId": "listIndicators",
         "summary": "List the curated indicator registry (42 keys)",
-        "responses": { "200": { "description": "Registry", "content": { "application/json": { "schema": { "type": "object" } } } } }
+        "responses": {
+          "200": {
+            "description": "Registry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/indicator/{key}": {
@@ -30,17 +60,85 @@
         "operationId": "getIndicator",
         "summary": "Official values for an indicator + country, with citation",
         "parameters": [
-          { "name": "key", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Registry key, e.g. inflation_cpi, gdp_growth, govt_debt_gdp" },
-          { "name": "country", "in": "query", "required": true, "schema": { "type": "string" }, "description": "ISO3/ISO2 code or English name" },
-          { "name": "start_year", "in": "query", "schema": { "type": "integer" } },
-          { "name": "end_year", "in": "query", "schema": { "type": "integer" } },
-          { "name": "transform", "in": "query", "schema": { "type": "string", "enum": ["none", "yoy", "pct_change", "index"] } },
-          { "name": "latest_only", "in": "query", "schema": { "type": "boolean" } }
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Registry key, e.g. inflation_cpi, gdp_growth, govt_debt_gdp"
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ISO3/ISO2 code or English name"
+          },
+          {
+            "name": "start_year",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "end_year",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "transform",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "none",
+                "yoy",
+                "pct_change",
+                "index"
+              ]
+            }
+          },
+          {
+            "name": "latest_only",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "strict_source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Reproducibility mode: if the primary source fails, return an error instead of serving the fallback source. Fallback responses carry fallback_used: true and are served no-store."
+          }
         ],
         "responses": {
-          "200": { "description": "Series with citation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SeriesResult" } } } },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "422": { "$ref": "#/components/responses/Unprocessable" }
+          "200": {
+            "description": "Series with citation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeriesResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          }
         }
       }
     },
@@ -49,16 +147,77 @@
         "operationId": "getSeries",
         "summary": "Raw series by explicit id (worldbank/…, fred/…, dbnomics/…)",
         "parameters": [
-          { "name": "id", "in": "query", "required": true, "schema": { "type": "string" }, "description": "e.g. worldbank/NY.GDP.MKTP.KD.ZG, dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change" },
-          { "name": "country", "in": "query", "schema": { "type": "string" }, "description": "Required for worldbank/* ids" },
-          { "name": "start_year", "in": "query", "schema": { "type": "integer" } },
-          { "name": "end_year", "in": "query", "schema": { "type": "integer" } },
-          { "name": "transform", "in": "query", "schema": { "type": "string", "enum": ["none", "yoy", "pct_change", "index"] } }
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "e.g. worldbank/NY.GDP.MKTP.KD.ZG, dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change"
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for worldbank/* ids"
+          },
+          {
+            "name": "start_year",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "end_year",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "transform",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "none",
+                "yoy",
+                "pct_change",
+                "index"
+              ]
+            }
+          },
+          {
+            "name": "strict_source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Reproducibility mode for registry-key ids: never substitute the fallback source. No effect on explicit source-prefixed ids."
+          }
         ],
         "responses": {
-          "200": { "description": "Series with citation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SeriesResult" } } } },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "422": { "$ref": "#/components/responses/Unprocessable" }
+          "200": {
+            "description": "Series with citation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeriesResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          }
         }
       }
     },
@@ -66,18 +225,58 @@
       "get": {
         "operationId": "searchIndicators",
         "summary": "Search indicators and datasets by topic",
-        "parameters": [{ "name": "q", "in": "query", "required": true, "schema": { "type": "string" } }],
-        "responses": { "200": { "description": "Matches", "content": { "application/json": { "schema": { "type": "object" } } } } }
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matches",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/snapshot/{country}": {
       "get": {
         "operationId": "countrySnapshot",
         "summary": "Headline indicators for a country, each with its own citation",
-        "parameters": [{ "name": "country", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "parameters": [
+          {
+            "name": "country",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Snapshot", "content": { "application/json": { "schema": { "type": "object" } } } },
-          "422": { "$ref": "#/components/responses/Unprocessable" }
+          "200": {
+            "description": "Snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          }
         }
       }
     },
@@ -87,17 +286,81 @@
         "summary": "Verify a claimed figure against the official series",
         "description": "Returns verdict match | close | mismatch | cannot_verify with the official value, difference, diagnostics (wrong year, percent-vs-decimal, unit scaling), and the citation for the correct number.",
         "parameters": [
-          { "name": "indicator", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Registry key or explicit series id" },
-          { "name": "country", "in": "query", "schema": { "type": "string" } },
-          { "name": "period", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Usually a year, e.g. 2024" },
-          { "name": "value", "in": "query", "required": true, "schema": { "type": "number" }, "description": "The claimed value" },
-          { "name": "tolerance_abs", "in": "query", "schema": { "type": "number" } },
-          { "name": "tolerance_pct", "in": "query", "schema": { "type": "number" } }
+          {
+            "name": "indicator",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Registry key or explicit series id"
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Usually a year, e.g. 2024"
+          },
+          {
+            "name": "value",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "description": "The claimed value"
+          },
+          {
+            "name": "tolerance_abs",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "tolerance_pct",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "strict_source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Never verify against a fallback source — error instead. Fallback-based verdicts carry fallback_used: true."
+          }
         ],
         "responses": {
-          "200": { "description": "Verdict with citation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VerifyResult" } } } },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "422": { "$ref": "#/components/responses/Unprocessable" }
+          "200": {
+            "description": "Verdict with citation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          }
         }
       }
     },
@@ -112,7 +375,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["claims"],
+                "required": [
+                  "claims"
+                ],
                 "properties": {
                   "claims": {
                     "type": "array",
@@ -121,16 +386,42 @@
                     "description": "The claims extracted from the draft, in the order they appear (max 15 per call).",
                     "items": {
                       "type": "object",
-                      "required": ["indicator", "period", "claimed_value"],
+                      "required": [
+                        "indicator",
+                        "period",
+                        "claimed_value"
+                      ],
                       "properties": {
-                        "indicator": { "type": "string", "description": "Registry key (inflation_cpi, gdp_growth, …) or explicit series id (worldbank/FP.CPI.TOTL.ZG, fred/UNRATE, dbnomics/…)" },
-                        "country": { "type": "string", "description": "ISO3/ISO2 code or English name; required for registry indicators / worldbank series" },
-                        "period": { "type": "string", "description": "Period of the claim, usually a year, e.g. 2024" },
-                        "claimed_value": { "type": "number", "description": "The value as claimed, in the series' own units" },
-                        "tolerance_abs": { "type": "number", "description": "Optional absolute tolerance in series units" },
-                        "tolerance_pct": { "type": "number", "description": "Optional relative tolerance in percent" }
+                        "indicator": {
+                          "type": "string",
+                          "description": "Registry key (inflation_cpi, gdp_growth, …) or explicit series id (worldbank/FP.CPI.TOTL.ZG, fred/UNRATE, dbnomics/…)"
+                        },
+                        "country": {
+                          "type": "string",
+                          "description": "ISO3/ISO2 code or English name; required for registry indicators / worldbank series"
+                        },
+                        "period": {
+                          "type": "string",
+                          "description": "Period of the claim, usually a year, e.g. 2024"
+                        },
+                        "claimed_value": {
+                          "type": "number",
+                          "description": "The value as claimed, in the series' own units"
+                        },
+                        "tolerance_abs": {
+                          "type": "number",
+                          "description": "Optional absolute tolerance in series units"
+                        },
+                        "tolerance_pct": {
+                          "type": "number",
+                          "description": "Optional relative tolerance in percent"
+                        }
                       }
                     }
+                  },
+                  "strict_source": {
+                    "type": "boolean",
+                    "description": "Apply reproducibility mode to every claim in the batch: never verify against a fallback source — such claims error in place."
                   }
                 }
               }
@@ -148,12 +439,24 @@
                     "summary": {
                       "type": "object",
                       "properties": {
-                        "total": { "type": "integer" },
-                        "match": { "type": "integer" },
-                        "close": { "type": "integer" },
-                        "mismatch": { "type": "integer" },
-                        "cannot_verify": { "type": "integer" },
-                        "error": { "type": "integer" }
+                        "total": {
+                          "type": "integer"
+                        },
+                        "match": {
+                          "type": "integer"
+                        },
+                        "close": {
+                          "type": "integer"
+                        },
+                        "mismatch": {
+                          "type": "integer"
+                        },
+                        "cannot_verify": {
+                          "type": "integer"
+                        },
+                        "error": {
+                          "type": "integer"
+                        }
                       }
                     },
                     "results": {
@@ -162,22 +465,39 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "ok": { "type": "boolean" },
-                          "claim": { "type": "object" },
-                          "verification": { "$ref": "#/components/schemas/VerifyResult" },
-                          "error": { "type": "string" }
+                          "ok": {
+                            "type": "boolean"
+                          },
+                          "claim": {
+                            "type": "object"
+                          },
+                          "verification": {
+                            "$ref": "#/components/schemas/VerifyResult"
+                          },
+                          "error": {
+                            "type": "string"
+                          }
                         }
                       }
                     },
-                    "note": { "type": "string", "description": "Present when some claims were verified against IMF WEO projections rather than outturns" }
+                    "note": {
+                      "type": "string",
+                      "description": "Present when some claims were verified against IMF WEO projections rather than outturns"
+                    }
                   }
                 }
               }
             }
           },
-          "405": { "description": "Method not allowed — this endpoint accepts POST only; GET returns usage advice" },
-          "415": { "description": "Unsupported media type — set content-type: application/json" },
-          "422": { "$ref": "#/components/responses/Unprocessable" }
+          "405": {
+            "description": "Method not allowed — this endpoint accepts POST only; GET returns usage advice"
+          },
+          "415": {
+            "description": "Unsupported media type — set content-type: application/json"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          }
         }
       }
     },
@@ -186,14 +506,53 @@
         "operationId": "inflationAdjust",
         "summary": "Adjust an amount for inflation between two years (CPI ratio)",
         "parameters": [
-          { "name": "amount", "in": "query", "required": true, "schema": { "type": "number" } },
-          { "name": "from_year", "in": "query", "required": true, "schema": { "type": "integer" } },
-          { "name": "to_year", "in": "query", "required": true, "schema": { "type": "integer" } },
-          { "name": "country", "in": "query", "schema": { "type": "string", "default": "USA" } }
+          {
+            "name": "amount",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "from_year",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "to_year",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "USA"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Adjusted amount with method and citation", "content": { "application/json": { "schema": { "type": "object" } } } },
-          "422": { "$ref": "#/components/responses/Unprocessable" }
+          "200": {
+            "description": "Adjusted amount with method and citation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          }
         }
       }
     },
@@ -203,14 +562,55 @@
         "summary": "Convert currencies with official reference rates",
         "description": "ECB daily reference rates (~30 majors, since 1999) or World Bank official annual-average rates (~90 more currencies) via a USD bridge. The response states precision (daily | annual_average | mixed) and the exact method.",
         "parameters": [
-          { "name": "amount", "in": "query", "required": true, "schema": { "type": "number" } },
-          { "name": "from", "in": "query", "required": true, "schema": { "type": "string" }, "description": "ISO 4217, e.g. USD" },
-          { "name": "to", "in": "query", "required": true, "schema": { "type": "string" }, "description": "ISO 4217, e.g. BBD" },
-          { "name": "date", "in": "query", "schema": { "type": "string" }, "description": "YYYY-MM-DD (daily) or YYYY (annual average); omit for latest" }
+          {
+            "name": "amount",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ISO 4217, e.g. USD"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ISO 4217, e.g. BBD"
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "YYYY-MM-DD (daily) or YYYY (annual average); omit for latest"
+          }
         ],
         "responses": {
-          "200": { "description": "Conversion with citations", "content": { "application/json": { "schema": { "type": "object" } } } },
-          "422": { "$ref": "#/components/responses/Unprocessable" }
+          "200": {
+            "description": "Conversion with citations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          }
         }
       }
     },
@@ -218,14 +618,29 @@
       "get": {
         "operationId": "listSources",
         "summary": "Data sources, licenses, and required attribution lines",
-        "responses": { "200": { "description": "Sources", "content": { "application/json": { "schema": { "type": "object" } } } } }
+        "responses": {
+          "200": {
+            "description": "Sources",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/health": {
       "get": {
         "operationId": "health",
         "summary": "Service health",
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       }
     }
   },
@@ -235,60 +650,183 @@
         "type": "object",
         "description": "Every numeric payload carries one of these. Reproduce citation_text when presenting the number.",
         "properties": {
-          "source": { "type": "string" },
-          "dataset": { "type": "string" },
-          "series_id": { "type": "string" },
-          "series_name": { "type": "string" },
-          "source_url": { "type": "string" },
-          "api_url": { "type": "string" },
-          "license": { "type": "string" },
-          "attribution": { "type": "string" },
-          "retrieved_at": { "type": "string" },
-          "citation_text": { "type": "string" },
-          "notices": { "type": "array", "items": { "type": "string" } }
+          "source": {
+            "type": "string"
+          },
+          "dataset": {
+            "type": "string"
+          },
+          "series_id": {
+            "type": "string"
+          },
+          "series_name": {
+            "type": "string"
+          },
+          "source_url": {
+            "type": "string"
+          },
+          "api_url": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string"
+          },
+          "attribution": {
+            "type": "string"
+          },
+          "retrieved_at": {
+            "type": "string"
+          },
+          "citation_text": {
+            "type": "string"
+          },
+          "notices": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
         }
       },
       "SeriesResult": {
         "type": "object",
         "properties": {
-          "series_id": { "type": "string" },
-          "name": { "type": "string" },
-          "country": { "type": "object", "properties": { "iso3": { "type": "string" }, "name": { "type": "string" } } },
-          "unit": { "type": "string" },
-          "frequency": { "type": "string" },
+          "series_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "country": {
+            "type": "object",
+            "properties": {
+              "iso3": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "unit": {
+            "type": "string"
+          },
+          "frequency": {
+            "type": "string"
+          },
           "observations": {
             "type": "array",
             "items": {
               "type": "object",
-              "properties": { "period": { "type": "string" }, "value": { "type": ["number", "null"] }, "note": { "type": "string" } }
+              "properties": {
+                "period": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "note": {
+                  "type": "string"
+                }
+              }
             }
           },
-          "citation": { "$ref": "#/components/schemas/Citation" },
-          "notes": { "type": "array", "items": { "type": "string" } }
+          "citation": {
+            "$ref": "#/components/schemas/Citation"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fallback_used": {
+            "type": "boolean",
+            "description": "Present and true when the primary source failed and a fallback source served this result — the value may reflect a different statistical definition. Absent on primary-source responses."
+          }
         }
       },
       "VerifyResult": {
         "type": "object",
         "properties": {
-          "verdict": { "type": "string", "enum": ["match", "close", "mismatch", "cannot_verify"] },
-          "claimed_value": { "type": "number" },
-          "official_value": { "type": ["number", "null"] },
-          "is_projection": { "type": "boolean", "description": "True when the matched official observation is an IMF WEO estimate/projection, not a final outturn." },
-          "period": { "type": "string" },
-          "difference": { "type": ["number", "null"] },
-          "relative_difference_pct": { "type": ["number", "null"] },
-          "explanation": { "type": "string" },
-          "diagnostics": { "type": "array", "items": { "type": "string" } },
-          "series": { "type": "object" },
-          "country": { "type": "object" },
-          "citation": { "$ref": "#/components/schemas/Citation" },
-          "notes": { "type": "array", "items": { "type": "string" } }
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "match",
+              "close",
+              "mismatch",
+              "cannot_verify"
+            ]
+          },
+          "claimed_value": {
+            "type": "number"
+          },
+          "official_value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "is_projection": {
+            "type": "boolean",
+            "description": "True when the matched official observation is an IMF WEO estimate/projection, not a final outturn."
+          },
+          "period": {
+            "type": "string"
+          },
+          "difference": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "relative_difference_pct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "diagnostics": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "series": {
+            "type": "object"
+          },
+          "country": {
+            "type": "object"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/Citation"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fallback_used": {
+            "type": "boolean",
+            "description": "Present and true when the official value came from the fallback source because the primary failed. Absent otherwise."
+          }
         }
       }
     },
     "responses": {
-      "BadRequest": { "description": "Missing or invalid parameters" },
-      "Unprocessable": { "description": "Request understood but not servable — the message includes suggestions (closest countries, available year ranges)" }
+      "BadRequest": {
+        "description": "Missing or invalid parameters"
+      },
+      "Unprocessable": {
+        "description": "Request understood but not servable — the message includes suggestions (closest countries, available year ranges)"
+      }
     }
   }
 }

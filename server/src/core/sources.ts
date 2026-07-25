@@ -14,9 +14,11 @@ export const SOURCES = [
   {
     id: "imf_weo",
     name: "IMF — World Economic Outlook (via DBnomics)",
-    coverage: "Growth, fiscal, external indicators for 190+ economies, incl. estimates/projections; twice-yearly vintages",
+    coverage:
+      "Growth, fiscal, external indicators for 190+ economies, incl. estimates/projections; twice-yearly vintages. Served vintage is the newest available via DBnomics, which can lag the IMF's release calendar — every response cites the resolved vintage and adds a stale-vintage note when it trails the expected current release",
     access: "No key; queried live from api.db.nomics.world v22",
-    license: "IMF terms permit reuse and redistribution with attribution",
+    license:
+      "Use and redistribution are subject to the IMF's data-usage terms, including attribution and downstream-user conditions; commercial reuse may require IMF permission — consult the IMF terms directly",
     attribution_required: "Source: International Monetary Fund",
     url: "https://www.imf.org/en/Publications/WEO",
     terms_url: "https://www.imf.org/external/terms.htm",
@@ -36,7 +38,8 @@ export const SOURCES = [
     name: "Federal Reserve Bank of St. Louis — FRED (optional)",
     coverage: "US and international series incl. monthly CPI, unemployment, rates (active only when the server operator configures a free FRED API key)",
     access: "Requires the operator's FRED API key",
-    license: "FRED API Terms of Use; some series are owned by third parties — check the series page",
+    license:
+      "FRED API Terms of Use — disabled by default on this server; an operator enabling it must review the current FRED terms first (they include restrictions relevant to caching, redistribution, and AI/software use) and note that some series are owned by third parties",
     attribution_required:
       "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.",
     url: "https://fred.stlouisfed.org",

@@ -71,7 +71,8 @@ li{margin:4px 0}
   <h2 id="concepts">2. Core concepts</h2>
   <p><strong>Registry indicators</strong> are friendly keys (<code>inflation_cpi</code>, <code>gdp_growth</code>, <code>govt_debt_gdp</code>, …) curated by an economist and mapped to authoritative series with fallbacks: World Bank WDI for cross-country annual data, IMF WEO (via DBnomics) for fiscal series and gap-filling, FRED for US high-frequency series.</p>
   <p><strong>Explicit series ids</strong> address any supported series directly: <code>worldbank/NY.GDP.MKTP.KD.ZG</code> (needs <code>country</code>), <code>fred/CPIAUCSL</code>, <code>dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change</code>.</p>
-  <p><strong>Projections are labeled.</strong> IMF WEO forward-year values carry a per-observation note and a series-level note; “latest” semantics prefer published outturns over projections.</p>
+  <p><strong>Projections are labeled.</strong> IMF WEO forward-year values carry a per-observation note and a series-level note; “latest” semantics prefer published outturns over projections. The projection boundary is a vintage-year heuristic: the IMF’s “latest actual” year varies by country and series, so some earlier observations may also be IMF staff estimates — the notes say so.</p>
+  <p><strong>WEO vintages can lag.</strong> IMF WEO data is served via DBnomics, which can trail the IMF’s own April/October release calendar. Every WEO-backed response cites the resolved vintage in its citation, and when that vintage is older than the expected current release the response carries an explicit stale-vintage note. If exact currency against the IMF’s newest release matters, check the vintage in the citation.</p>
   <p><strong>Errors are advice.</strong> Failed calls return actionable messages (closest country matches, available year ranges, alternative series) as tool errors — never bare stack traces.</p>
 
   <h2 id="citation">3. The citation object</h2>
@@ -94,10 +95,10 @@ li{margin:4px 0}
   <h2 id="tools">4. MCP tools reference</h2>
 
   <h3>get_indicator</h3>
-  <p>Official values for a registry indicator, any country. Params: <code>indicator</code> (required), <code>country</code> (required, ISO3/ISO2/name), <code>start_year</code>, <code>end_year</code>, <code>transform</code> (<code>none|yoy|pct_change|index</code>), <code>latest_only</code> (bool). Returns observations + citation + notes.</p>
+  <p>Official values for a registry indicator, any country. Params: <code>indicator</code> (required), <code>country</code> (required, ISO3/ISO2/name), <code>start_year</code>, <code>end_year</code>, <code>transform</code> (<code>none|yoy|pct_change|index</code>), <code>latest_only</code> (bool), <code>strict_source</code> (bool — reproducibility mode: if the primary source fails, error instead of serving the fallback source). Returns observations + citation + notes. When a transient primary failure did trigger fallback, the response carries <code>fallback_used: true</code>, a disclosure note naming both sources, and is served <code>no-store</code> so it never lingers in shared caches after the primary recovers.</p>
 
   <h3>verify_stat</h3>
-  <p>Verdict on a claimed figure vs. the official series. Params: <code>indicator</code> (registry key or series id), <code>country</code>, <code>period</code> (usually a year, "2024"; quarters accepted as "2024-Q1", "2024Q1", or "2024 Q1", months as "2024-05" or "202405"), <code>claimed_value</code> (number), optional <code>tolerance_abs</code> (series units) / <code>tolerance_pct</code> (relative %).</p>
+  <p>Verdict on a claimed figure vs. the official series. Params: <code>indicator</code> (registry key or series id), <code>country</code>, <code>period</code> (usually a year, "2024"; quarters accepted as "2024-Q1", "2024Q1", or "2024 Q1", months as "2024-05" or "202405"), <code>claimed_value</code> (number), optional <code>tolerance_abs</code> (series units) / <code>tolerance_pct</code> (relative %) / <code>strict_source</code> (bool — never verify against a fallback source; error instead). Fallback-based verdicts carry <code>fallback_used: true</code>.</p>
   <p>Verdicts: <code>match</code> (within rounding: ≤0.06 pp <em>or</em> ≤0.5% relative for percent-kind series, ≤0.5% relative for levels), <code>close</code> (≤0.3 pp <em>or</em> ≤2% relative for percent-kind, ≤5% relative for levels), <code>mismatch</code>, <code>cannot_verify</code> (no observation for that period — response lists the available range and nearby values). When the official observation is a zero, only the absolute band applies. Responses include <code>is_projection</code>: <code>true</code> when the matched official observation is an IMF WEO estimate/projection rather than a final outturn, in which case the explanation is qualified accordingly. Diagnostics flag year misattribution (claim matches an adjacent year), percent-vs-decimal slips (~100× ratio), scale confusion (10³/10⁶/10⁹/10¹² ratios), and sign flips (claim ≈ −official, the classic fiscal-balance sign-convention slip). Every response repeats the revision caveat: the official value is the source's currently published figure.</p>
 
   <h3>verify_claims</h3>
@@ -166,7 +167,7 @@ GET /health</pre>
             <tr><td><code>population</code></td><td>Population, total</td><td>people</td><td>World Bank WDI</td></tr>
             <tr><td><code>population_growth</code></td><td>Population growth (annual %)</td><td>%</td><td>World Bank WDI</td></tr>
             <tr><td><code>current_account_gdp</code></td><td>Current account balance (% of GDP)</td><td>% of GDP</td><td>World Bank WDI; IMF WEO (via DBnomics)</td></tr>
-            <tr><td><code>govt_debt_gdp</code></td><td>General government gross debt (% of GDP)</td><td>% of GDP</td><td>World Bank WDI; IMF WEO (via DBnomics)</td></tr>
+            <tr><td><code>govt_debt_gdp</code></td><td>General government gross debt (% of GDP)</td><td>% of GDP</td><td>IMF WEO (via DBnomics); World Bank WDI</td></tr>
             <tr><td><code>fiscal_balance_gdp</code></td><td>General government net lending/borrowing (% of GDP)</td><td>% of GDP</td><td>IMF WEO (via DBnomics)</td></tr>
             <tr><td><code>govt_revenue_gdp</code></td><td>General government revenue (% of GDP)</td><td>% of GDP</td><td>IMF WEO (via DBnomics)</td></tr>
             <tr><td><code>govt_expenditure_gdp</code></td><td>General government total expenditure (% of GDP)</td><td>% of GDP</td><td>IMF WEO (via DBnomics)</td></tr>
@@ -202,7 +203,7 @@ GET /health</pre>
   <p>Pass ISO3 (<code>USA</code>, <code>BRB</code>), ISO2 (<code>US</code>, <code>BB</code>), or English names — common aliases resolve (<code>UK</code>, <code>South Korea</code>, <code>Ivory Coast</code>, <code>Türkiye</code>). Aggregates: <code>WLD</code> (world), <code>EUU</code> (EU), <code>EMU</code> (euro area), <code>OED</code> (OECD), income groups (<code>HIC</code>, <code>LIC</code>, <code>LMC</code>, <code>UMC</code>), and World Bank regions. Unresolvable names return suggestions.</p>
 
   <h2 id="sources-licensing">8. Sources &amp; licensing</h2>
-  <p>StatCite relays official statistics with attribution; it adds no numbers of its own. Underlying licenses: World Bank CC BY 4.0; IMF terms (free reuse/redistribution with attribution); ECB reference rates (informational, attribution); Eurostat CC BY 4.0 via DBnomics; FRED per its API terms (the mandated disclaimer ships in every FRED citation; FRED series owned by third parties are the user's responsibility to license for redistribution). The <code>license</code> and <code>attribution</code> fields in each citation state what applies to that exact number.</p>
+  <p>StatCite does not originate the underlying statistical observations; derived values (transforms, inflation adjustment, FX bridging) and verification verdicts are calculated transparently from cited source data, with the method and inputs disclosed in each response. Underlying licenses: World Bank CC BY 4.0; IMF data — use and redistribution subject to the IMF's data-usage terms, including attribution and downstream-user conditions (commercial reuse may require IMF permission; consult the IMF terms directly); ECB reference rates (informational, attribution); Eurostat CC BY 4.0 via DBnomics; FRED — disabled by default on this deployment; an operator enabling it must first review the current FRED API Terms of Use (which include restrictions relevant to caching, redistribution, and AI/software use), and FRED series owned by third parties are the user's responsibility to license. The <code>license</code> and <code>attribution</code> fields in each citation state what applies to that exact number.</p>
 
   <h2 id="fair-use">9. Fair use &amp; caching</h2>
   <ul>
@@ -213,6 +214,7 @@ GET /health</pre>
 
   <h2 id="changelog">10. Changelog</h2>
   <ul>
+    <li><strong>1.2.0</strong> — <code>strict_source</code> reproducibility mode on <code>get_indicator</code>/<code>get_series</code>/<code>verify_stat</code>/<code>verify_claims</code>; <code>fallback_used</code> flag + no-store caching on fallback-sourced responses; deeper transient-failure retries before any fallback; WEO stale-vintage disclosure notes; more precise IMF/FRED licensing language; honest WEO estimate-boundary caveat.</li>
     <li><strong>1.1.0</strong> — <code>verify_claims</code> batch verification (MCP + <code>POST /v1/verify_claims</code>), FRED end-to-end test coverage.</li>
     <li><strong>1.0.0</strong> — Initial release: 10 tools, 42-indicator registry, World Bank + IMF WEO + ECB + optional FRED, REST mirror, OpenAPI, llms.txt.</li>
   </ul>

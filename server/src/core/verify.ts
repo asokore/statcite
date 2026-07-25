@@ -23,6 +23,10 @@ export interface VerifyResult {
   country?: { iso3: string; name: string };
   citation: Citation;
   notes: string[];
+  /** Present and true when the official value came from the fallback source
+   * because the primary failed — the verdict is against a different statistical
+   * source than the primary would have served. Absent otherwise. */
+  fallback_used?: boolean;
 }
 
 interface VerifyParams {
@@ -34,6 +38,8 @@ interface VerifyParams {
   tolerance_abs?: number;
   /** Relative tolerance in percent (levels default: 0.5 match / 5 close). */
   tolerance_pct?: number;
+  /** Reproducibility mode: never verify against a fallback source — error instead. */
+  strict_source?: boolean;
 }
 
 function isPercentKind(indicatorKey: string): boolean {
@@ -57,8 +63,8 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
     throw new ToolError(`Indicator '${p.indicator}' needs a 'country' (ISO3 code or name) to verify against.`);
   }
   const result = isRegistry
-    ? await getIndicator(ctx, p.indicator, p.country ?? "", {})
-    : await getSeries(ctx, p.indicator, { country: p.country });
+    ? await getIndicator(ctx, p.indicator, p.country ?? "", { strictSource: p.strict_source })
+    : await getSeries(ctx, p.indicator, { country: p.country, strictSource: p.strict_source });
 
   const obs = result.observations;
   const byPeriod = new Map(obs.map((o) => [o.period, o]));
@@ -107,6 +113,7 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
       country: result.country,
       citation: result.citation,
       notes,
+      ...(result.fallback_used ? { fallback_used: true } : {}),
     };
   }
 
@@ -168,6 +175,7 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
     country: result.country,
     citation: result.citation,
     notes,
+    ...(result.fallback_used ? { fallback_used: true } : {}),
   };
 }
 

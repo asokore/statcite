@@ -789,19 +789,22 @@ async function doFetch(url, timeoutMs, ttlSeconds) {
     clearTimeout(timer);
   }
 }
+var RETRY_DELAYS_MS = [300, 900];
 async function fetchJson(url, { ttlSeconds = 21600, timeoutMs = 8e3 } = {}) {
   const hit = mem.get(url);
   const now = Date.now();
   if (hit && hit.exp > now) return hit.data;
   let lastErr;
-  for (let attempt = 0; attempt < 2; attempt++) {
+  const maxAttempts = RETRY_DELAYS_MS.length + 1;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const isLastAttempt = attempt === maxAttempts - 1;
     try {
       const res = await doFetch(url, timeoutMs, ttlSeconds);
       if (res.status === 429 || res.status >= 500) {
         lastErr = new UpstreamError(`Upstream returned HTTP ${res.status}`, url, res.status);
         await res.body?.cancel();
-        if (attempt === 0) {
-          await new Promise((r) => setTimeout(r, 300));
+        if (!isLastAttempt) {
+          await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
           continue;
         }
         throw lastErr;
@@ -820,8 +823,8 @@ async function fetchJson(url, { ttlSeconds = 21600, timeoutMs = 8e3 } = {}) {
     } catch (e) {
       lastErr = e;
       if (e instanceof UpstreamError && e.status && e.status < 500 && e.status !== 429) throw e;
-      if (attempt === 0) {
-        await new Promise((r) => setTimeout(r, 300));
+      if (!isLastAttempt) {
+        await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
         continue;
       }
     }
@@ -830,6 +833,15 @@ async function fetchJson(url, { ttlSeconds = 21600, timeoutMs = 8e3 } = {}) {
     throw lastErr instanceof UpstreamError ? lastErr : new UpstreamError(`Failed to reach upstream: ${lastErr.message}`, url);
   }
   throw new UpstreamError("Failed to reach upstream", url);
+}
+function isTransientUpstreamError(e) {
+  if (e instanceof ToolError) return false;
+  if (e instanceof UpstreamError) {
+    if (e.status === 429 || e.status && e.status >= 500) return true;
+    if (e.status === void 0) return true;
+    return false;
+  }
+  return true;
 }
 
 // ../server/src/adapters/worldbank.ts
@@ -1113,7 +1125,22 @@ function weoProjectionNote(datasetCode, observations) {
   if (!m) return void 0;
   const vintage = parseInt(m[1], 10);
   const hasFuture = observations.some((o) => parseInt(o.period.slice(0, 4), 10) >= vintage);
-  return hasFuture ? `Values for ${vintage} onward are IMF WEO estimates/projections from the ${datasetCode.replace("WEO:", "")} vintage, not final outturns.` : void 0;
+  return hasFuture ? `Values for ${vintage} onward are IMF WEO estimates/projections from the ${datasetCode.replace("WEO:", "")} vintage, not final outturns. This boundary is a vintage-year heuristic: the IMF's "latest actual" year varies by country and series, so some observations before ${vintage} may also be IMF staff estimates rather than final outturns.` : void 0;
+}
+function expectedWeoEdition(now = /* @__PURE__ */ new Date()) {
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth() + 1;
+  if (m >= 11) return `${y}-10`;
+  if (m >= 5) return `${y}-04`;
+  return `${y - 1}-10`;
+}
+function weoVintageStaleNote(datasetCode, now = /* @__PURE__ */ new Date()) {
+  const m = datasetCode.match(/WEO:(\d{4}-\d{2})/);
+  if (!m) return void 0;
+  const resolved = m[1];
+  const expected = expectedWeoEdition(now);
+  if (resolved >= expected) return void 0;
+  return `IMF WEO vintage ${resolved} is the newest edition available via DBnomics (this server's IMF data path); the IMF has likely published a newer WEO release (expected ${expected}) that DBnomics has not yet ingested. Values, estimates, and projections reflect the ${resolved} vintage, not necessarily the IMF's current release.`;
 }
 function markWeoProjections(datasetCode, observations) {
   const m = datasetCode.match(/WEO:(\d{4})/);
@@ -1160,6 +1187,8 @@ async function indicatorFromDbnomics(ctx, def, country, opts) {
   const notes = def.notes ? [def.notes] : [];
   const projNote = weoProjectionNote(s.datasetCode, s.observations);
   if (projNote) notes.push(projNote);
+  const staleNote = weoVintageStaleNote(s.datasetCode);
+  if (staleNote) notes.push(staleNote);
   markWeoProjections(s.datasetCode, s.observations);
   const result = {
     series_id: `dbnomics/${s.providerCode}/${s.datasetCode}/${s.seriesCode}`,
@@ -1207,24 +1236,40 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
   const preferDbnomics = def.dbnomics && (!def.wb || DB_PRIMARY.has(def.key));
   const attempts = [];
   if (preferDbnomics) {
-    attempts.push(() => indicatorFromDbnomics(ctx, def, country, opts));
-    if (def.wb) attempts.push(() => indicatorFromWb(ctx, def, country, opts));
+    attempts.push({ label: "IMF WEO (via DBnomics)", run: () => indicatorFromDbnomics(ctx, def, country, opts) });
+    if (def.wb) attempts.push({ label: "World Bank WDI", run: () => indicatorFromWb(ctx, def, country, opts) });
   } else {
-    if (def.wb) attempts.push(() => indicatorFromWb(ctx, def, country, opts));
-    if (def.dbnomics) attempts.push(() => indicatorFromDbnomics(ctx, def, country, opts));
+    if (def.wb) attempts.push({ label: "World Bank WDI", run: () => indicatorFromWb(ctx, def, country, opts) });
+    if (def.dbnomics) attempts.push({ label: "IMF WEO (via DBnomics)", run: () => indicatorFromDbnomics(ctx, def, country, opts) });
   }
   if (def.fred && country.iso3 === "USA" && fredAvailable(ctx) && attempts.length === 0) {
-    attempts.push(() => indicatorFromFred(ctx, def, opts));
+    attempts.push({ label: "FRED", run: () => indicatorFromFred(ctx, def, opts) });
   }
+  const tried = opts.strictSource ? attempts.slice(0, 1) : attempts;
   const errors = [];
-  for (let i = 0; i < attempts.length; i++) {
+  let firstErrorWasTransient = false;
+  for (let i = 0; i < tried.length; i++) {
     try {
-      const result = await attempts[i]();
-      if (i > 0) result.notes.push(`Primary source unavailable for this query; served from fallback source. (${errors[0]})`);
+      const result = await tried[i].run();
+      if (i > 0) {
+        result.fallback_used = true;
+        const primaryLabel = tried[0].label;
+        const servedLabel = tried[i].label;
+        result.notes.push(
+          firstErrorWasTransient ? `${primaryLabel} was transiently unavailable for this request; served from ${servedLabel} instead, which may use a different statistical definition and can report a different value for the same nominal indicator. If exact consistency with ${primaryLabel} matters, retry this query \u2014 the primary source may have recovered. (${errors[0]})` : `${primaryLabel} does not have this indicator/country/period; served from ${servedLabel} instead. (${errors[0]})`
+        );
+      }
       return result;
     } catch (e) {
+      if (i === 0) firstErrorWasTransient = isTransientUpstreamError(e);
       errors.push(e instanceof Error ? e.message : String(e));
     }
+  }
+  if (opts.strictSource && attempts.length > tried.length) {
+    throw new ToolError(
+      `Could not retrieve '${def.key}' for ${country.name} from its primary source (${tried[0].label}): ${errors.join(" | ")}. strict_source=true prevented fallback to ${attempts[1].label}` + (firstErrorWasTransient ? "; the failure looks transient \u2014 retrying this query may succeed, or drop strict_source to accept the fallback source" : "") + ".",
+      { indicator: def.key, country: country.iso3, strict_source: true }
+    );
   }
   throw new ToolError(
     `Could not retrieve '${def.key}' for ${country.name}: ${errors.join(" | ")}`,
@@ -1302,6 +1347,8 @@ async function getSeries(ctx, seriesId, opts = {}) {
     const notes = [];
     const projNote = weoProjectionNote(s.datasetCode, s.observations);
     if (projNote) notes.push(projNote);
+    const staleNote = weoVintageStaleNote(s.datasetCode);
+    if (staleNote) notes.push(staleNote);
     markWeoProjections(s.datasetCode, s.observations);
     return finishSeries(
       {
@@ -1354,17 +1401,21 @@ async function searchIndicators(ctx, query, opts = {}) {
   return items;
 }
 function listRegistry() {
-  return INDICATORS.map((d) => ({
-    key: d.key,
-    label: d.label,
-    unit: d.unit,
-    sources: [
-      ...d.wb ? ["World Bank WDI"] : [],
-      ...d.dbnomics ? [`${d.dbnomics[0]} ${d.dbnomics[1].replace(":latest", "")} (via DBnomics)`] : [],
-      ...d.fred ? ["FRED (US)"] : []
-    ],
-    notes: d.notes
-  }));
+  return INDICATORS.map((d) => {
+    const dbLabel = d.dbnomics ? `${d.dbnomics[0]} ${d.dbnomics[1].replace(":latest", "")} (via DBnomics)` : void 0;
+    const wbLabel = d.wb ? "World Bank WDI" : void 0;
+    const dbFirst = d.dbnomics && (!d.wb || DB_PRIMARY.has(d.key));
+    return {
+      key: d.key,
+      label: d.label,
+      unit: d.unit,
+      sources: [
+        ...dbFirst ? [dbLabel, ...wbLabel ? [wbLabel] : []] : [...wbLabel ? [wbLabel] : [], ...dbLabel ? [dbLabel] : []],
+        ...d.fred ? ["FRED (US)"] : []
+      ],
+      notes: d.notes
+    };
+  });
 }
 
 // ../server/src/core/snapshot.ts
@@ -1850,7 +1901,7 @@ async function verifyStat(ctx, p) {
   if (isRegistry && !p.country) {
     throw new ToolError(`Indicator '${p.indicator}' needs a 'country' (ISO3 code or name) to verify against.`);
   }
-  const result = isRegistry ? await getIndicator(ctx, p.indicator, p.country ?? "", {}) : await getSeries(ctx, p.indicator, { country: p.country });
+  const result = isRegistry ? await getIndicator(ctx, p.indicator, p.country ?? "", { strictSource: p.strict_source }) : await getSeries(ctx, p.indicator, { country: p.country, strictSource: p.strict_source });
   const obs = result.observations;
   const byPeriod = new Map(obs.map((o) => [o.period, o]));
   const lookup = (key) => {
@@ -1885,7 +1936,8 @@ async function verifyStat(ctx, p) {
       series: { id: result.series_id, name: result.name, unit: result.unit },
       country: result.country,
       citation: result.citation,
-      notes
+      notes,
+      ...result.fallback_used ? { fallback_used: true } : {}
     };
   }
   const official = matched.value;
@@ -1934,7 +1986,8 @@ async function verifyStat(ctx, p) {
     series: { id: result.series_id, name: result.name, unit: result.unit },
     country: result.country,
     citation: result.citation,
-    notes
+    notes,
+    ...result.fallback_used ? { fallback_used: true } : {}
   };
 }
 function within(x, target, tolFrac) {
@@ -2006,9 +2059,9 @@ var SOURCES = [
   {
     id: "imf_weo",
     name: "IMF \u2014 World Economic Outlook (via DBnomics)",
-    coverage: "Growth, fiscal, external indicators for 190+ economies, incl. estimates/projections; twice-yearly vintages",
+    coverage: "Growth, fiscal, external indicators for 190+ economies, incl. estimates/projections; twice-yearly vintages. Served vintage is the newest available via DBnomics, which can lag the IMF's release calendar \u2014 every response cites the resolved vintage and adds a stale-vintage note when it trails the expected current release",
     access: "No key; queried live from api.db.nomics.world v22",
-    license: "IMF terms permit reuse and redistribution with attribution",
+    license: "Use and redistribution are subject to the IMF's data-usage terms, including attribution and downstream-user conditions; commercial reuse may require IMF permission \u2014 consult the IMF terms directly",
     attribution_required: "Source: International Monetary Fund",
     url: "https://www.imf.org/en/Publications/WEO",
     terms_url: "https://www.imf.org/external/terms.htm"
@@ -2028,7 +2081,7 @@ var SOURCES = [
     name: "Federal Reserve Bank of St. Louis \u2014 FRED (optional)",
     coverage: "US and international series incl. monthly CPI, unemployment, rates (active only when the server operator configures a free FRED API key)",
     access: "Requires the operator's FRED API key",
-    license: "FRED API Terms of Use; some series are owned by third parties \u2014 check the series page",
+    license: "FRED API Terms of Use \u2014 disabled by default on this server; an operator enabling it must review the current FRED terms first (they include restrictions relevant to caching, redistribution, and AI/software use) and note that some series are owned by third parties",
     attribution_required: "This product uses the FRED\xAE API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.",
     url: "https://fred.stlouisfed.org",
     terms_url: "https://fred.stlouisfed.org/docs/api/terms_of_use.html"

@@ -55,6 +55,10 @@ export interface SeriesResult {
   observations: Observation[];
   citation: Citation;
   notes: string[];
+  /** Present and true when the primary source failed and a fallback source served
+   * this result — the value may reflect a different statistical definition than the
+   * primary would have returned. Absent on primary-source responses. */
+  fallback_used?: boolean;
 }
 
 export type IndicatorKind =

@@ -146,7 +146,7 @@ footer a{color:var(--dim)}
 URL:   https://statcite.com/mcp</pre>
     </div>
     <div id="t-chatgpt" class="tabpanel">
-      <p>Settings → Apps &amp; Connectors → enable <strong>Developer mode</strong> (paid plans) → create app with No Authentication. The server also implements the <code>search</code>/<code>fetch</code> pair required by deep-research connectors.</p>
+      <p>Settings → Apps &amp; Connectors → enable <strong>Developer mode</strong> (availability varies by plan/tier — see OpenAI's current docs) → create app with No Authentication. The server also implements the <code>search</code>/<code>fetch</code> pair used by deep-research connectors.</p>
       <pre>MCP server URL:  https://statcite.com/mcp
 Authentication:  No authentication</pre>
     </div>
@@ -235,7 +235,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
     <table>
       <tr><th>Source</th><th>Coverage</th><th>License</th></tr>
       <tr><td>World Bank — World Development Indicators</td><td>~1,400 annual indicators, 200+ economies, from 1960</td><td>CC BY 4.0</td></tr>
-      <tr><td>IMF — World Economic Outlook (via DBnomics)</td><td>Growth, fiscal &amp; external indicators, 190+ economies, incl. projections</td><td>Free reuse with attribution</td></tr>
+      <tr><td>IMF — World Economic Outlook (via DBnomics)</td><td>Growth, fiscal &amp; external indicators, 190+ economies, incl. projections (newest vintage available via DBnomics; responses flag stale vintages)</td><td>Per IMF terms: attribution + downstream conditions; commercial reuse may require IMF permission</td></tr>
       <tr><td>European Central Bank (via Frankfurter)</td><td>Daily euro reference FX rates, ~30 currencies, since 1999</td><td>Attribution; informational rates</td></tr>
       <tr><td>FRED — St. Louis Fed (optional)</td><td>US monthly/quarterly series (CPI, unemployment, fed funds, payrolls…)</td><td>FRED API terms</td></tr>
       <tr><td>DBnomics (aggregator)</td><td>90+ official providers (OECD, Eurostat, BIS, national offices)</td><td>Per provider</td></tr>
@@ -282,7 +282,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
   <section id="faq">
     <h2>FAQ</h2>
     <details><summary>Is it really free? What's the catch?</summary><p>Yes — the service runs on near-zero-cost infrastructure and free official data APIs, so a generous free tier is sustainable. The long-term plan is boring and honest: keep the free tier, add paid convenience (keys, volume, bulk) for heavy users. No ads, no data resale.</p></details>
-    <details><summary>How accurate is the data?</summary><p>StatCite adds no numbers of its own — it relays the official series and tells you exactly which one, fetched live and cached briefly. Macro data gets revised; every response notes that the value is the source's <em>currently published</em> figure. Computed transforms (YoY, inflation adjustment, FX bridging) disclose their formula and inputs.</p></details>
+    <details><summary>How accurate is the data?</summary><p>StatCite does not originate the underlying statistical observations — it relays the official series and tells you exactly which one, fetched live from the source or its aggregator and cached briefly. Derived values (YoY, inflation adjustment, FX bridging) and verification verdicts are calculated transparently, with the method and inputs disclosed. Macro data gets revised, and aggregators can lag the source's newest release — every citation states the exact series and vintage served, and responses flag when a vintage trails the expected current release.</p></details>
     <details><summary>Can I redistribute the numbers?</summary><p>The underlying licenses (CC BY 4.0 for the World Bank, IMF terms, ECB attribution) permit reuse — including commercial — with attribution. Every response includes the exact attribution line, which is precisely the point of StatCite.</p></details>
     <details><summary>Who built this?</summary><p>A professional economist and data analyst who got tired of AI drafts with unverifiable numbers. The indicator registry, source fallbacks, and verification thresholds are economist-curated — e.g. government debt defaults to IMF WEO general government gross debt, not the patchier central-government series.</p></details>
     <details><summary>How should agents cite StatCite itself?</summary><p>Cite the original source (the citation object gives you everything). Mentioning “via StatCite” is appreciated but never required.</p></details>

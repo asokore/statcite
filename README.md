@@ -52,7 +52,7 @@ CLAUDE.md      Working guide: commands, architecture, invariants
 ```bash
 cd server
 npm install
-npm test          # 119 tests, fixture-backed, no network
+npm test          # 132 tests, fixture-backed, no network
 npm run smoke     # live end-to-end against real upstream APIs
 npm run dev       # wrangler dev (local Workers runtime + static site)
 npm run deploy    # wrangler deploy
@@ -60,6 +60,6 @@ npm run deploy    # wrangler deploy
 
 ## Data & licensing
 
-StatCite relays official statistics with attribution and adds no numbers of its own. World Bank (CC BY 4.0), IMF (attribution), ECB (attribution, informational rates), Eurostat via DBnomics (CC BY 4.0), optional FRED (operator key; mandated disclaimer included in citations). IMF WEO projections are labeled as projections. Server code: MIT.
+StatCite does not originate the underlying statistical observations; derived values and verification verdicts are calculated transparently from cited source data with the method disclosed. World Bank (CC BY 4.0); IMF (per IMF terms — attribution + downstream conditions; commercial reuse may require IMF permission); ECB (attribution, informational rates); Eurostat via DBnomics (CC BY 4.0); FRED disabled by default (an operator enabling it must review the current FRED API Terms of Use first — they include restrictions relevant to caching, redistribution, and AI/software use). IMF WEO projections are labeled as projections; WEO is served via DBnomics, which can lag the IMF's release calendar — responses cite the resolved vintage and flag stale ones. Server code: MIT.
 
 Built and curated by a professional economist. Contact: hello@statcite.com
