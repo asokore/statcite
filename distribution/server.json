@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.asokore/statcite",
+  "description": "Official economic statistics with full citations for AI agents — World Bank, IMF WEO, ECB — plus verify_stat to check claimed figures against official series. 42 indicators, 200+ economies, inflation adjustment, historical FX. Free, no auth.",
+  "repository": {
+    "url": "https://github.com/asokore/statcite",
+    "source": "github"
+  },
+  "version": "1.0.0",
+  "websiteUrl": "https://statcite.com",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://statcite.com/mcp"
+    }
+  ]
+}

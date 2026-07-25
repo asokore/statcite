@@ -1,0 +1,114 @@
+# StatCite — complete reference for AI agents
+
+StatCite serves official economic statistics with full citations. Free, no auth, read-only.
+
+- MCP endpoint (Streamable HTTP, stateless, protocol 2025-03-26/2025-06-18/2025-11-25): https://statcite.com/mcp
+- REST base: https://statcite.com/v1  (OpenAPI: https://statcite.com/openapi.json)
+- Every numeric response includes a citation object: {source, dataset, series_id, series_name, source_url, api_url, license, attribution, retrieved_at, citation_text, notices?}. Reproduce citation_text when presenting numbers to users.
+- Data sources: World Bank WDI (CC BY 4.0), IMF WEO via DBnomics (attribution: "Source: International Monetary Fund"), ECB euro reference rates via Frankfurter, optional FRED (US high-frequency; carries the mandated FRED disclaimer).
+- IMF WEO forward-year values are labeled as estimates/projections per-observation; "latest" prefers published outturns.
+- Statistics get revised: values reflect the source's currently published figure.
+
+## MCP tools
+
+### get_indicator
+Official values for a curated indicator, any country.
+Args: indicator (registry key, required), country (ISO3/ISO2/name, required), start_year?, end_year?, transform? (none|yoy|pct_change|index), latest_only? (bool).
+Example: {"indicator":"inflation_cpi","country":"BRB","latest_only":true}
+
+### verify_stat
+Check a claimed figure against the official series. THE tool to call before publishing any economic number.
+Args: indicator (registry key or explicit series id), country?, period (usually "YYYY"), claimed_value (number), tolerance_abs?, tolerance_pct?.
+Returns verdict: match | close | mismatch | cannot_verify, plus official_value, difference, diagnostics (year misattribution, percent-vs-decimal, scale confusion), citation.
+Default thresholds: percent-kind series → match ≤0.06pp, close ≤0.3pp; levels → match ≤0.5% rel, close ≤5% rel.
+
+### get_series
+Raw series by explicit id: "worldbank/<WDI code>" (+country), "fred/<ID>" (US; needs server FRED key), "dbnomics/<PROVIDER>/<DATASET>/<SERIES>" e.g. "dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change".
+Args: series_id, country?, start_year?, end_year?, transform?.
+
+### search_indicators
+Free-text search over the registry + DBnomics dataset discovery. Args: query.
+
+### country_snapshot
+11 headline indicators for one country, each with its own citation. Args: country.
+
+### inflation_adjust
+Args: amount, from_year, to_year, country? (default USA). CPI-ratio method (World Bank FP.CPI.TOTL), formula disclosed. Annual-average precision.
+
+### fx_convert
+Args: amount, from, to (ISO 4217), date? ("YYYY-MM-DD" daily | "YYYY" annual | omit=latest).
+ECB daily reference rates for ~30 majors since 1999; ~90 more currencies via World Bank official annual-average rates (USD bridge). Response includes precision: daily|annual_average|mixed and the exact method.
+
+### list_sources
+Sources, coverage, licenses, required attribution lines.
+
+### search / fetch (deep-research pair)
+search({query}) → {results:[{id,title,url}]} with ids like "indicator/inflation_cpi/BRB".
+fetch({id}) → {id,title,text,url,metadata}; text contains recent observations + full citation.
+
+## REST endpoints (GET)
+
+- /v1 — endpoint index
+- /v1/indicators — full registry
+- /v1/indicator/{key}?country=&start_year=&end_year=&transform=&latest_only=
+- /v1/series?id=&country=&start_year=&end_year=&transform=
+- /v1/search?q=
+- /v1/snapshot/{country}
+- /v1/verify?indicator=&country=&period=&value=&tolerance_abs=&tolerance_pct=
+- /v1/inflation?amount=&from_year=&to_year=&country=
+- /v1/fx?amount=&from=&to=&date=
+- /v1/sources
+- /health
+
+Errors: 400 missing params, 422 helpful failure (suggestions included), 502 upstream trouble.
+
+## Indicator registry (42 keys)
+
+- gdp_growth — GDP growth (annual %) [% (annual, real)] (sources: World Bank WDI; IMF WEO (via DBnomics))
+- gdp_current_usd — GDP (current US$) [current US$] (sources: World Bank WDI)
+- gdp_per_capita_usd — GDP per capita (current US$) [current US$] (sources: World Bank WDI)
+- gdp_per_capita_ppp — GDP per capita, PPP (current international $) [current international $ (PPP)] (sources: World Bank WDI)
+- gni_per_capita_atlas — GNI per capita, Atlas method (current US$) [current US$] (sources: World Bank WDI)
+- inflation_cpi — Inflation, consumer prices (annual %) [% (annual average)] (sources: World Bank WDI; FRED (US))
+- cpi_index — Consumer price index (2010 = 100) [index, 2010 = 100] (sources: World Bank WDI; FRED (US))
+- gdp_deflator_growth — Inflation, GDP deflator (annual %) [%] (sources: World Bank WDI)
+- unemployment_rate — Unemployment, total (% of labor force, modeled ILO estimate) [% of labor force] (sources: World Bank WDI; FRED (US))
+- labor_force_participation — Labor force participation rate (% of population 15+, modeled ILO) [% of population ages 15+] (sources: World Bank WDI)
+- population — Population, total [people] (sources: World Bank WDI)
+- population_growth — Population growth (annual %) [%] (sources: World Bank WDI)
+- current_account_gdp — Current account balance (% of GDP) [% of GDP] (sources: World Bank WDI; IMF WEO (via DBnomics))
+- govt_debt_gdp — General government gross debt (% of GDP) [% of GDP] (sources: World Bank WDI; IMF WEO (via DBnomics))
+- fiscal_balance_gdp — General government net lending/borrowing (% of GDP) [% of GDP] (sources: IMF WEO (via DBnomics))
+- govt_revenue_gdp — General government revenue (% of GDP) [% of GDP] (sources: IMF WEO (via DBnomics))
+- govt_expenditure_gdp — General government total expenditure (% of GDP) [% of GDP] (sources: IMF WEO (via DBnomics))
+- tax_revenue_gdp — Tax revenue (% of GDP) [% of GDP] (sources: World Bank WDI)
+- trade_gdp — Trade (% of GDP) [% of GDP] (sources: World Bank WDI)
+- exports_gdp — Exports of goods and services (% of GDP) [% of GDP] (sources: World Bank WDI)
+- imports_gdp — Imports of goods and services (% of GDP) [% of GDP] (sources: World Bank WDI)
+- fdi_inflows_gdp — Foreign direct investment, net inflows (% of GDP) [% of GDP] (sources: World Bank WDI)
+- remittances_gdp — Personal remittances, received (% of GDP) [% of GDP] (sources: World Bank WDI)
+- gross_capital_formation_gdp — Gross capital formation (% of GDP) [% of GDP] (sources: World Bank WDI)
+- gross_savings_gdp — Gross savings (% of GDP) [% of GDP] (sources: World Bank WDI)
+- official_fx_rate — Official exchange rate (LCU per US$, period average) [LCU per US$] (sources: World Bank WDI)
+- reserves_months_imports — Total reserves in months of imports [months of imports] (sources: World Bank WDI)
+- reserves_total_usd — Total reserves (includes gold, current US$) [current US$] (sources: World Bank WDI)
+- lending_rate — Lending interest rate (%) [%] (sources: World Bank WDI)
+- deposit_rate — Deposit interest rate (%) [%] (sources: World Bank WDI)
+- real_interest_rate — Real interest rate (%) [%] (sources: World Bank WDI)
+- broad_money_gdp — Broad money (% of GDP) [% of GDP] (sources: World Bank WDI)
+- gini — Gini index [index (0–100)] (sources: World Bank WDI)
+- poverty_headcount_intl — Poverty headcount ratio at $2.15/day, 2017 PPP (% of population) [% of population] (sources: World Bank WDI)
+- life_expectancy — Life expectancy at birth, total (years) [years] (sources: World Bank WDI)
+- urban_population_share — Urban population (% of total population) [% of population] (sources: World Bank WDI)
+- us_fed_funds_rate — US federal funds effective rate (monthly, %) [%] (sources: FRED (US))
+- us_10y_treasury — US 10-year Treasury constant maturity yield (daily, %) [%] (sources: FRED (US))
+- us_cpi_monthly — US CPI for all urban consumers (monthly index, 1982–84 = 100) [index, 1982–84 = 100] (sources: FRED (US))
+- us_unemployment_monthly — US unemployment rate (monthly, %) [%] (sources: FRED (US))
+- us_nonfarm_payrolls — US total nonfarm payrolls (monthly, thousands of persons) [thousands of persons] (sources: FRED (US))
+- us_real_gdp — US real GDP (quarterly, chained 2017 dollars, SAAR) [billions of chained 2017 US$] (sources: FRED (US))
+
+## Countries
+ISO3/ISO2 codes or English names; aliases resolve (UK, South Korea, Ivory Coast, Türkiye…). Aggregates: WLD, EUU, EMU, OED, HIC/LIC/LMC/UMC, regions (LCN, SSF, EAS, ECS, MEA, NAC, SAS).
+
+## Fair use
+Free, no key. Cache-friendly; keep sustained automated load reasonable. Metered alternative: the StatCite actor on Apify. Contact: hello@statcite.com

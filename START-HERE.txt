@@ -1,0 +1,25 @@
+Paste this into Claude Code, opened in C:\dev\statcite
+──────────────────────────────────────────────────────
+
+Read BRIEF.md, then CLAUDE.md, then docs/RESEARCH.md.
+
+This project was researched and built for me in one Cowork session and handed to
+you deliberately unfinished-in-judgment: BRIEF.md gives you full authority to
+review it, improve it, extend it, or replace it with something better. Nothing in
+the repo is fixed. I'm an economist and data scientist; I want something a lot of
+people (and agents) use that eventually makes money, at near-zero cost to me now.
+
+Start by verifying what's actually there:
+  cd server && npm install && npm test && npm run smoke
+
+Then look at my other projects in C:\dev (FiscalDashboard, barbados-property-
+dashboard) so you understand what I actually work on — BRIEF.md §6.3 argues that
+matters more than it currently shows in this build.
+
+Then form your own view and tell me, before doing hours of work: what you'd keep,
+what you'd change, what you'd add, what you'd kill, and what you'd do first.
+Push back on the strategy if you disagree with it — BRIEF.md §4 lists where I'd
+attack my predecessor's reasoning, and §6 lists the ideas that weren't built.
+
+Ask me anything you need answered (BRIEF.md §8 has the open questions).
+──────────────────────────────────────────────────────

@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StatCite — Economic statistics your AI can actually cite</title>
+<meta name="description" content="Free remote MCP server + REST API serving official economic statistics — World Bank, IMF, ECB — where every number ships with a full citation. Includes verify_stat: check any claimed figure against the official series.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="canonical" href="https://statcite.com/">
+<meta property="og:title" content="StatCite — Economic statistics your AI can actually cite">
+<meta property="og:description" content="Official macro data with full citations, built for AI agents. Free MCP server + REST API, plus stat verification.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://statcite.com/">
+<style>
+:root{
+  --bg:#0b0f14;--bg2:#10161d;--card:#141c25;--line:#22303d;
+  --text:#dbe4ec;--dim:#8fa1b0;--faint:#5c6f7e;
+  --accent:#4cc38a;--accent2:#7cb8ff;--warn:#e5b567;--err:#e0716f;
+  --mono:ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6;font-size:16px}
+a{color:var(--accent2);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1060px;margin:0 auto;padding:0 24px}
+nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0;border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px;color:var(--text)}
+.logo svg{flex:none}
+nav .links{display:flex;gap:22px;font-size:14.5px}
+nav .links a{color:var(--dim)}
+nav .links a:hover{color:var(--text);text-decoration:none}
+header{padding:78px 0 46px;text-align:left}
+.badge{display:inline-block;font-size:12.5px;font-family:var(--mono);color:var(--accent);border:1px solid #2a4a3a;background:#12241c;border-radius:20px;padding:3px 12px;margin-bottom:22px}
+h1{font-size:clamp(30px,5vw,46px);line-height:1.15;letter-spacing:-.02em;max-width:820px}
+h1 em{font-style:normal;color:var(--accent)}
+.sub{margin-top:18px;font-size:18px;color:var(--dim);max-width:740px}
+.cta{margin-top:30px;display:flex;gap:12px;flex-wrap:wrap}
+.btn{display:inline-block;padding:11px 20px;border-radius:8px;font-weight:600;font-size:15px}
+.btn.primary{background:var(--accent);color:#08130d}
+.btn.primary:hover{filter:brightness(1.1);text-decoration:none}
+.btn.ghost{border:1px solid var(--line);color:var(--text)}
+.btn.ghost:hover{border-color:var(--faint);text-decoration:none}
+section{padding:52px 0;border-top:1px solid var(--line)}
+h2{font-size:26px;letter-spacing:-.01em;margin-bottom:8px}
+.lead{color:var(--dim);margin-bottom:28px;max-width:760px}
+.mcpurl{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-family:var(--mono);font-size:15px;max-width:640px;margin:18px 0 6px}
+.mcpurl span{color:var(--accent);overflow-x:auto;white-space:nowrap}
+.mcpurl button{margin-left:auto;background:var(--bg2);border:1px solid var(--line);color:var(--dim);border-radius:6px;padding:5px 12px;font-size:12.5px;cursor:pointer}
+.mcpurl button:hover{color:var(--text)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:22px 0 0}
+.tabs button{background:none;border:1px solid var(--line);color:var(--dim);border-radius:8px 8px 0 0;border-bottom:none;padding:8px 16px;font-size:13.5px;cursor:pointer}
+.tabs button.active{background:var(--card);color:var(--text)}
+.tabpanel{display:none;background:var(--card);border:1px solid var(--line);border-radius:0 10px 10px 10px;padding:18px 20px;font-size:14px}
+.tabpanel.active{display:block}
+.tabpanel p{color:var(--dim);margin-bottom:10px}
+pre{background:#0d1319;border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.55;color:#c6d5e2}
+pre .k{color:var(--accent2)} pre .s{color:var(--accent)} pre .c{color:var(--faint)} pre .n{color:var(--warn)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px}
+.card h3{font-size:16px;margin-bottom:6px;font-family:var(--mono);color:var(--accent)}
+.card p{font-size:14px;color:var(--dim)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:24px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px}
+.stat b{font-size:26px;color:var(--warn);display:block;letter-spacing:-.02em}
+.stat span{font-size:13.5px;color:var(--dim)}
+.stat a{font-size:12px;color:var(--faint)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-weight:600;font-size:13px}
+td code{font-family:var(--mono);font-size:12.5px;color:var(--accent)}
+.pricing{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.tier{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:26px}
+.tier.hi{border-color:#2a4a3a}
+.tier h3{font-size:18px}
+.tier .price{font-size:30px;font-weight:700;margin:10px 0;letter-spacing:-.02em}
+.tier .price small{font-size:14px;color:var(--dim);font-weight:400}
+.tier ul{list-style:none;margin-top:12px}
+.tier li{font-size:14px;color:var(--dim);padding:5px 0 5px 24px;position:relative}
+.tier li:before{content:"✓";position:absolute;left:0;color:var(--accent)}
+.tier li.soon:before{content:"◷";color:var(--warn)}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin-bottom:10px}
+summary{cursor:pointer;font-weight:600;font-size:15px}
+details p{margin-top:10px;color:var(--dim);font-size:14.5px}
+footer{border-top:1px solid var(--line);padding:36px 0 48px;color:var(--faint);font-size:13.5px}
+footer .cols{display:flex;gap:40px;flex-wrap:wrap;justify-content:space-between}
+footer a{color:var(--dim)}
+.verdict{color:var(--accent);font-weight:700}
+@media(max-width:640px){header{padding:48px 0 32px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="logo" href="/">
+      <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#12241c"/><path d="M8 22V14M13.5 22V10M19 22V16M24.5 22V7" stroke="#4cc38a" stroke-width="3" stroke-linecap="round"/><circle cx="24.5" cy="7" r="2.6" fill="#7cb8ff"/></svg>
+      StatCite
+    </a>
+    <div class="links">
+      <a href="/docs.html">Docs</a>
+      <a href="#tools">Tools</a>
+      <a href="#sources">Sources</a>
+      <a href="#pricing">Pricing</a>
+      <a href="/llms.txt">llms.txt</a>
+    </div>
+  </nav>
+
+  <header>
+    <span class="badge">MCP server · REST API · free</span>
+    <h1>Economic statistics your AI can <em>actually cite</em>.</h1>
+    <p class="sub">StatCite serves official macro data — World Bank, IMF, ECB, and more — where <strong>every number ships with its full citation</strong>: source, dataset, series ID, canonical URL, license, and retrieval date. Plus <code style="font-family:var(--mono);color:var(--accent)">verify_stat</code>: check any claimed figure against the official series before it goes in your report.</p>
+    <div class="cta">
+      <a class="btn primary" href="#connect">Connect your agent</a>
+      <a class="btn ghost" href="/docs.html">Read the docs</a>
+    </div>
+  </header>
+
+  <section id="why" style="border-top:none;padding-top:8px">
+    <h2>Why citations, why now</h2>
+    <p class="lead">AI agents write a growing share of the world's reports, briefs, and analysis — and they miscite numbers at measurable rates. StatCite exists so the number in your draft is the number in the official series, with the receipt attached.</p>
+    <div class="stats">
+      <div class="stat"><b>&gt;60%</b><span> of AI search answers contained incorrect citations in the Tow Center's 1,600-query audit</span><br><a href="https://www.cjr.org/tow_center/we-compared-eight-ai-search-engines-theyre-all-bad-at-citing-news.php">CJR, 2025</a></div>
+      <div class="stat"><b>45%</b><span> of AI news answers had at least one significant issue across 3,000 responses in 14 languages</span><br><a href="https://www.ebu.ch/news/2025/10/ai-s-systemic-distortion-of-news-is-consistent-across-languages-and-territories-international-study-by-public-service-broadcaste">EBU/BBC, 2025</a></div>
+      <div class="stat"><b>10.7%</b><span> citation hallucination rate measured for deep-research agents (vs 4.8% for search-augmented LLMs)</span><br><a href="https://arxiv.org/html/2604.03173v1">UPenn, 2026</a></div>
+      <div class="stat"><b>146,000+</b><span> AI-hallucinated citations found in academic papers published in 2025</span><br><a href="https://officechai.com/ai/at-least-146000-ai-hallucinated-citations-in-papers-published-in-2025-finds-paper/">arXiv 2605.07723</a></div>
+    </div>
+  </section>
+
+  <section id="connect">
+    <h2>Connect your agent</h2>
+    <p class="lead">One URL. No signup, no API key, no OAuth. Works in every major MCP client.</p>
+    <div class="mcpurl"><span id="mcp-url">https://statcite.com/mcp</span><button onclick="copyText('mcp-url',this)">copy</button></div>
+    <div class="tabs" role="tablist">
+      <button class="active" onclick="tab(event,'t-claude')">Claude</button>
+      <button onclick="tab(event,'t-chatgpt')">ChatGPT</button>
+      <button onclick="tab(event,'t-cursor')">Cursor</button>
+      <button onclick="tab(event,'t-vscode')">VS Code</button>
+      <button onclick="tab(event,'t-code')">Claude Code</button>
+      <button onclick="tab(event,'t-stdio')">Other (stdio)</button>
+      <button onclick="tab(event,'t-rest')">REST</button>
+    </div>
+    <div id="t-claude" class="tabpanel active">
+      <p>Settings → Connectors → <strong>Add custom connector</strong> → paste the URL. Works on all plans (Free allows one custom connector).</p>
+      <pre>Name:  StatCite
+URL:   https://statcite.com/mcp</pre>
+    </div>
+    <div id="t-chatgpt" class="tabpanel">
+      <p>Settings → Apps &amp; Connectors → enable <strong>Developer mode</strong> (paid plans) → create app with No Authentication. The server also implements the <code>search</code>/<code>fetch</code> pair required by deep-research connectors.</p>
+      <pre>MCP server URL:  https://statcite.com/mcp
+Authentication:  No authentication</pre>
+    </div>
+    <div id="t-cursor" class="tabpanel">
+      <p>Add to <code>~/.cursor/mcp.json</code> (or per-project <code>.cursor/mcp.json</code>):</p>
+      <pre>{
+  "mcpServers": {
+    "statcite": { "url": "https://statcite.com/mcp" }
+  }
+}</pre>
+    </div>
+    <div id="t-vscode" class="tabpanel">
+      <p>Add to <code>.vscode/mcp.json</code>:</p>
+      <pre>{
+  "servers": {
+    "statcite": { "type": "http", "url": "https://statcite.com/mcp" }
+  }
+}</pre>
+    </div>
+    <div id="t-code" class="tabpanel">
+      <p>One command:</p>
+      <pre>claude mcp add --transport http statcite https://statcite.com/mcp</pre>
+    </div>
+    <div id="t-stdio" class="tabpanel">
+      <p>Any stdio-only client, via <a href="https://github.com/geelen/mcp-remote">mcp-remote</a> (use ≥ 0.1.16):</p>
+      <pre>{
+  "mcpServers": {
+    "statcite": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@latest", "https://statcite.com/mcp"]
+    }
+  }
+}</pre>
+    </div>
+    <div id="t-rest" class="tabpanel">
+      <p>Plain HTTP for scripts, notebooks, spreadsheets, and Custom GPT Actions — <a href="/openapi.json">OpenAPI spec</a>:</p>
+      <pre>curl "https://statcite.com/v1/indicator/inflation_cpi?country=BRB&latest_only=true"
+curl "https://statcite.com/v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=4.1"
+curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
+    </div>
+  </section>
+
+  <section id="demo">
+    <h2>What a verified number looks like</h2>
+    <p class="lead">An agent drafts <i>“US inflation was 4.1% in 2023.”</i> Before publishing, it calls <code style="font-family:var(--mono);color:var(--accent)">verify_stat</code>:</p>
+    <pre><span class="c">// tools/call → verify_stat {indicator:"inflation_cpi", country:"USA", period:"2023", claimed_value:4.1}</span>
+{
+  <span class="k">"verdict"</span>: <span class="s">"match"</span>,
+  <span class="k">"claimed_value"</span>: <span class="n">4.1</span>,
+  <span class="k">"official_value"</span>: <span class="n">4.116338383</span>,
+  <span class="k">"explanation"</span>: <span class="s">"Claimed 4.1 vs official 4.1163 % (annual average) for 2023 — consistent (difference of 0.016 pp is within normal rounding)."</span>,
+  <span class="k">"citation"</span>: {
+    <span class="k">"source"</span>: <span class="s">"World Bank"</span>,
+    <span class="k">"dataset"</span>: <span class="s">"World Development Indicators"</span>,
+    <span class="k">"series_id"</span>: <span class="s">"FP.CPI.TOTL.ZG"</span>,
+    <span class="k">"series_name"</span>: <span class="s">"Inflation, consumer prices (annual %)"</span>,
+    <span class="k">"source_url"</span>: <span class="s">"https://data.worldbank.org/indicator/FP.CPI.TOTL.ZG?locations=USA"</span>,
+    <span class="k">"license"</span>: <span class="s">"CC BY 4.0"</span>,
+    <span class="k">"retrieved_at"</span>: <span class="s">"2026-07-25"</span>,
+    <span class="k">"citation_text"</span>: <span class="s">"World Bank, World Development Indicators, series FP.CPI.TOTL.ZG (Inflation, consumer prices, annual %), data last updated 2026-07-13. Retrieved 2026-07-25 via StatCite."</span>
+  }
+}</pre>
+    <p style="color:var(--dim);font-size:14px;margin-top:12px">Wrong year? Percent-vs-decimal slip? Billions-vs-millions? <code style="font-family:var(--mono)">verify_stat</code> diagnoses the classic errors and returns the correct, citable figure.</p>
+  </section>
+
+  <section id="tools">
+    <h2>Ten tools, one contract: every number carries its receipt</h2>
+    <p class="lead">Available over MCP and mirrored as a REST API. All read-only.</p>
+    <div class="grid">
+      <div class="card"><h3>verify_stat</h3><p>Check a claimed figure against the official series → match / close / mismatch / cannot_verify, with diagnostics and the correct citation.</p></div>
+      <div class="card"><h3>get_indicator</h3><p>42 curated indicators — inflation, GDP growth, unemployment, government debt, current account, FDI… — for 200+ economies, with source fallback (World Bank → IMF WEO).</p></div>
+      <div class="card"><h3>country_snapshot</h3><p>Headline economic picture of any country in one call: 11 indicators, each with its own citation. Built for country briefs.</p></div>
+      <div class="card"><h3>inflation_adjust</h3><p>“What is $100 (1995) worth in 2025 money?” CPI-ratio method with the exact index values and formula disclosed. Any country with CPI data.</p></div>
+      <div class="card"><h3>fx_convert</h3><p>ECB daily reference rates for ~30 majors since 1999, plus official annual-average rates for ~90 more currencies (BBD, XCD, JMD, KES…). Method always stated.</p></div>
+      <div class="card"><h3>get_series</h3><p>Raw access by explicit id: <code>worldbank/…</code>, <code>fred/…</code> (US monthly), <code>dbnomics/IMF/WEO:latest/…</code>. Transforms: YoY, % change, index rebase.</p></div>
+      <div class="card"><h3>search_indicators</h3><p>Free-text search over the curated registry plus DBnomics dataset discovery (IMF, OECD, Eurostat, BIS…).</p></div>
+      <div class="card"><h3>list_sources</h3><p>Exactly which official sources power each answer, their licenses, and the attribution lines you're required to use.</p></div>
+      <div class="card"><h3>search + fetch</h3><p>The deep-research compatibility pair, so StatCite plugs into ChatGPT connectors and similar research pipelines out of the box.</p></div>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>Sources &amp; licenses</h2>
+    <p class="lead">StatCite is a citation layer over official statistics — never a black box. Data is fetched live from the sources and cached briefly for politeness.</p>
+    <table>
+      <tr><th>Source</th><th>Coverage</th><th>License</th></tr>
+      <tr><td>World Bank — World Development Indicators</td><td>~1,400 annual indicators, 200+ economies, from 1960</td><td>CC BY 4.0</td></tr>
+      <tr><td>IMF — World Economic Outlook (via DBnomics)</td><td>Growth, fiscal &amp; external indicators, 190+ economies, incl. projections</td><td>Free reuse with attribution</td></tr>
+      <tr><td>European Central Bank (via Frankfurter)</td><td>Daily euro reference FX rates, ~30 currencies, since 1999</td><td>Attribution; informational rates</td></tr>
+      <tr><td>FRED — St. Louis Fed (optional)</td><td>US monthly/quarterly series (CPI, unemployment, fed funds, payrolls…)</td><td>FRED API terms</td></tr>
+      <tr><td>DBnomics (aggregator)</td><td>90+ official providers (OECD, Eurostat, BIS, national offices)</td><td>Per provider</td></tr>
+    </table>
+  </section>
+
+  <section id="pricing">
+    <h2>Pricing</h2>
+    <p class="lead">Free while the agent economy grows up. Infrastructure costs are near zero by design; when paid tiers arrive, the free tier stays.</p>
+    <div class="pricing">
+      <div class="tier hi">
+        <h3>Free</h3>
+        <div class="price">$0 <small>forever for fair use</small></div>
+        <ul>
+          <li>All 10 tools, full citation payloads</li>
+          <li>No key, no signup, no OAuth</li>
+          <li>MCP + REST</li>
+          <li>Fair-use: be reasonable; heavy automated loads may be throttled</li>
+        </ul>
+      </div>
+      <div class="tier">
+        <h3>Metered (Apify)</h3>
+        <div class="price">Pay per use <small>via Apify Store</small></div>
+        <ul>
+          <li>Same engine as a managed Apify actor</li>
+          <li>Per-result billing, SLA-backed platform</li>
+          <li>For pipelines that want an invoice</li>
+          <li class="soon">Listing: “StatCite Economic Data &amp; Fact-Check”</li>
+        </ul>
+      </div>
+      <div class="tier">
+        <h3>Pro</h3>
+        <div class="price">Coming <small>when demand says so</small></div>
+        <ul>
+          <li class="soon">API keys, higher limits, bulk endpoints</li>
+          <li class="soon">More sources (OECD, Eurostat curated sets)</li>
+          <li class="soon">x402 / agent-native payments</li>
+          <li class="soon">Email <a href="mailto:hello@statcite.com">hello@statcite.com</a> to shape it</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <h2>FAQ</h2>
+    <details><summary>Is it really free? What's the catch?</summary><p>Yes — the service runs on near-zero-cost infrastructure and free official data APIs, so a generous free tier is sustainable. The long-term plan is boring and honest: keep the free tier, add paid convenience (keys, volume, bulk) for heavy users. No ads, no data resale.</p></details>
+    <details><summary>How accurate is the data?</summary><p>StatCite adds no numbers of its own — it relays the official series and tells you exactly which one, fetched live and cached briefly. Macro data gets revised; every response notes that the value is the source's <em>currently published</em> figure. Computed transforms (YoY, inflation adjustment, FX bridging) disclose their formula and inputs.</p></details>
+    <details><summary>Can I redistribute the numbers?</summary><p>The underlying licenses (CC BY 4.0 for the World Bank, IMF terms, ECB attribution) permit reuse — including commercial — with attribution. Every response includes the exact attribution line, which is precisely the point of StatCite.</p></details>
+    <details><summary>Who built this?</summary><p>A professional economist and data analyst who got tired of AI drafts with unverifiable numbers. The indicator registry, source fallbacks, and verification thresholds are economist-curated — e.g. government debt defaults to IMF WEO general government gross debt, not the patchier central-government series.</p></details>
+    <details><summary>How should agents cite StatCite itself?</summary><p>Cite the original source (the citation object gives you everything). Mentioning “via StatCite” is appreciated but never required.</p></details>
+    <details><summary>What about rate limits?</summary><p>Fair use, no hard published limit. Responses are cache-friendly; identical queries are served from edge cache. If your use case needs guarantees, email <a href="mailto:hello@statcite.com">hello@statcite.com</a>.</p></details>
+  </section>
+
+  <footer>
+    <div class="cols">
+      <div>
+        <strong style="color:var(--text)">StatCite</strong><br>
+        Official economic statistics with citations,<br>built for AI agents and the people who check them.
+      </div>
+      <div>
+        <a href="/docs.html">Documentation</a><br>
+        <a href="/openapi.json">OpenAPI</a><br>
+        <a href="/llms.txt">llms.txt</a> · <a href="/llms-full.txt">llms-full.txt</a>
+      </div>
+      <div>
+        <a href="/privacy.html">Privacy</a><br>
+        <a href="/terms.html">Terms</a><br>
+        <a href="mailto:hello@statcite.com">hello@statcite.com</a>
+      </div>
+    </div>
+    <p style="margin-top:26px">© 2026 StatCite. Data © respective sources (World Bank CC BY 4.0, IMF, ECB, FRED). Not affiliated with or endorsed by any data provider.</p>
+  </footer>
+</div>
+<script>
+function tab(ev, id){
+  document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  ev.currentTarget.classList.add('active');
+}
+function copyText(id, btn){
+  navigator.clipboard.writeText(document.getElementById(id).textContent).then(()=>{
+    btn.textContent='copied'; setTimeout(()=>btn.textContent='copy',1500);
+  });
+}
+</script>
+</body>
+</html>

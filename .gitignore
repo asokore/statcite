@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.dev.vars
+.env
+*.log
+.wrangler/
+.DS_Store
+apify/storage/
+package-lock.json

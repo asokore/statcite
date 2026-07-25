@@ -1,0 +1,1068 @@
+[
+ {
+  "page": 1,
+  "pages": 1,
+  "per_page": 100,
+  "total": 66,
+  "sourceid": "2",
+  "lastupdated": "2026-07-13"
+ },
+ [
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2025",
+   "value": 0.846576563196289,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2024",
+   "value": 1.4464366430616,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2023",
+   "value": 3.18718905472632,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2022",
+   "value": null,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2021",
+   "value": null,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2020",
+   "value": null,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2019",
+   "value": 1.67662473276988,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2018",
+   "value": 3.1060057242059,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2017",
+   "value": 4.66018463955995,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2016",
+   "value": 1.28192813061895,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2015",
+   "value": -1.11278992510958,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2014",
+   "value": 1.76950322089729,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2013",
+   "value": 1.81410436049096,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2012",
+   "value": 4.53334753888775,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2011",
+   "value": 9.4322024017722,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2010",
+   "value": 5.82421853311866,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2009",
+   "value": 3.64386189258337,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2008",
+   "value": 8.1081081081078,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2007",
+   "value": 4.0342298288507,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2006",
+   "value": 7.3076626282894,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2005",
+   "value": 6.08218729535043,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2004",
+   "value": 1.39442231075691,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2003",
+   "value": 1.61943319838054,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2002",
+   "value": 0.12524945805602,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2001",
+   "value": 2.57783490431288,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "2000",
+   "value": 2.43581303489138,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1999",
+   "value": 1.56006240249605,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1998",
+   "value": -1.26888660701213,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1997",
+   "value": 7.71053878969883,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1996",
+   "value": 2.38615222842325,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1995",
+   "value": 1.87886279357232,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1994",
+   "value": 0.0772043884602322,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1993",
+   "value": 1.11343933604483,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1992",
+   "value": 6.09389302994638,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1991",
+   "value": 6.25752663270023,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1990",
+   "value": 3.07457271078019,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1989",
+   "value": 6.19011406844119,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1988",
+   "value": 4.85885917814048,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1987",
+   "value": 3.31173110743255,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1986",
+   "value": 1.33006845161916,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1985",
+   "value": 3.91510525082796,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1984",
+   "value": 4.68579731185597,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1983",
+   "value": 5.23029878288842,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1982",
+   "value": 10.3324664370561,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1981",
+   "value": 14.5675632146887,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1980",
+   "value": 14.4305197203942,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1979",
+   "value": 13.1698355431799,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1978",
+   "value": 9.48238259101763,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1977",
+   "value": 8.35236969934998,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1976",
+   "value": 4.98676811113181,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1975",
+   "value": 20.2944687625289,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1974",
+   "value": 38.9229280878111,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1973",
+   "value": 16.8550818260213,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1972",
+   "value": 11.8766562275328,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1971",
+   "value": 7.46925566353863,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1970",
+   "value": 7.28421637368521,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1969",
+   "value": 5.83523186605493,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1968",
+   "value": 7.4887431868762,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1967",
+   "value": 3.63487515335756,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1966",
+   "value": null,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1965",
+   "value": null,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1964",
+   "value": null,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1963",
+   "value": null,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1962",
+   "value": null,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1961",
+   "value": null,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  },
+  {
+   "indicator": {
+    "id": "FP.CPI.TOTL.ZG",
+    "value": "Inflation, consumer prices (annual %)"
+   },
+   "country": {
+    "id": "BB",
+    "value": "Barbados"
+   },
+   "countryiso3code": "BRB",
+   "date": "1960",
+   "value": null,
+   "unit": "",
+   "obs_status": "",
+   "decimal": 1
+  }
+ ]
+]
