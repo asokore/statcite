@@ -10,6 +10,7 @@ import { fetchWbSeries } from "../adapters/worldbank.ts";
 import { fetchDbnomicsSeries, searchDbnomicsDatasets } from "../adapters/dbnomics.ts";
 import { fetchFredSeries, fredAvailable } from "../adapters/fred.ts";
 import { worldBankCitation, dbnomicsCitation, fredCitation } from "./citations.ts";
+import { isTransientUpstreamError } from "./upstream.ts";
 
 export interface SeriesOpts {
   start?: string;
@@ -195,25 +196,44 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
   // we encode that as: if def.dbnomics exists and def.wb is the known-patchy fallback,
   // the registry marks it by ordering — here: govt debt & fiscal series prefer WEO.
   const preferDbnomics = def.dbnomics && (!def.wb || DB_PRIMARY.has(def.key));
-  const attempts: Array<() => Promise<SeriesResult>> = [];
+  const attempts: Array<{ label: string; run: () => Promise<SeriesResult> }> = [];
   if (preferDbnomics) {
-    attempts.push(() => indicatorFromDbnomics(ctx, def, country, opts));
-    if (def.wb) attempts.push(() => indicatorFromWb(ctx, def, country, opts));
+    attempts.push({ label: "IMF WEO (via DBnomics)", run: () => indicatorFromDbnomics(ctx, def, country, opts) });
+    if (def.wb) attempts.push({ label: "World Bank WDI", run: () => indicatorFromWb(ctx, def, country, opts) });
   } else {
-    if (def.wb) attempts.push(() => indicatorFromWb(ctx, def, country, opts));
-    if (def.dbnomics) attempts.push(() => indicatorFromDbnomics(ctx, def, country, opts));
+    if (def.wb) attempts.push({ label: "World Bank WDI", run: () => indicatorFromWb(ctx, def, country, opts) });
+    if (def.dbnomics) attempts.push({ label: "IMF WEO (via DBnomics)", run: () => indicatorFromDbnomics(ctx, def, country, opts) });
   }
   if (def.fred && country.iso3 === "USA" && fredAvailable(ctx) && attempts.length === 0) {
-    attempts.push(() => indicatorFromFred(ctx, def, opts));
+    attempts.push({ label: "FRED", run: () => indicatorFromFred(ctx, def, opts) });
   }
 
   const errors: string[] = [];
+  let firstErrorWasTransient = false;
   for (let i = 0; i < attempts.length; i++) {
     try {
-      const result = await attempts[i]();
-      if (i > 0) result.notes.push(`Primary source unavailable for this query; served from fallback source. (${errors[0]})`);
+      const result = await attempts[i].run();
+      if (i > 0) {
+        const primaryLabel = attempts[0].label;
+        const servedLabel = attempts[i].label;
+        // Two distinct classes of fallback, disclosed differently: a transient
+        // upstream failure (retries already exhausted in fetchJson) can recur on
+        // a later call to the SAME query and get the primary source back — and
+        // because the primary and fallback here are different statistical
+        // sources (e.g. World Bank WDI vs IMF WEO), that isn't just a slower
+        // path to the same number, it can be a materially different value for
+        // the same nominal indicator. A hard failure (series/country genuinely
+        // absent from the primary) doesn't carry that same-query-different-answer
+        // risk, so it gets the plainer note it always had.
+        result.notes.push(
+          firstErrorWasTransient
+            ? `${primaryLabel} was transiently unavailable for this request; served from ${servedLabel} instead, which may use a different statistical definition and can report a different value for the same nominal indicator. If exact consistency with ${primaryLabel} matters, retry this query — the primary source may have recovered. (${errors[0]})`
+            : `${primaryLabel} does not have this indicator/country/period; served from ${servedLabel} instead. (${errors[0]})`,
+        );
+      }
       return result;
     } catch (e) {
+      if (i === 0) firstErrorWasTransient = isTransientUpstreamError(e);
       errors.push(e instanceof Error ? e.message : String(e));
     }
   }
