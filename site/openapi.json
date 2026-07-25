@@ -9,6 +9,15 @@
   },
   "servers": [{ "url": "https://statcite.com" }],
   "paths": {
+    "/v1": {
+      "get": {
+        "operationId": "apiIndex",
+        "summary": "Endpoint index — service info and list of available /v1 routes",
+        "responses": {
+          "200": { "description": "Service info and endpoint list", "content": { "application/json": { "schema": { "type": "object" } } } }
+        }
+      }
+    },
     "/v1/indicators": {
       "get": {
         "operationId": "listIndicators",
@@ -184,6 +193,7 @@
           "verdict": { "type": "string", "enum": ["match", "close", "mismatch", "cannot_verify"] },
           "claimed_value": { "type": "number" },
           "official_value": { "type": ["number", "null"] },
+          "is_projection": { "type": "boolean", "description": "True when the matched official observation is an IMF WEO estimate/projection, not a final outturn." },
           "period": { "type": "string" },
           "difference": { "type": ["number", "null"] },
           "relative_difference_pct": { "type": ["number", "null"] },

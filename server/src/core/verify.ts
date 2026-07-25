@@ -12,6 +12,8 @@ export interface VerifyResult {
   verdict: Verdict;
   claimed_value: number;
   official_value: number | null;
+  /** True when the matched official observation is an IMF WEO estimate/projection, not a final outturn. */
+  is_projection: boolean;
   period: string;
   difference: number | null;
   relative_difference_pct: number | null;
@@ -41,12 +43,12 @@ function isPercentKind(indicatorKey: string): boolean {
 
 export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResult> {
   if (!Number.isFinite(p.claimed_value)) throw new ToolError("'claimed_value' must be a number.");
-  if (!/^\d{4}([QM-]?\d{0,2})?$/i.test(p.period.trim())) {
-    throw new ToolError("'period' should be a year like '2024' (or a period label matching the series, e.g. '2024-05').", {
+  const period = normalizePeriod(p.period);
+  if (!/^\d{4}(-Q[1-4]|[QM-]?\d{0,2})?$/i.test(period)) {
+    throw new ToolError("'period' should be a year like '2024' (or a period label matching the series, e.g. '2024-05' or '2024-Q1').", {
       period: p.period,
     });
   }
-  const period = p.period.trim();
   const year = parseInt(period.slice(0, 4), 10);
 
   // Resolve the official series (registry key or explicit series id).
@@ -59,12 +61,16 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
     : await getSeries(ctx, p.indicator, { country: p.country });
 
   const obs = result.observations;
-  const byPeriod = new Map(obs.map((o) => [o.period, o.value]));
-  let exact = byPeriod.get(period) ?? (period.length > 4 ? undefined : byPeriod.get(String(year)));
-  if (exact == null && period.length >= 6) {
+  const byPeriod = new Map(obs.map((o) => [o.period, o]));
+  const lookup = (key: string) => {
+    const o = byPeriod.get(key);
+    return o?.value != null ? o : undefined;
+  };
+  let matched = lookup(period) ?? (period.length > 4 ? undefined : lookup(String(year)));
+  if (!matched && period.length >= 6) {
     // Higher-frequency series label periods as dates ("2024-05-01"); accept "2024-05" prefixes.
     const hit = obs.find((o) => o.period.startsWith(period) && o.value != null);
-    if (hit) exact = hit.value;
+    if (hit) matched = hit;
   }
 
   const diagnostics: string[] = [];
@@ -75,7 +81,7 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
 
   const percentKind = isRegistry ? isPercentKind(p.indicator) : /%|percent/i.test(result.unit ?? result.name);
 
-  if (exact == null) {
+  if (!matched) {
     // Look for nearby periods to explain what we *do* have (capped for readability).
     const near = obs.filter((o) => Math.abs(parseInt(o.period.slice(0, 4), 10) - year) <= 2 && o.value != null).slice(-6);
     const range = obs.length ? `${obs[0].period}–${obs[obs.length - 1].period}` : "none";
@@ -87,6 +93,7 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
       verdict: "cannot_verify",
       claimed_value: p.claimed_value,
       official_value: null,
+      is_projection: false,
       period,
       difference: null,
       relative_difference_pct: null,
@@ -103,7 +110,8 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
     };
   }
 
-  const official = exact;
+  const official = matched.value!;
+  const isProjection = /WEO/i.test(matched.note ?? "") && /estimate|projection/i.test(matched.note ?? "");
   const diff = p.claimed_value - official;
   const relPct = official !== 0 ? (diff / Math.abs(official)) * 100 : null;
 
@@ -115,15 +123,21 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
       [1000, "a thousands scaling difference"],
       [1e6, "a millions scaling difference"],
       [1e9, "a billions scaling difference"],
+      [1e12, "a trillions scaling difference"],
     ] as Array<[number, string]>) {
       if (within(ratio, factor, 0.02) || within(ratio, 1 / factor, 0.02)) {
         diagnostics.push(`The claimed value is ~${factor.toLocaleString("en-US")}× ${ratio > 1 ? "larger" : "smaller"} than the official figure — possibly ${label}.`);
       }
     }
   }
+  if (ratio != null && ratio < 0 && within(-ratio, 1, 0.02)) {
+    diagnostics.push(
+      "The claimed value is approximately the official figure with the opposite sign — possibly a sign-convention mix-up (e.g. a fiscal deficit quoted as positive where the source reports net lending as negative).",
+    );
+  }
   // Adjacent-year check: does the claim match a neighboring year better?
   for (const offset of [-2, -1, 1, 2]) {
-    const v = byPeriod.get(String(year + offset));
+    const v = byPeriod.get(String(year + offset))?.value;
     if (v != null && closeEnough(p.claimed_value, v, percentKind, p)) {
       diagnostics.push(`The claimed value matches the ${year + offset} figure (${fmt(v)}) — the year may be misattributed.`);
     }
@@ -131,18 +145,20 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
 
   const { verdict, why } = judge(p.claimed_value, official, percentKind, p);
   const unitText = result.unit ? ` ${result.unit}` : "";
+  const officialLabel = isProjection ? "official (IMF WEO projection)" : "official";
   const explanation =
     verdict === "match"
-      ? `Claimed ${fmt(p.claimed_value)} vs official ${fmt(official)}${unitText} for ${period} — consistent (${why}).`
+      ? `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period} — consistent (${why}).`
       : verdict === "close"
-        ? `Claimed ${fmt(p.claimed_value)} vs official ${fmt(official)}${unitText} for ${period} — in the right neighborhood but not exact (${why}). Cite the official value.`
-        : `Claimed ${fmt(p.claimed_value)} vs official ${fmt(official)}${unitText} for ${period} — materially different (${why}).` +
+        ? `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period} — in the right neighborhood but not exact (${why}). Cite the official value.`
+        : `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period} — materially different (${why}).` +
           (diagnostics.length ? " See diagnostics for likely causes." : "");
 
   return {
     verdict,
     claimed_value: p.claimed_value,
     official_value: official,
+    is_projection: isProjection,
     period,
     difference: Number(diff.toFixed(6)),
     relative_difference_pct: relPct == null ? null : Number(relPct.toFixed(3)),
@@ -159,15 +175,25 @@ function within(x: number, target: number, tolFrac: number): boolean {
   return Math.abs(x - target) / target <= tolFrac;
 }
 
+/** Normalize claim-period spellings to source labels: "2024Q1"/"2024 Q1" → "2024-Q1", "202405" → "2024-05". */
+export function normalizePeriod(input: string): string {
+  const s = input.trim();
+  const q = s.match(/^(\d{4})[\s-]?Q([1-4])$/i);
+  if (q) return `${q[1]}-Q${q[2]}`;
+  const m = s.match(/^(\d{4})(0[1-9]|1[0-2])$/);
+  if (m) return `${m[1]}-${m[2]}`;
+  return s;
+}
+
 function closeEnough(claimed: number, official: number, percentKind: boolean, p: VerifyParams): boolean {
   return judge(claimed, official, percentKind, p).verdict !== "mismatch";
 }
 
-function judge(
+export function judge(
   claimed: number,
   official: number,
   percentKind: boolean,
-  p: VerifyParams,
+  p: Pick<VerifyParams, "tolerance_abs" | "tolerance_pct">,
 ): { verdict: Exclude<Verdict, "cannot_verify">; why: string } {
   const absDiff = Math.abs(claimed - official);
   if (absDiff === 0) return { verdict: "match", why: "exact match" };
@@ -190,10 +216,27 @@ function judge(
   }
 
   if (percentKind) {
-    // Rates in percentage points: rounding to 1 decimal is normal in prose.
-    if (absDiff <= 0.06) return { verdict: "match", why: `difference of ${absDiff.toFixed(3)} pp is within normal rounding` };
-    if (absDiff <= 0.3) return { verdict: "close", why: `difference of ${absDiff.toFixed(2)} pp` };
-    return { verdict: "mismatch", why: `difference of ${absDiff.toFixed(2)} percentage points` };
+    // Rates in percentage points: rounding to 1 decimal is normal in prose,
+    // and large ratios (e.g. debt at 250% of GDP) deserve a proportional band.
+    if (absDiff <= 0.06 || relDiff <= 0.005) {
+      return {
+        verdict: "match",
+        why:
+          absDiff <= 0.06
+            ? `difference of ${absDiff.toFixed(3)} pp is within normal rounding`
+            : `relative difference ${(relDiff * 100).toFixed(2)}% is within normal rounding`,
+      };
+    }
+    if (absDiff <= 0.3 || relDiff <= 0.02) {
+      return {
+        verdict: "close",
+        why:
+          absDiff <= 0.3
+            ? `difference of ${absDiff.toFixed(2)} pp`
+            : `difference of ${absDiff.toFixed(2)} pp (${(relDiff * 100).toFixed(1)}% relative)`,
+      };
+    }
+    return { verdict: "mismatch", why: `difference of ${absDiff.toFixed(2)} percentage points (${(relDiff * 100).toFixed(1)}% relative)` };
   }
   if (relDiff <= 0.005) return { verdict: "match", why: `relative difference ${(relDiff * 100).toFixed(2)}% is within normal rounding` };
   if (relDiff <= 0.05) return { verdict: "close", why: `relative difference ${(relDiff * 100).toFixed(1)}%` };

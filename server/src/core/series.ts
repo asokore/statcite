@@ -35,6 +35,7 @@ export function requireCountry(input: string): Country {
 function finishSeries(result: SeriesResult, opts: SeriesOpts): SeriesResult {
   let obs = filterPeriodRange(result.observations, opts.start, opts.end);
   const transform = opts.transform ?? "none";
+  const hadValuesBeforeTransform = obs.some((o) => o.value != null);
   if (transform !== "none") {
     const t = applyTransform(obs, transform, { frequency: result.frequency });
     obs = t.observations;
@@ -59,6 +60,12 @@ function finishSeries(result: SeriesResult, opts: SeriesOpts): SeriesResult {
     obs = obs.slice(-opts.limit);
   }
   if (obs.length === 0) {
+    if (transform !== "none" && hadValuesBeforeTransform) {
+      throw new ToolError(
+        `The '${transform}' transform produced no observations for ${result.series_id}${result.country ? ` (${result.country.name})` : ""}: the series has data in the requested window, but not enough prior-period observations to compute changes. Try widening start_year to include earlier periods, or drop the transform.`,
+        { series_id: result.series_id, transform },
+      );
+    }
     throw new ToolError(
       `No observations available for ${result.series_id}${result.country ? ` (${result.country.name})` : ""} in the requested window` +
         (opts.start || opts.end ? ` ${opts.start ?? "…"}–${opts.end ?? "…"}` : "") +

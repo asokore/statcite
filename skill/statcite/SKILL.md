@@ -1,6 +1,6 @@
 ---
 name: statcite
-description: Fetch official economic statistics with full citations and verify economic claims via StatCite (statcite.com). Use this whenever a task involves economic or macro data — GDP, growth, inflation, CPI, unemployment, government debt, deficits, current account, trade, FDI, population, exchange rates, inflation-adjusting amounts across years — and especially before writing or fact-checking any report, brief, article, memo, or commentary that contains an economic number, even if the user doesn't mention StatCite, citations, or verification. Also use it to check numbers the user pastes ("is it true that inflation was X%?") and to build country overviews.
+description: Fetch official macroeconomic and sovereign statistics (GDP, inflation/CPI, unemployment, government debt, fiscal balance, current account, trade, FDI, population, exchange rates) with full source citations from World Bank WDI, IMF WEO, ECB, and optional FRED via StatCite (statcite.com, free, no auth), and verify a claimed economic figure against the official series. Use before publishing or fact-checking any report, brief, article, or answer that states a macro/country-level economic statistic — even if the user doesn't mention StatCite or citations — and to check pasted claims like "is it true inflation was X%?". Does NOT cover company financials, stock/crypto/commodity prices, or subnational/city data.
 ---
 
 # StatCite — verified economic statistics with citations
@@ -33,7 +33,7 @@ When drafting anything containing macro figures:
 
 1. Fetch each figure with `get_indicator` (or `/v1/indicator/...&latest_only=true`).
 2. Use the returned value exactly — do not round beyond one decimal for rates without noting it.
-3. Carry the citation: use `citation.citation_text` for footnotes/references, or "(World Bank, WDI, series FP.CPI.TOTL.ZG, retrieved 2026-07-25)" inline style from the citation fields.
+3. Carry the citation: use `citation.citation_text` for footnotes/references, or build an inline citation from the citation fields as a template, e.g. "(World Bank, WDI, series FP.CPI.TOTL.ZG, retrieved {citation.retrieved_at})" — substitute the actual field values, never hardcode a date. Also reproduce `citation.attribution` verbatim when present: it is the source-mandated attribution string.
 4. Read the `notes` array — it flags fallback sources, ILO-modeled definitions, and IMF WEO projections. If a value is marked as a projection/estimate, say so in the text ("IMF projects…", not "was").
 
 ### 2. Fact-checking a draft (verify → correct)

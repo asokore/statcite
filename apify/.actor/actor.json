@@ -9,5 +9,7 @@
     "templateId": "js-empty"
   },
   "dockerfile": "./Dockerfile",
-  "categories": ["BUSINESS", "AI"]
+  "categories": ["BUSINESS", "AI"],
+  "minMemoryMbytes": 256,
+  "maxMemoryMbytes": 512
 }

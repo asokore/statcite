@@ -154,6 +154,7 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
   const citations: Citation[] = [];
   let precision: FxResult["precision"] = "annual_average";
   let rateDate = "";
+  const wbYear = yearOnly ?? (dayDate ? parseInt(dayDate.slice(0, 4), 10) : undefined);
 
   async function usdPerUnit(cur: string): Promise<number> {
     if (cur === "USD") return 1;
@@ -163,8 +164,13 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
       rateDate = rateDate || r.date;
       return r.rates.USD;
     }
-    const wb = await wbUsdPerUnit(ctx, cur, yearOnly);
+    const wb = await wbUsdPerUnit(ctx, cur, wbYear);
     if (wb.citation) citations.push(wb.citation);
+    if (dayDate) {
+      notes.push(
+        `Requested ${dayDate}; daily precision is unavailable for ${cur} — used the ${wb.period} annual-average official rate (World Bank PA.NUS.FCRF).`,
+      );
+    }
     rateDate = rateDate || wb.period;
     return wb.usdPerUnit;
   }
@@ -174,11 +180,15 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
   const rate = fromUsd / toUsd;
   const usedEcbLeg = (ecbSet.has(from) || ecbSet.has(to)) && !yearOnly && from !== "USD" && to !== "USD";
   if (usedEcbLeg) precision = "mixed";
-  notes.push(
-    yearOnly
-      ? `Annual-average official exchange rates for ${yearOnly} (World Bank PA.NUS.FCRF); daily precision is not available on this path.`
-      : "One or both currencies are outside the ECB daily set; converted via USD using the latest annual-average official rate(s). For pegged currencies (e.g. BBD at 2.00/USD, XCD at 2.70/USD) this is exact.",
-  );
+  if (yearOnly) {
+    notes.push(
+      `Annual-average official exchange rates for ${yearOnly} (World Bank PA.NUS.FCRF); daily precision is not available on this path.`,
+    );
+  } else if (!dayDate) {
+    notes.push(
+      "One or both currencies are outside the ECB daily set; converted via USD using the latest annual-average official rate(s). For pegged currencies (e.g. BBD at 2.00/USD, XCD at 2.70/USD) this is exact.",
+    );
+  }
   if (precision === "mixed") notes.push("Mixed precision: one leg is a daily ECB rate, the other an annual average — treat the result as approximate.");
 
   return {

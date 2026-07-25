@@ -17,7 +17,7 @@ StatCite is a free remote MCP server + REST API serving official economic statis
 ## Architecture (server/src)
 
 - `index.ts` — router: `/mcp` → mcp.ts, `/v1/*` → rest.ts, `/health`, else static assets
-- `mcp.ts` — **stateless MCP Streamable HTTP, hand-rolled, zero deps.** Protocol 2025-03-26/06-18/11-25: single JSON-RPC message per POST (batch → -32600), JSON responses (no SSE), no session id, notifications → 202, GET/DELETE → 405, lenient Accept, CORS on. All transport logic lives here on purpose — the 2026-07-28 revision (removes initialize/sessions) lands as a change to this file only.
+- `mcp.ts` — **stateless MCP Streamable HTTP, hand-rolled, zero deps.** Protocol 2025-03-26/06-18/11-25: single JSON-RPC message or a batch accepted per POST for 2025-03-26 clients (empty batch → -32600), JSON responses (no SSE), no session id, notifications → 202, GET/DELETE → 405, lenient Accept, CORS on. All transport logic lives here on purpose — the 2026-07-28 revision candidate (removes initialize/sessions, not yet ratified) lands as a change to this file only when it ships.
 - `tools.ts` — 10 tool definitions + dispatch. Tool failures return `isError: true` results (never protocol errors). `search`/`fetch` follow OpenAI's deep-research connector schema exactly (outputSchema declared).
 - `rest.ts` — GET mirror of the tools; 422 for helpful failures with suggestions.
 - `core/` — pure logic, no Workers APIs: `series.ts` (indicator orchestration + source fallback), `verify.ts` (verdicts + diagnostics), `inflation.ts`, `fx.ts` (ECB daily + WB annual USD-bridge), `snapshot.ts`, `indicators.ts` (42-key curated registry), `countries.ts` (ISO resolver), `citations.ts` (per-source citation builders), `transforms.ts`, `upstream.ts` (memory+edge cache, timeout, retry).
@@ -32,7 +32,7 @@ StatCite is a free remote MCP server + REST API serving official economic statis
 4. **Errors are advice**: unknown country → suggestions; missing year → available range. Keep it that way.
 5. **Zero runtime dependencies** in the Worker; CPU budget is 10ms/invocation (free plan). No KV writes on request paths.
 6. Registry keys (`indicators.ts`) are stable once published — add, don't rename.
-7. If you change `core/`, run `npm test && npm run smoke`, and rebuild the actor bundle (`cd ../apify && npm run build:core`), and regenerate the docs registry table if keys changed (table in `site/docs.html` + list in `site/llms-full.txt`).
+7. If you change `core/`, run `npm test && npm run smoke`, and rebuild the actor bundle (`cd ../apify && npm run build:core`), and regenerate the docs registry table if keys changed (table in `site/docs.html` + list in `site/llms-full.txt` + `skill/statcite/SKILL.md` + repackage `skill/statcite.skill`).
 
 ## Placeholders to resolve at deploy
 

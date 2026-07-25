@@ -12,7 +12,7 @@ Voice notes: you're a professional economist who built the tool you needed. Lead
 
 I'm an economist. Since AI started drafting half the reports I review, I keep finding the same failure: a plausible number with no defensible source — wrong year, wrong definition, or off by a decimal. Studies back this up (Tow Center found >60% of AI search answers had citation problems; a 2026 UPenn study measured 10.7% hallucinated citations for deep-research agents).
 
-So I built StatCite: a free remote MCP server + REST API where every number ships with its full citation — source, dataset, series ID, canonical URL, license, retrieval date — and a `verify_stat` tool that checks a claimed figure against the official series and returns match / close / mismatch with diagnostics (wrong-year, percent-vs-decimal, millions-vs-billions).
+So I built StatCite: a free remote MCP server + REST API where every number ships with a license-grade citation — source, dataset, series ID, canonical URL, license, retrieval date — and, as far as I've found, the only `verify_stat` tool that checks a claimed figure against the official series and returns match / close / mismatch with diagnostics (wrong-year, percent-vs-decimal, millions-vs-billions).
 
 Data: World Bank WDI, IMF WEO (via DBnomics), ECB reference rates, optional FRED. 42 curated indicators, 200+ economies, inflation adjustment, historical FX (including ~90 currencies the ECB set doesn't cover — pegged Caribbean currencies convert exactly).
 

@@ -18,9 +18,9 @@ Example: {"indicator":"inflation_cpi","country":"BRB","latest_only":true}
 
 ### verify_stat
 Check a claimed figure against the official series. THE tool to call before publishing any economic number.
-Args: indicator (registry key or explicit series id), country?, period (usually "YYYY"), claimed_value (number), tolerance_abs?, tolerance_pct?.
-Returns verdict: match | close | mismatch | cannot_verify, plus official_value, difference, diagnostics (year misattribution, percent-vs-decimal, scale confusion), citation.
-Default thresholds: percent-kind series → match ≤0.06pp, close ≤0.3pp; levels → match ≤0.5% rel, close ≤5% rel.
+Args: indicator (registry key or explicit series id), country?, period (usually "YYYY"; quarters as "YYYY-Qn"/"YYYYQn"/"YYYY Qn", months as "YYYY-MM"/"YYYYMM"), claimed_value (number), tolerance_abs?, tolerance_pct?.
+Returns verdict: match | close | mismatch | cannot_verify, plus official_value, difference, is_projection (true when the matched official observation is an IMF WEO estimate/projection, with the explanation qualified accordingly), diagnostics (year misattribution, percent-vs-decimal, scale confusion up to 10^12, sign flips), citation.
+Default thresholds: percent-kind series → match ≤0.06pp or ≤0.5% rel, close ≤0.3pp or ≤2% rel; levels → match ≤0.5% rel, close ≤5% rel.
 
 ### get_series
 Raw series by explicit id: "worldbank/<WDI code>" (+country), "fred/<ID>" (US; needs server FRED key), "dbnomics/<PROVIDER>/<DATASET>/<SERIES>" e.g. "dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change".
