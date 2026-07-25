@@ -29,16 +29,20 @@ The README is the listing that Glama/PulseMCP/mcp.so crawl, and "statcite mcp" G
 - README top: one-line description, MCP URL, quick-connect snippets per client (copy from site/index.html tabs), demo GIF (record a Claude session using verify_stat)
 - Add the VS Code one-click install link and Cursor deeplink (current formats: https://code.visualstudio.com/api/extension-guides/ai/mcp and https://cursor.com/docs/context/mcp)
 
-## 3. Anthropic Claude Connectors Directory — review takes days–weeks
+## 3. Anthropic Claude Connectors Directory — DEFERRED (gate: requires a paid Team/Enterprise org)
 
-Submission form: https://clau.de/mcp-directory-submission
-Requirements checklist (all already satisfied by this repo):
+**Gate first:** as of 2026-07-24 the submission form redirects to `claude.ai/admin-settings/directory/submissions`, which is only reachable from a **paid Team or Enterprise Claude.ai organization** with Directory-management access. Solo/individual accounts cannot submit. Submission itself is a 10-step wizard including 7 compliance acknowledgments and a requirement that tools have been tested with MCP Inspector.
+
+**Status: deferred** until the owner has or joins a Team/Enterprise org. Revisit this step at that point.
+
+Requirements checklist (already satisfied by this repo, ready whenever the org gate clears):
 - [x] Remote MCP over Streamable HTTP (no-auth is acceptable for read-only public data)
 - [x] HTTPS; Origin handling; tools carry `readOnlyHint` annotations and titles
 - [x] Privacy policy (https://statcite.com/privacy.html) — required
 - [x] Public docs page (https://statcite.com/docs.html)
 - [x] Logo (site/favicon.svg — export a 512px PNG)
-- [ ] Fill the form: contact email, test instructions ("no auth — just add the URL and call get_indicator with country=USA")
+- [ ] Test every tool with MCP Inspector before submitting (new requirement)
+- [ ] Fill the 10-step wizard: contact email, the 7 compliance acknowledgments, test instructions ("no auth — just add the URL and call get_indicator with country=USA")
 Review criteria: https://claude.com/docs/connectors/building/review-criteria
 
 ## 4. Smithery — ~30 min
@@ -65,9 +69,14 @@ PR to https://github.com/docker/mcp-registry per CONTRIBUTING.md. For a remote s
 - awesome-mcp-servers: PR to https://github.com/punkpeye/awesome-mcp-servers under Finance (follow CONTRIBUTING format; feeds Glama).
 - awesome-remote-mcp-servers: PR to https://github.com/JAW9C/awesome-remote-mcp-servers
 
-## 8. OpenAI ChatGPT Apps directory — days–weeks (optional; larger lift)
+## 8. OpenAI ChatGPT Apps directory — days–weeks (optional; larger lift, now heavier)
 
-The server already implements the required `search`/`fetch` pair, so it works today as a custom connector in ChatGPT developer mode. For the public apps directory: verify identity in the OpenAI Platform Dashboard → submit per https://developers.openai.com/apps-sdk/app-submission-guidelines. Consider only after initial traction (review favors polished apps).
+The server already implements the required `search`/`fetch` pair, so it works today as a custom connector in ChatGPT developer mode. As of the 2026-07-09 restructure, OpenAI merged the Apps directory and plugin listings into a single **unified Plugin Directory**, and submission now additionally requires:
+- A verification endpoint at `/.well-known/openai-apps-challenge` that returns a token OpenAI supplies at submission time. **The Worker has no such route yet** — TODO: add a route in `server/src/index.ts` when this step is actually attempted; it needs the challenge token from the OpenAI dashboard first, so it can't be pre-built speculatively.
+- Explicit `readOnlyHint` / `openWorldHint` / `destructiveHint` annotations on every tool (some of this already exists per `tools.ts`; audit all 10 before submitting).
+- 5 positive + 3 negative test cases documented per tool.
+
+Verify identity in the OpenAI Platform Dashboard → submit per https://developers.openai.com/apps-sdk/app-submission-guidelines. Still a larger, later lift — consider only after initial traction (review favors polished apps) and after the challenge-endpoint TODO above is closed.
 
 ## 9. Apify Store — ~1–2 hours (the monetized channel)
 

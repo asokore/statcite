@@ -680,18 +680,46 @@ function yoyLag(frequency) {
       return 1;
   }
 }
+function parsePeriodParts(period) {
+  let m = /^(\d{4})$/.exec(period);
+  if (m) return { year: parseInt(m[1], 10) };
+  m = /^(\d{4})-?[Qq]([1-4])$/.exec(period);
+  if (m) return { year: parseInt(m[1], 10), quarter: parseInt(m[2], 10) };
+  m = /^(\d{4})-(\d{2})$/.exec(period);
+  if (m) return { year: parseInt(m[1], 10), month: parseInt(m[2], 10) };
+  return null;
+}
+function periodKey(p) {
+  return `${p.year}:${p.quarter ?? ""}:${p.month ?? ""}`;
+}
+function yearEarlier(p) {
+  return { ...p, year: p.year - 1 };
+}
+function periodEarlier(p) {
+  if (p.quarter != null) return p.quarter > 1 ? { year: p.year, quarter: p.quarter - 1 } : { year: p.year - 1, quarter: 4 };
+  if (p.month != null) return p.month > 1 ? { year: p.year, month: p.month - 1 } : { year: p.year - 1, month: 12 };
+  return { year: p.year - 1 };
+}
 function applyTransform(observations, transform, opts = {}) {
   if (transform === "none") return { observations };
   const obs = observations;
   if (transform === "yoy" || transform === "pct_change") {
     const lag = transform === "yoy" ? yoyLag(opts.frequency) : 1;
     if (lag === 0) throw new ToolError("year-over-year transform is not supported for daily series");
+    const byPeriod = /* @__PURE__ */ new Map();
+    for (const o of obs) {
+      const p = parsePeriodParts(o.period);
+      if (p) byPeriod.set(periodKey(p), o);
+    }
     const out = [];
-    for (let i = lag; i < obs.length; i++) {
+    for (let i = 0; i < obs.length; i++) {
+      const p = parsePeriodParts(obs[i].period);
+      const prevObs = p ? byPeriod.get(periodKey(transform === "yoy" ? yearEarlier(p) : periodEarlier(p))) : i >= lag ? obs[i - lag] : void 0;
+      if (!prevObs) continue;
       const cur = obs[i].value;
-      const prev = obs[i - lag].value;
+      const prev = prevObs.value;
       out.push({
-        period: obs[i].period,
+        ...obs[i],
         value: cur == null || prev == null || prev === 0 ? null : (cur - prev) / Math.abs(prev) * 100
       });
     }
@@ -709,7 +737,7 @@ function applyTransform(observations, transform, opts = {}) {
   }
   const b = base.value;
   return {
-    observations: obs.map((o) => ({ period: o.period, value: o.value == null ? null : o.value / b * 100 })),
+    observations: obs.map((o) => ({ ...o, value: o.value == null ? null : o.value / b * 100 })),
     note: `Computed by StatCite: rebased to index, ${base.period} = 100.`
   };
 }
@@ -1044,6 +1072,7 @@ function requireCountry(input) {
 function finishSeries(result, opts) {
   let obs = filterPeriodRange(result.observations, opts.start, opts.end);
   const transform = opts.transform ?? "none";
+  const hadValuesBeforeTransform = obs.some((o) => o.value != null);
   if (transform !== "none") {
     const t = applyTransform(obs, transform, { frequency: result.frequency });
     obs = t.observations;
@@ -1065,6 +1094,12 @@ function finishSeries(result, opts) {
     obs = obs.slice(-opts.limit);
   }
   if (obs.length === 0) {
+    if (transform !== "none" && hadValuesBeforeTransform) {
+      throw new ToolError(
+        `The '${transform}' transform produced no observations for ${result.series_id}${result.country ? ` (${result.country.name})` : ""}: the series has data in the requested window, but not enough prior-period observations to compute changes. Try widening start_year to include earlier periods, or drop the transform.`,
+        { series_id: result.series_id, transform }
+      );
+    }
     throw new ToolError(
       `No observations available for ${result.series_id}${result.country ? ` (${result.country.name})` : ""} in the requested window` + (opts.start || opts.end ? ` ${opts.start ?? "\u2026"}\u2013${opts.end ?? "\u2026"}` : "") + ". Try widening the period.",
       { series_id: result.series_id }
@@ -1749,6 +1784,7 @@ async function fxConvert(ctx, amount, fromRaw, toRaw, date) {
   const citations = [];
   let precision = "annual_average";
   let rateDate = "";
+  const wbYear = yearOnly ?? (dayDate ? parseInt(dayDate.slice(0, 4), 10) : void 0);
   async function usdPerUnit(cur) {
     if (cur === "USD") return 1;
     if (ecbSet.has(cur) && !yearOnly) {
@@ -1757,8 +1793,13 @@ async function fxConvert(ctx, amount, fromRaw, toRaw, date) {
       rateDate = rateDate || r.date;
       return r.rates.USD;
     }
-    const wb = await wbUsdPerUnit(ctx, cur, yearOnly);
+    const wb = await wbUsdPerUnit(ctx, cur, wbYear);
     if (wb.citation) citations.push(wb.citation);
+    if (dayDate) {
+      notes.push(
+        `Requested ${dayDate}; daily precision is unavailable for ${cur} \u2014 used the ${wb.period} annual-average official rate (World Bank PA.NUS.FCRF).`
+      );
+    }
     rateDate = rateDate || wb.period;
     return wb.usdPerUnit;
   }
@@ -1767,9 +1808,15 @@ async function fxConvert(ctx, amount, fromRaw, toRaw, date) {
   const rate = fromUsd / toUsd;
   const usedEcbLeg = (ecbSet.has(from) || ecbSet.has(to)) && !yearOnly && from !== "USD" && to !== "USD";
   if (usedEcbLeg) precision = "mixed";
-  notes.push(
-    yearOnly ? `Annual-average official exchange rates for ${yearOnly} (World Bank PA.NUS.FCRF); daily precision is not available on this path.` : "One or both currencies are outside the ECB daily set; converted via USD using the latest annual-average official rate(s). For pegged currencies (e.g. BBD at 2.00/USD, XCD at 2.70/USD) this is exact."
-  );
+  if (yearOnly) {
+    notes.push(
+      `Annual-average official exchange rates for ${yearOnly} (World Bank PA.NUS.FCRF); daily precision is not available on this path.`
+    );
+  } else if (!dayDate) {
+    notes.push(
+      "One or both currencies are outside the ECB daily set; converted via USD using the latest annual-average official rate(s). For pegged currencies (e.g. BBD at 2.00/USD, XCD at 2.70/USD) this is exact."
+    );
+  }
   if (precision === "mixed") notes.push("Mixed precision: one leg is a daily ECB rate, the other an annual average \u2014 treat the result as approximate.");
   return {
     amount,
@@ -1792,12 +1839,12 @@ function isPercentKind(indicatorKey) {
 }
 async function verifyStat(ctx, p) {
   if (!Number.isFinite(p.claimed_value)) throw new ToolError("'claimed_value' must be a number.");
-  if (!/^\d{4}([QM-]?\d{0,2})?$/i.test(p.period.trim())) {
-    throw new ToolError("'period' should be a year like '2024' (or a period label matching the series, e.g. '2024-05').", {
+  const period = normalizePeriod(p.period);
+  if (!/^\d{4}(-Q[1-4]|[QM-]?\d{0,2})?$/i.test(period)) {
+    throw new ToolError("'period' should be a year like '2024' (or a period label matching the series, e.g. '2024-05' or '2024-Q1').", {
       period: p.period
     });
   }
-  const period = p.period.trim();
   const year = parseInt(period.slice(0, 4), 10);
   const isRegistry = Boolean(getIndicatorDef(p.indicator));
   if (isRegistry && !p.country) {
@@ -1805,11 +1852,15 @@ async function verifyStat(ctx, p) {
   }
   const result = isRegistry ? await getIndicator(ctx, p.indicator, p.country ?? "", {}) : await getSeries(ctx, p.indicator, { country: p.country });
   const obs = result.observations;
-  const byPeriod = new Map(obs.map((o) => [o.period, o.value]));
-  let exact = byPeriod.get(period) ?? (period.length > 4 ? void 0 : byPeriod.get(String(year)));
-  if (exact == null && period.length >= 6) {
+  const byPeriod = new Map(obs.map((o) => [o.period, o]));
+  const lookup = (key) => {
+    const o = byPeriod.get(key);
+    return o?.value != null ? o : void 0;
+  };
+  let matched = lookup(period) ?? (period.length > 4 ? void 0 : lookup(String(year)));
+  if (!matched && period.length >= 6) {
     const hit = obs.find((o) => o.period.startsWith(period) && o.value != null);
-    if (hit) exact = hit.value;
+    if (hit) matched = hit;
   }
   const diagnostics = [];
   const notes = [...result.notes];
@@ -1817,7 +1868,7 @@ async function verifyStat(ctx, p) {
     "Macro data is revised: the official value reflects the source's current published figure, which may differ from what was published at the time of the claim."
   );
   const percentKind = isRegistry ? isPercentKind(p.indicator) : /%|percent/i.test(result.unit ?? result.name);
-  if (exact == null) {
+  if (!matched) {
     const near = obs.filter((o) => Math.abs(parseInt(o.period.slice(0, 4), 10) - year) <= 2 && o.value != null).slice(-6);
     const range = obs.length ? `${obs[0].period}\u2013${obs[obs.length - 1].period}` : "none";
     const freqHint = obs.some((o) => o.period.length > 4) && period.length === 4 ? " This series is higher-frequency \u2014 specify the period as YYYY-MM." : "";
@@ -1825,6 +1876,7 @@ async function verifyStat(ctx, p) {
       verdict: "cannot_verify",
       claimed_value: p.claimed_value,
       official_value: null,
+      is_projection: false,
       period,
       difference: null,
       relative_difference_pct: null,
@@ -1836,7 +1888,8 @@ async function verifyStat(ctx, p) {
       notes
     };
   }
-  const official = exact;
+  const official = matched.value;
+  const isProjection = /WEO/i.test(matched.note ?? "") && /estimate|projection/i.test(matched.note ?? "");
   const diff = p.claimed_value - official;
   const relPct = official !== 0 ? diff / Math.abs(official) * 100 : null;
   const ratio = official !== 0 ? p.claimed_value / official : null;
@@ -1845,26 +1898,34 @@ async function verifyStat(ctx, p) {
       [100, "a percent-vs-decimal mix-up (e.g. 0.05 vs 5%)"],
       [1e3, "a thousands scaling difference"],
       [1e6, "a millions scaling difference"],
-      [1e9, "a billions scaling difference"]
+      [1e9, "a billions scaling difference"],
+      [1e12, "a trillions scaling difference"]
     ]) {
       if (within(ratio, factor, 0.02) || within(ratio, 1 / factor, 0.02)) {
         diagnostics.push(`The claimed value is ~${factor.toLocaleString("en-US")}\xD7 ${ratio > 1 ? "larger" : "smaller"} than the official figure \u2014 possibly ${label}.`);
       }
     }
   }
+  if (ratio != null && ratio < 0 && within(-ratio, 1, 0.02)) {
+    diagnostics.push(
+      "The claimed value is approximately the official figure with the opposite sign \u2014 possibly a sign-convention mix-up (e.g. a fiscal deficit quoted as positive where the source reports net lending as negative)."
+    );
+  }
   for (const offset of [-2, -1, 1, 2]) {
-    const v = byPeriod.get(String(year + offset));
+    const v = byPeriod.get(String(year + offset))?.value;
     if (v != null && closeEnough(p.claimed_value, v, percentKind, p)) {
       diagnostics.push(`The claimed value matches the ${year + offset} figure (${fmt(v)}) \u2014 the year may be misattributed.`);
     }
   }
   const { verdict, why } = judge(p.claimed_value, official, percentKind, p);
   const unitText = result.unit ? ` ${result.unit}` : "";
-  const explanation = verdict === "match" ? `Claimed ${fmt(p.claimed_value)} vs official ${fmt(official)}${unitText} for ${period} \u2014 consistent (${why}).` : verdict === "close" ? `Claimed ${fmt(p.claimed_value)} vs official ${fmt(official)}${unitText} for ${period} \u2014 in the right neighborhood but not exact (${why}). Cite the official value.` : `Claimed ${fmt(p.claimed_value)} vs official ${fmt(official)}${unitText} for ${period} \u2014 materially different (${why}).` + (diagnostics.length ? " See diagnostics for likely causes." : "");
+  const officialLabel = isProjection ? "official (IMF WEO projection)" : "official";
+  const explanation = verdict === "match" ? `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period} \u2014 consistent (${why}).` : verdict === "close" ? `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period} \u2014 in the right neighborhood but not exact (${why}). Cite the official value.` : `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period} \u2014 materially different (${why}).` + (diagnostics.length ? " See diagnostics for likely causes." : "");
   return {
     verdict,
     claimed_value: p.claimed_value,
     official_value: official,
+    is_projection: isProjection,
     period,
     difference: Number(diff.toFixed(6)),
     relative_difference_pct: relPct == null ? null : Number(relPct.toFixed(3)),
@@ -1878,6 +1939,14 @@ async function verifyStat(ctx, p) {
 }
 function within(x, target, tolFrac) {
   return Math.abs(x - target) / target <= tolFrac;
+}
+function normalizePeriod(input) {
+  const s = input.trim();
+  const q = s.match(/^(\d{4})[\s-]?Q([1-4])$/i);
+  if (q) return `${q[1]}-Q${q[2]}`;
+  const m = s.match(/^(\d{4})(0[1-9]|1[0-2])$/);
+  if (m) return `${m[1]}-${m[2]}`;
+  return s;
 }
 function closeEnough(claimed, official, percentKind, p) {
   return judge(claimed, official, percentKind, p).verdict !== "mismatch";
@@ -1899,9 +1968,19 @@ function judge(claimed, official, percentKind, p) {
     return { verdict: "mismatch", why: "outside your specified tolerance" };
   }
   if (percentKind) {
-    if (absDiff <= 0.06) return { verdict: "match", why: `difference of ${absDiff.toFixed(3)} pp is within normal rounding` };
-    if (absDiff <= 0.3) return { verdict: "close", why: `difference of ${absDiff.toFixed(2)} pp` };
-    return { verdict: "mismatch", why: `difference of ${absDiff.toFixed(2)} percentage points` };
+    if (absDiff <= 0.06 || relDiff <= 5e-3) {
+      return {
+        verdict: "match",
+        why: absDiff <= 0.06 ? `difference of ${absDiff.toFixed(3)} pp is within normal rounding` : `relative difference ${(relDiff * 100).toFixed(2)}% is within normal rounding`
+      };
+    }
+    if (absDiff <= 0.3 || relDiff <= 0.02) {
+      return {
+        verdict: "close",
+        why: absDiff <= 0.3 ? `difference of ${absDiff.toFixed(2)} pp` : `difference of ${absDiff.toFixed(2)} pp (${(relDiff * 100).toFixed(1)}% relative)`
+      };
+    }
+    return { verdict: "mismatch", why: `difference of ${absDiff.toFixed(2)} percentage points (${(relDiff * 100).toFixed(1)}% relative)` };
   }
   if (relDiff <= 5e-3) return { verdict: "match", why: `relative difference ${(relDiff * 100).toFixed(2)}% is within normal rounding` };
   if (relDiff <= 0.05) return { verdict: "close", why: `relative difference ${(relDiff * 100).toFixed(1)}%` };

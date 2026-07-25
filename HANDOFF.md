@@ -95,7 +95,7 @@ Note: `apify/core.bundle.mjs` is committed and current; regenerate with `npm run
 
 - **Weekly 15 min:** Cloudflare analytics, GitHub issues, hello@ inbox.
 - **Monthly 2–4 h:** `npm test && npm run smoke`, dependency bumps, one improvement; check that World Bank/DBnomics/Frankfurter shapes still pass smoke.
-- **Watch (protocol):** MCP revision **2026-07-28** removes initialize/sessions (fully stateless). Current code supports 2025-03-26/06-18/11-25 and all transport logic is isolated in `server/src/mcp.ts` — when major clients adopt the new revision, add it there (likely a ~30-line change). mcp-remote guidance in docs already pins ≥0.1.16 (CVE-2025-6514).
+- **Watch (protocol):** MCP revision **2026-07-28** is a **release candidate**, not yet ratified — the current ratified revision remains **2025-11-25**. The RC removes initialize/sessions (fully stateless). Current code supports 2025-03-26/06-18/11-25 and all transport logic is isolated in `server/src/mcp.ts` — once 2026-07-28 (or whatever it's ratified as) actually lands and major clients adopt it, add support there (likely a ~30-line change). mcp-remote guidance in docs already pins ≥0.1.16 (CVE-2025-6514).
 - **Cost watch:** free tier = 100k req/day. If sustained traffic approaches it, that's a success problem: enable Cloudflare rate rules for anonymous heavy hitters and open the paid tier (docs/MONETIZATION.md Stage 1).
 
 ## Troubleshooting

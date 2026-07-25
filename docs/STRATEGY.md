@@ -2,7 +2,7 @@
 
 ## Positioning
 
-**"Economic statistics your AI can actually cite."** StatCite is not a data wrapper; it is the *citation and verification layer* for economic statistics in AI workflows. Every incumbent serves numbers; StatCite serves numbers **with receipts** and can **check other people's numbers**. That framing must survive every piece of copy: the product is trust, the data is commodity.
+**"The only tool that checks a claimed figure against the official series."** StatCite is not a data wrapper; it is the *citation and verification layer* for economic statistics in AI workflows. Lead with **verify_stat** — nothing else in the space verifies a claimed number against an official statistical series — and back it with **license-grade citations**: license, required attribution string, retrieval date, canonical URL, projection labeling. A growing set of incumbents (Data Commons, Statista, FXMacroData) now attach *some* provenance to responses, so "we ship citations" is no longer the whole pitch; "our citations are complete enough to satisfy the license, and we verify" is. That framing must survive every piece of copy: the product is trust, the data is commodity.
 
 The builder is part of the product: an economist curates the registry (WEO general-government debt over patchy WDI central-government; annual-average vs Dec/Dec inflation caveats; projections labeled). Say so everywhere — it is the credibility no hobby wrapper can copy.
 
@@ -21,7 +21,9 @@ The builder is part of the product: an economist curates the registry (WEO gener
 
 ## Competitive posture
 
-- **vs Google Data Commons:** don't fight on breadth. Win on verification verdicts, IMF WEO vintages/projection labeling, FX for small economies, and being *neutral infrastructure* with explicit licenses. If Data Commons ships verification, pivot emphasis to fiscal/WEO depth and the benchmark.
+- **vs Google Data Commons:** it already attaches `source_metadata` (source_id, import_name, provenance_url) per datapoint and mandates attribution in its instructions — don't claim "no citations there." Win on completeness (license, required-attribution string, retrieval date, projection labeling — all absent from Data Commons) and on verify_stat, which Data Commons does not have. Don't fight on breadth. If Data Commons ships verification, pivot emphasis to fiscal/WEO depth and the benchmark — and note DataGemma (Google Research, arXiv:2409.13741) already proves the verify mechanic works against Data Commons, so this is a live risk, not a hypothetical.
+- **vs Statista MCP:** enterprise-gated, paid, "every response comes with source links" — but aggregated secondary stats, not official series, and no license/attribution-string/retrieval-date completeness, no verification. StatCite is free and official-source.
+- **vs FXMacroData:** paid, `mcp_metadata` provenance block (source_type/source_name/data_lag_days), free tier US-only — same completeness and verification gaps.
 - **vs Trading Economics/commercial:** they sell access; StatCite gives away access and sells convenience/volume. Never compete on series count.
 - **vs platform-layer fixes (Citations API etc.):** platforms verify *retrieval*; StatCite verifies *against the official series*. Keep making that distinction.
 
@@ -45,6 +47,7 @@ The builder is part of the product: an economist curates the registry (WEO gener
 | Risk | Response |
 |---|---|
 | Data Commons/Valyu ship verification | Accelerate benchmark + fiscal-data depth; consider OECD/Eurostat curated expansion |
+| DataGemma proves Google can ship verify-against-Data-Commons at product scale (RIG/RAG factuality 5–17% → 58–99%, arXiv:2409.13741 — research model, not shipped) | The benchmark becomes more urgent, not less: ship and distribute verify_stat fast, publish the accuracy benchmark early to own the "verification of economic stats" claim before a well-funded incumbent formalizes it |
 | Traffic without revenue persists | Fine — cost ≈ $0; the asset is reputation + option value; revisit rails every quarter (MONETIZATION.md triggers) |
 | Free-tier abuse | Cloudflare WAF rate rules (free), then keys for heavy users |
 | Upstream API breakage | Fallback chains already in code; smoke script alerts; DBnomics as aggregator hedge |

@@ -29,6 +29,37 @@ function yoyLag(frequency?: string): number {
   }
 }
 
+interface PeriodParts {
+  year: number;
+  quarter?: number;
+  month?: number;
+}
+
+/** Parse "YYYY", "YYYY-Qn"/"YYYYQn", or "YYYY-MM" period labels; null for anything else (e.g. daily dates). */
+function parsePeriodParts(period: string): PeriodParts | null {
+  let m = /^(\d{4})$/.exec(period);
+  if (m) return { year: parseInt(m[1], 10) };
+  m = /^(\d{4})-?[Qq]([1-4])$/.exec(period);
+  if (m) return { year: parseInt(m[1], 10), quarter: parseInt(m[2], 10) };
+  m = /^(\d{4})-(\d{2})$/.exec(period);
+  if (m) return { year: parseInt(m[1], 10), month: parseInt(m[2], 10) };
+  return null;
+}
+
+function periodKey(p: PeriodParts): string {
+  return `${p.year}:${p.quarter ?? ""}:${p.month ?? ""}`;
+}
+
+function yearEarlier(p: PeriodParts): PeriodParts {
+  return { ...p, year: p.year - 1 };
+}
+
+function periodEarlier(p: PeriodParts): PeriodParts {
+  if (p.quarter != null) return p.quarter > 1 ? { year: p.year, quarter: p.quarter - 1 } : { year: p.year - 1, quarter: 4 };
+  if (p.month != null) return p.month > 1 ? { year: p.year, month: p.month - 1 } : { year: p.year - 1, month: 12 };
+  return { year: p.year - 1 };
+}
+
 export function applyTransform(
   observations: Observation[],
   transform: Transform,
@@ -40,12 +71,24 @@ export function applyTransform(
   if (transform === "yoy" || transform === "pct_change") {
     const lag = transform === "yoy" ? yoyLag(opts.frequency) : 1;
     if (lag === 0) throw new ToolError("year-over-year transform is not supported for daily series");
+    const byPeriod = new Map<string, Observation>();
+    for (const o of obs) {
+      const p = parsePeriodParts(o.period);
+      if (p) byPeriod.set(periodKey(p), o);
+    }
     const out: Observation[] = [];
-    for (let i = lag; i < obs.length; i++) {
+    for (let i = 0; i < obs.length; i++) {
+      const p = parsePeriodParts(obs[i].period);
+      const prevObs = p
+        ? byPeriod.get(periodKey(transform === "yoy" ? yearEarlier(p) : periodEarlier(p)))
+        : i >= lag
+          ? obs[i - lag]
+          : undefined;
+      if (!prevObs) continue;
       const cur = obs[i].value;
-      const prev = obs[i - lag].value;
+      const prev = prevObs.value;
       out.push({
-        period: obs[i].period,
+        ...obs[i],
         value: cur == null || prev == null || prev === 0 ? null : ((cur - prev) / Math.abs(prev)) * 100,
       });
     }
@@ -68,7 +111,7 @@ export function applyTransform(
   }
   const b = base.value;
   return {
-    observations: obs.map((o) => ({ period: o.period, value: o.value == null ? null : (o.value / b) * 100 })),
+    observations: obs.map((o) => ({ ...o, value: o.value == null ? null : (o.value / b) * 100 })),
     note: `Computed by StatCite: rebased to index, ${base.period} = 100.`,
   };
 }
