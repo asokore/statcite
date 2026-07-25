@@ -95,7 +95,7 @@ once at https://dash.cloudflare.com/profile/api-tokens → **Create Custom Token
 
 ```bash
 # Top tools over the last 7 days
-curl "https://api.cloudflare.com/client/v4/accounts/41bdc6946a127c4d016ddc87103d3326/analytics_engine/sql" \
+curl "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/analytics_engine/sql" \
   -H "Authorization: Bearer $CF_ANALYTICS_TOKEN" \
   --data "SELECT blob2 AS op, blob1 AS transport, SUM(_sample_interval) AS calls
           FROM statcite_usage
