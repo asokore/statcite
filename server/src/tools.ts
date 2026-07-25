@@ -6,7 +6,7 @@ import { getIndicator, getSeries, searchIndicators, listRegistry } from "./core/
 import { countrySnapshot } from "./core/snapshot.ts";
 import { inflationAdjust } from "./core/inflation.ts";
 import { fxConvert } from "./core/fx.ts";
-import { verifyStat } from "./core/verify.ts";
+import { verifyStat, type VerifyResult } from "./core/verify.ts";
 import { SOURCES } from "./core/sources.ts";
 import { resolveCountry } from "./core/countries.ts";
 import { INDICATORS, searchIndicatorDefs } from "./core/indicators.ts";
@@ -54,6 +54,134 @@ function num(args: Json, key: string, required = true): number {
 }
 
 const TRANSFORMS = ["none", "yoy", "pct_change", "index"];
+
+// ——— verify_claims: batch verification sharing the verify_stat core ———
+
+const MAX_CLAIMS = 15;
+const CLAIM_CONCURRENCY = 4;
+
+export interface ClaimSpec {
+  indicator: string;
+  country?: string;
+  period: string;
+  claimed_value: number;
+  tolerance_abs?: number;
+  tolerance_pct?: number;
+}
+
+export type ClaimResult =
+  | { ok: true; claim: ClaimSpec; verification: VerifyResult }
+  | { ok: false; claim: ClaimSpec; error: string };
+
+export interface VerifyClaimsResult {
+  summary: { total: number; match: number; close: number; mismatch: number; cannot_verify: number; error: number };
+  results: ClaimResult[];
+  note?: string;
+}
+
+function claimStr(claim: Json, index: number, key: string, required: boolean, hint: string): string | undefined {
+  const v = claim[key];
+  if (v == null || v === "") {
+    if (required) throw new ToolError(`claims[${index}].${key} is required — ${hint}`);
+    return undefined;
+  }
+  if (typeof v !== "string") throw new ToolError(`claims[${index}].${key} must be a string — ${hint}`);
+  return v;
+}
+
+function claimNum(claim: Json, index: number, key: string, required: boolean, hint: string): number | undefined {
+  const v = claim[key];
+  if (v == null) {
+    if (required) throw new ToolError(`claims[${index}].${key} is required — ${hint}`);
+    return undefined;
+  }
+  const n = typeof v === "number" ? v : Number(v);
+  if (!Number.isFinite(n)) throw new ToolError(`claims[${index}].${key} must be a number — ${hint}`);
+  return n;
+}
+
+function parseClaims(raw: unknown): ClaimSpec[] {
+  if (!Array.isArray(raw)) {
+    throw new ToolError(
+      "Parameter 'claims' must be an array of claim objects: { indicator, country?, period, claimed_value, tolerance_abs?, tolerance_pct? }.",
+    );
+  }
+  if (raw.length === 0) {
+    throw new ToolError(
+      "'claims' is empty. Extract every checkable macro claim from the draft — indicator + country + period + claimed value — and submit them together, " +
+        'e.g. { "indicator": "inflation_cpi", "country": "BRB", "period": "2024", "claimed_value": 1.4 }.',
+    );
+  }
+  if (raw.length > MAX_CLAIMS) {
+    throw new ToolError(
+      `Received ${raw.length} claims; verify_claims accepts at most ${MAX_CLAIMS} per call (free-tier subrequest budget). ` +
+        `Split the draft into batches of up to ${MAX_CLAIMS} claims and call verify_claims once per batch.`,
+    );
+  }
+  return raw.map((c, i) => {
+    if (c == null || typeof c !== "object" || Array.isArray(c)) {
+      throw new ToolError(`claims[${i}] must be an object: { indicator, country?, period, claimed_value }.`);
+    }
+    const o = c as Json;
+    const claim: ClaimSpec = {
+      indicator: claimStr(o, i, "indicator", true,
+        "a registry key like 'inflation_cpi' (see search_indicators) or an explicit series id like 'worldbank/FP.CPI.TOTL.ZG'.")!,
+      period: claimStr(o, i, "period", true, "the period of the claim, usually a year like '2024'.")!,
+      claimed_value: claimNum(o, i, "claimed_value", true, "the value as claimed, in the series' own units.")!,
+    };
+    const country = claimStr(o, i, "country", false, "an ISO3 code or English country name.");
+    if (country !== undefined) claim.country = country;
+    const tolAbs = claimNum(o, i, "tolerance_abs", false, "an absolute tolerance in series units.");
+    if (tolAbs !== undefined) claim.tolerance_abs = tolAbs;
+    const tolPct = claimNum(o, i, "tolerance_pct", false, "a relative tolerance in percent.");
+    if (tolPct !== undefined) claim.tolerance_pct = tolPct;
+    return claim;
+  });
+}
+
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (next < items.length) {
+        const i = next++;
+        out[i] = await fn(items[i]);
+      }
+    }),
+  );
+  return out;
+}
+
+function claimErrorMessage(e: unknown): string {
+  if (e instanceof ToolError) return e.message;
+  if (e instanceof UpstreamError) return `Upstream data source problem: ${e.message} Usually transient — retry shortly.`;
+  return "Internal error verifying this claim. Please retry; if persistent, verify it individually with verify_stat.";
+}
+
+export async function runVerifyClaims(ctx: Ctx, claimsRaw: unknown): Promise<VerifyClaimsResult> {
+  const claims = parseClaims(claimsRaw);
+  const results = await mapLimit(claims, CLAIM_CONCURRENCY, async (claim): Promise<ClaimResult> => {
+    try {
+      return { ok: true, claim, verification: await verifyStat(ctx, claim) };
+    } catch (e) {
+      return { ok: false, claim, error: claimErrorMessage(e) };
+    }
+  });
+  const summary = { total: claims.length, match: 0, close: 0, mismatch: 0, cannot_verify: 0, error: 0 };
+  let projections = 0;
+  for (const r of results) {
+    if (r.ok) {
+      summary[r.verification.verdict] += 1;
+      if (r.verification.is_projection) projections += 1;
+    } else {
+      summary.error += 1;
+    }
+  }
+  const out: VerifyClaimsResult = { summary, results };
+  if (projections > 0) out.note = `${projections} claim(s) verified against IMF WEO projections, not outturns.`;
+  return out;
+}
 
 export const TOOLS: ToolDef[] = [
   {
@@ -118,6 +246,42 @@ export const TOOLS: ToolDef[] = [
         tolerance_abs: args.tolerance_abs != null ? num(args, "tolerance_abs") : undefined,
         tolerance_pct: args.tolerance_pct != null ? num(args, "tolerance_pct") : undefined,
       }),
+  },
+  {
+    name: "verify_claims",
+    title: "Verify a batch of claimed statistics (fact-check a whole draft)",
+    description:
+      "Fact-check a whole draft or report in one call instead of calling verify_stat once per figure: extract every checkable macro claim from the text — indicator + country + period + claimed value — and submit them together. Each claim gets the same verdict engine as verify_stat (match, close, mismatch, cannot_verify, with diagnostics), and every verified result carries the full citation for the official number. Accepts 1–15 claims per call (free-tier subrequest budget) — split larger drafts into multiple calls of up to 15. Results come back in input order with a verdict-count summary; a claim that cannot be resolved (unknown indicator or country) reports its error in place without sinking the rest of the batch.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        claims: {
+          type: "array",
+          minItems: 1,
+          maxItems: 15,
+          description: "The claims extracted from the draft, in the order they appear (max 15 per call).",
+          items: {
+            type: "object",
+            properties: {
+              indicator: {
+                type: "string",
+                description: "Registry key ('inflation_cpi', 'gdp_growth', …) or explicit series id ('worldbank/FP.CPI.TOTL.ZG', 'fred/UNRATE', 'dbnomics/IMF/WEO:latest/USA.NGDP_RPCH.pcent_change').",
+              },
+              country: { type: "string", description: "Country for registry indicators / World Bank series." },
+              period: { type: "string", description: "Period of the claim, usually a year: '2024'." },
+              claimed_value: { type: "number", description: "The value as claimed (in the series' own units)." },
+              tolerance_abs: { type: "number", description: "Optional absolute tolerance in series units (e.g. 0.1 percentage points)." },
+              tolerance_pct: { type: "number", description: "Optional relative tolerance in percent." },
+            },
+            required: ["indicator", "period", "claimed_value"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["claims"],
+      additionalProperties: false,
+    },
+    handler: async (ctx, args) => runVerifyClaims(ctx, args.claims),
   },
   {
     name: "get_series",
