@@ -1,0 +1,564 @@
+{
+  "run": "P0",
+  "seed": "9a173ab9f6e75866e0ca1f080f24ef0d1e2c91a1a9dbd699be6b796450840c3e",
+  "generated_at": "2026-07-25T20:11:49.194Z",
+  "allow_partial": false,
+  "notes": [
+    "re-anchored GUY|current_account_gdp|2019: frame value -68.779 -> verify official -57.1070048116683 (frame value was a fallback-source or pre-revision capture; verify is the scoring path)",
+    "re-anchored EST|current_account_gdp|2022: frame value -3.894 -> verify official -3.11354022792263 (frame value was a fallback-source or pre-revision capture; verify is the scoring path)",
+    "re-anchored VNM|current_account_gdp|2019: frame value 3.76 -> verify official 3.91824395534243 (frame value was a fallback-source or pre-revision capture; verify is the scoring path)",
+    "re-anchored TGO|gdp_growth|2021: frame value 5.991 -> verify official 5.13562929064506 (frame value was a fallback-source or pre-revision capture; verify is the scoring path)",
+    "re-anchored TUV|gdp_growth|2020: frame value -3.684 -> verify official -3.03030303030303 (frame value was a fallback-source or pre-revision capture; verify is the scoring path)",
+    "batch sizes: 10,10,10,10,10,10,10,10,10,10,10,10,2 (bank size 122 does not divide evenly)"
+  ],
+  "headline_draw": {
+    "cycle": 0,
+    "attempt": 0,
+    "pool_size": 10166
+  },
+  "null_probe_validation": [
+    {
+      "cell": "MNG|gini|2021",
+      "verdict": "cannot_verify"
+    },
+    {
+      "cell": "BGD|gini|2021",
+      "verdict": "cannot_verify"
+    },
+    {
+      "cell": "SYC|gini|2021",
+      "verdict": "cannot_verify"
+    },
+    {
+      "cell": "COD|gini|2021",
+      "verdict": "cannot_verify"
+    },
+    {
+      "cell": "TUN|gini|2019",
+      "verdict": "cannot_verify"
+    },
+    {
+      "cell": "PHL|poverty_headcount_intl|2019",
+      "verdict": "cannot_verify"
+    },
+    {
+      "cell": "KEN|gini|2019",
+      "verdict": "cannot_verify"
+    },
+    {
+      "cell": "UGA|poverty_headcount_intl|2022",
+      "verdict": "cannot_verify"
+    },
+    {
+      "cell": "PAK|poverty_headcount_intl|2019",
+      "verdict": "cannot_verify"
+    },
+    {
+      "cell": "BIH|poverty_headcount_intl|2019",
+      "verdict": "cannot_verify"
+    }
+  ],
+  "verify_roundtrips": [
+    {
+      "cell": "SDN|life_expectancy|2020",
+      "verdict": "match",
+      "official_value": 65.124
+    },
+    {
+      "cell": "CHE|inflation_cpi|2018",
+      "verdict": "match",
+      "official_value": 0.936335464113572
+    },
+    {
+      "cell": "POL|inflation_cpi|2021",
+      "verdict": "match",
+      "official_value": 5.05502704719272
+    },
+    {
+      "cell": "IRN|life_expectancy|2019",
+      "verdict": "match",
+      "official_value": 76.855
+    },
+    {
+      "cell": "CMR|fiscal_balance_gdp|2018",
+      "verdict": "match",
+      "official_value": -2.408
+    },
+    {
+      "cell": "KNA|population|2018",
+      "verdict": "match",
+      "official_value": 47008
+    },
+    {
+      "cell": "GUY|current_account_gdp|2019",
+      "verdict": "mismatch",
+      "official_value": -57.1070048116683
+    },
+    {
+      "cell": "HKG|unemployment_rate|2018",
+      "verdict": "match",
+      "official_value": 2.805
+    },
+    {
+      "cell": "NZL|population|2020",
+      "verdict": "match",
+      "official_value": 5072400
+    },
+    {
+      "cell": "NPL|unemployment_rate|2022",
+      "verdict": "match",
+      "official_value": 10.661
+    },
+    {
+      "cell": "SVK|fdi_inflows_gdp|2018",
+      "verdict": "match",
+      "official_value": 2.11269531583982
+    },
+    {
+      "cell": "PRT|inflation_cpi|2019",
+      "verdict": "match",
+      "official_value": 0.338178410046124
+    },
+    {
+      "cell": "KHM|govt_debt_gdp|2021",
+      "verdict": "match",
+      "official_value": 25.942
+    },
+    {
+      "cell": "TON|inflation_cpi|2021",
+      "verdict": "match",
+      "official_value": 5.64051140636743
+    },
+    {
+      "cell": "ROU|fdi_inflows_gdp|2022",
+      "verdict": "match",
+      "official_value": 3.88649421607456
+    },
+    {
+      "cell": "UGA|unemployment_rate|2021",
+      "verdict": "match",
+      "official_value": 3.416
+    },
+    {
+      "cell": "ROU|inflation_cpi|2018",
+      "verdict": "match",
+      "official_value": 4.62548443137779
+    },
+    {
+      "cell": "EGY|govt_debt_gdp|2021",
+      "verdict": "match",
+      "official_value": 89.903
+    },
+    {
+      "cell": "NCL|unemployment_rate|2022",
+      "verdict": "match",
+      "official_value": 10.71
+    },
+    {
+      "cell": "MWI|population|2021",
+      "verdict": "match",
+      "official_value": 20047258
+    },
+    {
+      "cell": "IRL|population|2018",
+      "verdict": "match",
+      "official_value": 4898022
+    },
+    {
+      "cell": "TCD|unemployment_rate|2021",
+      "verdict": "match",
+      "official_value": 1.53
+    },
+    {
+      "cell": "KHM|population|2020",
+      "verdict": "match",
+      "official_value": 16725474
+    },
+    {
+      "cell": "FRA|reserves_total_usd|2020",
+      "verdict": "match",
+      "official_value": 224236417867.711
+    },
+    {
+      "cell": "BHR|unemployment_rate|2018",
+      "verdict": "match",
+      "official_value": 1.188
+    },
+    {
+      "cell": "MEX|govt_debt_gdp|2021",
+      "verdict": "match",
+      "official_value": 56.695
+    },
+    {
+      "cell": "OMN|current_account_gdp|2018",
+      "verdict": "match",
+      "official_value": -4.85027419563219
+    },
+    {
+      "cell": "ESP|govt_debt_gdp|2019",
+      "verdict": "match",
+      "official_value": 97.579
+    },
+    {
+      "cell": "BGR|reserves_total_usd|2020",
+      "verdict": "match",
+      "official_value": 37860001348.6185
+    },
+    {
+      "cell": "SLE|life_expectancy|2022",
+      "verdict": "match",
+      "official_value": 61.275
+    },
+    {
+      "cell": "COD|trade_gdp|2019",
+      "verdict": "match",
+      "official_value": 60.9143523742792
+    },
+    {
+      "cell": "DOM|trade_gdp|2022",
+      "verdict": "match",
+      "official_value": 54.3781976712844
+    },
+    {
+      "cell": "SGP|trade_gdp|2018",
+      "verdict": "match",
+      "official_value": 325.725809994853
+    },
+    {
+      "cell": "FJI|inflation_cpi|2019",
+      "verdict": "match",
+      "official_value": 1.79388647514555
+    },
+    {
+      "cell": "CHN|fdi_inflows_gdp|2020",
+      "verdict": "match",
+      "official_value": 1.68770756292082
+    },
+    {
+      "cell": "BEL|fiscal_balance_gdp|2022",
+      "verdict": "match",
+      "official_value": -3.613
+    },
+    {
+      "cell": "MAC|current_account_gdp|2021",
+      "verdict": "match",
+      "official_value": 6.72919312514395
+    },
+    {
+      "cell": "LIE|life_expectancy|2021",
+      "verdict": "match",
+      "official_value": 84.4024390243902
+    },
+    {
+      "cell": "BTN|population|2020",
+      "verdict": "match",
+      "official_value": 770006
+    },
+    {
+      "cell": "CZE|reserves_total_usd|2022",
+      "verdict": "match",
+      "official_value": 139981275466.87
+    },
+    {
+      "cell": "TUN|population|2022",
+      "verdict": "match",
+      "official_value": 12119334
+    },
+    {
+      "cell": "ARE|trade_gdp|2021",
+      "verdict": "match",
+      "official_value": 182.909401076776
+    },
+    {
+      "cell": "COD|life_expectancy|2018",
+      "verdict": "match",
+      "official_value": 59.926
+    },
+    {
+      "cell": "SUR|unemployment_rate|2020",
+      "verdict": "match",
+      "official_value": 8.973
+    },
+    {
+      "cell": "TCD|govt_debt_gdp|2022",
+      "verdict": "match",
+      "official_value": 32.228
+    },
+    {
+      "cell": "GAB|reserves_total_usd|2022",
+      "verdict": "match",
+      "official_value": 1415483890.94364
+    },
+    {
+      "cell": "MKD|govt_debt_gdp|2019",
+      "verdict": "match",
+      "official_value": 40.448
+    },
+    {
+      "cell": "EST|current_account_gdp|2022",
+      "verdict": "mismatch",
+      "official_value": -3.11354022792263
+    },
+    {
+      "cell": "ISL|gdp_growth|2020",
+      "verdict": "match",
+      "official_value": -6.64587810456635
+    },
+    {
+      "cell": "LAO|govt_debt_gdp|2019",
+      "verdict": "match",
+      "official_value": 69.129
+    },
+    {
+      "cell": "CHL|gdp_growth|2018",
+      "verdict": "match",
+      "official_value": 3.99002947789977
+    },
+    {
+      "cell": "ARE|govt_debt_gdp|2022",
+      "verdict": "match",
+      "official_value": 32.057
+    },
+    {
+      "cell": "VNM|fiscal_balance_gdp|2022",
+      "verdict": "match",
+      "official_value": 0.671
+    },
+    {
+      "cell": "CHL|reserves_total_usd|2020",
+      "verdict": "match",
+      "official_value": 39166118109.4101
+    },
+    {
+      "cell": "SWZ|trade_gdp|2020",
+      "verdict": "match",
+      "official_value": 84.0140188426878
+    },
+    {
+      "cell": "RUS|population|2021",
+      "verdict": "match",
+      "official_value": 144746762
+    },
+    {
+      "cell": "MLT|unemployment_rate|2018",
+      "verdict": "match",
+      "official_value": 3.956
+    },
+    {
+      "cell": "BGR|life_expectancy|2020",
+      "verdict": "match",
+      "official_value": 73.3560975609756
+    },
+    {
+      "cell": "ZWE|current_account_gdp|2020",
+      "verdict": "match",
+      "official_value": 2.12127429305519
+    },
+    {
+      "cell": "IDN|trade_gdp|2021",
+      "verdict": "match",
+      "official_value": 40.2047582749671
+    },
+    {
+      "cell": "CAN|fdi_inflows_gdp|2022",
+      "verdict": "match",
+      "official_value": 2.30686661821278
+    },
+    {
+      "cell": "CMR|fdi_inflows_gdp|2022",
+      "verdict": "match",
+      "official_value": 2.08735032157122
+    },
+    {
+      "cell": "ESP|life_expectancy|2018",
+      "verdict": "match",
+      "official_value": 83.4317073170732
+    },
+    {
+      "cell": "BRA|reserves_total_usd|2021",
+      "verdict": "match",
+      "official_value": 362210079181.317
+    },
+    {
+      "cell": "VNM|current_account_gdp|2019",
+      "verdict": "close",
+      "official_value": 3.91824395534243
+    },
+    {
+      "cell": "LBN|inflation_cpi|2021",
+      "verdict": "match",
+      "official_value": 154.756096023393
+    },
+    {
+      "cell": "HTI|reserves_total_usd|2022",
+      "verdict": "match",
+      "official_value": 2173397186.29319
+    },
+    {
+      "cell": "HKG|gdp_growth|2019",
+      "verdict": "match",
+      "official_value": -1.67242865968056
+    },
+    {
+      "cell": "TGO|gdp_growth|2021",
+      "verdict": "mismatch",
+      "official_value": 5.13562929064506
+    },
+    {
+      "cell": "PAN|current_account_gdp|2019",
+      "verdict": "match",
+      "official_value": -5.14448028522086
+    },
+    {
+      "cell": "LBN|reserves_total_usd|2018",
+      "verdict": "match",
+      "official_value": 52380608542.3956
+    },
+    {
+      "cell": "MNG|life_expectancy|2021",
+      "verdict": "match",
+      "official_value": 71.6451219512195
+    },
+    {
+      "cell": "LKA|current_account_gdp|2021",
+      "verdict": "match",
+      "official_value": -3.70866603299245
+    },
+    {
+      "cell": "NAM|inflation_cpi|2022",
+      "verdict": "match",
+      "official_value": 6.08128114112413
+    },
+    {
+      "cell": "FSM|gdp_growth|2022",
+      "verdict": "match",
+      "official_value": -3.11412501063803
+    },
+    {
+      "cell": "TUV|gdp_growth|2020",
+      "verdict": "mismatch",
+      "official_value": -3.03030303030303
+    },
+    {
+      "cell": "GMB|trade_gdp|2018",
+      "verdict": "match",
+      "official_value": 64.8124640003735
+    },
+    {
+      "cell": "ATG|trade_gdp|2021",
+      "verdict": "match",
+      "official_value": 101.074960584779
+    },
+    {
+      "cell": "ETH|inflation_cpi|2019",
+      "verdict": "match",
+      "official_value": 15.8096321719344
+    },
+    {
+      "cell": "ALB|fiscal_balance_gdp|2022",
+      "verdict": "match",
+      "official_value": -3.639
+    },
+    {
+      "cell": "JPN|inflation_cpi|2019",
+      "verdict": "match",
+      "official_value": 0.46877615938395
+    },
+    {
+      "cell": "BGD|fiscal_balance_gdp|2021",
+      "verdict": "match",
+      "official_value": -3.555
+    },
+    {
+      "cell": "POL|fiscal_balance_gdp|2019",
+      "verdict": "match",
+      "official_value": -0.734
+    },
+    {
+      "cell": "RUS|gdp_growth|2019",
+      "verdict": "match",
+      "official_value": 2.19807571381982
+    },
+    {
+      "cell": "SWE|gdp_current_usd|2020",
+      "verdict": "match",
+      "official_value": 544265668451.678
+    },
+    {
+      "cell": "SAU|fiscal_balance_gdp|2018",
+      "verdict": "match",
+      "official_value": -5.454
+    },
+    {
+      "cell": "GRC|fdi_inflows_gdp|2022",
+      "verdict": "match",
+      "official_value": 3.69648293387112
+    },
+    {
+      "cell": "KAZ|fiscal_balance_gdp|2019",
+      "verdict": "match",
+      "official_value": -0.57
+    },
+    {
+      "cell": "USA|inflation_cpi|2019",
+      "verdict": "match",
+      "official_value": 1.81221007526021
+    },
+    {
+      "cell": "NLD|gdp_growth|2019",
+      "verdict": "match",
+      "official_value": 2.3001616053659
+    },
+    {
+      "cell": "IND|gdp_current_usd|2020",
+      "verdict": "match",
+      "official_value": 2674851578587.27
+    },
+    {
+      "cell": "TUR|inflation_cpi|2019",
+      "verdict": "match",
+      "official_value": 15.1768215720022
+    },
+    {
+      "cell": "CAN|gdp_current_usd|2020",
+      "verdict": "match",
+      "official_value": 1655686966881.99
+    },
+    {
+      "cell": "CHN|gdp_current_usd|2018",
+      "verdict": "match",
+      "official_value": 14147765772963.8
+    },
+    {
+      "cell": "NLD|fdi_inflows_gdp|2019",
+      "verdict": "match",
+      "official_value": -13.7565327156949
+    },
+    {
+      "cell": "CHE|fdi_inflows_gdp|2018",
+      "verdict": "match",
+      "official_value": -21.8417322340093
+    },
+    {
+      "cell": "AUS|gdp_current_usd|2020",
+      "verdict": "match",
+      "official_value": 1333336461648.09
+    },
+    {
+      "cell": "JPN|gdp_current_usd|2018",
+      "verdict": "match",
+      "official_value": 5154293721629.56
+    },
+    {
+      "cell": "GBR|gdp_current_usd|2020",
+      "verdict": "match",
+      "official_value": 2724001478304.59
+    },
+    {
+      "cell": "MEX|gdp_current_usd|2020",
+      "verdict": "match",
+      "official_value": 1121064767168.8
+    }
+  ],
+  "batch_assign_attempt": 0
+}
