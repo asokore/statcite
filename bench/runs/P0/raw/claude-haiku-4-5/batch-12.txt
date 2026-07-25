@@ -1,0 +1,14 @@
+```json
+[
+  {"qid": "P0-074", "value": null, "unit": "percent of GDP", "year_basis": 2025, "confidence": 0.0, "refused": true, "basis_note": "2025 is beyond my training data cutoff; no parametric knowledge available."},
+  {"qid": "P0-014", "value": 352, "unit": "billions of US dollars", "year_basis": 2021, "confidence": 0.7, "refused": false, "basis_note": "Brazil's international reserves end-2021; recalled as approximately 350–360 range."},
+  {"qid": "P0-043", "value": null, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.0, "refused": true, "basis_note": "Bangladesh fiscal balance 2021: no confident parametric recall available."},
+  {"qid": "P0-062", "value": null, "unit": "percent of GDP", "year_basis": 2019, "confidence": 0.0, "refused": true, "basis_note": "Guyana current account 2019: insufficient confident recall."},
+  {"qid": "P0-114", "value": 62, "unit": "percent of GDP", "year_basis": 2019, "confidence": 0.55, "refused": false, "basis_note": "Lao PDR debt 2019; estimated high-debt-country range, low confidence."},
+  {"qid": "P0-082", "value": null, "unit": "percent of population", "year_basis": 2022, "confidence": 0.0, "refused": true, "basis_note": "Uganda $2.15/day poverty 2022: no confident recent data in parametric memory."},
+  {"qid": "P0-027", "value": 82.6, "unit": "years", "year_basis": 2018, "confidence": 0.7, "refused": false, "basis_note": "Spain life expectancy 2018, both sexes; high-income country, ~82–83 range."},
+  {"qid": "P0-015", "value": 1250, "unit": "billions of US dollars", "year_basis": 2020, "confidence": 0.55, "refused": false, "basis_note": "Australia nominal GDP 2020 at market rates; COVID-affected, exchange rate sensitive, low confidence."},
+  {"qid": "P0-122", "value": null, "unit": "percent", "year_basis": 2021, "confidence": 0.0, "refused": true, "basis_note": "Chad unemployment 2021 ILO estimate: no confident parametric recall."},
+  {"qid": "P0-070", "value": 15.5, "unit": "percent", "year_basis": 2019, "confidence": 0.65, "refused": false, "basis_note": "Turkiye annual average CPI 2019; high-inflation period, ~15–16% range."}
+]
+```

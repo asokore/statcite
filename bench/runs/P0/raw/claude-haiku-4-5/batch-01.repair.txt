@@ -1,0 +1,92 @@
+[
+  {
+    "qid": "P0-098",
+    "value": 145.9,
+    "unit": "millions of people",
+    "year_basis": 2021,
+    "confidence": 0.68,
+    "refused": false,
+    "basis_note": "World Bank estimate, Russia mid-year 2021"
+  },
+  {
+    "qid": "P0-018",
+    "value": null,
+    "unit": "percent of GDP",
+    "year_basis": 2022,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": "Cannot reliably recall Dominican Republic trade openness 2022"
+  },
+  {
+    "qid": "P0-008",
+    "value": null,
+    "unit": "percent",
+    "year_basis": 2022,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": "Cannot reliably recall Namibia CPI inflation 2022"
+  },
+  {
+    "qid": "P0-120",
+    "value": null,
+    "unit": "billions of US dollars",
+    "year_basis": 2020,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": "Cannot reliably recall Bulgaria total reserves including gold 2020"
+  },
+  {
+    "qid": "P0-117",
+    "value": null,
+    "unit": "percent of GDP",
+    "year_basis": 2018,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": "Cannot reliably recall Saudi Arabia fiscal balance 2018"
+  },
+  {
+    "qid": "P0-079",
+    "value": null,
+    "unit": "percent of GDP",
+    "year_basis": 2023,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": "Cannot reliably recall Vietnam current account 2023"
+  },
+  {
+    "qid": "P0-083",
+    "value": 558,
+    "unit": "billions of US dollars",
+    "year_basis": 2020,
+    "confidence": 0.58,
+    "refused": false,
+    "basis_note": "Sweden GDP 2020 at market exchange rates; exchange rate uncertainty"
+  },
+  {
+    "qid": "P0-096",
+    "value": null,
+    "unit": "percent of GDP",
+    "year_basis": 2019,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": "Cannot reliably recall Netherlands FDI inflows 2019"
+  },
+  {
+    "qid": "P0-060",
+    "value": -6.4,
+    "unit": "percent",
+    "year_basis": 2020,
+    "confidence": 0.62,
+    "refused": false,
+    "basis_note": "Iceland real GDP growth 2020, COVID-19 pandemic contraction"
+  },
+  {
+    "qid": "P0-090",
+    "value": null,
+    "unit": "percent",
+    "year_basis": 2020,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": "Cannot reliably recall Suriname ILO unemployment 2020"
+  }
+]

@@ -1,0 +1,12 @@
+[
+  {"qid": "P0-006", "value": 91, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.45, "refused": false, "basis_note": "Estimate from parametric knowledge of Egypt's debt situation"},
+  {"qid": "P0-112", "value": 130, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.30, "refused": false, "basis_note": "High trade ratio typical for small island economies"},
+  {"qid": "P0-034", "value": 400, "unit": "millions of US dollars", "year_basis": 2022, "confidence": 0.20, "refused": false, "basis_note": "Estimate based on limited reserves in lower-income economy"},
+  {"qid": "P0-118", "value": 42.5, "unit": "index (0-100)", "year_basis": 2021, "confidence": 0.35, "refused": false, "basis_note": "World Bank Gini estimate for DRC"},
+  {"qid": "P0-068", "value": 1.5, "unit": "percent", "year_basis": 2022, "confidence": 0.15, "refused": false, "basis_note": "Estimate for small island economy"},
+  {"qid": "P0-110", "value": 0.3, "unit": "percent", "year_basis": 2019, "confidence": 0.60, "refused": false, "basis_note": "Low European inflation typical for 2019"},
+  {"qid": "P0-007", "value": -2.5, "unit": "percent of GDP", "year_basis": 2022, "confidence": 0.40, "refused": false, "basis_note": "Belgium typical deficit range post-COVID"},
+  {"qid": "P0-061", "value": 1.4, "unit": "percent", "year_basis": 2018, "confidence": 0.30, "refused": false, "basis_note": "Low unemployment typical for Gulf states"},
+  {"qid": "P0-044", "value": 1700, "unit": "billions of US dollars", "year_basis": 2020, "confidence": 0.55, "refused": false, "basis_note": "Canada nominal GDP contracted in COVID year 2020"},
+  {"qid": "P0-105", "value": 2.5, "unit": "percent of GDP", "year_basis": 2022, "confidence": 0.25, "refused": false, "basis_note": "Estimate for Eastern European FDI inflows"}
+]

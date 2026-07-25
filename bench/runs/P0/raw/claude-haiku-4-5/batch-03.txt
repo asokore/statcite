@@ -1,0 +1,12 @@
+[
+  {"qid": "P0-076", "value": 0.3, "unit": "percent", "year_basis": 2019, "confidence": 0.38, "refused": false, "basis_note": "Hong Kong 2019 affected by spring protests and trade tensions"},
+  {"qid": "P0-054", "value": 125.07, "unit": "millions of people", "year_basis": 2024, "confidence": 0.68, "refused": false, "basis_note": "Japan experiencing demographic decline; ~125M mid-2024"},
+  {"qid": "P0-063", "value": null, "unit": "billions of US dollars", "year_basis": 2020, "confidence": 0.12, "refused": true, "basis_note": "No reliable recall of France's total reserves figure"},
+  {"qid": "P0-084", "value": 95.5, "unit": "percent of GDP", "year_basis": 2019, "confidence": 0.63, "refused": false, "basis_note": "Spain's debt estimated 95-97% range in 2019 period"},
+  {"qid": "P0-052", "value": 3.6, "unit": "percent", "year_basis": 2018, "confidence": 0.32, "refused": false, "basis_note": "Malta among lowest EU rates; estimated 3.5-3.7% range"},
+  {"qid": "P0-020", "value": null, "unit": "percent", "year_basis": 2019, "confidence": 0.10, "refused": true, "basis_note": "No reliable recall of Ethiopia 2019 annual average CPI"},
+  {"qid": "P0-119", "value": 71.5, "unit": "years", "year_basis": 2021, "confidence": 0.28, "refused": false, "basis_note": "Mongolia life expectancy estimate from regional patterns"},
+  {"qid": "P0-102", "value": null, "unit": "percent of GDP", "year_basis": 2022, "confidence": 0.10, "refused": true, "basis_note": "No reliable recall of Cameroon FDI inflows 2022"},
+  {"qid": "P0-106", "value": null, "unit": "percent of GDP", "year_basis": 2025, "confidence": 0.08, "refused": true, "basis_note": "No reliable recall of CAR 2025 fiscal projection"},
+  {"qid": "P0-016", "value": 48, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.35, "refused": false, "basis_note": "Macao casino economy generates large current account surplus"}
+]

@@ -1,0 +1,92 @@
+[
+  {
+    "qid": "P0-037",
+    "value": null,
+    "unit": "percent of GDP",
+    "year_basis": 2018,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": ""
+  },
+  {
+    "qid": "P0-012",
+    "value": null,
+    "unit": "percent of GDP",
+    "year_basis": 2018,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": ""
+  },
+  {
+    "qid": "P0-089",
+    "value": null,
+    "unit": "percent of GDP",
+    "year_basis": 2018,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": ""
+  },
+  {
+    "qid": "P0-069",
+    "value": null,
+    "unit": "percent",
+    "year_basis": 2020,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": ""
+  },
+  {
+    "qid": "P0-072",
+    "value": null,
+    "unit": "percent of population",
+    "year_basis": 2019,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": ""
+  },
+  {
+    "qid": "P0-023",
+    "value": null,
+    "unit": "billions of US dollars",
+    "year_basis": 2025,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": ""
+  },
+  {
+    "qid": "P0-091",
+    "value": 59.5,
+    "unit": "years",
+    "year_basis": 2018,
+    "confidence": 0.50,
+    "refused": false,
+    "basis_note": "DRC has among world's lowest life expectancy"
+  },
+  {
+    "qid": "P0-022",
+    "value": null,
+    "unit": "percent of GDP",
+    "year_basis": 2018,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": ""
+  },
+  {
+    "qid": "P0-085",
+    "value": 3.7,
+    "unit": "percent",
+    "year_basis": 2018,
+    "confidence": 0.52,
+    "refused": false,
+    "basis_note": "EU member, moderate inflation period"
+  },
+  {
+    "qid": "P0-011",
+    "value": 12.3,
+    "unit": "millions of people",
+    "year_basis": 2022,
+    "confidence": 0.63,
+    "refused": false,
+    "basis_note": "North African country, stable long-term population"
+  }
+]

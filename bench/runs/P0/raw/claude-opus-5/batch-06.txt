@@ -1,0 +1,10 @@
+[{"qid":"P0-086","value":2.0,"unit":"percent","year_basis":2019,"confidence":0.6,"basis_note":"Netherlands real GDP growth 2019 ~2.0%"},
+{"qid":"P0-019","value":null,"unit":"millions of US dollars","year_basis":2023,"confidence":0.0,"refused":true,"basis_note":"Eritrea reserves not reliably recalled; WDI coverage sparse"},
+{"qid":"P0-113","value":null,"unit":"percent of GDP","year_basis":2018,"confidence":0.0,"refused":true,"basis_note":"Swiss FDI net inflows 2018 volatile/negative; no reliable recall"},
+{"qid":"P0-109","value":38.7,"unit":"index (0-100)","year_basis":2019,"confidence":0.5,"refused":false,"basis_note":"Kenya Gini 2019 KIHBS-based World Bank estimate ~38.7"},
+{"qid":"P0-039","value":null,"unit":"percent","year_basis":2022,"confidence":0.0,"refused":true,"basis_note":"New Caledonia not covered by ILO modelled estimates in WDI"},
+{"qid":"P0-078","value":52.0,"unit":"thousands of people","year_basis":2018,"confidence":0.55,"refused":false,"basis_note":"St Kitts and Nevis population ~52,000 in 2018"},
+{"qid":"P0-017","value":65.3,"unit":"years","year_basis":2020,"confidence":0.45,"refused":false,"basis_note":"Sudan life expectancy 2020 ~65 years, WDI"},
+{"qid":"P0-031","value":1.8,"unit":"percent","year_basis":2019,"confidence":0.85,"refused":false,"basis_note":"US CPI annual average 2019 = 1.8%"},
+{"qid":"P0-033","value":3.0,"unit":"percent of GDP","year_basis":2020,"confidence":0.25,"refused":false,"basis_note":"Zimbabwe 2020 current account moved to surplus ~3% of GDP"},
+{"qid":"P0-057","value":35.5,"unit":"percent of GDP","year_basis":2021,"confidence":0.35,"refused":false,"basis_note":"Cambodia general government gross debt 2021 ~35% of GDP, IMF WEO"}]

@@ -1,0 +1,22 @@
+```json
+[
+  {
+    "qid": "P0-001",
+    "value": null,
+    "unit": "percent",
+    "year_basis": 2021,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": "Cannot reliably recall World Bank WDI annual average inflation for Lebanon 2021"
+  },
+  {
+    "qid": "P0-049",
+    "value": null,
+    "unit": "percent of population",
+    "year_basis": 2019,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": "Cannot reliably recall World Bank WDI poverty figure for Pakistan 2019"
+  }
+]
+```
