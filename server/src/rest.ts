@@ -12,6 +12,7 @@ import { verifyStat } from "./core/verify.ts";
 import { SOURCES } from "./core/sources.ts";
 import { corsHeaders, SERVER_VERSION } from "./mcp.ts";
 import { parseTransform } from "./core/transforms.ts";
+import { recordUsage, restOp, indicatorLabel, countryLabel, type Outcome } from "./core/analytics.ts";
 
 function json(status: number, body: unknown, cacheSeconds = 3600): Response {
   return new Response(JSON.stringify(body, null, 2), {
@@ -49,7 +50,54 @@ function qYear(q: URLSearchParams, name: string): string | undefined {
   return raw;
 }
 
+/** Mutable slot for dimensions only the route body knows (currently the verdict). */
+interface UsageSlot {
+  verdict?: string;
+}
+
+/**
+ * REST entry point: routes the request, then records one aggregate usage event
+ * (see core/analytics.ts). Recording happens after the Response object exists,
+ * never throws, and adds no awaits to the response path.
+ */
 export async function handleRest(request: Request, ctx: Ctx): Promise<Response> {
+  const started = Date.now();
+  const slot: UsageSlot = {};
+  const res = await routeRest(request, ctx, slot);
+  if (request.method === "GET") {
+    try {
+      const url = new URL(request.url);
+      const path = url.pathname.replace(/\/+$/, "");
+      const q = url.searchParams;
+      const indMatch = path.match(/^\/v1\/indicator\/([a-z0-9_]+)$/);
+      const snapMatch = path.match(/^\/v1\/snapshot\/([^/]+)$/);
+      let country: string | undefined = q.get("country") ?? undefined;
+      if (!country && snapMatch) {
+        try {
+          country = decodeURIComponent(snapMatch[1]);
+        } catch {
+          country = undefined;
+        }
+      }
+      const outcome: Outcome =
+        res.status < 400 ? "ok" : res.status === 502 ? "upstream_error" : res.status >= 500 ? "crash" : "tool_error";
+      recordUsage(ctx.analytics, {
+        transport: "rest",
+        op: restOp(path),
+        indicator: indicatorLabel(indMatch ? indMatch[1] : (q.get("indicator") ?? q.get("id") ?? undefined)),
+        country: countryLabel(country),
+        verdict: slot.verdict,
+        outcome,
+        durationMs: Date.now() - started,
+      });
+    } catch {
+      // Analytics must never affect the response.
+    }
+  }
+  return res;
+}
+
+async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<Response> {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders() });
   if (request.method !== "GET") return errJson(405, "Only GET is supported on /v1 endpoints.");
 
@@ -136,6 +184,7 @@ export async function handleRest(request: Request, ctx: Ctx): Promise<Response> 
         tolerance_abs: qNum(q, "tolerance_abs", false),
         tolerance_pct: qNum(q, "tolerance_pct", false),
       });
+      usage.verdict = result.verdict;
       return json(200, result, 1800);
     }
 

@@ -9,12 +9,19 @@ export interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
   BASE_URL?: string;
   FRED_API_KEY?: string;
+  /**
+   * Workers Analytics Engine dataset (aggregate usage; no personal data).
+   * Optional: absent in local dev and tests, in which case usage is only
+   * emitted as a `STATCITE_USAGE …` console line. See core/analytics.ts.
+   */
+  STATCITE_USAGE?: { writeDataPoint(point: { indexes?: string[]; blobs?: string[]; doubles?: number[] }): void };
 }
 
 function makeCtx(env: Env): Ctx {
   return {
     baseUrl: (env.BASE_URL ?? "https://statcite.com").replace(/\/$/, ""),
     fredApiKey: env.FRED_API_KEY || undefined,
+    analytics: env.STATCITE_USAGE,
   };
 }
 

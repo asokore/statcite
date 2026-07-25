@@ -11,6 +11,8 @@ import { SOURCES } from "./core/sources.ts";
 import { resolveCountry } from "./core/countries.ts";
 import { INDICATORS, searchIndicatorDefs } from "./core/indicators.ts";
 import { parseTransform } from "./core/transforms.ts";
+import { UpstreamError } from "./core/upstream.ts";
+import { recordUsage, indicatorLabel, countryLabel, verdictLabel, type Outcome } from "./core/analytics.ts";
 
 type Json = Record<string, unknown>;
 
@@ -342,3 +344,62 @@ export const TOOLS: ToolDef[] = [
 ];
 
 export const toolByName = new Map(TOOLS.map((t) => [t.name, t]));
+
+// ——— Usage analytics (aggregate only; see core/analytics.ts) ———
+
+/** Pull the aggregate dimensions out of a call. Nothing free-text is kept. */
+function describeCall(name: string, args: Json, result?: unknown): { indicator?: string; country?: string; verdict?: string } {
+  const a = args as Record<string, any>;
+  const r = (result ?? undefined) as Record<string, any> | undefined;
+  let indicatorRaw: unknown = typeof a?.indicator === "string" ? a.indicator : a?.series_id;
+  let countryRaw: unknown = r && typeof r === "object" ? r?.country?.iso3 : undefined;
+  if (typeof countryRaw !== "string") countryRaw = a?.country;
+  // Deep-research `fetch` ids have the shape indicator/<key>/<ISO3>.
+  if (name === "fetch" && typeof a?.id === "string") {
+    const m = a.id.match(/^indicator\/([a-z0-9_]+)\/([A-Za-z0-9]{2,3})$/);
+    if (m) {
+      indicatorRaw = m[1];
+      if (typeof countryRaw !== "string") countryRaw = m[2].toUpperCase();
+    }
+  }
+  return {
+    indicator: indicatorLabel(indicatorRaw),
+    country: countryLabel(countryRaw),
+    verdict: verdictLabel(r?.verdict),
+  };
+}
+
+function outcomeOf(e: unknown): Outcome {
+  if (e instanceof ToolError) return "tool_error";
+  if (e instanceof UpstreamError) return "upstream_error";
+  return "crash";
+}
+
+/**
+ * Run a tool and record one aggregate usage event. Behaviour is identical to
+ * calling `tool.handler` directly — errors propagate unchanged, and analytics
+ * failures are swallowed inside recordUsage().
+ */
+export async function callTool(ctx: Ctx, tool: ToolDef, args: Json): Promise<unknown> {
+  const started = Date.now();
+  try {
+    const result = await tool.handler(ctx, args);
+    recordUsage(ctx.analytics, {
+      transport: "mcp",
+      op: tool.name,
+      ...describeCall(tool.name, args, result),
+      outcome: "ok",
+      durationMs: Date.now() - started,
+    });
+    return result;
+  } catch (e) {
+    recordUsage(ctx.analytics, {
+      transport: "mcp",
+      op: tool.name,
+      ...describeCall(tool.name, args),
+      outcome: outcomeOf(e),
+      durationMs: Date.now() - started,
+    });
+    throw e;
+  }
+}
