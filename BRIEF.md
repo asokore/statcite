@@ -1,5 +1,7 @@
 # BRIEF — read this first
 
+> **HISTORICAL SNAPSHOT (2026-07-25 handoff).** This document records the state and reasoning at handoff time and is deliberately left unedited. Facts below (test counts, "nothing is deployed", open gaps) are superseded — for current state see `HANDOFF.md` § Launch status and `CLAUDE.md`. The *mandate* in §1 and the ideas in §6 remain the live reference.
+
 You are inheriting a project that was researched, designed, built, reviewed, and tested in a single Cowork session on 2026-07-25, then handed to you. This file exists to transfer *context and authority*, not instructions.
 
 **Your mandate is the same as the one that produced this repo: solve the owner's actual problem, using your own judgment, with no obligation to preserve anything here.** If StatCite is the right answer, make it excellent and ship it. If it's the wrong answer, or a partial answer, say so with reasoning and build the better one. The code is an artifact of one session's thinking, not a spec you must obey. Treat every decision below as a rebuttable prior.

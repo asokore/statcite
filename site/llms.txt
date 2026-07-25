@@ -1,6 +1,6 @@
 # StatCite
 
-> Free remote MCP server + REST API serving official economic statistics — World Bank, IMF WEO, ECB reference rates, optional FRED — where every number ships with a full citation (source, dataset, series id, canonical URL, license, retrieval date). Includes verify_stat: check a claimed economic figure against the official series and get a verdict with diagnostics.
+> Free remote MCP server + REST API serving official economic statistics — World Bank, IMF WEO, ECB reference rates, optional FRED — where every number ships with a full citation (source, dataset, series id, canonical URL, license, retrieval date). Includes verify_stat: check a claimed economic figure against the official series and get a verdict with diagnostics — and verify_claims: fact-check up to 15 claims from a draft in one batch call (MCP tool + POST /v1/verify_claims).
 
 Key facts: no API key, no auth, CORS open, read-only. MCP endpoint: https://statcite.com/mcp (Streamable HTTP, stateless). REST base: https://statcite.com/v1. 42 curated indicators, 200+ economies, ~120 currencies.
 
@@ -13,6 +13,7 @@ Key facts: no API key, no auth, CORS open, read-only. MCP endpoint: https://stat
 ## Quick use
 
 - [Verify a stat](https://statcite.com/v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=4.1): GET /v1/verify?indicator=…&country=…&period=…&value=…
+- Verify a batch of claims: POST /v1/verify_claims with JSON body {"claims":[{"indicator":…,"country":…,"period":…,"claimed_value":…}]} (1–15 claims)
 - [Get an indicator](https://statcite.com/v1/indicator/gdp_growth?country=BRB&latest_only=true): GET /v1/indicator/{key}?country=…
 - [Country snapshot](https://statcite.com/v1/snapshot/Japan): GET /v1/snapshot/{country}
 - [Sources & licenses](https://statcite.com/v1/sources): what backs every number

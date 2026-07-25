@@ -213,10 +213,11 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
   </section>
 
   <section id="tools">
-    <h2>Ten tools, one contract: every number carries its receipt</h2>
+    <h2>Eleven tools, one contract: every number carries its receipt</h2>
     <p class="lead">Available over MCP and mirrored as a REST API. All read-only.</p>
     <div class="grid">
       <div class="card"><h3>verify_stat</h3><p>Check a claimed figure against the official series → match / close / mismatch / cannot_verify, with diagnostics and the correct citation.</p></div>
+      <div class="card"><h3>verify_claims</h3><p>Fact-check a whole draft in one call: extract every macro claim, submit up to 15 together (also <code>POST /v1/verify_claims</code>). Verdict summary + per-claim results; one bad claim never sinks the batch.</p></div>
       <div class="card"><h3>get_indicator</h3><p>42 curated indicators — inflation, GDP growth, unemployment, government debt, current account, FDI… — for 200+ economies, with source fallback (World Bank → IMF WEO).</p></div>
       <div class="card"><h3>country_snapshot</h3><p>Headline economic picture of any country in one call: 11 indicators, each with its own citation. Built for country briefs.</p></div>
       <div class="card"><h3>inflation_adjust</h3><p>“What is $100 (1995) worth in 2025 money?” CPI-ratio method with the exact index values and formula disclosed. Any country with CPI data.</p></div>
@@ -249,7 +250,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
         <h3>Free</h3>
         <div class="price">$0 <small>forever for fair use</small></div>
         <ul>
-          <li>All 10 tools, full citation payloads</li>
+          <li>All 11 tools, full citation payloads</li>
           <li>No key, no signup, no OAuth</li>
           <li>MCP + REST</li>
           <li>Fair-use: be reasonable; heavy automated loads may be throttled</li>
@@ -262,7 +263,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
           <li>Same engine as a managed Apify actor</li>
           <li>Per-result billing, SLA-backed platform</li>
           <li>For pipelines that want an invoice</li>
-          <li class="soon">Listing: “StatCite Economic Data &amp; Fact-Check”</li>
+          <li>Listing: <a href="https://apify.com/asokore/statcite-economic-data">StatCite — Economic Data &amp; Stat Verification</a></li>
         </ul>
       </div>
       <div class="tier">

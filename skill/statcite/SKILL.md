@@ -11,7 +11,7 @@ Why this matters: economic numbers recalled from memory are frequently stale (da
 
 ## How to call it
 
-If the StatCite MCP connector is installed, prefer its tools (`get_indicator`, `verify_stat`, `country_snapshot`, `inflation_adjust`, `fx_convert`, `get_series`, `search_indicators`, `list_sources`). Otherwise use the REST API with plain HTTPS GETs — no key, no auth:
+If the StatCite MCP connector is installed, prefer its tools (`get_indicator`, `verify_stat`, `verify_claims`, `country_snapshot`, `inflation_adjust`, `fx_convert`, `get_series`, `search_indicators`, `list_sources`). Otherwise use the REST API — plain HTTPS GETs, no key, no auth (one exception: `/v1/verify_claims` is a POST):
 
 ```
 https://statcite.com/v1/indicator/{key}?country={ISO3}&latest_only=true
@@ -41,8 +41,8 @@ When drafting anything containing macro figures:
 Before finalizing any document with economic statistics (yours or the user's):
 
 1. Extract every checkable claim: indicator + country + period + value.
-2. Call `verify_stat` for each.
-3. Act on the verdict:
+2. When checking a whole draft, verify them in one batch: call `verify_claims` once with all extracted claims (up to 15 per call; split larger drafts into batches of 15). Over REST: `POST https://statcite.com/v1/verify_claims` with JSON body `{"claims":[{"indicator":…,"country":…,"period":…,"claimed_value":…}]}`. Results return in input order with a verdict-count summary; a claim that can't be resolved reports its error in place without failing the rest. For a single stray figure, `verify_stat` (or `GET /v1/verify`) is fine.
+3. Act on each verdict:
    - `match` — keep the number; attach the citation.
    - `close` — replace with the official value; attach the citation; if the draft's number came from a specific dated source, note the revision possibility.
    - `mismatch` — replace, and read `diagnostics`: they identify wrong-year claims, percent-vs-decimal slips, and millions/billions confusion, which tells you how to fix surrounding text too.
