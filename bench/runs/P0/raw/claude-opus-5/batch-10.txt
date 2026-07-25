@@ -1,0 +1,10 @@
+[{"qid":"P0-072","value":0.2,"unit":"percent of population","year_basis":2019,"confidence":0.35,"basis_note":"WDI $2.15 PPP headcount BiH; near-zero, ~0.1-0.5%"},
+{"qid":"P0-085","value":4.6,"unit":"percent","year_basis":2018,"confidence":0.6,"basis_note":"Romania CPI annual average 2018"},
+{"qid":"P0-089","value":-4.5,"unit":"percent of GDP","year_basis":2018,"confidence":0.4,"basis_note":"Oman current account deficit 2018, IMF WEO"},
+{"qid":"P0-011","value":12.4,"unit":"millions of people","year_basis":2022,"confidence":0.7,"basis_note":"WDI Tunisia mid-2022"},
+{"qid":"P0-022","value":63.0,"unit":"percent of GDP","year_basis":2018,"confidence":0.25,"basis_note":"WDI Gambia trade % of GDP; uncertain"},
+{"qid":"P0-069","value":1.0,"unit":"percent","year_basis":2020,"confidence":0.2,"basis_note":"Tuvalu 2020 growth, low confidence"},
+{"qid":"P0-012","value":1.0,"unit":"percent of GDP","year_basis":2018,"confidence":0.2,"basis_note":"Slovak FDI net inflows 2018, weak recall"},
+{"qid":"P0-023","value":null,"unit":"billions of US dollars","year_basis":2025,"confidence":0.0,"refused":true,"basis_note":"2025 actual not published in my knowledge"},
+{"qid":"P0-037","value":-2.5,"unit":"percent of GDP","year_basis":2018,"confidence":0.35,"basis_note":"Cameroon overall fiscal balance 2018, IMF WEO"},
+{"qid":"P0-091","value":60.0,"unit":"years","year_basis":2018,"confidence":0.5,"basis_note":"WDI DRC life expectancy 2018"}]

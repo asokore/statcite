@@ -219,8 +219,9 @@ export async function mapLimit(items, limit, fn) {
 /** Count logged deviations in bench/DEVIATIONS.md (top-level markdown list items). */
 export function countDeviations() {
   try {
+    // Entries are `## D-NNN — ...` headings (one per logged deviation).
     const text = fs.readFileSync(path.join(BENCH_DIR, "DEVIATIONS.md"), "utf8");
-    return text.split(/\r?\n/).filter((l) => /^[-*] \S/.test(l.trim()) && /^[-*] /.test(l)).length;
+    return text.split(/\r?\n/).filter((l) => /^##\s+D-\d+\b/.test(l)).length;
   } catch {
     return 0;
   }

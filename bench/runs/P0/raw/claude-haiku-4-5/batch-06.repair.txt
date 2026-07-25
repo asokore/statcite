@@ -1,0 +1,14 @@
+```json
+[
+  {"qid": "P0-086", "value": 1.8, "unit": "percent", "year_basis": 2019, "confidence": 0.65, "refused": false, "basis_note": "Approximate recall of Netherlands real GDP growth circa 1.7-2.0%"},
+  {"qid": "P0-039", "value": null, "unit": "percent", "year_basis": 2022, "confidence": 0.0, "refused": true, "basis_note": "No reliable parametric recall of New Caledonia ILO unemployment 2022"},
+  {"qid": "P0-031", "value": 2.3, "unit": "percent", "year_basis": 2019, "confidence": 0.72, "refused": false, "basis_note": "US CPI annual average inflation 2019, well-documented ~2.3%"},
+  {"qid": "P0-113", "value": null, "unit": "percent of GDP", "year_basis": 2018, "confidence": 0.0, "refused": true, "basis_note": "No reliable knowledge of Switzerland net FDI as % of GDP 2018"},
+  {"qid": "P0-078", "value": 53.0, "unit": "thousands of people", "year_basis": 2018, "confidence": 0.58, "refused": false, "basis_note": "Small Caribbean nation, estimated ~52-54k mid-year population"},
+  {"qid": "P0-019", "value": null, "unit": "millions of US dollars", "year_basis": 2023, "confidence": 0.0, "refused": true, "basis_note": "No reliable parametric recall of Eritrea's end-2023 reserves"},
+  {"qid": "P0-109", "value": 40.5, "unit": "Gini index (0-100)", "year_basis": 2019, "confidence": 0.62, "refused": false, "basis_note": "World Bank Kenya Gini coefficient estimate, approximately 40-41 range"},
+  {"qid": "P0-057", "value": null, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.0, "refused": true, "basis_note": "No reliable knowledge of Cambodia general government debt/GDP 2021"},
+  {"qid": "P0-033", "value": null, "unit": "percent of GDP", "year_basis": 2020, "confidence": 0.0, "refused": true, "basis_note": "No reliable parametric recall of Zimbabwe current account 2020"},
+  {"qid": "P0-017", "value": 64.5, "unit": "years", "year_basis": 2020, "confidence": 0.52, "refused": false, "basis_note": "Sudan life expectancy estimate, approximately 64-66 years circa 2020"}
+]
+```

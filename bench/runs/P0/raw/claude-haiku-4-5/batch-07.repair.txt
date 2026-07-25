@@ -1,0 +1,12 @@
+[
+  {"qid": "P0-010", "value": null, "unit": "index (0-100)", "year_basis": 2021, "confidence": 0.0, "refused": true, "basis_note": ""},
+  {"qid": "P0-121", "value": null, "unit": "percent of GDP", "year_basis": 2020, "confidence": 0.0, "refused": true, "basis_note": ""},
+  {"qid": "P0-058", "value": 4.8, "unit": "millions of people", "year_basis": 2018, "confidence": 0.72, "refused": false, "basis_note": ""},
+  {"qid": "P0-066", "value": null, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.0, "refused": true, "basis_note": ""},
+  {"qid": "P0-094", "value": 0.9, "unit": "percent", "year_basis": 2018, "confidence": 0.65, "refused": false, "basis_note": ""},
+  {"qid": "P0-035", "value": null, "unit": "percent", "year_basis": 2018, "confidence": 0.0, "refused": true, "basis_note": ""},
+  {"qid": "P0-095", "value": null, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.0, "refused": true, "basis_note": ""},
+  {"qid": "P0-073", "value": null, "unit": "percent of GDP", "year_basis": 2019, "confidence": 0.0, "refused": true, "basis_note": ""},
+  {"qid": "P0-103", "value": null, "unit": "percent", "year_basis": 2022, "confidence": 0.0, "refused": true, "basis_note": ""},
+  {"qid": "P0-053", "value": 4900, "unit": "billions of US dollars", "year_basis": 2018, "confidence": 0.72, "refused": false, "basis_note": ""}
+]

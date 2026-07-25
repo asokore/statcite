@@ -1,0 +1,14 @@
+```json
+[
+  {"qid": "P0-041", "value": null, "unit": "percent", "year_basis": 2024, "confidence": 0.0, "refused": true, "basis_note": "No reliable parametric memory of Lesotho 2024 GDP growth."},
+  {"qid": "P0-026", "value": null, "unit": "percent of GDP", "year_basis": 2022, "confidence": 0.0, "refused": true, "basis_note": "Uncertain of IMF WEO Albania 2022 fiscal balance."},
+  {"qid": "P0-048", "value": 5.08, "unit": "millions of people", "year_basis": 2020, "confidence": 0.65, "refused": false, "basis_note": "World Bank mid-year estimate, NZ population."},
+  {"qid": "P0-005", "value": 1080, "unit": "billions of US dollars", "year_basis": 2020, "confidence": 0.70, "refused": false, "basis_note": "Mexico nominal GDP at market exchange rates."},
+  {"qid": "P0-100", "value": null, "unit": "index value 0-100", "year_basis": 2021, "confidence": 0.0, "refused": true, "basis_note": "No reliable parametric memory of World Bank Bangladesh Gini 2021."},
+  {"qid": "P0-075", "value": null, "unit": "billions of US dollars", "year_basis": 2020, "confidence": 0.0, "refused": true, "basis_note": "Uncertain of Chile's exact year-end 2020 total reserves figure."},
+  {"qid": "P0-107", "value": null, "unit": "percent", "year_basis": 2019, "confidence": 0.0, "refused": true, "basis_note": "No reliable parametric memory of Fiji inflation 2019."},
+  {"qid": "P0-059", "value": 74.5, "unit": "years", "year_basis": 2020, "confidence": 0.60, "refused": false, "basis_note": "Bulgaria life expectancy at birth, both sexes."},
+  {"qid": "P0-055", "value": null, "unit": "percent of GDP", "year_basis": 2023, "confidence": 0.0, "refused": true, "basis_note": "Uncertain of Jordan IMF gross debt 2023."},
+  {"qid": "P0-036", "value": null, "unit": "percent of GDP", "year_basis": 2020, "confidence": 0.0, "refused": true, "basis_note": "Uncertain of Eswatini trade openness 2020 figure."}
+]
+```
