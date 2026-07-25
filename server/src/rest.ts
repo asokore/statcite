@@ -9,6 +9,7 @@ import { countrySnapshot } from "./core/snapshot.ts";
 import { inflationAdjust } from "./core/inflation.ts";
 import { fxConvert } from "./core/fx.ts";
 import { verifyStat } from "./core/verify.ts";
+import { runVerifyClaims } from "./tools.ts";
 import { SOURCES } from "./core/sources.ts";
 import { corsHeaders, SERVER_VERSION } from "./mcp.ts";
 import { parseTransform } from "./core/transforms.ts";
@@ -19,7 +20,7 @@ function json(status: number, body: unknown, cacheSeconds = 3600): Response {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "cache-control": status === 200 ? `public, max-age=${cacheSeconds}` : "no-store",
+      "cache-control": status === 200 && cacheSeconds > 0 ? `public, max-age=${cacheSeconds}` : "no-store",
       ...corsHeaders(),
     },
   });
@@ -64,10 +65,11 @@ export async function handleRest(request: Request, ctx: Ctx): Promise<Response> 
   const started = Date.now();
   const slot: UsageSlot = {};
   const res = await routeRest(request, ctx, slot);
-  if (request.method === "GET") {
-    try {
-      const url = new URL(request.url);
-      const path = url.pathname.replace(/\/+$/, "");
+  try {
+    const url = new URL(request.url);
+    const path = url.pathname.replace(/\/+$/, "");
+    const isVerifyClaims = path === "/v1/verify_claims";
+    if (request.method === "GET" || (request.method === "POST" && isVerifyClaims)) {
       const q = url.searchParams;
       const indMatch = path.match(/^\/v1\/indicator\/([a-z0-9_]+)$/);
       const snapMatch = path.match(/^\/v1\/snapshot\/([^/]+)$/);
@@ -83,26 +85,29 @@ export async function handleRest(request: Request, ctx: Ctx): Promise<Response> 
         res.status < 400 ? "ok" : res.status === 502 ? "upstream_error" : res.status >= 500 ? "crash" : "tool_error";
       recordUsage(ctx.analytics, {
         transport: "rest",
-        op: restOp(path),
+        op: isVerifyClaims ? "verify_claims" : restOp(path),
         indicator: indicatorLabel(indMatch ? indMatch[1] : (q.get("indicator") ?? q.get("id") ?? undefined)),
         country: countryLabel(country),
         verdict: slot.verdict,
         outcome,
         durationMs: Date.now() - started,
       });
-    } catch {
-      // Analytics must never affect the response.
     }
+  } catch {
+    // Analytics must never affect the response.
   }
   return res;
 }
 
 async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<Response> {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders() });
-  if (request.method !== "GET") return errJson(405, "Only GET is supported on /v1 endpoints.");
 
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, "");
+
+  if (path === "/v1/verify_claims") return verifyClaimsRoute(request, ctx);
+  if (request.method !== "GET") return errJson(405, "Only GET is supported on /v1 endpoints (POST is accepted on /v1/verify_claims only).");
+
   const q = url.searchParams;
 
   try {
@@ -121,6 +126,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
           "/v1/search?q=government+debt",
           "/v1/snapshot/{country}",
           "/v1/verify?indicator=inflation_cpi&country=BRB&period=2024&value=1.4",
+          "/v1/verify_claims (POST, JSON body { claims: [{ indicator, country, period, claimed_value }] }, max 15 claims)",
           "/v1/inflation?amount=100&from_year=1995&to_year=2025&country=USA",
           "/v1/fx?amount=100&from=USD&to=BBD&date=2024",
           "/v1/sources",
@@ -212,6 +218,36 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
     if (e instanceof ToolError) return errJson(422, e.message, e.details);
     if (e instanceof UpstreamError) return errJson(502, `Upstream data source problem: ${e.message}`, { upstream_url: e.url });
     console.error("rest crash", path, e);
+    return errJson(500, "Internal error. Please retry; if persistent, report an issue.");
+  }
+}
+
+async function verifyClaimsRoute(request: Request, ctx: Ctx): Promise<Response> {
+  if (request.method !== "POST") {
+    return errJson(
+      405,
+      'Use POST for /v1/verify_claims with a JSON body: { "claims": [{ "indicator": "inflation_cpi", "country": "BRB", "period": "2024", "claimed_value": 1.4 }] } (1–15 claims per call).',
+    );
+  }
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!/\bapplication\/json\b/i.test(contentType)) {
+    return errJson(415, `Set 'content-type: application/json' and send a JSON body: { "claims": [...] } (got '${contentType || "no content-type"}').`);
+  }
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return errJson(422, 'Malformed JSON body. Send: { "claims": [{ "indicator": ..., "country": ..., "period": ..., "claimed_value": ... }] }.');
+  }
+  if (body === null || typeof body !== "object" || Array.isArray(body)) {
+    return errJson(422, 'Body must be a JSON object with a \'claims\' array — wrap the claims as { "claims": [...] }.');
+  }
+  try {
+    return json(200, await runVerifyClaims(ctx, (body as Record<string, unknown>).claims), 0);
+  } catch (e) {
+    if (e instanceof ToolError) return errJson(422, e.message, e.details);
+    if (e instanceof UpstreamError) return errJson(502, `Upstream data source problem: ${e.message}`, { upstream_url: e.url });
+    console.error("rest crash", "/v1/verify_claims", e);
     return errJson(500, "Internal error. Please retry; if persistent, report an issue.");
   }
 }
