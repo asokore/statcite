@@ -42,7 +42,7 @@ His `C:\dev` already contains: `FiscalDashboard`, `barbados-property-dashboard`,
 
 | Path | What it is | State |
 |---|---|---|
-| `server/` | Cloudflare Worker: stateless MCP (hand-rolled JSON-RPC, zero runtime deps) + REST mirror + 42-indicator registry + 5 data adapters (World Bank, IMF DataMapper, DBnomics, Frankfurter, FRED) | **161/161 tests pass (v1.3.1); live smoke passes against real World Bank / DBnomics / Frankfurter APIs** |
+| `server/` | Cloudflare Worker: stateless MCP (hand-rolled JSON-RPC, zero runtime deps) + REST mirror + 42-indicator registry + 5 data adapters (World Bank, IMF DataMapper, DBnomics, Frankfurter, FRED) | **160/160 tests pass (v1.3.2); live smoke passes against real World Bank / DBnomics / Frankfurter APIs** |
 | `site/` | statcite.com: landing, docs, llms.txt/llms-full.txt, openapi.json, privacy, terms, 404 | Renders; screenshot verified |
 | `apify/` | Pay-per-event actor bundling the same core (`core.bundle.mjs`, committed) | Local core test passes; not pushed |
 | `skill/` | Packaged Claude skill teaching verify-then-cite | Written; **never evaluated** (see §7) |
@@ -99,9 +99,9 @@ These look like omissions and aren't. Overrule them freely — just do it knowin
 - **Zero runtime dependencies, hand-rolled MCP transport.** The Workers free plan gives 10ms CPU per invocation and the MCP spec is churning (the 2026-07-28 revision removes `initialize` and sessions entirely). A dependency-free, stateless implementation isolated in `server/src/mcp.ts` is cheap to run and cheap to migrate. Adding an SDK is a real option — just know what you're buying.
 - **No database, no KV writes on request paths.** KV's free tier allows 1,000 writes/day; a request-path write exhausts it before lunch. Caching is memory + Cloudflare edge. This is why there's no usage analytics beyond Cloudflare's dashboard, which is a genuine gap (§7).
 - **No auth.** Read-only public data; auth would kill install friction, which is the entire distribution strategy.
-- **FRED is optional and secret-gated.** FRED's terms make the API key operator-specific and require a disclaimer. Everything works without it.
+- **FRED is permanently disabled, not just unconfigured.** Its June 2024 terms of use prohibit AI/ML/LLM use of FRED content and caching/redistributing it to third parties — exactly what this service does. The adapter's key check now always declines regardless of a configured `FRED_API_KEY`; the registry keys and `fred/` series id stay recognized (so callers get an explanation, not a 404) but never serve data. Everything else works without it.
 - **The citation object's field names are public API.** Renaming them breaks agents that were told (via `llms-full.txt` and the skill) to read them.
-- **Attribution strings are licensing compliance,** not decoration. World Bank CC BY 4.0, IMF, ECB, FRED all require attribution; the citation object is how the project complies.
+- **Attribution strings are licensing compliance,** not decoration. World Bank CC BY 4.0, IMF, ECB all require attribution; the citation object is how the project complies.
 - **IMF WEO/Fiscal Monitor projections are labeled as projections** and `latest_only` prefers the latest value not marked as a projection (which may itself be a staff estimate). An economist would notice immediately if this broke. (v1.3.0: the boundary is now anchored to each response's own data horizon, not the edition label — so it survives cache skew between the IMF's values and metadata endpoints.)
 
 A pre-deploy review found 13 issues including a FRED-key-leak path in error responses. All were fixed with regression tests (`server/test/regressions.test.ts`). Assume more exist — the review was one pass.

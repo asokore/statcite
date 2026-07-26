@@ -2,7 +2,7 @@
 
 **Economic statistics your AI can actually cite.**
 
-StatCite is a free remote MCP server + REST API serving official economic statistics — World Bank, IMF WEO/Fiscal Monitor (current vintage via the IMF DataMapper API, with DBnomics as a fallback), ECB reference rates, optional FRED — where **every number ships with its full citation**: source, dataset, series ID, canonical URL, license, retrieval date, and a ready-to-paste citation sentence. Plus **`verify_stat`**: check any claimed economic figure against the official series and get a verdict (`match / close / mismatch / cannot_verify`) with diagnostics for the classic errors (wrong year, percent-vs-decimal, millions-vs-billions).
+StatCite is a free remote MCP server + REST API serving official economic statistics — World Bank, IMF WEO/Fiscal Monitor (current vintage via the IMF DataMapper API, with DBnomics as a fallback), ECB reference rates — where **every number ships with its full citation**: source, dataset, series ID, canonical URL, license, retrieval date, and a ready-to-paste citation sentence. Plus **`verify_stat`**: check any claimed economic figure against the official series and get a verdict (`match / close / mismatch / cannot_verify`) with diagnostics for the classic errors (wrong year, percent-vs-decimal, millions-vs-billions).
 
 - **Website & docs:** https://statcite.com · [docs](https://statcite.com/docs.html) · [OpenAPI](https://statcite.com/openapi.json) · [llms.txt](https://statcite.com/llms.txt)
 - **MCP endpoint:** `https://statcite.com/mcp` (Streamable HTTP, stateless, no auth)
@@ -52,7 +52,7 @@ CLAUDE.md      Working guide: commands, architecture, invariants
 ```bash
 cd server
 npm install
-npm test          # 161 tests, fixture-backed, no network
+npm test          # 160 tests, fixture-backed, no network
 npm run smoke     # live end-to-end against real upstream APIs
 npm run dev       # wrangler dev (local Workers runtime + static site)
 npm run deploy    # wrangler deploy
@@ -60,6 +60,6 @@ npm run deploy    # wrangler deploy
 
 ## Data & licensing
 
-StatCite does not originate the underlying statistical observations; derived values and verification verdicts are calculated transparently from cited source data with the method disclosed. World Bank (CC BY 4.0); IMF (per IMF terms — attribution + downstream conditions; commercial reuse may require IMF permission); ECB (attribution, informational rates); Eurostat via DBnomics (CC BY 4.0); FRED disabled by default (an operator enabling it must review the current FRED API Terms of Use first — they include restrictions relevant to caching, redistribution, and AI/software use). IMF WEO/Fiscal Monitor projections are labeled as projections. The primary IMF path is the DataMapper API (current edition, verbatim edition label); if unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF's release calendar — responses cite the resolved vintage, flag stale ones, and every fallback is disclosed (verify_stat/verify_claims return cannot_verify with the fallback value as indicative when the primary failed transiently, rather than judging against a substitute that may differ by definition or vintage; a series the primary permanently lacks is judged against its stable fallback source with disclosure). Server code: MIT.
+StatCite does not originate the underlying statistical observations; derived values and verification verdicts are calculated transparently from cited source data with the method disclosed. World Bank (CC BY 4.0); IMF (per IMF terms — attribution + downstream conditions; commercial reuse may require IMF permission); ECB (attribution, informational rates); Eurostat via DBnomics (CC BY 4.0); FRED permanently disabled — its June 2024 terms of use prohibit AI/ML use and caching/redistribution of its content, which conflicts with how this service serves data. IMF WEO/Fiscal Monitor projections are labeled as projections. The primary IMF path is the DataMapper API (current edition, verbatim edition label); if unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF's release calendar — responses cite the resolved vintage, flag stale ones, and every fallback is disclosed (verify_stat/verify_claims return cannot_verify with the fallback value as indicative when the primary failed transiently, rather than judging against a substitute that may differ by definition or vintage; a series the primary permanently lacks is judged against its stable fallback source with disclosure). Server code: MIT.
 
 Built and curated by a professional economist. Contact: hello@statcite.com

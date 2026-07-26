@@ -6,8 +6,10 @@ Principle: monetize convenience and volume, never the citation. The free tier is
 
 1. **Apify actor (pay-per-event)** — the only rail verifiably paying solo developers today ($1.2–1.4M/month to ~3,000 devs, 80% share).
    - Push `apify/` per distribution/submissions.md §9.
-   - Console → Monetization → **Pay per event** → event `statcite-query`.
-   - Suggested launch price: **$1.50 per 1,000 queries** (≈ $0.0015/query; compare Ref's $9/1k *searches* — data lookups are cheaper). Revisit after 30 days of usage data.
+   - Console → Monetization → **Pay per event** → two events, priced differently:
+     - `statcite-lookup` (indicator/series/snapshot/inflation/fx/search/registry) — **$1.50 per 1,000 queries** (≈ $0.0015/query; compare Ref's $9/1k *searches* — data lookups are cheaper).
+     - `statcite-verify` (verify_stat) — **$0.01–0.02 per query** (~7–13× the lookup price). Verify is the differentiated capability — it checks a claim against the official series with diagnostics, not just a lookup — so it doesn't need to share the lookup's commodity pricing.
+   - Revisit both after 30 days of usage data.
    - Batch mode charges only successful items — keep that promise; it's in the store copy.
 2. **Cloudflare Monetization Gateway waitlist** — waitlist-only as of 2026-07-24, no GA date announced; settlement is USDC/x402 (announced 2026-07-01). Sign up anyway (https://blog.cloudflare.com/monetization-gateway/) — it's free and early, and when admitted, x402-gated paid tiers can be enforced at the edge with zero billing code.
 3. **hello@statcite.com** (Cloudflare Email Routing, free) — every serious inquiry is a pricing signal. Reply fast.

@@ -14,7 +14,7 @@ import { ToolError } from "./core/types.ts";
 import { UpstreamError } from "./core/upstream.ts";
 import { TOOLS, toolByName, callTool } from "./tools.ts";
 
-export const SERVER_VERSION = "1.3.1";
+export const SERVER_VERSION = "1.3.2";
 export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-03-26", "2025-06-18", "2025-11-25"];
 const LATEST_PROTOCOL = "2025-11-25";
 
