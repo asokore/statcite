@@ -29,6 +29,19 @@ account-creation-and-billing situation as OpenAI: that's the owner's action, not
 something to do inside this session. Worth deciding now whether to get both keys
 in one pass rather than running twice.
 
+## Open owner action: second vendor key (deferred 2026-07-26)
+
+Gemini (Google AI Studio) key deferred by the owner, to be obtained later.
+Until it exists, Full Run 1 **cannot** be run as a citable result — see the
+COVENANT §6 catch below. Nothing else about the run is blocked: ground truth
+is frozen and audited clean (snapshots/R1/, 2026-07-26), the OpenAI path is
+built and connectivity-tested, and `call_gemini.mjs` is a short follow-on in
+the same shape as `call_openai.mjs` once the key exists.
+
+Google AI Studio keys have a free tier that may cover this run's volume
+entirely — worth checking before assuming it costs anything, given the $10
+OpenAI cap noted above.
+
 ## What's ready now
 
 - `tools/call_openai.mjs` — reads `runs/{run}/prompts/<model>/*.json` (from the
