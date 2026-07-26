@@ -118,7 +118,36 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
   }
 
   const official = matched.value!;
-  const isProjection = /WEO/i.test(matched.note ?? "") && /estimate|projection/i.test(matched.note ?? "");
+  const isProjection = /WEO|Fiscal Monitor/i.test(matched.note ?? "") && /estimate|projection/i.test(matched.note ?? "");
+
+  // D6: a fallback that crosses from the current-vintage IMF DataMapper path to
+  // the dated DBnomics WEO/Fiscal Monitor path is not just "a different source"
+  // — it's a same-concept, different-vintage divergence that can move fiscal/WEO
+  // series by more than a percentage point even for identical historical years
+  // (e.g. GDP rebasing). A match/mismatch verdict against a superseded vintage
+  // is untrustworthy either way, so this demotes to cannot_verify instead of
+  // judging the claim against stale numbers.
+  const def = isRegistry ? getIndicatorDef(p.indicator) : undefined;
+  if (Boolean(def?.datamapper) && result.fallback_used === true && result.series_id.startsWith("dbnomics/")) {
+    return {
+      verdict: "cannot_verify",
+      claimed_value: p.claimed_value,
+      official_value: official,
+      is_projection: isProjection,
+      period,
+      difference: null,
+      relative_difference_pct: null,
+      explanation:
+        `The current-edition IMF DataMapper path was unavailable; this indicator's dated DBnomics fallback shows ${fmt(official)}${result.unit ? ` ${result.unit}` : ""} for ${period} — indicative only, not a verification. IMF vintage revisions (e.g. GDP rebasing) can move WEO/Fiscal Monitor series by more than a percentage point for the same historical year, so a match/mismatch verdict against this superseded vintage would not be trustworthy.`,
+      diagnostics,
+      series: { id: result.series_id, name: result.name, unit: result.unit },
+      country: result.country,
+      citation: result.citation,
+      notes,
+      fallback_used: true,
+    };
+  }
+
   const diff = p.claimed_value - official;
   const relPct = official !== 0 ? (diff / Math.abs(official)) * 100 : null;
 

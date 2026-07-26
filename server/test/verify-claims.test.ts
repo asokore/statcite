@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { handleRequest, type Env } from "../src/index.ts";
 import { _clearMemCache } from "../src/core/upstream.ts";
+import { dmValuesBody, isDataMapperValuesUrl, isDataMapperMetadataUrl, STANDARD_DM_METADATA, DM_CODES } from "./dm-fixtures.ts";
 
 const fixturesDir = fileURLToPath(new URL("./fixtures/", import.meta.url));
 
@@ -74,6 +75,22 @@ const routes: Route[] = [
         ["2022", "2023", "2024", "2025", "2026", "2027"],
         [122.5, 115.3, 105.9, 101.4, 98.0, 95.2],
       ),
+  },
+  { test: (u) => isDataMapperMetadataUrl(u), body: () => STANDARD_DM_METADATA },
+  {
+    test: (u) => isDataMapperValuesUrl(u, DM_CODES.govt_debt_gdp),
+    body: () =>
+      // Current-vintage (April 2026 edition, horizon 2031 -> boundary 2026):
+      // govt_debt_gdp is now DataMapper-primary, so this fixture — not the
+      // DBnomics one above — is what verify_claims actually serves against.
+      dmValuesBody(DM_CODES.govt_debt_gdp, {
+        // Horizon through 2031 (edition year 2026 + 5) so the projection boundary
+        // is 2026 without relying on the calendar-clamp fallback.
+        BRB: {
+          "2022": 122.5, "2023": 115.3, "2024": 105.9, "2025": 101.4,
+          "2026": 98.0, "2027": 95.2, "2028": 93.0, "2029": 91.5, "2030": 90.2, "2031": 89.0,
+        },
+      }),
   },
 ];
 
@@ -202,8 +219,10 @@ test("claim-level validation: missing period and non-numeric claimed_value rejec
 
 test("projection note appears when a claim is verified against a WEO projection period", async () => {
   installFetchStub();
+  // govt_debt_gdp is now DataMapper-primary: boundary = payload horizon (2031) - 5 = 2026,
+  // so 2026 is the first projection year for the April-2026-edition fixture above.
   const claims = [
-    { indicator: "govt_debt_gdp", country: "BRB", period: "2025", claimed_value: 101.4 },
+    { indicator: "govt_debt_gdp", country: "BRB", period: "2026", claimed_value: 98.0 },
     { indicator: "inflation_cpi", country: "BRB", period: "2024", claimed_value: 1.45 },
   ];
   const { payload, isError } = await mcpTool("verify_claims", { claims });
@@ -211,7 +230,7 @@ test("projection note appears when a claim is verified against a WEO projection 
   assert.deepEqual(payload.summary, { total: 2, match: 2, close: 0, mismatch: 0, cannot_verify: 0, error: 0 });
   assert.equal(payload.results[0].verification.is_projection, true);
   assert.equal(payload.results[1].verification.is_projection, false);
-  assert.equal(payload.note, "1 claim(s) verified against IMF WEO projections, not outturns.");
+  assert.equal(payload.note, "1 claim(s) verified against IMF WEO/Fiscal Monitor projections, not outturns.");
 });
 
 test("REST POST /v1/verify_claims mirrors the MCP output exactly", async () => {

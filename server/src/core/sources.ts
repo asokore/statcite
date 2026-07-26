@@ -13,10 +13,10 @@ export const SOURCES = [
   },
   {
     id: "imf_weo",
-    name: "IMF — World Economic Outlook (via DBnomics)",
+    name: "IMF — World Economic Outlook & Fiscal Monitor (via the IMF DataMapper API, with DBnomics as fallback)",
     coverage:
-      "Growth, fiscal, external indicators for 190+ economies, incl. estimates/projections; twice-yearly vintages. Served vintage is the newest available via DBnomics, which can lag the IMF's release calendar — every response cites the resolved vintage and adds a stale-vintage note when it trails the expected current release",
-    access: "No key; queried live from api.db.nomics.world v22",
+      "Growth, fiscal, external indicators for 190+ economies, incl. estimates/projections; twice-yearly vintages (April/October, plus interim Updates). The primary path is the IMF's own DataMapper API — the current edition, verbatim edition label passed through unrewritten. If that path is unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF's release calendar; every response cites the resolved vintage, and a fallback that crosses editions is disclosed (verify_stat demotes such cases to cannot_verify rather than judging a claim against a superseded vintage). The actual/projection boundary is a heuristic derived from each response's own data horizon, not a per-country authoritative cutoff",
+    access: "No key; queried live from www.imf.org/external/datamapper (primary) and api.db.nomics.world v22 (fallback)",
     license:
       "Use and redistribution are subject to the IMF's data-usage terms, including attribution and downstream-user conditions; commercial reuse may require IMF permission — consult the IMF terms directly",
     attribution_required: "Source: International Monetary Fund",

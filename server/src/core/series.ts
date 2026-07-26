@@ -9,8 +9,11 @@ import { applyTransform, filterPeriodRange, type Transform } from "./transforms.
 import { fetchWbSeries } from "../adapters/worldbank.ts";
 import { fetchDbnomicsSeries, searchDbnomicsDatasets } from "../adapters/dbnomics.ts";
 import { fetchFredSeries, fredAvailable } from "../adapters/fred.ts";
-import { worldBankCitation, dbnomicsCitation, fredCitation } from "./citations.ts";
+import { fetchDataMapperSeries, fetchDataMapperMetadata, computeBoundaryYear, parseEditionLabel } from "../adapters/datamapper.ts";
+import { worldBankCitation, dbnomicsCitation, fredCitation, imfDataMapperCitation } from "./citations.ts";
 import { isTransientUpstreamError } from "./upstream.ts";
+export { expectedWeoEdition } from "./weo-calendar.ts";
+import { expectedWeoEdition } from "./weo-calendar.ts";
 
 export interface SeriesOpts {
   start?: string;
@@ -83,44 +86,53 @@ function finishSeries(result: SeriesResult, opts: SeriesOpts): SeriesResult {
   return result;
 }
 
-/** Flag likely IMF WEO projections (periods at/after the vintage year). */
-function weoProjectionNote(datasetCode: string, observations: { period: string }[]): string | undefined {
-  const m = datasetCode.match(/WEO:(\d{4})/);
+/** Flag likely IMF projections (periods at/after the vintage/boundary year) for
+ * both channels this server speaks: DBnomics-served WEO ("WEO:YYYY[-MM]", where
+ * the embedded year IS the boundary) and DataMapper-served WEO/FM (where the
+ * caller passes a synthesized "WEO:YYYY"/"FM:YYYY" tag whose year is the
+ * *payload-anchored* boundary computed by computeBoundaryYear, decoupled from
+ * the edition string — see design D3/D4). */
+function weoProjectionNote(vintageTag: string, observations: { period: string }[]): string | undefined {
+  const m = vintageTag.match(/^(WEO|FM):(\d{4})/);
   if (!m) return undefined;
-  const vintage = parseInt(m[1], 10);
+  const kind = m[1] === "FM" ? "IMF Fiscal Monitor" : "IMF WEO";
+  const vintage = parseInt(m[2], 10);
   const hasFuture = observations.some((o) => parseInt(o.period.slice(0, 4), 10) >= vintage);
   return hasFuture
-    ? `Values for ${vintage} onward are IMF WEO estimates/projections from the ${datasetCode.replace("WEO:", "")} vintage, not final outturns. This boundary is a vintage-year heuristic: the IMF's "latest actual" year varies by country and series, so some observations before ${vintage} may also be IMF staff estimates rather than final outturns.`
+    ? `Values for ${vintage} onward are ${kind} estimates/projections from the ${vintageTag.replace(/^(WEO|FM):/, "")} vintage, not final outturns. This boundary is a vintage-year heuristic: the IMF's "latest actual" year varies by country and series, so some observations before ${vintage} may also be IMF staff estimates rather than final outturns.`
     : undefined;
 }
 
-/** The WEO edition the IMF should have published by `now` (releases: April & October). */
-export function expectedWeoEdition(now: Date = new Date()): string {
-  const y = now.getUTCFullYear();
-  const m = now.getUTCMonth() + 1;
-  if (m >= 11) return `${y}-10`;
-  if (m >= 5) return `${y}-04`;
-  return `${y - 1}-10`;
-}
-
-/** Stale-vintage disclosure when the resolved WEO edition lags the IMF's release
- * calendar — i.e. the aggregator (DBnomics) has not yet ingested the newest WEO. */
-export function weoVintageStaleNote(datasetCode: string, now: Date = new Date()): string | undefined {
-  const m = datasetCode.match(/WEO:(\d{4}-\d{2})/);
+/** Stale-vintage disclosure when the resolved edition lags the IMF's release
+ * calendar. `channel` selects the wording — the DBnomics path lags because the
+ * aggregator hasn't ingested the newest WEO; the DataMapper path (when it lags,
+ * which should be rare/brief) lags because the IMF's own site hasn't loaded it
+ * yet, and blaming DBnomics there would be false (design D11/F7). */
+export function weoVintageStaleNote(
+  datasetCode: string,
+  now: Date = new Date(),
+  channel: "dbnomics" | "datamapper" = "dbnomics",
+): string | undefined {
+  const m = datasetCode.match(/(WEO|FM):(\d{4}-\d{2})/);
   if (!m) return undefined;
-  const resolved = m[1];
+  const kind = m[1] === "FM" ? "IMF Fiscal Monitor" : "IMF WEO";
+  const resolved = m[2];
   const expected = expectedWeoEdition(now);
   if (resolved >= expected) return undefined;
+  if (channel === "datamapper") {
+    return `${kind} vintage ${resolved} is the edition currently served via the IMF DataMapper API; the IMF has likely published a newer release (expected ${expected}) that the DataMapper API has not yet loaded. Values, estimates, and projections reflect the ${resolved} vintage, not necessarily the IMF's current release.`;
+  }
   return `IMF WEO vintage ${resolved} is the newest edition available via DBnomics (this server's IMF data path); the IMF has likely published a newer WEO release (expected ${expected}) that DBnomics has not yet ingested. Values, estimates, and projections reflect the ${resolved} vintage, not necessarily the IMF's current release.`;
 }
 
-/** Mark per-observation projection notes for WEO-style series. */
-function markWeoProjections(datasetCode: string, observations: Observation[]): void {
-  const m = datasetCode.match(/WEO:(\d{4})/);
+/** Mark per-observation projection notes. See weoProjectionNote for the tag format. */
+function markWeoProjections(vintageTag: string, observations: Observation[]): void {
+  const m = vintageTag.match(/^(WEO|FM):(\d{4})/);
   if (!m) return;
-  const vintage = parseInt(m[1], 10);
+  const kind = m[1] === "FM" ? "IMF Fiscal Monitor" : "IMF WEO";
+  const vintage = parseInt(m[2], 10);
   for (const o of observations) {
-    if (parseInt(o.period.slice(0, 4), 10) >= vintage) o.note = "IMF WEO estimate/projection";
+    if (parseInt(o.period.slice(0, 4), 10) >= vintage) o.note = `${kind} estimate/projection`;
   }
 }
 
@@ -178,6 +190,131 @@ async function indicatorFromDbnomics(ctx: Ctx, def: IndicatorDef, country: Count
   return finishSeries(result, opts);
 }
 
+/** Reference codes used only to cross-check whether the WEO and Fiscal Monitor
+ * databases are currently at the same edition (design D11) — both are always
+ * present in the metadata table regardless of which code triggered this call,
+ * so the check costs zero extra subrequests. */
+const REF_WEO_CODE = "NGDP_RPCH";
+const REF_FM_CODE = "GGR_G01_GDP_PT";
+
+function crossEditionMismatchNote(
+  metaTable: Awaited<ReturnType<typeof fetchDataMapperMetadata>>,
+  dataset: "WEO" | "FM",
+  thisEdition: { label: string; year?: number; month?: number } | undefined,
+): string | undefined {
+  if (!metaTable || !thisEdition?.year || !thisEdition?.month) return undefined;
+  const refCode = dataset === "FM" ? REF_WEO_CODE : REF_FM_CODE;
+  const refKind = dataset === "FM" ? "WEO" : "Fiscal Monitor";
+  const other = metaTable[refCode];
+  if (!other) return undefined;
+  const otherEd = parseEditionLabel(other.source);
+  if (!otherEd || (otherEd.year === thisEdition.year && otherEd.month === thisEdition.month)) return undefined;
+  return `The IMF's ${refKind} database is currently at a different edition (${other.source}) than this series' edition (${thisEdition.label}) — fiscal indicators drawn from the two databases (e.g. revenue/expenditure vs. debt/balance) may temporarily reflect different releases.`;
+}
+
+async function indicatorFromDataMapper(ctx: Ctx, def: IndicatorDef, country: Country, opts: SeriesOpts): Promise<SeriesResult> {
+  const [code, dataset] = def.datamapper!;
+  const now = ctx.now ? ctx.now() : new Date();
+  const s = await fetchDataMapperSeries(ctx, code, dataset, country.iso3, now);
+  const { boundaryYear, clamped } = computeBoundaryYear(s.horizonYear, now);
+  const kind = dataset === "FM" ? "IMF Fiscal Monitor" : "IMF WEO";
+
+  const notes: string[] = def.notes ? [def.notes] : [];
+
+  let editionLabel: string;
+  if (s.edition?.year && s.edition?.month) {
+    editionLabel = s.edition.label; // verbatim IMF string — never rephrase (design D2)
+  } else {
+    editionLabel = `${boundaryYear} vintage (April or October edition — edition metadata unavailable; a newer edition may exist)`;
+    notes.push(
+      "The IMF DataMapper edition-metadata endpoint was unavailable, or does not list this series; only the vintage year could be inferred from the data's own projection horizon, not the edition month.",
+    );
+  }
+
+  // Sentinels (design D11) — all payload/metadata-derived, no extra subrequests.
+  if (s.edition?.year && s.edition?.month) {
+    const editionTag = `${dataset}:${s.edition.year}-${String(s.edition.month).padStart(2, "0")}`;
+    const staleNote = weoVintageStaleNote(editionTag, now, "datamapper");
+    if (staleNote) notes.push(staleNote);
+    const gap = s.horizonYear - s.edition.year;
+    if (gap !== 5) {
+      notes.push(
+        `This series' data horizon (through ${s.horizonYear}) is ${Math.abs(gap - 5)} year(s) off the usual edition-year-plus-5 pattern for the ${editionLabel} edition — the values and edition-label fetches may reflect slightly different load moments. The projection boundary used here (${boundaryYear}) is derived from the data's own horizon, not the label, so this does not affect which values are flagged as projections.`,
+      );
+    }
+    if (s.edition.lastModified) {
+      const lm = new Date(s.edition.lastModified.replace(" ", "T") + "Z");
+      const editionLoadMs = Date.UTC(s.edition.year, s.edition.month - 1, 1);
+      if (!Number.isNaN(lm.getTime())) {
+        const daysSince = (lm.getTime() - editionLoadMs) / (24 * 3600 * 1000);
+        if (daysSince > 40) {
+          notes.push(
+            `The IMF reloaded this series' data on ${s.edition.lastModified.slice(0, 10)}, ${Math.round(daysSince)} day(s) after the ${editionLabel} release — values may include a post-release revision (e.g. a WEO Update) not contained in the originally-published ${editionLabel} database.`,
+          );
+        }
+      }
+    }
+  }
+  if (clamped) {
+    notes.push(
+      `The data horizon implied a projection-boundary year that looked implausible against the IMF's release calendar, so the calendar year (${boundaryYear}) was used instead — possible if this payload is truncated or mid-load.`,
+    );
+  }
+  if (DB_PRIMARY.has(def.key)) {
+    const metaTable = await fetchDataMapperMetadata(ctx);
+    const mismatch = crossEditionMismatchNote(metaTable, dataset, s.edition);
+    if (mismatch) notes.push(mismatch);
+  }
+  if (dataset === "WEO") {
+    notes.push(
+      "IMF DataMapper serves WEO-database values rounded to one decimal place (Fiscal Monitor-sourced fiscal series are full precision); derived transforms (e.g. year-over-year change) computed from these values can carry up to ±0.1 of additional rounding error.",
+    );
+  }
+
+  // Unconditional heuristic caveat (design D11): fires even when this country's
+  // own series never reaches the boundary year (e.g. a series ending in 2010) —
+  // silence there previously let a decade-old terminal value pass unqualified
+  // as a confirmed outturn.
+  const countryMaxYear = s.observations.reduce(
+    (m, o) => (o.value != null ? Math.max(m, parseInt(o.period, 10) || 0) : m),
+    0,
+  );
+  const base = `Values for ${boundaryYear} onward are ${kind} estimates/projections, not final outturns. This boundary is a vintage-year heuristic derived from the data's own projection horizon: the IMF's "latest actual" year varies by country and series, so some observations before ${boundaryYear} may also be IMF staff estimates rather than final outturns.`;
+  notes.push(
+    countryMaxYear > 0 && countryMaxYear < boundaryYear
+      ? `${base} The IMF publishes no current-edition projections for ${country.name} on this series; it ends at ${countryMaxYear} — treat recent values as unconfirmed estimates, not the IMF's current assessment.`
+      : base,
+  );
+
+  const observations = s.observations.map((o) => ({ ...o }));
+  for (const o of observations) {
+    const y = parseInt(o.period.slice(0, 4), 10);
+    if (Number.isFinite(y) && y >= boundaryYear) o.note = `${kind} estimate/projection`;
+  }
+
+  const citation = imfDataMapperCitation(ctx, {
+    code: s.code,
+    dataset,
+    seriesName: def.label,
+    editionLabel,
+    sourceUrl: s.humanUrl,
+    apiUrl: s.valuesApiUrl,
+    lastModified: s.edition?.lastModified,
+  });
+
+  const result: SeriesResult = {
+    series_id: `imf/${s.code}`,
+    name: def.label,
+    country: { iso3: country.iso3, name: country.name },
+    unit: def.unit,
+    frequency: "annual",
+    observations,
+    citation,
+    notes,
+  };
+  return finishSeries(result, opts);
+}
+
 async function indicatorFromFred(ctx: Ctx, def: IndicatorDef, opts: SeriesOpts): Promise<SeriesResult> {
   const s = await fetchFredSeries(ctx, def.fred!, { start: opts.start, end: opts.end });
   const citation = fredCitation(ctx, { seriesId: s.seriesId, seriesName: s.seriesName, units: s.units, apiUrl: s.apiUrl });
@@ -222,14 +359,25 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
   // Determine source order: dbnomics-primary defs list dbnomics before wb in intent;
   // we encode that as: if def.dbnomics exists and def.wb is the known-patchy fallback,
   // the registry marks it by ordering — here: govt debt & fiscal series prefer WEO.
+  // Wherever "IMF WEO (via DBnomics)" sits, the IMF DataMapper API (current-vintage)
+  // is inserted immediately ahead of it (design D1) — DataMapper and DBnomics are
+  // both "the IMF path", just at different currency/reproducibility trade-offs.
   const preferDbnomics = def.dbnomics && (!def.wb || DB_PRIMARY.has(def.key));
   const attempts: Array<{ label: string; run: () => Promise<SeriesResult> }> = [];
+  const pushImfChain = () => {
+    if (def.datamapper) {
+      attempts.push({ label: "IMF DataMapper API", run: () => indicatorFromDataMapper(ctx, def, country, opts) });
+    }
+    if (def.dbnomics) {
+      attempts.push({ label: "IMF WEO (via DBnomics)", run: () => indicatorFromDbnomics(ctx, def, country, opts) });
+    }
+  };
   if (preferDbnomics) {
-    attempts.push({ label: "IMF WEO (via DBnomics)", run: () => indicatorFromDbnomics(ctx, def, country, opts) });
+    pushImfChain();
     if (def.wb) attempts.push({ label: "World Bank WDI", run: () => indicatorFromWb(ctx, def, country, opts) });
   } else {
     if (def.wb) attempts.push({ label: "World Bank WDI", run: () => indicatorFromWb(ctx, def, country, opts) });
-    if (def.dbnomics) attempts.push({ label: "IMF WEO (via DBnomics)", run: () => indicatorFromDbnomics(ctx, def, country, opts) });
+    pushImfChain();
   }
   if (def.fred && country.iso3 === "USA" && fredAvailable(ctx) && attempts.length === 0) {
     attempts.push({ label: "FRED", run: () => indicatorFromFred(ctx, def, opts) });
@@ -285,6 +433,12 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
 
 const DB_PRIMARY = new Set(["govt_debt_gdp", "fiscal_balance_gdp", "govt_revenue_gdp", "govt_expenditure_gdp"]);
 
+/** Reverse lookup for the `imf/{CODE}` explicit series id (design D9). */
+const DM_CODE_INFO = new Map<string, { dataset: "WEO" | "FM"; def: IndicatorDef }>();
+for (const d of INDICATORS) {
+  if (d.datamapper) DM_CODE_INFO.set(d.datamapper[0], { dataset: d.datamapper[1], def: d });
+}
+
 /** Get a raw series by explicit id: worldbank/CODE, fred/ID, dbnomics/PROVIDER/DATASET/SERIES, or a registry key. */
 export async function getSeries(
   ctx: Ctx,
@@ -320,6 +474,22 @@ export async function getSeries(
       },
       opts,
     );
+  }
+
+  if (lower.startsWith("imf/")) {
+    const code = id.slice(4);
+    const info = DM_CODE_INFO.get(code);
+    if (!info) {
+      throw new ToolError(
+        `Unrecognized IMF DataMapper code '${code}'. Known codes: ${[...DM_CODE_INFO.keys()].join(", ")}.`,
+        { series_id: id },
+      );
+    }
+    if (!opts.country) {
+      throw new ToolError("IMF DataMapper series require a 'country' parameter (ISO3 code or name).", { series_id: id });
+    }
+    const country = requireCountry(opts.country);
+    return indicatorFromDataMapper(ctx, info.def, country, opts);
   }
 
   if (lower.startsWith("fred/")) {
@@ -436,18 +606,21 @@ export async function searchIndicators(ctx: Ctx, query: string, opts: { includeD
 export function listRegistry(): Array<{ key: string; label: string; unit: string; sources: string[]; notes?: string }> {
   return INDICATORS.map((d) => {
     // Source order mirrors the actual resolution order in getIndicator: for
-    // DB_PRIMARY keys (and dbnomics-only defs) IMF WEO is the primary source,
-    // not a fallback — the docs table is generated from this list, so listing
-    // WB first here previously contradicted the served behavior.
+    // DB_PRIMARY keys (and dbnomics-only defs) the IMF path is primary, not a
+    // fallback, and within the IMF path DataMapper (current vintage) precedes
+    // DBnomics (design D1) — the docs table is generated from this list, so any
+    // mismatch here previously contradicted the served behavior.
+    const dmLabel = d.datamapper ? "IMF DataMapper API (current WEO/Fiscal Monitor)" : undefined;
     const dbLabel = d.dbnomics ? `${d.dbnomics[0]} ${d.dbnomics[1].replace(":latest", "")} (via DBnomics)` : undefined;
     const wbLabel = d.wb ? "World Bank WDI" : undefined;
     const dbFirst = d.dbnomics && (!d.wb || DB_PRIMARY.has(d.key));
+    const imfChain = [...(dmLabel ? [dmLabel] : []), ...(dbLabel ? [dbLabel] : [])];
     return {
       key: d.key,
       label: d.label,
       unit: d.unit,
       sources: [
-        ...(dbFirst ? [dbLabel!, ...(wbLabel ? [wbLabel] : [])] : [...(wbLabel ? [wbLabel] : []), ...(dbLabel ? [dbLabel] : [])]),
+        ...(dbFirst ? [...imfChain, ...(wbLabel ? [wbLabel] : [])] : [...(wbLabel ? [wbLabel] : []), ...imfChain]),
         ...(d.fred ? ["FRED (US)"] : []),
       ],
       notes: d.notes,

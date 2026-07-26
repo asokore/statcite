@@ -154,7 +154,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "e.g. worldbank/NY.GDP.MKTP.KD.ZG, dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change"
+            "description": "e.g. worldbank/NY.GDP.MKTP.KD.ZG, imf/NGDP_RPCH, dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change"
           },
           {
             "name": "country",
@@ -482,7 +482,7 @@
                     },
                     "note": {
                       "type": "string",
-                      "description": "Present when some claims were verified against IMF WEO projections rather than outturns"
+                      "description": "Present when some claims were verified against IMF WEO/Fiscal Monitor projections rather than outturns"
                     }
                   }
                 }
@@ -772,7 +772,7 @@
           },
           "is_projection": {
             "type": "boolean",
-            "description": "True when the matched official observation is an IMF WEO estimate/projection, not a final outturn."
+            "description": "True when the matched official observation is an IMF WEO/Fiscal Monitor estimate/projection, not a final outturn."
           },
           "period": {
             "type": "string"

@@ -17,11 +17,23 @@ import { fetchJson, isTransientUpstreamError, UpstreamError, _clearMemCache } fr
 import { ToolError } from "../src/core/types.ts";
 import { getIndicator, listRegistry, expectedWeoEdition, weoVintageStaleNote } from "../src/core/series.ts";
 import type { Ctx } from "../src/core/types.ts";
+import { dmValuesBody, isDataMapperValuesUrl, isDataMapperMetadataUrl, STANDARD_DM_METADATA, DM_CODES } from "./dm-fixtures.ts";
 
 const ctx: Ctx = { baseUrl: "https://statcite.test" };
 
 let callLog: string[] = [];
 let handlers: Array<(url: string) => Response | "network-error"> = [];
+
+const jsonRes = (body: string) => new Response(body, { status: 200, headers: { "content-type": "application/json" } });
+
+// current_account_gdp is now DataMapper-primary (design D1) — every getIndicator
+// test below that exercises its WB-fails/DBnomics-serves fallback path would
+// otherwise also hit DataMapper first. Rather than let that hit an unmatched-shape
+// decoy (3 retries + real backoff sleeps per attempt, per test), GEO is simply
+// absent from this fixture — a realistic "DataMapper is healthy but doesn't cover
+// this economy for this series" case, which fails fast (a single request, no
+// retries) and falls through exactly as the tests below expect.
+const DM_CURRENT_ACCOUNT_NO_GEO = dmValuesBody(DM_CODES.current_account_gdp, {});
 
 function installStub(...hs: Array<(url: string) => Response | "network-error">): void {
   _clearMemCache();
@@ -31,6 +43,8 @@ function installStub(...hs: Array<(url: string) => Response | "network-error">):
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     callLog.push(url);
+    if (isDataMapperMetadataUrl(url)) return jsonRes(STANDARD_DM_METADATA);
+    if (isDataMapperValuesUrl(url, DM_CODES.current_account_gdp)) return jsonRes(DM_CURRENT_ACCOUNT_NO_GEO);
     const h = handlers[Math.min(i, handlers.length - 1)];
     i++;
     const r = h(url);
@@ -227,11 +241,13 @@ test("weoVintageStaleNote fires only when the resolved vintage trails the releas
 
 // ——— 6. listRegistry source order mirrors actual resolution order ———
 
-test("listRegistry: IMF-primary fiscal indicators list IMF WEO first, WDI-primary list World Bank first", () => {
+test("listRegistry: IMF-primary fiscal indicators list IMF DataMapper first then DBnomics, WDI-primary list World Bank first", () => {
   const reg = new Map(listRegistry().map((r) => [r.key, r.sources]));
   for (const key of ["govt_debt_gdp", "fiscal_balance_gdp", "govt_revenue_gdp", "govt_expenditure_gdp"]) {
-    assert.match(reg.get(key)![0], /^IMF WEO/, `${key} is DB_PRIMARY — IMF must be listed first`);
+    assert.match(reg.get(key)![0], /^IMF DataMapper/, `${key} is DB_PRIMARY — IMF DataMapper must be listed first`);
+    assert.match(reg.get(key)![1], /^IMF WEO/, `${key} lists DBnomics as the second (fallback) IMF path`);
   }
   assert.equal(reg.get("gdp_growth")![0], "World Bank WDI");
+  assert.equal(reg.get("gdp_growth")![1], "IMF DataMapper API (current WEO/Fiscal Monitor)");
   assert.equal(reg.get("inflation_cpi")![0], "World Bank WDI");
 });

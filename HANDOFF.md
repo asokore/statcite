@@ -4,6 +4,8 @@
 
 ## Launch status (2026-07-25)
 
+**v1.3.0 (2026-07-25):** the six IMF-backed indicators now serve from the IMF's own DataMapper API (current WEO/Fiscal Monitor edition) as primary, closing the WEO-vintage-lag limitation documented in v1.2.0/the benchmark's `NOTES.md`; DBnomics remains the fallback and the vintage-pinning instrument for reproducible citations. See `docs/DESIGN-weo-datamapper.md` for the full design record (adversarially reviewed before implementation).
+
 **Done and verified:**
 - `statcite.com` registered (Cloudflare) · Worker + site deployed · apex and `www` both serving · `/v1`, `/mcp`, `/health` all 200
 - Public repo: https://github.com/asokore/statcite (topics + homepage set)
@@ -25,7 +27,7 @@
 
 This runbook takes the repo from `C:\dev\statcite` to a running product. Total time: **~60–90 minutes** of guided steps. It is written for Claude Code to execute with you (open Claude Code in this folder and say *"execute HANDOFF.md"*), or for you to follow manually.
 
-**State of the build:** code complete and verified — 132 fixture-backed tests pass, a live smoke suite passed against the real World Bank / IMF-DBnomics / Frankfurter APIs from the build environment, and the site is ready. Nothing below writes code; it's accounts, wiring, and submissions.
+**State of the build:** code complete and verified — 151 fixture-backed tests pass, a live smoke suite passed against the real World Bank / IMF-DBnomics / Frankfurter APIs from the build environment, and the site is ready. Nothing below writes code; it's accounts, wiring, and submissions.
 
 **You already have:** GitHub (paid), Cloudflare, Apify accounts. ✔
 
@@ -115,7 +117,7 @@ Note: `apify/core.bundle.mjs` is committed and current; regenerate with `npm run
 ## Maintenance contract (what keeps this alive)
 
 - **Weekly 15 min:** Cloudflare analytics, GitHub issues, hello@ inbox.
-- **Monthly 2–4 h:** `npm test && npm run smoke`, dependency bumps, one improvement; check that World Bank/DBnomics/Frankfurter shapes still pass smoke.
+- **Monthly 2–4 h:** `npm test && npm run smoke`, dependency bumps, one improvement; check that World Bank/IMF DataMapper/DBnomics/Frankfurter shapes still pass smoke.
 - **Watch (protocol):** MCP revision **2026-07-28** is a **release candidate**, not yet ratified — the current ratified revision remains **2025-11-25**. The RC removes initialize/sessions (fully stateless). Current code supports 2025-03-26/06-18/11-25 and all transport logic is isolated in `server/src/mcp.ts` — once 2026-07-28 (or whatever it's ratified as) actually lands and major clients adopt it, add support there (likely a ~30-line change). mcp-remote guidance in docs already pins ≥0.1.16 (CVE-2025-6514).
 - **Cost watch:** free tier = 100k req/day. If sustained traffic approaches it, that's a success problem: enable Cloudflare rate rules for anonymous heavy hitters and open the paid tier (docs/MONETIZATION.md Stage 1).
 

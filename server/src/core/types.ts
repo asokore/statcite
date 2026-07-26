@@ -13,6 +13,16 @@ export interface Ctx {
    * aggregate, non-identifying fields — see core/analytics.ts.
    */
   analytics?: { writeDataPoint(point: { indexes?: string[]; blobs?: string[]; doubles?: number[] }): void };
+  /**
+   * Internal, adapter-owned: per-request memo for IMF DataMapper fetches (values +
+   * metadata), keyed by URL, storing the in-flight/settled promise — including
+   * rejections. Lazily created by adapters/datamapper.ts. Scope is one HTTP
+   * request (Ctx is created once per request and, for MCP JSON-RPC batches,
+   * shared across every message in that batch) — never the isolate. Without
+   * this, concurrent callers sharing one Ctx (verify_claims' 4-way concurrency)
+   * would each independently retry the same failing DataMapper URL.
+   */
+  _dmMemo?: Map<string, Promise<unknown>>;
 }
 
 export interface Observation {
@@ -77,6 +87,8 @@ export interface IndicatorDef {
   wb?: string;
   /** DBnomics fallback/primary: [provider, dataset, seriesCodeTemplate] where {ISO3} is substituted. */
   dbnomics?: [string, string, string];
+  /** IMF DataMapper primary (current-vintage WEO/Fiscal Monitor): [code, dataset]. */
+  datamapper?: [string, "WEO" | "FM"];
   /** FRED series id for a higher-frequency US variant (requires FRED_API_KEY). */
   fred?: string;
   synonyms: string[];
