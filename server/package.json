@@ -1,6 +1,6 @@
 {
   "name": "statcite",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "StatCite — official economic statistics for AI agents, every number with a full citation. Remote MCP server + REST API.",
   "private": true,
   "type": "module",
