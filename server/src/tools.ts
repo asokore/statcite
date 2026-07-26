@@ -173,7 +173,9 @@ export async function runVerifyClaims(ctx: Ctx, claimsRaw: unknown, strictSource
   for (const r of results) {
     if (r.ok) {
       summary[r.verification.verdict] += 1;
-      if (r.verification.is_projection) projections += 1;
+      // Only judged verdicts count as "verified against" a projection — a demoted
+      // cannot_verify can carry is_projection=true without having been verified.
+      if (r.verification.is_projection && r.verification.verdict !== "cannot_verify") projections += 1;
     } else {
       summary.error += 1;
     }
@@ -242,7 +244,7 @@ export const TOOLS: ToolDef[] = [
         strict_source: {
           type: "boolean",
           description:
-            "Reproducibility mode: never verify against a fallback source — error instead if the primary source fails. Default false; fallback-based verdicts always carry fallback_used=true.",
+            "Reproducibility mode: never verify against a fallback source — error instead if the primary source fails. Default false; without it, a verify served from a transient-failure fallback returns cannot_verify with the fallback value as indicative (fallback_used=true), while a fallback for a series the primary permanently lacks (e.g. Taiwan in WDI) is judged normally with disclosure.",
         },
       },
       required: ["indicator", "period", "claimed_value"],
@@ -292,7 +294,7 @@ export const TOOLS: ToolDef[] = [
         strict_source: {
           type: "boolean",
           description:
-            "Reproducibility mode for the whole batch: never verify any claim against a fallback source — such claims error in place instead. Default false.",
+            "Reproducibility mode for the whole batch: never verify any claim against a fallback source — such claims error in place instead. Default false; without it, a claim served from a transient-failure fallback returns cannot_verify with the fallback value as indicative rather than a match/mismatch verdict.",
         },
       },
       required: ["claims"],

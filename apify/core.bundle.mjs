@@ -1180,6 +1180,7 @@ async function fetchDataMapperSeries(ctx, code, dataset, countryIso3, now = /* @
 
 // ../server/src/core/citations.ts
 var FRED_NOTICE = "This product uses the FRED\xAE API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.";
+var IMF_LICENSE = "Use and redistribution are subject to the IMF's data-usage terms, including attribution and downstream-user conditions; commercial reuse may require IMF permission \u2014 consult the IMF terms directly";
 function worldBankCitation(ctx, opts) {
   const loc = opts.iso3 ? `?locations=${opts.iso3}` : "";
   const sourceUrl = `https://data.worldbank.org/indicator/${opts.indicatorId}${loc}`;
@@ -1208,7 +1209,7 @@ function dbnomicsCitation(ctx, opts) {
     series_name: opts.seriesName,
     source_url: sourceUrl,
     api_url: opts.apiUrl,
-    license: isImf ? "IMF terms: free reuse and redistribution with attribution (Source: International Monetary Fund)" : `${opts.providerName} terms apply; retrieved via DBnomics (open aggregator)`,
+    license: isImf ? IMF_LICENSE : `${opts.providerName} terms apply; retrieved via DBnomics (open aggregator)`,
     attribution: isImf ? "Source: International Monetary Fund" : `Source: ${opts.providerName} (via DBnomics)`,
     retrieved_at: date,
     citation_text: `${opts.providerName}, ${opts.datasetName}, series ${opts.seriesCode} (${opts.seriesName}). Retrieved ${date} via DBnomics/StatCite. ${sourceUrl}`
@@ -1217,6 +1218,8 @@ function dbnomicsCitation(ctx, opts) {
 function imfDataMapperCitation(ctx, opts) {
   const date = today(ctx);
   const datasetName = opts.dataset === "FM" ? "IMF Fiscal Monitor" : "IMF World Economic Outlook";
+  const alreadyNamed = /world economic outlook|fiscal monitor/i.test(opts.editionLabel);
+  const datasetSuffix = alreadyNamed ? "" : ` (${datasetName})`;
   return {
     source: "International Monetary Fund",
     dataset: opts.editionLabel,
@@ -1224,10 +1227,10 @@ function imfDataMapperCitation(ctx, opts) {
     series_name: opts.seriesName,
     source_url: opts.sourceUrl,
     api_url: opts.apiUrl,
-    license: "IMF terms: free reuse and redistribution with attribution (Source: International Monetary Fund)",
+    license: IMF_LICENSE,
     attribution: "Source: International Monetary Fund",
     retrieved_at: date,
-    citation_text: `International Monetary Fund, ${opts.editionLabel} (${datasetName}), ${opts.seriesName}, series ${opts.code}. Retrieved ${date} via the IMF DataMapper API/StatCite. ${opts.sourceUrl}`,
+    citation_text: `International Monetary Fund, ${opts.editionLabel}${datasetSuffix}, ${opts.seriesName}, series ${opts.code}. Retrieved ${date} via the IMF DataMapper API/StatCite. ${opts.sourceUrl}`,
     ...opts.lastModified ? { notices: [`IMF data load timestamp: ${opts.lastModified} UTC.`] } : {}
   };
 }
@@ -1298,7 +1301,7 @@ function finishSeries(result, opts) {
     const nonNull = obs.filter((o) => o.value != null);
     const outturns = nonNull.filter((o) => !/projection/i.test(o.note ?? ""));
     if (outturns.length && nonNull.length > outturns.length) {
-      result.notes.push("Latest published outturn shown; later IMF WEO projection periods exist for this series.");
+      result.notes.push("Latest value not marked as a projection shown; later IMF estimate/projection periods exist for this series.");
     }
     obs = (outturns.length ? outturns : nonNull).slice(-1);
   } else if (opts.limit && opts.limit > 0 && obs.length > opts.limit) {
@@ -1554,11 +1557,13 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
   const tried = opts.strictSource ? attempts.slice(0, 1) : attempts;
   const errors = [];
   let firstErrorWasTransient = false;
+  let anyErrorWasTransient = false;
   for (let i = 0; i < tried.length; i++) {
     try {
       const result = await tried[i].run();
       if (i > 0) {
         result.fallback_used = true;
+        result.fallback_reason = anyErrorWasTransient ? "transient" : "definitive";
         const primaryLabel = tried[0].label;
         const servedLabel = tried[i].label;
         result.notes.push(
@@ -1567,7 +1572,9 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
       }
       return result;
     } catch (e) {
-      if (i === 0) firstErrorWasTransient = isTransientUpstreamError(e);
+      const transient = isTransientUpstreamError(e);
+      if (i === 0) firstErrorWasTransient = transient;
+      if (transient) anyErrorWasTransient = true;
       errors.push(e instanceof Error ? e.message : String(e));
     }
   }
@@ -1792,6 +1799,7 @@ async function countrySnapshot(ctx, countryInput) {
       })
     });
   }
+  const fallbackIndicators = [];
   try {
     const debtDef = getIndicatorDef("govt_debt_gdp");
     const s = await getIndicator(ctx, "govt_debt_gdp", country.iso3, { limit: 1 });
@@ -1805,7 +1813,10 @@ async function countrySnapshot(ctx, countryInput) {
         unit: debtDef.unit,
         citation: s.citation
       });
-      if (s.fallback_used) notes.push(`Government debt: ${s.notes[s.notes.length - 1] ?? "served from a fallback source."}`);
+      if (s.fallback_used) {
+        fallbackIndicators.push("govt_debt_gdp");
+        notes.push(`Government debt: ${s.notes[s.notes.length - 1] ?? "served from a fallback source."}`);
+      }
     } else {
       missing.push("govt_debt_gdp");
     }
@@ -1822,7 +1833,8 @@ async function countrySnapshot(ctx, countryInput) {
     as_of: new Date(ctx.now ? ctx.now() : /* @__PURE__ */ new Date()).toISOString().slice(0, 10),
     indicators: items,
     missing,
-    notes
+    notes,
+    ...fallbackIndicators.length ? { fallback_used: true, fallback_indicators: fallbackIndicators } : {}
   };
 }
 
@@ -2235,6 +2247,8 @@ async function verifyStat(ctx, p) {
     "Macro data is revised: the official value reflects the source's current published figure, which may differ from what was published at the time of the claim."
   );
   const percentKind = isRegistry ? isPercentKind(p.indicator) : /%|percent/i.test(result.unit ?? result.name);
+  const imfHeuristicSeries = /^imf\//.test(result.series_id) || /^dbnomics\/IMF\/(WEO|FM):/i.test(result.series_id);
+  const statusMethod = imfHeuristicSeries ? "horizon_heuristic" : "as_published";
   if (!matched) {
     const near = obs.filter((o) => Math.abs(parseInt(o.period.slice(0, 4), 10) - year) <= 2 && o.value != null).slice(-6);
     const range = obs.length ? `${obs[0].period}\u2013${obs[obs.length - 1].period}` : "none";
@@ -2244,6 +2258,8 @@ async function verifyStat(ctx, p) {
       claimed_value: p.claimed_value,
       official_value: null,
       is_projection: false,
+      observation_status: "unknown",
+      status_method: statusMethod,
       period,
       difference: null,
       relative_difference_pct: null,
@@ -2258,25 +2274,7 @@ async function verifyStat(ctx, p) {
   }
   const official = matched.value;
   const isProjection = /WEO|Fiscal Monitor/i.test(matched.note ?? "") && /estimate|projection/i.test(matched.note ?? "");
-  const def = isRegistry ? getIndicatorDef(p.indicator) : void 0;
-  if (Boolean(def?.datamapper) && result.fallback_used === true && result.series_id.startsWith("dbnomics/")) {
-    return {
-      verdict: "cannot_verify",
-      claimed_value: p.claimed_value,
-      official_value: official,
-      is_projection: isProjection,
-      period,
-      difference: null,
-      relative_difference_pct: null,
-      explanation: `The current-edition IMF DataMapper path was unavailable; this indicator's dated DBnomics fallback shows ${fmt(official)}${result.unit ? ` ${result.unit}` : ""} for ${period} \u2014 indicative only, not a verification. IMF vintage revisions (e.g. GDP rebasing) can move WEO/Fiscal Monitor series by more than a percentage point for the same historical year, so a match/mismatch verdict against this superseded vintage would not be trustworthy.`,
-      diagnostics,
-      series: { id: result.series_id, name: result.name, unit: result.unit },
-      country: result.country,
-      citation: result.citation,
-      notes,
-      fallback_used: true
-    };
-  }
+  const observationStatus = imfHeuristicSeries ? isProjection ? "projection" : "estimate_or_actual" : isRegistry || result.series_id.startsWith("worldbank/") ? "actual" : "unknown";
   const diff = p.claimed_value - official;
   const relPct = official !== 0 ? diff / Math.abs(official) * 100 : null;
   const ratio = official !== 0 ? p.claimed_value / official : null;
@@ -2304,15 +2302,41 @@ async function verifyStat(ctx, p) {
       diagnostics.push(`The claimed value matches the ${year + offset} figure (${fmt(v)}) \u2014 the year may be misattributed.`);
     }
   }
+  const def = isRegistry ? getIndicatorDef(p.indicator) : void 0;
+  if (isRegistry && result.fallback_used === true && result.fallback_reason !== "definitive") {
+    const vintageFlavor = Boolean(def?.datamapper) && result.series_id.startsWith("dbnomics/") ? " IMF vintage revisions (e.g. GDP rebasing) can move WEO/Fiscal Monitor series by more than a percentage point for the same historical year." : " Substitute sources can use different statistical definitions and report materially different values for the same nominal indicator.";
+    const projFlag = isProjection ? " (an IMF estimate/projection-period value)" : "";
+    return {
+      verdict: "cannot_verify",
+      claimed_value: p.claimed_value,
+      official_value: official,
+      is_projection: isProjection,
+      observation_status: observationStatus,
+      status_method: statusMethod,
+      period,
+      difference: null,
+      relative_difference_pct: null,
+      explanation: `This indicator's primary source was transiently unavailable; the fallback (${result.citation.source}, ${result.series_id}) shows ${fmt(official)}${result.unit ? ` ${result.unit}` : ""}${projFlag} for ${period} \u2014 indicative only, not a verification.${vintageFlavor} Retry when the primary source has recovered, or pass strict_source=true to fail hard instead.`,
+      diagnostics,
+      series: { id: result.series_id, name: result.name, unit: result.unit },
+      country: result.country,
+      citation: result.citation,
+      notes,
+      fallback_used: true
+    };
+  }
   const { verdict, why } = judge(p.claimed_value, official, percentKind, p);
   const unitText = result.unit ? ` ${result.unit}` : "";
-  const officialLabel = isProjection ? "official (IMF WEO projection)" : "official";
+  const projKind = /Fiscal Monitor/i.test(matched.note ?? "") ? "IMF Fiscal Monitor" : "IMF WEO";
+  const officialLabel = isProjection ? `official (${projKind} projection)` : "official";
   const explanation = verdict === "match" ? `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period} \u2014 consistent (${why}).` : verdict === "close" ? `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period} \u2014 in the right neighborhood but not exact (${why}). Cite the official value.` : `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period} \u2014 materially different (${why}).` + (diagnostics.length ? " See diagnostics for likely causes." : "");
   return {
     verdict,
     claimed_value: p.claimed_value,
     official_value: official,
     is_projection: isProjection,
+    observation_status: observationStatus,
+    status_method: statusMethod,
     period,
     difference: Number(diff.toFixed(6)),
     relative_difference_pct: relPct == null ? null : Number(relPct.toFixed(3)),
@@ -2396,7 +2420,7 @@ var SOURCES = [
     name: "IMF \u2014 World Economic Outlook & Fiscal Monitor (via the IMF DataMapper API, with DBnomics as fallback)",
     coverage: "Growth, fiscal, external indicators for 190+ economies, incl. estimates/projections; twice-yearly vintages (April/October, plus interim Updates). The primary path is the IMF's own DataMapper API \u2014 the current edition, verbatim edition label passed through unrewritten. If that path is unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF's release calendar; every response cites the resolved vintage, and a fallback that crosses editions is disclosed (verify_stat demotes such cases to cannot_verify rather than judging a claim against a superseded vintage). The actual/projection boundary is a heuristic derived from each response's own data horizon, not a per-country authoritative cutoff",
     access: "No key; queried live from www.imf.org/external/datamapper (primary) and api.db.nomics.world v22 (fallback)",
-    license: "Use and redistribution are subject to the IMF's data-usage terms, including attribution and downstream-user conditions; commercial reuse may require IMF permission \u2014 consult the IMF terms directly",
+    license: IMF_LICENSE,
     attribution_required: "Source: International Monetary Fund",
     url: "https://www.imf.org/en/Publications/WEO",
     terms_url: "https://www.imf.org/external/terms.htm"

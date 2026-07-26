@@ -8,12 +8,39 @@ import { getIndicatorDef } from "./indicators.ts";
 
 export type Verdict = "match" | "close" | "mismatch" | "cannot_verify";
 
+/**
+ * Honest classification of the matched official observation.
+ * - "actual": the series is one StatCite classifies as outturn data (registry
+ *   WB/FRED indicators, explicit worldbank/ WDI ids) — still subject to routine
+ *   revision.
+ * - "estimate_or_actual": IMF WEO/Fiscal Monitor observation BEFORE the projection
+ *   boundary — the IMF's true "latest actual" year varies by country and series and
+ *   is not exposed by the data path, so recent pre-boundary values may be IMF staff
+ *   estimates rather than confirmed outturns. Never read this as "confirmed actual".
+ * - "projection": at/after the heuristic boundary — an IMF estimate/projection.
+ * - "unknown": no observation matched the claimed period, OR the series is an
+ *   explicit id outside StatCite's classification (arbitrary DBnomics/FRED series
+ *   can be forecast datasets) — consult the source's own documentation.
+ */
+export type ObservationStatus = "actual" | "estimate_or_actual" | "projection" | "unknown";
+
 export interface VerifyResult {
   verdict: Verdict;
   claimed_value: number;
   official_value: number | null;
-  /** True when the matched official observation is an IMF WEO estimate/projection, not a final outturn. */
+  /** True when the matched official observation is an IMF WEO/Fiscal Monitor
+   * estimate/projection, not a final outturn. Kept for compatibility;
+   * observation_status carries the finer-grained classification. */
   is_projection: boolean;
+  /** See ObservationStatus. is_projection === (observation_status === "projection"). */
+  observation_status: ObservationStatus;
+  /** How observation_status was determined: "horizon_heuristic" for IMF WEO/Fiscal
+   * Monitor series (boundary derived from the response's own data — the payload's
+   * projection horizon on the DataMapper channel, the dataset-code vintage year on
+   * the DBnomics channel; a heuristic, not IMF per-country metadata),
+   * "as_published" otherwise (World Bank, FRED — or "unknown" status for
+   * unclassified explicit series ids). */
+  status_method: "horizon_heuristic" | "as_published";
   period: string;
   difference: number | null;
   relative_difference_pct: number | null;
@@ -23,9 +50,14 @@ export interface VerifyResult {
   country?: { iso3: string; name: string };
   citation: Citation;
   notes: string[];
-  /** Present and true when the official value came from the fallback source
-   * because the primary failed — the verdict is against a different statistical
-   * source than the primary would have served. Absent otherwise. */
+  /** Present and true when the official value came from a fallback source because
+   * the primary failed. A TRANSIENT primary failure demotes the verdict to
+   * cannot_verify (with the fallback value reported as indicative) — a substitute
+   * source can differ by definition or vintage far beyond the verdict bands, and
+   * the primary may recover and serve a different number for the same query. When
+   * the primary permanently lacks the series/country (e.g. Taiwan in WDI), the
+   * fallback is that country's stable serving source and the verdict is judged
+   * normally with disclosure. Absent otherwise. */
   fallback_used?: boolean;
 }
 
@@ -87,6 +119,15 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
 
   const percentKind = isRegistry ? isPercentKind(p.indicator) : /%|percent/i.test(result.unit ?? result.name);
 
+  // IMF WEO/Fiscal Monitor series are the only ones whose actual-vs-projection
+  // status comes from the boundary heuristic (design D3); the colon keeps
+  // WEO-prefixed sibling datasets (e.g. WEOAGG), whose projections are never
+  // marked, from being misclassified as heuristic series. Pre-boundary IMF
+  // observations carry no per-obs note, so this keys off the series identity,
+  // never the note.
+  const imfHeuristicSeries = /^imf\//.test(result.series_id) || /^dbnomics\/IMF\/(WEO|FM):/i.test(result.series_id);
+  const statusMethod: VerifyResult["status_method"] = imfHeuristicSeries ? "horizon_heuristic" : "as_published";
+
   if (!matched) {
     // Look for nearby periods to explain what we *do* have (capped for readability).
     const near = obs.filter((o) => Math.abs(parseInt(o.period.slice(0, 4), 10) - year) <= 2 && o.value != null).slice(-6);
@@ -100,6 +141,8 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
       claimed_value: p.claimed_value,
       official_value: null,
       is_projection: false,
+      observation_status: "unknown",
+      status_method: statusMethod,
       period,
       difference: null,
       relative_difference_pct: null,
@@ -119,34 +162,18 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
 
   const official = matched.value!;
   const isProjection = /WEO|Fiscal Monitor/i.test(matched.note ?? "") && /estimate|projection/i.test(matched.note ?? "");
-
-  // D6: a fallback that crosses from the current-vintage IMF DataMapper path to
-  // the dated DBnomics WEO/Fiscal Monitor path is not just "a different source"
-  // — it's a same-concept, different-vintage divergence that can move fiscal/WEO
-  // series by more than a percentage point even for identical historical years
-  // (e.g. GDP rebasing). A match/mismatch verdict against a superseded vintage
-  // is untrustworthy either way, so this demotes to cannot_verify instead of
-  // judging the claim against stale numbers.
-  const def = isRegistry ? getIndicatorDef(p.indicator) : undefined;
-  if (Boolean(def?.datamapper) && result.fallback_used === true && result.series_id.startsWith("dbnomics/")) {
-    return {
-      verdict: "cannot_verify",
-      claimed_value: p.claimed_value,
-      official_value: official,
-      is_projection: isProjection,
-      period,
-      difference: null,
-      relative_difference_pct: null,
-      explanation:
-        `The current-edition IMF DataMapper path was unavailable; this indicator's dated DBnomics fallback shows ${fmt(official)}${result.unit ? ` ${result.unit}` : ""} for ${period} — indicative only, not a verification. IMF vintage revisions (e.g. GDP rebasing) can move WEO/Fiscal Monitor series by more than a percentage point for the same historical year, so a match/mismatch verdict against this superseded vintage would not be trustworthy.`,
-      diagnostics,
-      series: { id: result.series_id, name: result.name, unit: result.unit },
-      country: result.country,
-      citation: result.citation,
-      notes,
-      fallback_used: true,
-    };
-  }
+  // "actual" is asserted only for series StatCite curates or can classify (registry
+  // WB/FRED outturn series, explicit worldbank/ WDI ids). Arbitrary explicit ids
+  // can point at forecast datasets (OECD Economic Outlook via DBnomics, FOMC
+  // projection series on FRED) whose values are NOT outturns — those stay
+  // "unknown" rather than gaining a false positive "actual" label.
+  const observationStatus: ObservationStatus = imfHeuristicSeries
+    ? isProjection
+      ? "projection"
+      : "estimate_or_actual"
+    : isRegistry || result.series_id.startsWith("worldbank/")
+      ? "actual"
+      : "unknown";
 
   const diff = p.claimed_value - official;
   const relPct = official !== 0 ? (diff / Math.abs(official)) * 100 : null;
@@ -179,9 +206,53 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
     }
   }
 
+  // A verification verdict is a claim about THE primary official series. When a
+  // registry indicator was served from a fallback because the primary failed
+  // TRANSIENTLY, the number in hand can differ from what the primary will serve
+  // once it recovers — by definition (World Bank vs IMF current account: 1.8pp
+  // for the same country-year in this repo's own benchmark logs) or by vintage
+  // (IMF rebasings move fiscal series by whole points for identical historical
+  // years) — so both "match" and "mismatch" would be untrustworthy and the
+  // verdict demotes to cannot_verify with the substitute's value as indicative.
+  // A DEFINITIVE fallback (the primary permanently lacks this series/country,
+  // e.g. Taiwan in WDI) has no such same-query-different-answer risk: the
+  // fallback is that country's stable serving source, so it is judged normally
+  // with the disclosure note. get_indicator serves both classes with disclosure
+  // — retrieval and verification carry different promises. (Generalizes the
+  // v1.3.0 DataMapper→DBnomics rule; diagnostics above still run so scale and
+  // sign slips are diagnosed even on demoted results.)
+  const def = isRegistry ? getIndicatorDef(p.indicator) : undefined;
+  if (isRegistry && result.fallback_used === true && result.fallback_reason !== "definitive") {
+    const vintageFlavor =
+      Boolean(def?.datamapper) && result.series_id.startsWith("dbnomics/")
+        ? " IMF vintage revisions (e.g. GDP rebasing) can move WEO/Fiscal Monitor series by more than a percentage point for the same historical year."
+        : " Substitute sources can use different statistical definitions and report materially different values for the same nominal indicator.";
+    const projFlag = isProjection ? " (an IMF estimate/projection-period value)" : "";
+    return {
+      verdict: "cannot_verify",
+      claimed_value: p.claimed_value,
+      official_value: official,
+      is_projection: isProjection,
+      observation_status: observationStatus,
+      status_method: statusMethod,
+      period,
+      difference: null,
+      relative_difference_pct: null,
+      explanation:
+        `This indicator's primary source was transiently unavailable; the fallback (${result.citation.source}, ${result.series_id}) shows ${fmt(official)}${result.unit ? ` ${result.unit}` : ""}${projFlag} for ${period} — indicative only, not a verification.${vintageFlavor} Retry when the primary source has recovered, or pass strict_source=true to fail hard instead.`,
+      diagnostics,
+      series: { id: result.series_id, name: result.name, unit: result.unit },
+      country: result.country,
+      citation: result.citation,
+      notes,
+      fallback_used: true,
+    };
+  }
+
   const { verdict, why } = judge(p.claimed_value, official, percentKind, p);
   const unitText = result.unit ? ` ${result.unit}` : "";
-  const officialLabel = isProjection ? "official (IMF WEO projection)" : "official";
+  const projKind = /Fiscal Monitor/i.test(matched.note ?? "") ? "IMF Fiscal Monitor" : "IMF WEO";
+  const officialLabel = isProjection ? `official (${projKind} projection)` : "official";
   const explanation =
     verdict === "match"
       ? `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period} — consistent (${why}).`
@@ -195,6 +266,8 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
     claimed_value: p.claimed_value,
     official_value: official,
     is_projection: isProjection,
+    observation_status: observationStatus,
+    status_method: statusMethod,
     period,
     difference: Number(diff.toFixed(6)),
     relative_difference_pct: relPct == null ? null : Number(relPct.toFixed(3)),

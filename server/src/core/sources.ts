@@ -1,5 +1,7 @@
 // Static source metadata for the list_sources tool and /v1/sources.
 
+import { IMF_LICENSE } from "./citations.ts";
+
 export const SOURCES = [
   {
     id: "worldbank",
@@ -17,8 +19,7 @@ export const SOURCES = [
     coverage:
       "Growth, fiscal, external indicators for 190+ economies, incl. estimates/projections; twice-yearly vintages (April/October, plus interim Updates). The primary path is the IMF's own DataMapper API — the current edition, verbatim edition label passed through unrewritten. If that path is unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF's release calendar; every response cites the resolved vintage, and a fallback that crosses editions is disclosed (verify_stat demotes such cases to cannot_verify rather than judging a claim against a superseded vintage). The actual/projection boundary is a heuristic derived from each response's own data horizon, not a per-country authoritative cutoff",
     access: "No key; queried live from www.imf.org/external/datamapper (primary) and api.db.nomics.world v22 (fallback)",
-    license:
-      "Use and redistribution are subject to the IMF's data-usage terms, including attribution and downstream-user conditions; commercial reuse may require IMF permission — consult the IMF terms directly",
+    license: IMF_LICENSE,
     attribution_required: "Source: International Monetary Fund",
     url: "https://www.imf.org/en/Publications/WEO",
     terms_url: "https://www.imf.org/external/terms.htm",

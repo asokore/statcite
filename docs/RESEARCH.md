@@ -121,10 +121,15 @@ Key risks: agents call but nobody pays (the mid-2026 asymmetry); death-by-succes
 | Apify is the only rail paying indies now | `apify/` actor twin, pay-per-event, bundles the same core |
 | Registry publish cascades; README is the listing | `distribution/server.json`, `submissions.md`, README structured as a listing |
 | Claude directory needs privacy policy/docs/annotations | `site/privacy.html`, `terms.html`, `docs.html`, read-only tool annotations |
-| ChatGPT deep research requires search/fetch pair | `search` + `fetch` tools with OpenAI-schema outputs |
+| ChatGPT deep research/company knowledge use the search/fetch pair (no longer universally required for connected servers — see dated note below) | `search` + `fetch` tools with OpenAI-schema outputs |
 | Free-tier economics: 10ms CPU, 50 subrequests, KV trap | Zero-dep code, batched WB multi-indicator calls, edge+memory cache, no KV |
 | Spec churn (2026-07-28 stateless) | Hand-rolled transport isolated in `src/mcp.ts` |
 | Licensing requires attribution | The citation object *is* the compliance mechanism |
 | Solo-dev graveyard is real | Tests + live smoke + runbooks so maintenance stays cheap |
 
 Full per-agent source lists are preserved in the research transcripts; the load-bearing links are inline above.
+
+## Dated fact-check notes (v1.3.1 review response, 2026-07-26)
+
+- **OpenAI MCP/ChatGPT connector state** (verified 2026-07-26 against the OpenAI Help Center article "Developer mode and MCP apps in ChatGPT", help.openai.com/en/articles/12584461, page last updated ~2026-07-15, read in a live browser session — the URL 403s automated fetchers): full MCP apps incl. write actions are in beta on **Business/Enterprise/Edu**; **Pro** can connect MCP servers with read/fetch permissions in developer mode; Free/Plus are not listed as having custom-connector access. The FAQ states verbatim that the `search`/`fetch` tool pair is **"No. They are no longer required."** for connected servers — with two carve-outs where the pair still matters: *company knowledge* only includes apps with search/fetch functionality, and *deep research* uses custom apps for read/fetch actions only. `site/docs.html` §1's ChatGPT bullet and `distribution/submissions.md` §8 are written against this state.
+- **"146,000+ AI-hallucinated citations" landing-page stat** (verified 2026-07-26): primary source is arXiv 2605.07723 — "LLM hallucinations in the wild: Large-scale evidence from non-existent citations" (Zhao, Wang, Stuart, De Vaan, Ginsparg, Yin; May 2026). The abstract states a "conservative estimate of 146,932 hallucinated citations in 2025 alone" from an audit of 111M references across 2.5M papers. `site/index.html` links the arXiv abstract directly (previously linked secondary press coverage).

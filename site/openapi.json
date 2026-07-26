@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StatCite API",
-    "version": "1.2.0",
+    "version": "1.3.1",
     "description": "Official economic statistics with full citations, built for AI agents. Every numeric response includes a citation object (source, dataset, series_id, source_url, license, attribution, retrieved_at, citation_text). Free, no auth, read-only. MCP endpoint at https://statcite.com/mcp.",
     "contact": {
       "email": "hello@statcite.com",
@@ -341,7 +341,7 @@
             "schema": {
               "type": "boolean"
             },
-            "description": "Never verify against a fallback source — error instead. Fallback-based verdicts carry fallback_used: true."
+            "description": "Never verify against a fallback source — error instead. Without strict_source, a verify served from a transient-failure fallback returns cannot_verify (with the fallback value as indicative); a fallback for a series the primary permanently lacks is judged normally with disclosure."
           }
         ],
         "responses": {
@@ -421,7 +421,7 @@
                   },
                   "strict_source": {
                     "type": "boolean",
-                    "description": "Apply reproducibility mode to every claim in the batch: never verify against a fallback source — such claims error in place."
+                    "description": "Apply reproducibility mode to every claim in the batch: never verify against a fallback source — such claims error in place. Without it, a claim served from a transient-failure fallback returns cannot_verify with the fallback value as indicative."
                   }
                 }
               }
@@ -772,7 +772,17 @@
           },
           "is_projection": {
             "type": "boolean",
-            "description": "True when the matched official observation is an IMF WEO/Fiscal Monitor estimate/projection, not a final outturn."
+            "description": "True when the matched official observation is an IMF WEO/Fiscal Monitor estimate/projection, not a final outturn. Kept for compatibility; observation_status carries the finer-grained classification."
+          },
+          "observation_status": {
+            "type": "string",
+            "enum": ["actual", "estimate_or_actual", "projection", "unknown"],
+            "description": "Honest status of the matched observation. 'actual': a series StatCite classifies as outturn data (registry World Bank/FRED indicators, explicit worldbank/ WDI ids), subject to routine revision. 'estimate_or_actual': IMF WEO/Fiscal Monitor observation before the projection boundary — the IMF's true latest-actual year varies by country and is not exposed by the data path, so recent values may be staff estimates; never read this as a confirmed actual. 'projection': at/after the heuristic boundary. 'unknown': no observation matched the period, or the series is an explicit id outside StatCite's classification (arbitrary DBnomics/FRED series can be forecast datasets — consult the source)."
+          },
+          "status_method": {
+            "type": "string",
+            "enum": ["horizon_heuristic", "as_published"],
+            "description": "How observation_status was determined: 'horizon_heuristic' for IMF WEO/Fiscal Monitor series (boundary derived from the response's own data — the payload's projection horizon on the DataMapper channel, the dataset-code vintage year on the DBnomics channel; a heuristic, not IMF per-country metadata); 'as_published' otherwise."
           },
           "period": {
             "type": "string"
@@ -815,7 +825,7 @@
           },
           "fallback_used": {
             "type": "boolean",
-            "description": "Present and true when the official value came from the fallback source because the primary failed. Absent otherwise."
+            "description": "Present and true when the official value came from a fallback source because the primary failed. A transient primary failure demotes the verdict to cannot_verify with the fallback value reported as indicative (a substitute source can differ by definition or vintage far beyond the verdict bands, and the primary may recover and serve a different number); when the primary permanently lacks the series/country, the fallback is the stable serving source and the verdict is judged normally with disclosure. Absent otherwise."
           }
         }
       }

@@ -36,6 +36,12 @@ export interface Snapshot {
   indicators: SnapshotItem[];
   missing: string[];
   notes: string[];
+  /** Present and true when any item was served from a fallback source because its
+   * primary failed; fallback_indicators names them. The REST layer serves such
+   * snapshots no-store so a fallback-sourced number can't linger in shared caches
+   * after the primary recovers. Absent otherwise. */
+  fallback_used?: boolean;
+  fallback_indicators?: string[];
 }
 
 export async function countrySnapshot(ctx: Ctx, countryInput: string): Promise<Snapshot> {
@@ -81,6 +87,7 @@ export async function countrySnapshot(ctx: Ctx, countryInput: string): Promise<S
   // get_indicator could silently disagree on the same headline number and vintage
   // for the same query (design D1/F5). finishSeries's limit=1 semantics already
   // prefer the latest non-projection ("outturn") observation.
+  const fallbackIndicators: string[] = [];
   try {
     const debtDef = getIndicatorDef("govt_debt_gdp")!;
     const s = await getIndicator(ctx, "govt_debt_gdp", country.iso3, { limit: 1 });
@@ -94,7 +101,10 @@ export async function countrySnapshot(ctx: Ctx, countryInput: string): Promise<S
         unit: debtDef.unit,
         citation: s.citation,
       });
-      if (s.fallback_used) notes.push(`Government debt: ${s.notes[s.notes.length - 1] ?? "served from a fallback source."}`);
+      if (s.fallback_used) {
+        fallbackIndicators.push("govt_debt_gdp");
+        notes.push(`Government debt: ${s.notes[s.notes.length - 1] ?? "served from a fallback source."}`);
+      }
     } else {
       missing.push("govt_debt_gdp");
     }
@@ -114,5 +124,6 @@ export async function countrySnapshot(ctx: Ctx, countryInput: string): Promise<S
     indicators: items,
     missing,
     notes,
+    ...(fallbackIndicators.length ? { fallback_used: true, fallback_indicators: fallbackIndicators } : {}),
   };
 }

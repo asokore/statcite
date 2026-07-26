@@ -9,7 +9,7 @@ StatCite is a free remote MCP server + REST API serving official economic statis
 ## Commands (run in `server/`)
 
 - `npm install` — dev deps only (typescript, tsx, workers-types; wrangler on demand via npx)
-- `npm test` — 132 fixture-backed tests (no network)
+- `npm test` — 161 fixture-backed tests (no network)
 - `npm run smoke` — live end-to-end against real upstream APIs (network)
 - `npm run typecheck` · `npm run dev` (wrangler dev) · `npm run deploy`
 - `npm run fixtures` — re-record upstream fixtures if a source changes shape
@@ -29,7 +29,7 @@ StatCite is a free remote MCP server + REST API serving official economic statis
 
 1. **Every numeric payload includes a citation object** (`core/citations.ts`); its field names are public API.
 2. **Citations carry the source-required attribution** (WB attribution string; FRED disclaimer notice; "Source: International Monetary Fund"). This is licensing compliance, not decoration.
-3. **IMF WEO/Fiscal Monitor forward-year values are labeled** as projections (per-observation `note` + series note); `latest_only` prefers outturns. The DataMapper-path boundary is payload-anchored (data horizon − 5), not derived from the edition label — don't recouple it, that's what let cache skew corrupt it before.
+3. **IMF WEO/Fiscal Monitor forward-year values are labeled** as projections (per-observation `note` + series note); `latest_only` prefers the latest value not marked as a projection — and its note must never call that value an "outturn", since pre-boundary IMF values may be staff estimates (verify results expose this as `observation_status: estimate_or_actual`). The DataMapper-path boundary is payload-anchored (data horizon − 5), not derived from the edition label — don't recouple it, that's what let cache skew corrupt it before.
 4. **Errors are advice**: unknown country → suggestions; missing year → available range. Keep it that way.
 5. **Zero runtime dependencies** in the Worker; CPU budget is 10ms/invocation (free plan). No KV writes on request paths.
 6. Registry keys (`indicators.ts`) are stable once published — add, don't rename.

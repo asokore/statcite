@@ -14,13 +14,46 @@ function readJson(relPath: string): any {
   return JSON.parse(readFileSync(path.join(repoRoot, relPath), "utf8"));
 }
 
-test("openapi.json parses and documents /v1 index + is_projection", () => {
+test("openapi.json parses and documents /v1 index + is_projection + observation_status", () => {
   const spec = readJson("site/openapi.json");
   assert.ok(spec.paths["/v1"], "expected a /v1 index route");
   assert.equal(spec.paths["/v1"].get.operationId, "apiIndex");
   const verifyProps = spec.components.schemas.VerifyResult.properties;
   assert.ok(verifyProps.is_projection, "VerifyResult schema should document is_projection");
   assert.equal(verifyProps.is_projection.type, "boolean");
+  assert.deepEqual(verifyProps.observation_status.enum, ["actual", "estimate_or_actual", "projection", "unknown"]);
+  assert.deepEqual(verifyProps.status_method.enum, ["horizon_heuristic", "as_published"]);
+});
+
+test("openapi.json version stays in sync with SERVER_VERSION (v1.3.1 drift regression)", async () => {
+  const spec = readJson("site/openapi.json");
+  const { SERVER_VERSION } = await import("../src/mcp.ts");
+  assert.equal(spec.info.version, SERVER_VERSION, "site/openapi.json info.version must match server/src/mcp.ts SERVER_VERSION");
+});
+
+test("IMF citation license text carries the downstream-conditions caveat, never a categorical free-reuse claim", async () => {
+  const { IMF_LICENSE } = await import("../src/core/citations.ts");
+  assert.match(IMF_LICENSE, /downstream/i);
+  assert.match(IMF_LICENSE, /may require IMF permission/i);
+  assert.ok(!/free reuse/i.test(IMF_LICENSE), "the categorical 'free reuse' wording must not return");
+});
+
+test("apify core.bundle.mjs is rebuilt from current core (sentinel strings; guard-the-last-hop)", async () => {
+  // The bundle is a committed build artifact serving a second production surface
+  // (the Apify actor). This proved capable of silent drift: a core change once
+  // shipped while the bundle kept the old strings with every repo test green.
+  const bundle = readFileSync(path.join(repoRoot, "apify/core.bundle.mjs"), "utf8");
+  // esbuild escapes non-ASCII (em-dashes become —), so compare an
+  // ASCII-only distinctive slice of the constant rather than the verbatim string.
+  const { IMF_LICENSE } = await import("../src/core/citations.ts");
+  const asciiSlice = IMF_LICENSE.slice(0, IMF_LICENSE.indexOf("—")).trim();
+  assert.ok(asciiSlice.length > 40, "sentinel slice unexpectedly short — update this test");
+  assert.ok(bundle.includes(asciiSlice), "bundle is stale: missing the current IMF license text — run `cd apify && npm run build:core`");
+  assert.ok(
+    bundle.includes("Latest value not marked as a projection"),
+    "bundle is stale: missing the v1.3.1 latest_only note — run `cd apify && npm run build:core`",
+  );
+  assert.ok(!/free reuse and redistribution/.test(bundle), "bundle still carries the retired categorical IMF license wording");
 });
 
 test("apify actor.json is valid JSON with PPE memory bounds", () => {

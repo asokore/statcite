@@ -236,7 +236,9 @@ test("guard: latest_only on a DataMapper series prefers the outturn over a later
   const result = await getIndicator(newCtx(), "gdp_growth", "USA", { limit: 1 });
   assert.equal(result.observations.length, 1);
   assert.equal(result.observations[0].period, "2025", "2025 is the last non-projection year (boundary=2026)");
-  assert.match(result.notes.join(" "), /Latest published outturn shown/);
+  // D11 wording: never "outturn" — a pre-boundary IMF value may itself be a staff estimate.
+  assert.match(result.notes.join(" "), /Latest value not marked as a projection/);
+  assert.ok(!/published outturn/.test(result.notes.join(" ")), "the note must not claim the value is an outturn");
 });
 
 test("guard: the unconditional heuristic caveat fires even when a country's series ends before the boundary year", async () => {
@@ -287,8 +289,209 @@ test("D6: verify_stat demotes to cannot_verify when the DataMapper primary fails
   const r = await verifyStat(newCtx(), { indicator: "govt_debt_gdp", country: "BRB", period: "2023", claimed_value: 115.3 });
   assert.equal(r.verdict, "cannot_verify");
   assert.equal(r.fallback_used, true);
-  assert.match(r.explanation, /current-edition IMF DataMapper path was unavailable/);
+  assert.match(r.explanation, /primary source was transiently unavailable/);
+  assert.match(r.explanation, /vintage revisions/, "the DataMapper->DBnomics case keeps its vintage-specific wording");
   assert.match(r.explanation, /indicative only, not a verification/);
+});
+
+// ——— 6b. Generalized fallback demotion: cross-PROVIDER substitution (WB primary
+// fails, IMF DataMapper serves) must also demote — WB and IMF define e.g. the
+// current account differently (1.8pp apart for the same country-year in this
+// repo's own benchmark logs), so a verdict against the substitute is untrustworthy.
+
+test("generalized demotion: WB-primary indicator served from IMF DataMapper fallback returns cannot_verify, not a verdict", async () => {
+  installRoutes(
+    { test: (u) => u.includes("api.worldbank.org"), res: () => jsonRes("down", 503) },
+    { test: (u) => isDataMapperMetadataUrl(u), res: () => jsonRes(APRIL_2026_META) },
+    {
+      test: (u) => isDataMapperValuesUrl(u, "BCA_NGDPD"),
+      res: () => jsonRes(dmValuesBody("BCA_NGDPD", { USA: { "2022": -3.8, "2023": -3.3, "2024": -4.0 } })),
+    },
+  );
+  const r = await verifyStat(newCtx(), { indicator: "current_account_gdp", country: "USA", period: "2023", claimed_value: -3.3 });
+  assert.equal(r.verdict, "cannot_verify", "an exact match against the substitute source must still not verify");
+  assert.equal(r.fallback_used, true);
+  assert.equal(r.official_value, -3.3, "the substitute's value is still reported as indicative");
+  assert.match(r.explanation, /primary source was transiently unavailable/);
+  assert.match(r.explanation, /indicative only, not a verification/);
+  assert.match(r.explanation, /different statistical definitions/);
+});
+
+test("definitive-absence fallback is judged normally with disclosure, not demoted: primary permanently lacks the country", async () => {
+  installRoutes(
+    {
+      // World Bank's own "no rows" shape: a definitive ToolError, not a transient blip.
+      test: (u) => u.includes("api.worldbank.org"),
+      res: () => jsonRes(JSON.stringify([{ page: 1, pages: 0, total: 0 }, []])),
+    },
+    { test: (u) => isDataMapperMetadataUrl(u), res: () => jsonRes(APRIL_2026_META) },
+    {
+      test: (u) => isDataMapperValuesUrl(u, "BCA_NGDPD"),
+      res: () => jsonRes(dmValuesBody("BCA_NGDPD", { TWN: { "2022": 13.3, "2023": 13.8, "2024": 14.0 } })),
+    },
+  );
+  const r = await verifyStat(newCtx(), { indicator: "current_account_gdp", country: "TWN", period: "2023", claimed_value: 13.8 });
+  assert.equal(r.verdict, "match", "the stable de-facto source for a country the primary lacks gets a real verdict");
+  assert.equal(r.fallback_used, true, "disclosure stays");
+  assert.ok(r.notes.some((n) => /does not have this indicator/.test(n)), "the definitive-absence note stays");
+});
+
+// ——— 6c. observation_status / status_method ———
+
+test("observation_status: IMF pre-boundary is estimate_or_actual, post-boundary is projection, both horizon_heuristic", async () => {
+  installRoutes(
+    { test: (u) => isDataMapperMetadataUrl(u), res: () => jsonRes(APRIL_2026_META) },
+    {
+      test: (u) => isDataMapperValuesUrl(u, "GGXWDG_NGDP"),
+      res: () =>
+        jsonRes(
+          dmValuesBody("GGXWDG_NGDP", {
+            USA: { "2024": 122.3, "2025": 123.9, "2026": 125.8, "2027": 128.6, "2028": 132.1, "2029": 135.5, "2030": 138.9, "2031": 142.1 },
+          }),
+        ),
+    },
+  );
+  const pre = await verifyStat(newCtx(), { indicator: "govt_debt_gdp", country: "USA", period: "2025", claimed_value: 123.9 });
+  assert.equal(pre.observation_status, "estimate_or_actual", "pre-boundary IMF values must never be presented as confirmed actuals");
+  assert.equal(pre.status_method, "horizon_heuristic");
+  assert.equal(pre.is_projection, false);
+  const post = await verifyStat(newCtx(), { indicator: "govt_debt_gdp", country: "USA", period: "2027", claimed_value: 128.6 });
+  assert.equal(post.observation_status, "projection");
+  assert.equal(post.is_projection, true);
+});
+
+test("observation_status: an arbitrary explicit DBnomics id is 'unknown', never a false 'actual' — the series could be a forecast dataset", async () => {
+  installRoutes({
+    test: (u) => u.includes("api.db.nomics.world") && u.includes("OECD"),
+    res: () =>
+      jsonRes(
+        JSON.stringify({
+          provider: { name: "OECD" },
+          dataset: { code: "EO", name: "Economic Outlook" },
+          series: {
+            docs: [
+              {
+                "@frequency": "annual",
+                dataset_code: "EO",
+                dataset_name: "Economic Outlook",
+                provider_code: "OECD",
+                series_code: "USA.GDPV_ANNPCT",
+                series_name: "USA real GDP growth forecast",
+                period: ["2027"],
+                value: [1.2],
+              },
+            ],
+          },
+        }),
+      ),
+  });
+  const r = await verifyStat(newCtx(), { indicator: "dbnomics/OECD/EO/USA.GDPV_ANNPCT", period: "2027", claimed_value: 1.2 });
+  assert.equal(r.verdict, "match");
+  assert.equal(r.observation_status, "unknown", "unclassified explicit ids must not claim 'actual' — this one is a forecast");
+});
+
+test("observation_status: non-IMF (World Bank) matches are actual / as_published; unmatched periods are unknown", async () => {
+  installRoutes(
+    {
+      test: (u) => u.includes("api.worldbank.org"),
+      res: () =>
+        jsonRes(
+          JSON.stringify([
+            { page: 1, pages: 1, total: 1, lastupdated: "2026-07-13" },
+            [
+              {
+                indicator: { id: "FP.CPI.TOTL.ZG", value: "Inflation, consumer prices (annual %)" },
+                country: { id: "US", value: "United States" },
+                countryiso3code: "USA",
+                date: "2024",
+                value: 2.949,
+              },
+            ],
+          ]),
+        ),
+    },
+  );
+  const r = await verifyStat(newCtx(), { indicator: "inflation_cpi", country: "USA", period: "2024", claimed_value: 2.9 });
+  assert.equal(r.observation_status, "actual");
+  assert.equal(r.status_method, "as_published");
+  const miss = await verifyStat(newCtx(), { indicator: "inflation_cpi", country: "USA", period: "1901", claimed_value: 5 });
+  assert.equal(miss.verdict, "cannot_verify");
+  assert.equal(miss.observation_status, "unknown");
+});
+
+// ——— 6d. Snapshot fallback propagation + REST no-store ———
+
+const WB_USA_MULTI = () => {
+  const row = (id: string, name: string, date: string, value: number) => ({
+    indicator: { id, value: name },
+    country: { id: "US", value: "United States" },
+    countryiso3code: "USA",
+    date,
+    value,
+  });
+  return JSON.stringify([
+    { page: 1, pages: 1, total: 2, lastupdated: "2026-07-13" },
+    [row("NY.GDP.MKTP.KD.ZG", "GDP growth (annual %)", "2025", 2.16), row("SP.POP.TOTL", "Population, total", "2025", 342000000)],
+  ]);
+};
+
+test("country_snapshot: a fallback-served debt item sets fallback_used + fallback_indicators; healthy path sets neither", async () => {
+  const { countrySnapshot } = await import("../src/core/snapshot.ts");
+  // Fallback case: DataMapper down, DBnomics serves debt.
+  installRoutes(
+    { test: (u) => u.includes("api.worldbank.org") && u.includes(";"), res: () => jsonRes(WB_USA_MULTI()) },
+    { test: (u) => u.includes("api.worldbank.org") && u.includes("%3B"), res: () => jsonRes(WB_USA_MULTI()) },
+    { test: (u) => isDataMapperMetadataUrl(u), res: () => jsonRes("down", 503) },
+    { test: (u) => isDataMapperValuesUrl(u, "GGXWDG_NGDP"), res: () => jsonRes("down", 503) },
+    { test: (u) => u.includes("api.db.nomics.world") && u.includes("USA.GGXWDG_NGDP"), res: () => jsonRes(DBNOMICS_BRB_DEBT.replace(/BRB/g, "USA").replace("Barbados", "United States")) },
+  );
+  const snap = await countrySnapshot(newCtx(), "USA");
+  assert.equal(snap.fallback_used, true);
+  assert.deepEqual(snap.fallback_indicators, ["govt_debt_gdp"]);
+
+  // Healthy case: DataMapper serves debt directly — no flag at all.
+  installRoutes(
+    { test: (u) => u.includes("api.worldbank.org") && (u.includes(";") || u.includes("%3B")), res: () => jsonRes(WB_USA_MULTI()) },
+    { test: (u) => isDataMapperMetadataUrl(u), res: () => jsonRes(APRIL_2026_META) },
+    {
+      test: (u) => isDataMapperValuesUrl(u, "GGXWDG_NGDP"),
+      res: () => jsonRes(dmValuesBody("GGXWDG_NGDP", { USA: { "2024": 122.3, "2025": 123.9, "2026": 125.8, "2031": 142.1 } })),
+    },
+  );
+  const healthy = await countrySnapshot(newCtx(), "USA");
+  assert.equal(healthy.fallback_used, undefined, "healthy snapshots must not carry the flag");
+  assert.equal(healthy.fallback_indicators, undefined);
+});
+
+test("REST /v1/snapshot: no-store when any item was fallback-sourced, public cache otherwise", async () => {
+  const { handleRequest } = await import("../src/index.ts");
+  const env = {
+    ASSETS: { fetch: async () => new Response("<!doctype html>", { headers: { "content-type": "text/html" } }) },
+    BASE_URL: "https://statcite.test",
+  };
+  // Fallback case.
+  installRoutes(
+    { test: (u) => u.includes("api.worldbank.org") && (u.includes(";") || u.includes("%3B")), res: () => jsonRes(WB_USA_MULTI()) },
+    { test: (u) => isDataMapperMetadataUrl(u), res: () => jsonRes("down", 503) },
+    { test: (u) => isDataMapperValuesUrl(u, "GGXWDG_NGDP"), res: () => jsonRes("down", 503) },
+    { test: (u) => u.includes("api.db.nomics.world") && u.includes("USA.GGXWDG_NGDP"), res: () => jsonRes(DBNOMICS_BRB_DEBT.replace(/BRB/g, "USA").replace("Barbados", "United States")) },
+  );
+  const res = await handleRequest(new Request("https://statcite.test/v1/snapshot/USA"), env as never);
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("cache-control") ?? "", /no-store/, "fallback-sourced snapshots must not be publicly cached");
+
+  // Healthy case.
+  installRoutes(
+    { test: (u) => u.includes("api.worldbank.org") && (u.includes(";") || u.includes("%3B")), res: () => jsonRes(WB_USA_MULTI()) },
+    { test: (u) => isDataMapperMetadataUrl(u), res: () => jsonRes(APRIL_2026_META) },
+    {
+      test: (u) => isDataMapperValuesUrl(u, "GGXWDG_NGDP"),
+      res: () => jsonRes(dmValuesBody("GGXWDG_NGDP", { USA: { "2024": 122.3, "2025": 123.9, "2026": 125.8, "2031": 142.1 } })),
+    },
+  );
+  const ok = await handleRequest(new Request("https://statcite.test/v1/snapshot/USA"), env as never);
+  assert.equal(ok.status, 200);
+  assert.match(ok.headers.get("cache-control") ?? "", /max-age/, "healthy snapshots stay cacheable");
 });
 
 // ——— 7. imf/{CODE} explicit series id round-trips through get_series ———
