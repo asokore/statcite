@@ -1,6 +1,12 @@
-// FRED adapter (optional — requires FRED_API_KEY secret).
-// Per FRED terms the key identifies THIS deployment's operator; the required
-// disclaimer notice is attached to every FRED citation in citations.ts.
+// FRED adapter — permanently disabled (2026-07-26).
+// FRED's Terms of Use (updated June 2024) prohibit both (1) using FRED content
+// in connection with development or training of AI/ML/LLM/generative-AI systems,
+// and (2) storing/caching FRED content or serving cached/archived content to
+// third parties. StatCite is an AI-agent-facing MCP/REST service that edge-caches
+// every response, so there is no compliant way to serve FRED through it — not
+// even operator-key-gated. Do not re-enable by wiring ctx.fredApiKey back in
+// here without re-reading the current ToU; the disable is a policy decision,
+// not a missing-credential state.
 
 import { fetchJson } from "../core/upstream.ts";
 import { ToolError } from "../core/types.ts";
@@ -17,18 +23,15 @@ export interface FredSeries {
   apiUrl: string;
 }
 
-export function fredAvailable(ctx: Ctx): boolean {
-  return Boolean(ctx.fredApiKey);
+export function fredAvailable(_ctx: Ctx): boolean {
+  return false;
 }
 
-function requireKey(ctx: Ctx): string {
-  if (!ctx.fredApiKey) {
-    throw new ToolError(
-      "FRED series require this server to be configured with a FRED_API_KEY (free from https://fredaccount.stlouisfed.org/apikeys). " +
-        "Cross-country equivalents are available without FRED: try the `worldbank/...` series or a registry indicator key instead.",
-    );
-  }
-  return ctx.fredApiKey;
+function requireKey(_ctx: Ctx): string {
+  throw new ToolError(
+    "FRED series are disabled on this server: FRED's terms of use prohibit AI/ML use and caching/redistribution of its content, which conflicts with how StatCite serves data. " +
+      "Cross-country equivalents are available without FRED: try the `worldbank/...` series or a registry indicator key instead.",
+  );
 }
 
 export async function fetchFredSeries(

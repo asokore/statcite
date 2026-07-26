@@ -990,16 +990,13 @@ async function searchDbnomicsDatasets(query, limit = 5) {
 
 // ../server/src/adapters/fred.ts
 var BASE3 = "https://api.stlouisfed.org/fred";
-function fredAvailable(ctx) {
-  return Boolean(ctx.fredApiKey);
+function fredAvailable(_ctx) {
+  return false;
 }
-function requireKey(ctx) {
-  if (!ctx.fredApiKey) {
-    throw new ToolError(
-      "FRED series require this server to be configured with a FRED_API_KEY (free from https://fredaccount.stlouisfed.org/apikeys). Cross-country equivalents are available without FRED: try the `worldbank/...` series or a registry indicator key instead."
-    );
-  }
-  return ctx.fredApiKey;
+function requireKey(_ctx) {
+  throw new ToolError(
+    "FRED series are disabled on this server: FRED's terms of use prohibit AI/ML use and caching/redistribution of its content, which conflicts with how StatCite serves data. Cross-country equivalents are available without FRED: try the `worldbank/...` series or a registry indicator key instead."
+  );
 }
 async function fetchFredSeries(ctx, seriesId, opts = {}) {
   const key = requireKey(ctx);
@@ -2437,11 +2434,11 @@ var SOURCES = [
   },
   {
     id: "fred",
-    name: "Federal Reserve Bank of St. Louis \u2014 FRED (optional)",
-    coverage: "US and international series incl. monthly CPI, unemployment, rates (active only when the server operator configures a free FRED API key)",
-    access: "Requires the operator's FRED API key",
-    license: "FRED API Terms of Use \u2014 disabled by default on this server; an operator enabling it must review the current FRED terms first (they include restrictions relevant to caching, redistribution, and AI/software use) and note that some series are owned by third parties",
-    attribution_required: "This product uses the FRED\xAE API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.",
+    name: "Federal Reserve Bank of St. Louis \u2014 FRED (permanently disabled)",
+    coverage: "Not served. FRED's terms of use (updated June 2024) prohibit AI/ML use and caching/redistribution of its content, which conflicts with how this service serves data \u2014 there is no compliant way to offer it here.",
+    access: "Disabled \u2014 the six US-only registry keys and the fred/ series id are recognized but always decline",
+    license: "FRED API Terms of Use \u2014 see https://fred.stlouisfed.org/docs/api/terms_of_use.html",
+    attribution_required: "Not applicable \u2014 no FRED content is served.",
     url: "https://fred.stlouisfed.org",
     terms_url: "https://fred.stlouisfed.org/docs/api/terms_of_use.html"
   },

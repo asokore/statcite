@@ -222,7 +222,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
       <div class="card"><h3>country_snapshot</h3><p>Headline economic picture of any country in one call: 11 indicators, each with its own citation. Built for country briefs.</p></div>
       <div class="card"><h3>inflation_adjust</h3><p>“What is $100 (1995) worth in 2025 money?” CPI-ratio method with the exact index values and formula disclosed. Any country with CPI data.</p></div>
       <div class="card"><h3>fx_convert</h3><p>ECB daily reference rates for ~30 majors since 1999, plus official annual-average rates for ~90 more currencies (BBD, XCD, JMD, KES…). Method always stated.</p></div>
-      <div class="card"><h3>get_series</h3><p>Raw access by explicit id: <code>worldbank/…</code>, <code>fred/…</code> (US monthly), <code>dbnomics/IMF/WEO:latest/…</code>. Transforms: YoY, % change, index rebase.</p></div>
+      <div class="card"><h3>get_series</h3><p>Raw access by explicit id: <code>worldbank/…</code>, <code>imf/…</code>, <code>dbnomics/IMF/WEO:latest/…</code>. Transforms: YoY, % change, index rebase.</p></div>
       <div class="card"><h3>search_indicators</h3><p>Free-text search over the curated registry plus DBnomics dataset discovery (IMF, OECD, Eurostat, BIS…).</p></div>
       <div class="card"><h3>list_sources</h3><p>Exactly which official sources power each answer, their licenses, and the attribution lines you're required to use.</p></div>
       <div class="card"><h3>search + fetch</h3><p>The deep-research compatibility pair, so StatCite plugs into ChatGPT connectors and similar research pipelines out of the box.</p></div>
@@ -237,7 +237,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
       <tr><td>World Bank — World Development Indicators</td><td>~1,400 annual indicators, 200+ economies, from 1960</td><td>CC BY 4.0</td></tr>
       <tr><td>IMF — World Economic Outlook &amp; Fiscal Monitor (via the DataMapper API; DBnomics as fallback)</td><td>Growth, fiscal &amp; external indicators, 190+ economies, incl. projections. Primary path serves the IMF's current edition directly; if unavailable, falls back to the newest DBnomics has ingested (responses flag stale vintages and vintage-crossing fallbacks)</td><td>Per IMF terms: attribution + downstream conditions; commercial reuse may require IMF permission</td></tr>
       <tr><td>European Central Bank (via Frankfurter)</td><td>Daily euro reference FX rates, ~30 currencies, since 1999</td><td>Attribution; informational rates</td></tr>
-      <tr><td>FRED — St. Louis Fed (optional)</td><td>US monthly/quarterly series (CPI, unemployment, fed funds, payrolls…)</td><td>FRED API terms</td></tr>
+      <tr><td>FRED — St. Louis Fed</td><td>Not served. Six US-only registry keys are reserved for it but always decline — FRED's terms of use prohibit AI/ML use and caching/redistribution of its content</td><td>—</td></tr>
       <tr><td>DBnomics (aggregator)</td><td>90+ official providers (OECD, Eurostat, BIS, national offices)</td><td>Per provider</td></tr>
     </table>
   </section>
@@ -306,7 +306,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
         <a href="mailto:hello@statcite.com">hello@statcite.com</a>
       </div>
     </div>
-    <p style="margin-top:26px">© 2026 StatCite. Data © respective sources (World Bank CC BY 4.0, IMF, ECB, FRED). Not affiliated with or endorsed by any data provider.</p>
+    <p style="margin-top:26px">© 2026 StatCite. Data © respective sources (World Bank CC BY 4.0, IMF, ECB). Not affiliated with or endorsed by any data provider.</p>
   </footer>
 </div>
 <script>

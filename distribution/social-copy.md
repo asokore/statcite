@@ -14,7 +14,7 @@ I'm an economist. Since AI started drafting half the reports I review, I keep fi
 
 So I built StatCite: a free remote MCP server + REST API where every number ships with a license-grade citation — source, dataset, series ID, canonical URL, license, retrieval date — and, as far as I've found, the only `verify_stat` tool that checks a claimed figure against the official series and returns match / close / mismatch with diagnostics (wrong-year, percent-vs-decimal, millions-vs-billions).
 
-Data: World Bank WDI, IMF WEO/Fiscal Monitor (current vintage, via the IMF's own DataMapper API), ECB reference rates, optional FRED. 42 curated indicators, 200+ economies, inflation adjustment, historical FX (including ~90 currencies the ECB set doesn't cover — pegged Caribbean currencies convert exactly).
+Data: World Bank WDI, IMF WEO/Fiscal Monitor (current vintage, via the IMF's own DataMapper API), ECB reference rates. 42 curated indicators, 200+ economies, inflation adjustment, historical FX (including ~90 currencies the ECB set doesn't cover — pegged Caribbean currencies convert exactly).
 
 Try it without installing anything:
 https://statcite.com/v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=4.1

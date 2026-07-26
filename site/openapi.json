@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StatCite API",
-    "version": "1.3.1",
+    "version": "1.3.2",
     "description": "Official economic statistics with full citations, built for AI agents. Every numeric response includes a citation object (source, dataset, series_id, source_url, license, attribution, retrieved_at, citation_text). Free, no auth, read-only. MCP endpoint at https://statcite.com/mcp.",
     "contact": {
       "email": "hello@statcite.com",
@@ -145,7 +145,7 @@
     "/v1/series": {
       "get": {
         "operationId": "getSeries",
-        "summary": "Raw series by explicit id (worldbank/…, fred/…, dbnomics/…)",
+        "summary": "Raw series by explicit id (worldbank/…, imf/…, dbnomics/…; fred/… is recognized but always declines — FRED is disabled)",
         "parameters": [
           {
             "name": "id",
@@ -394,7 +394,7 @@
                       "properties": {
                         "indicator": {
                           "type": "string",
-                          "description": "Registry key (inflation_cpi, gdp_growth, …) or explicit series id (worldbank/FP.CPI.TOTL.ZG, fred/UNRATE, dbnomics/…)"
+                          "description": "Registry key (inflation_cpi, gdp_growth, …) or explicit series id (worldbank/FP.CPI.TOTL.ZG, imf/NGDP_RPCH, dbnomics/…). fred/… ids are recognized but always decline — FRED is disabled."
                         },
                         "country": {
                           "type": "string",

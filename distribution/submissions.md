@@ -89,7 +89,7 @@ apify push
 ```
 Then in Apify Console:
 - Actor → Publication → publish to Store with the copy from apify/README.md
-- Monetization → Pay per event → create event `statcite-query` (suggested: $1–2 per 1,000 queries; see docs/MONETIZATION.md)
+- Monetization → Pay per event → create two events: `statcite-lookup` (suggested: $1–2 per 1,000 queries) and `statcite-verify` (suggested: $0.01–0.02 per query — the differentiated wedge, priced higher); see docs/MONETIZATION.md
 - The actor automatically becomes callable by AI agents through mcp.apify.com.
 
 ## 10. Claude Code / Cowork plugin (later)

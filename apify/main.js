@@ -1,5 +1,9 @@
 // StatCite Apify actor — the metered twin of statcite.com.
-// Pay-per-event: one 'statcite-query' event is charged per successful item.
+// Pay-per-event, differentiated by operation: 'statcite-verify' for verify_stat
+// (the harder, higher-value query — checks a claim against the official series
+// with diagnostics) and 'statcite-lookup' for everything else. Console pricing
+// for each event is set separately (Apify has no in-repo pricing config file;
+// see apify/README.md "Pricing").
 import { Actor, log } from "apify";
 import {
   getIndicator, getSeries, verifyStat, inflationAdjust, fxConvert,
@@ -72,9 +76,11 @@ for (const [i, item] of items.entries()) {
   try {
     const result = await runOne(op, item);
     // Charge one pay-per-event unit per successful query (no charge on failures).
+    // 'verify' is priced separately from lookups — see apify/README.md "Pricing".
     // Respect the run's charge budget: stop serving once the limit is reached.
     try {
-      const charge = await Actor.charge({ eventName: "statcite-query", count: 1 });
+      const eventName = op === "verify" ? "statcite-verify" : "statcite-lookup";
+      const charge = await Actor.charge({ eventName, count: 1 });
       if (charge?.eventChargeLimitReached) {
         budgetReached = true;
       }

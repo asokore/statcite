@@ -18,7 +18,7 @@ AI agents and analysts constantly need macro numbers they can defend: GDP growth
 
 ## Sources
 
-World Bank World Development Indicators (CC BY 4.0) · IMF World Economic Outlook & Fiscal Monitor via the IMF's own DataMapper API (current vintage, DBnomics as fallback) · ECB euro reference rates · optional FRED. Data is fetched live from official APIs — this actor adds no numbers of its own, and labels IMF projections as projections.
+World Bank World Development Indicators (CC BY 4.0) · IMF World Economic Outlook & Fiscal Monitor via the IMF's own DataMapper API (current vintage, DBnomics as fallback) · ECB euro reference rates. Data is fetched live from official APIs — this actor adds no numbers of its own, and labels IMF projections as projections.
 
 ## Example: verify a stat before publishing
 
@@ -65,7 +65,14 @@ Pass `items` (array of parameter objects, each may set its own `operation`) to r
 
 ## Pricing
 
-Pay per successful query event — failures are never charged. A generous free web tier of the same engine exists at [statcite.com](https://statcite.com) (MCP + REST); this actor is for pipelines that want Apify-managed runs, storage, scheduling, and invoicing.
+Pay per successful query event — failures are never charged. Two event tiers:
+
+| Event | Operations | Why |
+|---|---|---|
+| `statcite-lookup` | `indicator`, `series`, `snapshot`, `inflation`, `fx`, `search`, `registry` | A cited value lookup — cheap, high-volume |
+| `statcite-verify` | `verify` | Checks a claimed figure against the official series with diagnostics — the differentiated capability, priced higher |
+
+A generous free web tier of the same engine exists at [statcite.com](https://statcite.com) (MCP + REST); this actor is for pipelines that want Apify-managed runs, storage, scheduling, and invoicing.
 
 ## Use from AI agents (MCP)
 

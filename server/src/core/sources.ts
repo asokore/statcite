@@ -36,13 +36,11 @@ export const SOURCES = [
   },
   {
     id: "fred",
-    name: "Federal Reserve Bank of St. Louis — FRED (optional)",
-    coverage: "US and international series incl. monthly CPI, unemployment, rates (active only when the server operator configures a free FRED API key)",
-    access: "Requires the operator's FRED API key",
-    license:
-      "FRED API Terms of Use — disabled by default on this server; an operator enabling it must review the current FRED terms first (they include restrictions relevant to caching, redistribution, and AI/software use) and note that some series are owned by third parties",
-    attribution_required:
-      "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.",
+    name: "Federal Reserve Bank of St. Louis — FRED (permanently disabled)",
+    coverage: "Not served. FRED's terms of use (updated June 2024) prohibit AI/ML use and caching/redistribution of its content, which conflicts with how this service serves data — there is no compliant way to offer it here.",
+    access: "Disabled — the six US-only registry keys and the fred/ series id are recognized but always decline",
+    license: "FRED API Terms of Use — see https://fred.stlouisfed.org/docs/api/terms_of_use.html",
+    attribution_required: "Not applicable — no FRED content is served.",
     url: "https://fred.stlouisfed.org",
     terms_url: "https://fred.stlouisfed.org/docs/api/terms_of_use.html",
   },

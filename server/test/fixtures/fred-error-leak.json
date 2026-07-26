@@ -1,4 +1,0 @@
-{
-  "error_code": 500,
-  "error_message": "Internal Application Error. The error has been logged for engineering follow-up. Request: https://api.stlouisfed.org/fred/series/observations?series_id=UNRATE&api_key=sk-test-LEAKCANARY&file_type=json"
-}

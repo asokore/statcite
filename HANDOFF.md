@@ -18,10 +18,9 @@
 - Directory PRs open: [awesome-mcp-servers#10881](https://github.com/punkpeye/awesome-mcp-servers/pull/10881) · [awesome-remote-mcp-servers#527](https://github.com/jaw9c/awesome-remote-mcp-servers/pull/527)
 
 **Blocked on the owner (nothing else is):**
-1. **Apify** — needs a token from https://console.apify.com/settings/integrations, then `cd apify && npx apify login -t <token> && npx apify push`, then set the pay-per-event `statcite-query` event in Console. CLI is already installed and the actor passes locally.
+1. **Apify** — needs a token from https://console.apify.com/settings/integrations, then `cd apify && npx apify login -t <token> && npx apify push`. The actor now charges two separate pay-per-event names — `statcite-lookup` (all read tools) and `statcite-verify` (the verify_stat wedge) — both need a price set in Console under Actor → Publication → Monetization (there's no in-repo pricing config; Apify's own docs confirm this is console-only). Suggested prices (see `docs/MONETIZATION.md`): `statcite-lookup` ~$1.50/1,000 (≈$0.0015/query, the existing baseline vs Ref's $9/1k searches) and `statcite-verify` ~$0.01–0.02/query (~7–13× the lookup price — verify_stat is the differentiated wedge nobody else offers). Revisit both after ~30 days of real usage. CLI is already installed and the actor passes locally.
 2. **Claude Connectors Directory** — requires a paid Team/Enterprise Claude.ai org (see §3).
-3. **FRED key** (optional) — account creation at https://fredaccount.stlouisfed.org/apikeys, then `npx wrangler secret put FRED_API_KEY`.
-4. **Analytics Engine** (optional) — the dataset exists but deploys are rejected with API error 10089 on this account (gated behind Workers Paid). The console-log sink covers the need at zero cost; re-enable the binding in `wrangler.jsonc` only if the account ever moves to Workers Paid.
+3. **Analytics Engine** (optional) — the dataset exists but deploys are rejected with API error 10089 on this account (gated behind Workers Paid). The console-log sink covers the need at zero cost; re-enable the binding in `wrangler.jsonc` only if the account ever moves to Workers Paid.
 
 ---
 
@@ -79,9 +78,10 @@ This deploys the Worker **and** the static site (assets binding) to `statcite.<y
 
 **Wire the custom domain:** uncomment the `routes` block in `server/wrangler.jsonc` (statcite.com + www), then `npx wrangler deploy` again. (Alternative: dashboard → Workers → statcite → Settings → Domains & Routes → Add custom domain.) DNS is automatic when the domain is on the same Cloudflare account.
 
-**Optional but recommended (2 min each):**
-- FRED key (unlocks US monthly series): create at https://fredaccount.stlouisfed.org/apikeys → `npx wrangler secret put FRED_API_KEY`
+**Optional but recommended:**
 - Email: Cloudflare dashboard → Email → Email Routing → route `hello@statcite.com` → your Gmail.
+
+**Not offered by design:** a FRED key. FRED's June 2024 terms of use prohibit AI/ML use and caching/redistribution of its content, which is exactly what this service does — the adapter declines permanently regardless of `FRED_API_KEY`. Don't wire the key back in without re-reading the current ToU.
 
 ## 5. Production smoke test (~3 min)
 
@@ -109,7 +109,7 @@ npm install
 node scripts/local-test.mjs   # expect: ACTOR CORE: PASS
 apify push
 ```
-Console: publish to Store (copy in `apify/README.md`), Monetization → Pay per event → event **`statcite-query`** (suggested $1.50/1,000 — see `docs/MONETIZATION.md`), set payout details.
+Console: publish to Store (copy in `apify/README.md`), Monetization → Pay per event → two events, **`statcite-lookup`** (suggested $1.50/1,000) and **`statcite-verify`** (suggested $0.01–0.02/query) — see `docs/MONETIZATION.md`, set payout details.
 Note: `apify/core.bundle.mjs` is committed and current; regenerate with `npm run build:core` whenever `server/src/core/*` changes.
 
 ## 8. The Claude skill (optional, 2 min)
