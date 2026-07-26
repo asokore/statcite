@@ -401,8 +401,19 @@ export function isTransientUpstreamError(status, body) {
 
 /** scIndicator with transient-failure retries: on a transient upstream error the
  * call is repeated with refresh:true (cache bypassed, success still cached).
- * Genuine "no data" 422s return immediately. */
-export async function scIndicatorRobust(key, country, range = {}, { attempts = 3, baseDelayMs = 2000 } = {}) {
+ * Genuine "no data" 422s return immediately.
+ *
+ * forceRefresh: bypass the bench's own local disk cache (bench/state/http-cache/,
+ * up to maxAgeMs old — default 7 days, see politeFetchJson) on the FIRST attempt
+ * too, not just on transient-failure retries. Without this, any run that queries
+ * a URL a prior run already cached — e.g. Full Run 1 reusing P0's exact question
+ * bank — silently replays week-old bytes as if they were current. Callers that
+ * snapshot/freeze ground truth MUST pass forceRefresh: true; callers resuming an
+ * interrupted long enumeration (enumerate_frame.mjs) should NOT, since reusing
+ * already-successful cells is the point there. (Found live, 2026-07-26: a Full
+ * Run 1 ground-truth refresh reused P0's question bank and served P0's own
+ * day-old cached responses back verbatim until this was added.) */
+export async function scIndicatorRobust(key, country, range = {}, { attempts = 3, baseDelayMs = 2000, forceRefresh = false } = {}) {
   const attempt = async (opts) => {
     try {
       return await scIndicator(key, country, range, opts);
@@ -410,7 +421,7 @@ export async function scIndicatorRobust(key, country, range = {}, { attempts = 3
       return { status: 0, body: { error: { message: String(e.message) } }, cached: false };
     }
   };
-  let r = await attempt({});
+  let r = await attempt(forceRefresh ? { refresh: true } : {});
   for (let i = 0; i < attempts && r.status !== 200 && isTransientUpstreamError(r.status, r.body); i++) {
     await new Promise((res) => setTimeout(res, baseDelayMs * (i + 1)));
     r = await attempt({ refresh: true });

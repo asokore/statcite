@@ -6,6 +6,15 @@ roster, question bank, ground truth) must be frozen *before* any model call, the
 same way P0's was. This document exists to make the decisions explicit before
 that freeze happens, not to replace it.
 
+## Budget constraint (owner, 2026-07-26)
+
+$10 loaded on the OpenAI account, not being topped up unless revenue justifies it.
+Keep any real (non-dry-run) OpenAI usage well inside that — the connectivity test
+run cost 161 tokens (a small fraction of a cent), so $10 covers a lot of batches,
+but a full 6-model x 13-batch run across all indicators should still be estimated
+before running, not assumed. Gemini's own free tier may cover that vendor's cost
+entirely; check before assuming a matching budget is needed there.
+
 ## The blocking catch — read this first
 
 **COVENANT §6: "The first citable cross-model result requires at least two
