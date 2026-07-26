@@ -78,7 +78,10 @@ async function main() {
     const end = q.year + 1;
     let body = null;
     let fetch_error = null;
-    const r = await scIndicatorRobust(q.indicator, q.iso3, { start, end }, { attempts: 4 });
+    // forceRefresh: this tool's one job is capturing CURRENT ground truth — it must
+    // never accept the bench's own locally-cached bytes from a prior run reusing
+    // the same URL (see lib.mjs scIndicatorRobust doc for the incident this fixes).
+    const r = await scIndicatorRobust(q.indicator, q.iso3, { start, end }, { attempts: 4, forceRefresh: true });
     if (r.status === 200) body = r.body;
     else fetch_error = `http_${r.status}: ${JSON.stringify(r.body?.error?.message ?? "").slice(0, 200)}`;
     const o = body ? obsFor(body, q.year) : undefined;
@@ -113,6 +116,18 @@ async function main() {
     if (q.segment === "headline") {
       if (row.value == null) row.integrity_violation = "headline_value_null_at_snapshot";
       else if (row.is_projection) row.integrity_violation = "headline_projection_at_snapshot";
+    }
+    // Freshness sentinel (all segments): forceRefresh above bypasses the bench's
+    // OWN cache, but this asserts on the field that actually matters — the
+    // server's own citation.retrieved_at — so a stale response is caught even if
+    // it slips through for a reason forceRefresh doesn't cover (e.g. a genuine
+    // server-side caching issue, not just the bench replaying its local disk
+    // cache, which is the incident that motivated this check, 2026-07-26).
+    if (!row.integrity_violation && body?.citation?.retrieved_at) {
+      const today = new Date().toISOString().slice(0, 10);
+      if (body.citation.retrieved_at !== today) {
+        row.integrity_violation = `stale_cached_response (citation.retrieved_at=${body.citation.retrieved_at}, expected ${today})`;
+      }
     }
     return row;
   });
