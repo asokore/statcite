@@ -74,6 +74,12 @@ export function imfDataMapperCitation(
 ): Citation {
   const date = today(ctx);
   const datasetName = opts.dataset === "FM" ? "IMF Fiscal Monitor" : "IMF World Economic Outlook";
+  // The verbatim IMF edition label already names the dataset ("World Economic
+  // Outlook (April 2026)", "Fiscal Monitor (April 2026)") — only append the
+  // parenthetical in degraded mode, where the label is a synthesized
+  // "20XX vintage (edition metadata unavailable...)" string that doesn't.
+  const alreadyNamed = /world economic outlook|fiscal monitor/i.test(opts.editionLabel);
+  const datasetSuffix = alreadyNamed ? "" : ` (${datasetName})`;
   return {
     source: "International Monetary Fund",
     dataset: opts.editionLabel,
@@ -84,7 +90,7 @@ export function imfDataMapperCitation(
     license: "IMF terms: free reuse and redistribution with attribution (Source: International Monetary Fund)",
     attribution: "Source: International Monetary Fund",
     retrieved_at: date,
-    citation_text: `International Monetary Fund, ${opts.editionLabel} (${datasetName}), ${opts.seriesName}, series ${opts.code}. Retrieved ${date} via the IMF DataMapper API/StatCite. ${opts.sourceUrl}`,
+    citation_text: `International Monetary Fund, ${opts.editionLabel}${datasetSuffix}, ${opts.seriesName}, series ${opts.code}. Retrieved ${date} via the IMF DataMapper API/StatCite. ${opts.sourceUrl}`,
     ...(opts.lastModified ? { notices: [`IMF data load timestamp: ${opts.lastModified} UTC.`] } : {}),
   };
 }
