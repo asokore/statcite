@@ -1586,6 +1586,44 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
     { indicator: def.key, country: country.iso3 }
   );
 }
+function asOfCapableIndicators() {
+  return INDICATORS.filter((d) => d.dbnomics).map((d) => d.key);
+}
+async function getIndicatorAsOf(ctx, key, countryInput, asOfDate, opts = {}) {
+  const def = getIndicatorDef(key);
+  if (!def) {
+    const near = searchIndicatorDefs(key, 5).map((m) => m.def.key);
+    throw new ToolError(
+      `Unknown indicator '${key}'.` + (near.length ? ` Closest matches: ${near.join(", ")}.` : ""),
+      { input: key, suggestions: near }
+    );
+  }
+  if (!def.dbnomics) {
+    throw new ToolError(
+      `'as_of' is only supported for indicators with a dated IMF WEO/Fiscal Monitor edition: ${asOfCapableIndicators().join(", ")}. '${key}' has no dated-vintage source (World Bank and FRED do not expose historical editions here).`,
+      { indicator: key }
+    );
+  }
+  const country = requireCountry(countryInput);
+  const edition = expectedWeoEdition(asOfDate);
+  const [provider, datasetTemplate, codeTemplate] = def.dbnomics;
+  const dataset = datasetTemplate.replace(/:latest$/, `:${edition}`);
+  const asOfDef = { ...def, dbnomics: [provider, dataset, codeTemplate] };
+  let result;
+  try {
+    result = await indicatorFromDbnomics(ctx, asOfDef, country, opts);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new ToolError(
+      `Could not retrieve the ${dataset} vintage of '${key}' for ${country.name} (resolved from as_of via the IMF's April/October release calendar): ${msg} DBnomics's dated WEO editions have been confirmed to exist back to 2010-04; a date far outside that range, or a future date past the current edition, may not have a matching edition ingested.`,
+      { indicator: key, country: country.iso3, edition }
+    );
+  }
+  result.notes.push(
+    `Pinned to the ${dataset} vintage \u2014 the IMF WEO/Fiscal Monitor edition that was current as of ${asOfDate.toISOString().slice(0, 10)} per the IMF's April/October release calendar \u2014 not today's live data. Use this to check whether a claim was true when it was made, not whether it matches the current published figure.`
+  );
+  return { result, edition };
+}
 var DB_PRIMARY = /* @__PURE__ */ new Set(["govt_debt_gdp", "fiscal_balance_gdp", "govt_revenue_gdp", "govt_expenditure_gdp"]);
 var DM_CODE_INFO = /* @__PURE__ */ new Map();
 for (const d of INDICATORS) {
@@ -2209,6 +2247,16 @@ async function fxConvert(ctx, amount, fromRaw, toRaw, date) {
 }
 
 // ../server/src/core/verify.ts
+function parseAsOfDate(input) {
+  const s = input.trim();
+  let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  m = /^(\d{4})-(\d{2})$/.exec(s);
+  if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, 1));
+  m = /^(\d{4})$/.exec(s);
+  if (m) return new Date(Date.UTC(+m[1], 11, 31));
+  throw new ToolError(`'as_of' should be a date like '2019-04', '2019-04-15', or a bare year '2019'.`, { as_of: input });
+}
 function isPercentKind(indicatorKey) {
   const def = getIndicatorDef(indicatorKey);
   return def ? def.kind === "percent" : false;
@@ -2226,7 +2274,21 @@ async function verifyStat(ctx, p) {
   if (isRegistry && !p.country) {
     throw new ToolError(`Indicator '${p.indicator}' needs a 'country' (ISO3 code or name) to verify against.`);
   }
-  const result = isRegistry ? await getIndicator(ctx, p.indicator, p.country ?? "", { strictSource: p.strict_source }) : await getSeries(ctx, p.indicator, { country: p.country, strictSource: p.strict_source });
+  if (p.as_of && !isRegistry) {
+    throw new ToolError(
+      `'as_of' only applies to registry indicator keys (see search_indicators). For an explicit series id, address the dated edition directly, e.g. 'dbnomics/IMF/WEO:2019-04/${p.country ?? "USA"}.NGDP_RPCH.pcent_change'.`,
+      { indicator: p.indicator }
+    );
+  }
+  let asOfResolved;
+  const result = p.as_of ? await (async () => {
+    const asOfDate = parseAsOfDate(p.as_of);
+    const { result: r, edition } = await getIndicatorAsOf(ctx, p.indicator, p.country ?? "", asOfDate, {
+      strictSource: p.strict_source
+    });
+    asOfResolved = { requested: p.as_of, resolved_vintage: edition };
+    return r;
+  })() : isRegistry ? await getIndicator(ctx, p.indicator, p.country ?? "", { strictSource: p.strict_source }) : await getSeries(ctx, p.indicator, { country: p.country, strictSource: p.strict_source });
   const obs = result.observations;
   const byPeriod = new Map(obs.map((o) => [o.period, o]));
   const lookup = (key) => {
@@ -2266,7 +2328,8 @@ async function verifyStat(ctx, p) {
       country: result.country,
       citation: result.citation,
       notes,
-      ...result.fallback_used ? { fallback_used: true } : {}
+      ...result.fallback_used ? { fallback_used: true } : {},
+      ...asOfResolved ? { as_of: asOfResolved } : {}
     };
   }
   const official = matched.value;
@@ -2319,7 +2382,8 @@ async function verifyStat(ctx, p) {
       country: result.country,
       citation: result.citation,
       notes,
-      fallback_used: true
+      fallback_used: true,
+      ...asOfResolved ? { as_of: asOfResolved } : {}
     };
   }
   const { verdict, why } = judge(p.claimed_value, official, percentKind, p);
@@ -2343,7 +2407,8 @@ async function verifyStat(ctx, p) {
     country: result.country,
     citation: result.citation,
     notes,
-    ...result.fallback_used ? { fallback_used: true } : {}
+    ...result.fallback_used ? { fallback_used: true } : {},
+    ...asOfResolved ? { as_of: asOfResolved } : {}
   };
 }
 function within(x, target, tolFrac) {

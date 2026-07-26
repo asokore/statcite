@@ -1,0 +1,25 @@
+{
+ "dataset": {
+  "code": "WEO:2018-10",
+  "name": "World Economic Outlook by countries"
+ },
+ "provider": {
+  "code": "IMF",
+  "name": "International Monetary Fund"
+ },
+ "series": {
+  "docs": [
+   {
+    "@frequency": "annual",
+    "dataset_code": "WEO:2018-10",
+    "dataset_name": "World Economic Outlook by countries",
+    "provider_code": "IMF",
+    "series_code": "USA.NGDP_RPCH.pcent_change",
+    "series_name": "United States – Gross domestic product, constant prices (NGDP_RPCH) – Percent change",
+    "period": ["2016", "2017", "2018", "2019", "2020"],
+    "value": [1.8, 2.4, 2.9, 2.3, 1.9]
+   }
+  ],
+  "num_found": 1
+ }
+}

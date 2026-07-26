@@ -11,7 +11,7 @@ StatCite is a free remote MCP server + REST API serving official economic statis
 ## Commands (run in `server/`)
 
 - `npm install` — dev deps only (typescript, tsx, workers-types; wrangler on demand via npx)
-- `npm test` — 160 fixture-backed tests (no network)
+- `npm test` — 167 fixture-backed tests (no network)
 - `npm run smoke` — live end-to-end against real upstream APIs (network)
 - `npm run typecheck` · `npm run dev` (wrangler dev) · `npm run deploy`
 - `npm run fixtures` — re-record upstream fixtures if a source changes shape

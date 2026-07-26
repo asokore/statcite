@@ -187,7 +187,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
       const indicator = q.get("indicator");
       const period = q.get("period");
       if (!indicator || !period) {
-        return errJson(400, "Required: indicator, period, value. Optional: country, tolerance_abs, tolerance_pct.");
+        return errJson(400, "Required: indicator, period, value. Optional: country, tolerance_abs, tolerance_pct, as_of.");
       }
       const result = await verifyStat(ctx, {
         indicator,
@@ -197,6 +197,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
         tolerance_abs: qNum(q, "tolerance_abs", false),
         tolerance_pct: qNum(q, "tolerance_pct", false),
         strict_source: q.get("strict_source") === "true",
+        as_of: q.get("as_of") ?? undefined,
       });
       usage.verdict = result.verdict;
       return json(200, result, result.fallback_used ? 0 : 1800);

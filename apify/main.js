@@ -48,6 +48,7 @@ async function runOne(op, p) {
         claimed_value: Number(must(p, "claimed_value")),
         tolerance_abs: p.tolerance_abs != null ? Number(p.tolerance_abs) : undefined,
         tolerance_pct: p.tolerance_pct != null ? Number(p.tolerance_pct) : undefined,
+        as_of: p.as_of || undefined,
       });
     case "snapshot":
       return countrySnapshot(ctx, must(p, "country"));
