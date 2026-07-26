@@ -55,14 +55,38 @@ async function doFetch(url: string, timeoutMs: number, ttlSeconds: number): Prom
 // changing latency on the common (first-attempt-succeeds) path.
 const RETRY_DELAYS_MS = [300, 900];
 
+/** Thrown by fetchJson when a `validate` hook rejects an otherwise-2xx, parseable
+ * body — e.g. an API that returns HTTP 200 for both real data and decoy/error
+ * envelopes (see adapters/datamapper.ts). Distinct from UpstreamError so callers
+ * can tell "the shape was wrong" apart from "the transport/status failed." */
+export class ShapeError extends Error {
+  url: string;
+  constructor(message: string, url: string) {
+    super(redactUrl(message));
+    this.name = "ShapeError";
+    this.url = redactUrl(url);
+  }
+}
+
 /**
  * Fetch JSON with caching. ttlSeconds controls both the memory cache and the
  * edge cache hint. Retries on transient failures per RETRY_DELAYS_MS; a definitive
  * client error (4xx other than 429) fails immediately, never retried.
+ *
+ * `validate`, when given, is checked on every parsed 2xx body BEFORE it is
+ * written to the cache — a body that fails validation is never cached (an API
+ * that returns 200 for decoy/error envelopes must not poison the cache for
+ * ttlSeconds with garbage). Validation failures are retried on the same
+ * schedule as a 5xx, then surfaced as ShapeError so the caller can classify
+ * "parseable but wrong shape" separately from a transport failure.
  */
 export async function fetchJson(
   url: string,
-  { ttlSeconds = 21600, timeoutMs = 8000 }: { ttlSeconds?: number; timeoutMs?: number } = {},
+  {
+    ttlSeconds = 21600,
+    timeoutMs = 8000,
+    validate,
+  }: { ttlSeconds?: number; timeoutMs?: number; validate?: (data: unknown) => boolean } = {},
 ): Promise<unknown> {
   const hit = mem.get(url);
   const now = Date.now();
@@ -88,6 +112,14 @@ export async function fetchJson(
         throw new UpstreamError(`Upstream returned HTTP ${res.status}: ${body}`, url, res.status);
       }
       const data = (await res.json()) as unknown;
+      if (validate && !validate(data)) {
+        lastErr = new ShapeError("Upstream returned a response that failed shape validation", url);
+        if (!isLastAttempt) {
+          await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+          continue;
+        }
+        throw lastErr;
+      }
       if (mem.size >= MEM_MAX) {
         const first = mem.keys().next().value;
         if (first !== undefined) mem.delete(first);
@@ -103,12 +135,34 @@ export async function fetchJson(
       }
     }
   }
+  if (lastErr instanceof ShapeError) throw lastErr;
   if (lastErr instanceof Error) {
     throw lastErr instanceof UpstreamError
       ? lastErr
       : new UpstreamError(`Failed to reach upstream: ${lastErr.message}`, url);
   }
   throw new UpstreamError("Failed to reach upstream", url);
+}
+
+/**
+ * Request-scoped fetch memo: dedupes identical concurrent fetches AND memoizes
+ * rejections for the life of the request. Without this, N concurrent callers
+ * sharing one Ctx (e.g. verify_claims' 4-way concurrency) each independently
+ * retry the same failing URL, multiplying an outage's subrequest cost by N.
+ * Callers own the Map (typically stashed on Ctx) so scope matches one HTTP
+ * request, never the isolate.
+ */
+export function memoFetchJson(
+  memo: Map<string, Promise<unknown>>,
+  url: string,
+  opts?: { ttlSeconds?: number; timeoutMs?: number; validate?: (data: unknown) => boolean },
+): Promise<unknown> {
+  let p = memo.get(url);
+  if (!p) {
+    p = fetchJson(url, opts);
+    memo.set(url, p);
+  }
+  return p;
 }
 
 /** True for failure classes that are plausibly transient (worth flagging as such

@@ -14,14 +14,14 @@ I'm an economist. Since AI started drafting half the reports I review, I keep fi
 
 So I built StatCite: a free remote MCP server + REST API where every number ships with a license-grade citation — source, dataset, series ID, canonical URL, license, retrieval date — and, as far as I've found, the only `verify_stat` tool that checks a claimed figure against the official series and returns match / close / mismatch with diagnostics (wrong-year, percent-vs-decimal, millions-vs-billions).
 
-Data: World Bank WDI, IMF WEO (via DBnomics), ECB reference rates, optional FRED. 42 curated indicators, 200+ economies, inflation adjustment, historical FX (including ~90 currencies the ECB set doesn't cover — pegged Caribbean currencies convert exactly).
+Data: World Bank WDI, IMF WEO/Fiscal Monitor (current vintage, via the IMF's own DataMapper API), ECB reference rates, optional FRED. 42 curated indicators, 200+ economies, inflation adjustment, historical FX (including ~90 currencies the ECB set doesn't cover — pegged Caribbean currencies convert exactly).
 
 Try it without installing anything:
 https://statcite.com/v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=4.1
 
 MCP endpoint (works in Claude/ChatGPT/Cursor/VS Code): https://statcite.com/mcp
 
-It's free (runs on ~zero-cost infra); the stack is a single Cloudflare Worker, hand-rolled stateless MCP, no SDK deps. Curation choices are economist-opinionated — e.g., government debt defaults to IMF WEO general-government gross debt rather than the patchier WDI central-government series, and WEO projections are labeled as projections.
+It's free (runs on ~zero-cost infra); the stack is a single Cloudflare Worker, hand-rolled stateless MCP, no SDK deps. Curation choices are economist-opinionated — e.g., government debt defaults to the IMF's general-government gross debt series (current vintage) rather than the patchier WDI central-government series, and WEO/Fiscal Monitor projections are labeled as projections.
 
 Happy to answer questions on the data, the licensing (everything is redistributable-with-attribution — the citation IS the attribution), or the MCP implementation.
 
@@ -36,7 +36,7 @@ Happy to answer questions on the data, the licensing (everything is redistributa
 Built by an economist tired of AI-drafted reports with unverifiable numbers.
 
 - `verify_stat`: check any claimed macro figure against the official series → match/close/mismatch + diagnostics + the correct citable value
-- `get_indicator`: 42 curated indicators (inflation, GDP, debt/GDP, unemployment…), 200+ economies, World Bank → IMF WEO fallback
+- `get_indicator`: 42 curated indicators (inflation, GDP, debt/GDP, unemployment…), 200+ economies, World Bank → IMF DataMapper (current vintage) → IMF WEO (DBnomics) fallback chain
 - `country_snapshot`, `inflation_adjust`, `fx_convert` (ECB daily + ~90 exotic currencies via official annual rates)
 - Every response carries a citation object: source, dataset, series id, canonical URL, license, retrieval date, ready-to-paste citation sentence
 - Free, no auth, stateless Streamable HTTP: `https://statcite.com/mcp`
@@ -53,7 +53,7 @@ Docs: https://statcite.com/docs.html — feedback very welcome.
 
 2/ The part I care about as an economist: verify_stat doesn't just say "wrong". It diagnoses HOW it's wrong — claim matches last year's value? percent-vs-decimal slip? millions vs billions? — and returns the correct figure with the citation attached.
 
-3/ Under the hood: one Cloudflare Worker, zero-dependency stateless MCP, World Bank + IMF WEO + ECB data (all redistributable with attribution — the citation IS the attribution). REST mirror + OpenAPI for non-MCP stacks. Free. statcite.com/docs.html
+3/ Under the hood: one Cloudflare Worker, zero-dependency stateless MCP, World Bank + IMF WEO/Fiscal Monitor + ECB data (all redistributable with attribution — the citation IS the attribution). REST mirror + OpenAPI for non-MCP stacks. Free. statcite.com/docs.html
 
 ---
 

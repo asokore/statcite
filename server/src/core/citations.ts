@@ -60,6 +60,35 @@ export function dbnomicsCitation(
   };
 }
 
+export function imfDataMapperCitation(
+  ctx: Ctx,
+  opts: {
+    code: string;
+    dataset: "WEO" | "FM";
+    seriesName: string;
+    editionLabel: string;
+    sourceUrl: string;
+    apiUrl: string;
+    lastModified?: string;
+  },
+): Citation {
+  const date = today(ctx);
+  const datasetName = opts.dataset === "FM" ? "IMF Fiscal Monitor" : "IMF World Economic Outlook";
+  return {
+    source: "International Monetary Fund",
+    dataset: opts.editionLabel,
+    series_id: `imf/${opts.code}`,
+    series_name: opts.seriesName,
+    source_url: opts.sourceUrl,
+    api_url: opts.apiUrl,
+    license: "IMF terms: free reuse and redistribution with attribution (Source: International Monetary Fund)",
+    attribution: "Source: International Monetary Fund",
+    retrieved_at: date,
+    citation_text: `International Monetary Fund, ${opts.editionLabel} (${datasetName}), ${opts.seriesName}, series ${opts.code}. Retrieved ${date} via the IMF DataMapper API/StatCite. ${opts.sourceUrl}`,
+    ...(opts.lastModified ? { notices: [`IMF data load timestamp: ${opts.lastModified} UTC.`] } : {}),
+  };
+}
+
 export function fredCitation(
   ctx: Ctx,
   opts: { seriesId: string; seriesName: string; units?: string; apiUrl?: string },

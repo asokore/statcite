@@ -179,7 +179,7 @@ export async function runVerifyClaims(ctx: Ctx, claimsRaw: unknown, strictSource
     }
   }
   const out: VerifyClaimsResult = { summary, results };
-  if (projections > 0) out.note = `${projections} claim(s) verified against IMF WEO projections, not outturns.`;
+  if (projections > 0) out.note = `${projections} claim(s) verified against IMF WEO/Fiscal Monitor projections, not outturns.`;
   return out;
 }
 
@@ -232,7 +232,7 @@ export const TOOLS: ToolDef[] = [
       properties: {
         indicator: {
           type: "string",
-          description: "Registry key ('inflation_cpi', 'gdp_growth', …) or explicit series id ('worldbank/FP.CPI.TOTL.ZG', 'fred/UNRATE', 'dbnomics/IMF/WEO:latest/USA.NGDP_RPCH.pcent_change').",
+          description: "Registry key ('inflation_cpi', 'gdp_growth', …) or explicit series id ('worldbank/FP.CPI.TOTL.ZG', 'fred/UNRATE', 'imf/NGDP_RPCH', 'dbnomics/IMF/WEO:latest/USA.NGDP_RPCH.pcent_change').",
         },
         country: { type: "string", description: "Country for registry indicators / World Bank series." },
         period: { type: "string", description: "Period of the claim, usually a year: '2024'." },
@@ -277,7 +277,7 @@ export const TOOLS: ToolDef[] = [
             properties: {
               indicator: {
                 type: "string",
-                description: "Registry key ('inflation_cpi', 'gdp_growth', …) or explicit series id ('worldbank/FP.CPI.TOTL.ZG', 'fred/UNRATE', 'dbnomics/IMF/WEO:latest/USA.NGDP_RPCH.pcent_change').",
+                description: "Registry key ('inflation_cpi', 'gdp_growth', …) or explicit series id ('worldbank/FP.CPI.TOTL.ZG', 'fred/UNRATE', 'imf/NGDP_RPCH', 'dbnomics/IMF/WEO:latest/USA.NGDP_RPCH.pcent_change').",
               },
               country: { type: "string", description: "Country for registry indicators / World Bank series." },
               period: { type: "string", description: "Period of the claim, usually a year: '2024'." },
@@ -304,11 +304,11 @@ export const TOOLS: ToolDef[] = [
     name: "get_series",
     title: "Get a raw series by explicit id",
     description:
-      "Fetch any supported series by explicit id: 'worldbank/<WDI code>' (needs country), 'fred/<SERIES>' (US, needs server FRED key), or 'dbnomics/<PROVIDER>/<DATASET>/<SERIES>' (IMF WEO, OECD, Eurostat and more via DBnomics). Supports year filters and transforms (yoy, pct_change, index). Every response carries a full citation. Prefer get_indicator for common indicators.",
+      "Fetch any supported series by explicit id: 'worldbank/<WDI code>' (needs country), 'fred/<SERIES>' (US, needs server FRED key), 'imf/<CODE>' (needs country; current-vintage IMF WEO/Fiscal Monitor via the DataMapper API), or 'dbnomics/<PROVIDER>/<DATASET>/<SERIES>' (IMF WEO, OECD, Eurostat and more via DBnomics — dated editions, e.g. 'WEO:2025-04', for vintage-pinned reproducibility). Supports year filters and transforms (yoy, pct_change, index). Every response carries a full citation. Prefer get_indicator for common indicators.",
     inputSchema: {
       type: "object",
       properties: {
-        series_id: { type: "string", description: "e.g. 'worldbank/NY.GDP.MKTP.KD.ZG', 'fred/CPIAUCSL', 'dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change'." },
+        series_id: { type: "string", description: "e.g. 'worldbank/NY.GDP.MKTP.KD.ZG', 'fred/CPIAUCSL', 'imf/NGDP_RPCH', 'dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change'." },
         country: { type: "string", description: "Required for worldbank/* series." },
         start_year: { type: "integer" },
         end_year: { type: "integer" },
@@ -335,7 +335,7 @@ export const TOOLS: ToolDef[] = [
     name: "search_indicators",
     title: "Search available indicators and datasets",
     description:
-      "Search StatCite's curated indicator registry (World Bank WDI + IMF WEO + FRED) by topic — 'inflation', 'debt', 'unemployment', 'poverty' — and discover additional DBnomics datasets. Returns indicator keys usable with get_indicator/verify_stat, with units and source notes.",
+      "Search StatCite's curated indicator registry (World Bank WDI + IMF DataMapper/WEO/Fiscal Monitor + FRED) by topic — 'inflation', 'debt', 'unemployment', 'poverty' — and discover additional DBnomics datasets. Returns indicator keys usable with get_indicator/verify_stat, with units and source notes.",
     inputSchema: {
       type: "object",
       properties: { query: { type: "string", description: "Free-text topic, e.g. 'government debt' or 'fx reserves'." } },
@@ -351,7 +351,7 @@ export const TOOLS: ToolDef[] = [
     name: "country_snapshot",
     title: "Country snapshot — headline indicators with citations",
     description:
-      "One call for a country's headline economic picture: GDP, GDP growth, GDP per capita, inflation, unemployment, population, current account, trade openness, FDI, life expectancy (World Bank) plus general government debt (IMF WEO). Each value carries its own citation. Ideal for country briefs and report openers.",
+      "One call for a country's headline economic picture: GDP, GDP growth, GDP per capita, inflation, unemployment, population, current account, trade openness, FDI, life expectancy (World Bank) plus general government debt (IMF DataMapper API, current vintage). Each value carries its own citation. Ideal for country briefs and report openers.",
     inputSchema: {
       type: "object",
       properties: { country: { type: "string", description: "ISO3/ISO2 code or English name." } },
@@ -402,7 +402,7 @@ export const TOOLS: ToolDef[] = [
     name: "list_sources",
     title: "List data sources, licenses, and attribution rules",
     description:
-      "The official sources behind StatCite (World Bank WDI, IMF WEO via DBnomics, ECB reference rates, optional FRED), what each covers, its license, and the attribution line to use when citing.",
+      "The official sources behind StatCite (World Bank WDI, IMF WEO & Fiscal Monitor via the IMF DataMapper API — with DBnomics as a vintage-pinned fallback, ECB reference rates, optional FRED), what each covers, its license, and the attribution line to use when citing.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     handler: async () => ({ sources: SOURCES, registry_size: INDICATORS.length }),
   },

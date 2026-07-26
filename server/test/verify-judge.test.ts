@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import type { Ctx } from "../src/core/types.ts";
 import { verifyStat, judge, normalizePeriod } from "../src/core/verify.ts";
 import { _clearMemCache } from "../src/core/upstream.ts";
+import { dmValuesBody, isDataMapperValuesUrl, isDataMapperMetadataUrl, STANDARD_DM_METADATA, DM_CODES } from "./dm-fixtures.ts";
 
 const ctx: Ctx = { baseUrl: "https://statcite.test" };
 
@@ -42,6 +43,22 @@ const routes: Route[] = [
         ["2022", "2023", "2024", "2025", "2026", "2027"],
         [122.5, 115.3, 105.9, 101.4, 98.0, 95.2],
       ),
+  },
+  { test: (u) => isDataMapperMetadataUrl(u), body: () => STANDARD_DM_METADATA },
+  {
+    test: (u) => isDataMapperValuesUrl(u, DM_CODES.govt_debt_gdp),
+    body: () =>
+      // Current-vintage (April 2026 edition, horizon 2031 -> boundary 2026):
+      // govt_debt_gdp is now DataMapper-primary, so this is what verify_stat
+      // actually serves against, not the DBnomics fixture above.
+      dmValuesBody(DM_CODES.govt_debt_gdp, {
+        // Horizon through 2031 (edition year 2026 + 5) so the projection boundary
+        // is 2026 without relying on the calendar-clamp fallback.
+        BRB: {
+          "2022": 122.5, "2023": 115.3, "2024": 105.9, "2025": 101.4,
+          "2026": 98.0, "2027": 95.2, "2028": 93.0, "2029": 91.5, "2030": 90.2, "2031": 89.0,
+        },
+      }),
   },
   {
     test: (u) => u.includes("api.db.nomics.world") && u.includes("TESTQ"),
@@ -116,10 +133,11 @@ test("judge: caller tolerances still override defaults", () => {
 });
 
 test("verify_stat flags WEO projection periods with is_projection + qualified explanation", async () => {
-  const r = await verifyStat(ctx, { indicator: "govt_debt_gdp", country: "BRB", period: "2025", claimed_value: 101.4 });
+  // govt_debt_gdp is DataMapper-primary: boundary = payload horizon (2031) - 5 = 2026.
+  const r = await verifyStat(ctx, { indicator: "govt_debt_gdp", country: "BRB", period: "2026", claimed_value: 98.0 });
   assert.equal(r.verdict, "match");
   assert.equal(r.is_projection, true);
-  assert.match(r.explanation, /vs official \(IMF WEO projection\) 101\.4/);
+  assert.match(r.explanation, /vs official \(IMF WEO projection\) 98/);
   assert.ok(r.citation.citation_text);
 });
 

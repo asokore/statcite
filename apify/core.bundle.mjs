@@ -299,6 +299,7 @@ var INDICATORS = [
     unit: "% (annual, real)",
     kind: "percent",
     wb: "NY.GDP.MKTP.KD.ZG",
+    datamapper: ["NGDP_RPCH", "WEO"],
     dbnomics: ["IMF", "WEO:latest", "{ISO3}.NGDP_RPCH.pcent_change"],
     synonyms: ["real gdp growth", "economic growth", "growth rate", "gdp growth rate"]
   },
@@ -402,6 +403,7 @@ var INDICATORS = [
     unit: "% of GDP",
     kind: "percent",
     wb: "BN.CAB.XOKA.GD.ZS",
+    datamapper: ["BCA_NGDPD", "WEO"],
     dbnomics: ["IMF", "WEO:latest", "{ISO3}.BCA_NGDPD.pcent_gdp"],
     synonyms: ["current account", "current account balance", "external balance", "bop current account"]
   },
@@ -410,6 +412,7 @@ var INDICATORS = [
     label: "General government gross debt (% of GDP)",
     unit: "% of GDP",
     kind: "percent",
+    datamapper: ["GGXWDG_NGDP", "WEO"],
     dbnomics: ["IMF", "WEO:latest", "{ISO3}.GGXWDG_NGDP.pcent_gdp"],
     wb: "GC.DOD.TOTL.GD.ZS",
     synonyms: ["government debt", "public debt", "debt to gdp", "national debt", "sovereign debt", "debt ratio"],
@@ -420,6 +423,7 @@ var INDICATORS = [
     label: "General government net lending/borrowing (% of GDP)",
     unit: "% of GDP",
     kind: "percent",
+    datamapper: ["GGXCNL_NGDP", "WEO"],
     dbnomics: ["IMF", "WEO:latest", "{ISO3}.GGXCNL_NGDP.pcent_gdp"],
     synonyms: ["fiscal balance", "budget balance", "fiscal deficit", "budget deficit", "government balance", "net lending"],
     notes: "Negative values indicate a fiscal deficit."
@@ -429,6 +433,7 @@ var INDICATORS = [
     label: "General government revenue (% of GDP)",
     unit: "% of GDP",
     kind: "percent",
+    datamapper: ["GGR_G01_GDP_PT", "FM"],
     dbnomics: ["IMF", "WEO:latest", "{ISO3}.GGR_NGDP.pcent_gdp"],
     synonyms: ["government revenue", "revenue to gdp", "fiscal revenue"]
   },
@@ -437,6 +442,7 @@ var INDICATORS = [
     label: "General government total expenditure (% of GDP)",
     unit: "% of GDP",
     kind: "percent",
+    datamapper: ["G_X_G01_GDP_PT", "FM"],
     dbnomics: ["IMF", "WEO:latest", "{ISO3}.GGX_NGDP.pcent_gdp"],
     synonyms: ["government spending", "government expenditure", "public spending"]
   },
@@ -790,7 +796,19 @@ async function doFetch(url, timeoutMs, ttlSeconds) {
   }
 }
 var RETRY_DELAYS_MS = [300, 900];
-async function fetchJson(url, { ttlSeconds = 21600, timeoutMs = 8e3 } = {}) {
+var ShapeError = class extends Error {
+  url;
+  constructor(message, url) {
+    super(redactUrl(message));
+    this.name = "ShapeError";
+    this.url = redactUrl(url);
+  }
+};
+async function fetchJson(url, {
+  ttlSeconds = 21600,
+  timeoutMs = 8e3,
+  validate
+} = {}) {
   const hit = mem.get(url);
   const now = Date.now();
   if (hit && hit.exp > now) return hit.data;
@@ -814,6 +832,14 @@ async function fetchJson(url, { ttlSeconds = 21600, timeoutMs = 8e3 } = {}) {
         throw new UpstreamError(`Upstream returned HTTP ${res.status}: ${body}`, url, res.status);
       }
       const data = await res.json();
+      if (validate && !validate(data)) {
+        lastErr = new ShapeError("Upstream returned a response that failed shape validation", url);
+        if (!isLastAttempt) {
+          await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+          continue;
+        }
+        throw lastErr;
+      }
       if (mem.size >= MEM_MAX) {
         const first = mem.keys().next().value;
         if (first !== void 0) mem.delete(first);
@@ -829,10 +855,19 @@ async function fetchJson(url, { ttlSeconds = 21600, timeoutMs = 8e3 } = {}) {
       }
     }
   }
+  if (lastErr instanceof ShapeError) throw lastErr;
   if (lastErr instanceof Error) {
     throw lastErr instanceof UpstreamError ? lastErr : new UpstreamError(`Failed to reach upstream: ${lastErr.message}`, url);
   }
   throw new UpstreamError("Failed to reach upstream", url);
+}
+function memoFetchJson(memo2, url, opts) {
+  let p = memo2.get(url);
+  if (!p) {
+    p = fetchJson(url, opts);
+    memo2.set(url, p);
+  }
+  return p;
 }
 function isTransientUpstreamError(e) {
   if (e instanceof ToolError) return false;
@@ -996,6 +1031,153 @@ async function fetchFredSeries(ctx, seriesId, opts = {}) {
   };
 }
 
+// ../server/src/core/weo-calendar.ts
+function expectedWeoEdition(now = /* @__PURE__ */ new Date()) {
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth() + 1;
+  if (m >= 11) return `${y}-10`;
+  if (m >= 5) return `${y}-04`;
+  return `${y - 1}-10`;
+}
+
+// ../server/src/adapters/datamapper.ts
+var BASE4 = "https://www.imf.org/external/datamapper/api/v1";
+var METADATA_URL = `${BASE4}/indicators`;
+var VALUES_TTL_SECONDS = 3600;
+var RELEASE_WINDOW_TTL_SECONDS = 300;
+var METADATA_TTL_SECONDS = 3600;
+var MIN_COUNTRY_KEYS = 150;
+var COUNTRY_ALIASES = {
+  PSE: "WBG",
+  // West Bank and Gaza
+  XKX: "UVK"
+  // Kosovo
+};
+var MONTHS = {
+  january: 1,
+  february: 2,
+  march: 3,
+  april: 4,
+  may: 5,
+  june: 6,
+  july: 7,
+  august: 8,
+  september: 9,
+  october: 10,
+  november: 11,
+  december: 12
+};
+function isWithinReleaseWindow(now) {
+  const year = now.getUTCFullYear();
+  const windowMs = 10 * 24 * 3600 * 1e3;
+  for (const month of [4, 10]) {
+    for (const y of [year, year - 1, year + 1]) {
+      if (Math.abs(now.getTime() - Date.UTC(y, month - 1, 1)) <= windowMs) return true;
+    }
+  }
+  return false;
+}
+function isValuesEnvelope(data, code) {
+  if (!data || typeof data !== "object") return false;
+  const values = data.values;
+  if (!values || typeof values !== "object") return false;
+  const inner = values[code];
+  if (!inner || typeof inner !== "object") return false;
+  const countryKeys = Object.keys(inner).filter(Boolean);
+  return countryKeys.length >= MIN_COUNTRY_KEYS;
+}
+function isIndicatorsEnvelope(data) {
+  if (!data || typeof data !== "object") return false;
+  const indicators = data.indicators;
+  return Boolean(indicators && typeof indicators === "object" && Object.keys(indicators).length > 50);
+}
+function parseEditionLabel(label) {
+  if (!label) return void 0;
+  const m = label.match(/\(([A-Za-z]+)\s+(\d{4})\)\s*$/);
+  if (!m) return void 0;
+  const month = MONTHS[m[1].toLowerCase()];
+  const year = parseInt(m[2], 10);
+  if (!month || !Number.isFinite(year)) return void 0;
+  return { year, month };
+}
+function computeBoundaryYear(horizonYear, now = /* @__PURE__ */ new Date()) {
+  const naive = horizonYear - 5;
+  const calendarYear = parseInt(expectedWeoEdition(now).slice(0, 4), 10);
+  if (Math.abs(naive - calendarYear) > 1) return { boundaryYear: calendarYear, clamped: true };
+  return { boundaryYear: naive, clamped: false };
+}
+function memo(ctx) {
+  if (!ctx._dmMemo) ctx._dmMemo = /* @__PURE__ */ new Map();
+  return ctx._dmMemo;
+}
+async function fetchDataMapperMetadata(ctx) {
+  try {
+    const data = await memoFetchJson(memo(ctx), METADATA_URL, {
+      ttlSeconds: METADATA_TTL_SECONDS,
+      validate: isIndicatorsEnvelope
+    });
+    return data.indicators;
+  } catch {
+    return void 0;
+  }
+}
+async function fetchDataMapperSeries(ctx, code, dataset, countryIso3, now = /* @__PURE__ */ new Date()) {
+  const url = `${BASE4}/${encodeURIComponent(code)}`;
+  const ttl = isWithinReleaseWindow(now) ? RELEASE_WINDOW_TTL_SECONDS : VALUES_TTL_SECONDS;
+  let data;
+  try {
+    data = await memoFetchJson(memo(ctx), url, { ttlSeconds: ttl, validate: (d) => isValuesEnvelope(d, code) });
+  } catch (e) {
+    if (e instanceof ShapeError) {
+      const meta = await fetchDataMapperMetadata(ctx);
+      if (meta && !meta[code]) {
+        throw new ToolError(
+          `IMF DataMapper has no series for code '${code}' (confirmed absent from the live /indicators registry).`,
+          { code }
+        );
+      }
+      throw new UpstreamError(`IMF DataMapper returned no usable data for series '${code}' (decoy/empty envelope)`, url);
+    }
+    throw e;
+  }
+  const values = data.values[code];
+  let horizonYear = 0;
+  for (const iso of Object.keys(values)) {
+    if (!iso) continue;
+    for (const y of Object.keys(values[iso])) {
+      const n = parseInt(y, 10);
+      if (Number.isFinite(n) && n > horizonYear) horizonYear = n;
+    }
+  }
+  const dmCountry = COUNTRY_ALIASES[countryIso3] ?? countryIso3;
+  const countrySeries = values[dmCountry];
+  if (!countrySeries) {
+    throw new ToolError(
+      `Country '${countryIso3}' is not present in the IMF DataMapper ${dataset} payload for series '${code}'.`,
+      { code, country: countryIso3 }
+    );
+  }
+  const observations = Object.entries(countrySeries).map(([period, value]) => ({ period, value: typeof value === "number" ? value : null })).sort((a, b) => a.period.localeCompare(b.period));
+  const metaTable = await fetchDataMapperMetadata(ctx);
+  const entry = metaTable?.[code];
+  let edition;
+  if (entry) {
+    const parsed = parseEditionLabel(entry.source);
+    edition = { label: entry.source, year: parsed?.year, month: parsed?.month, lastModified: entry["last-modified"] };
+  }
+  return {
+    code,
+    dataset,
+    countryIso3,
+    observations,
+    edition,
+    horizonYear,
+    valuesApiUrl: url,
+    metaApiUrl: METADATA_URL,
+    humanUrl: `https://www.imf.org/external/datamapper/${encodeURIComponent(code)}@${dataset}/${encodeURIComponent(dmCountry)}`
+  };
+}
+
 // ../server/src/core/citations.ts
 var FRED_NOTICE = "This product uses the FRED\xAE API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.";
 function worldBankCitation(ctx, opts) {
@@ -1030,6 +1212,23 @@ function dbnomicsCitation(ctx, opts) {
     attribution: isImf ? "Source: International Monetary Fund" : `Source: ${opts.providerName} (via DBnomics)`,
     retrieved_at: date,
     citation_text: `${opts.providerName}, ${opts.datasetName}, series ${opts.seriesCode} (${opts.seriesName}). Retrieved ${date} via DBnomics/StatCite. ${sourceUrl}`
+  };
+}
+function imfDataMapperCitation(ctx, opts) {
+  const date = today(ctx);
+  const datasetName = opts.dataset === "FM" ? "IMF Fiscal Monitor" : "IMF World Economic Outlook";
+  return {
+    source: "International Monetary Fund",
+    dataset: opts.editionLabel,
+    series_id: `imf/${opts.code}`,
+    series_name: opts.seriesName,
+    source_url: opts.sourceUrl,
+    api_url: opts.apiUrl,
+    license: "IMF terms: free reuse and redistribution with attribution (Source: International Monetary Fund)",
+    attribution: "Source: International Monetary Fund",
+    retrieved_at: date,
+    citation_text: `International Monetary Fund, ${opts.editionLabel} (${datasetName}), ${opts.seriesName}, series ${opts.code}. Retrieved ${date} via the IMF DataMapper API/StatCite. ${opts.sourceUrl}`,
+    ...opts.lastModified ? { notices: [`IMF data load timestamp: ${opts.lastModified} UTC.`] } : {}
   };
 }
 function fredCitation(ctx, opts) {
@@ -1120,34 +1319,33 @@ function finishSeries(result, opts) {
   result.observations = obs;
   return result;
 }
-function weoProjectionNote(datasetCode, observations) {
-  const m = datasetCode.match(/WEO:(\d{4})/);
+function weoProjectionNote(vintageTag, observations) {
+  const m = vintageTag.match(/^(WEO|FM):(\d{4})/);
   if (!m) return void 0;
-  const vintage = parseInt(m[1], 10);
+  const kind = m[1] === "FM" ? "IMF Fiscal Monitor" : "IMF WEO";
+  const vintage = parseInt(m[2], 10);
   const hasFuture = observations.some((o) => parseInt(o.period.slice(0, 4), 10) >= vintage);
-  return hasFuture ? `Values for ${vintage} onward are IMF WEO estimates/projections from the ${datasetCode.replace("WEO:", "")} vintage, not final outturns. This boundary is a vintage-year heuristic: the IMF's "latest actual" year varies by country and series, so some observations before ${vintage} may also be IMF staff estimates rather than final outturns.` : void 0;
+  return hasFuture ? `Values for ${vintage} onward are ${kind} estimates/projections from the ${vintageTag.replace(/^(WEO|FM):/, "")} vintage, not final outturns. This boundary is a vintage-year heuristic: the IMF's "latest actual" year varies by country and series, so some observations before ${vintage} may also be IMF staff estimates rather than final outturns.` : void 0;
 }
-function expectedWeoEdition(now = /* @__PURE__ */ new Date()) {
-  const y = now.getUTCFullYear();
-  const m = now.getUTCMonth() + 1;
-  if (m >= 11) return `${y}-10`;
-  if (m >= 5) return `${y}-04`;
-  return `${y - 1}-10`;
-}
-function weoVintageStaleNote(datasetCode, now = /* @__PURE__ */ new Date()) {
-  const m = datasetCode.match(/WEO:(\d{4}-\d{2})/);
+function weoVintageStaleNote(datasetCode, now = /* @__PURE__ */ new Date(), channel = "dbnomics") {
+  const m = datasetCode.match(/(WEO|FM):(\d{4}-\d{2})/);
   if (!m) return void 0;
-  const resolved = m[1];
+  const kind = m[1] === "FM" ? "IMF Fiscal Monitor" : "IMF WEO";
+  const resolved = m[2];
   const expected = expectedWeoEdition(now);
   if (resolved >= expected) return void 0;
+  if (channel === "datamapper") {
+    return `${kind} vintage ${resolved} is the edition currently served via the IMF DataMapper API; the IMF has likely published a newer release (expected ${expected}) that the DataMapper API has not yet loaded. Values, estimates, and projections reflect the ${resolved} vintage, not necessarily the IMF's current release.`;
+  }
   return `IMF WEO vintage ${resolved} is the newest edition available via DBnomics (this server's IMF data path); the IMF has likely published a newer WEO release (expected ${expected}) that DBnomics has not yet ingested. Values, estimates, and projections reflect the ${resolved} vintage, not necessarily the IMF's current release.`;
 }
-function markWeoProjections(datasetCode, observations) {
-  const m = datasetCode.match(/WEO:(\d{4})/);
+function markWeoProjections(vintageTag, observations) {
+  const m = vintageTag.match(/^(WEO|FM):(\d{4})/);
   if (!m) return;
-  const vintage = parseInt(m[1], 10);
+  const kind = m[1] === "FM" ? "IMF Fiscal Monitor" : "IMF WEO";
+  const vintage = parseInt(m[2], 10);
   for (const o of observations) {
-    if (parseInt(o.period.slice(0, 4), 10) >= vintage) o.note = "IMF WEO estimate/projection";
+    if (parseInt(o.period.slice(0, 4), 10) >= vintage) o.note = `${kind} estimate/projection`;
   }
 }
 async function indicatorFromWb(ctx, def, country, opts) {
@@ -1202,6 +1400,106 @@ async function indicatorFromDbnomics(ctx, def, country, opts) {
   };
   return finishSeries(result, opts);
 }
+var REF_WEO_CODE = "NGDP_RPCH";
+var REF_FM_CODE = "GGR_G01_GDP_PT";
+function crossEditionMismatchNote(metaTable, dataset, thisEdition) {
+  if (!metaTable || !thisEdition?.year || !thisEdition?.month) return void 0;
+  const refCode = dataset === "FM" ? REF_WEO_CODE : REF_FM_CODE;
+  const refKind = dataset === "FM" ? "WEO" : "Fiscal Monitor";
+  const other = metaTable[refCode];
+  if (!other) return void 0;
+  const otherEd = parseEditionLabel(other.source);
+  if (!otherEd || otherEd.year === thisEdition.year && otherEd.month === thisEdition.month) return void 0;
+  return `The IMF's ${refKind} database is currently at a different edition (${other.source}) than this series' edition (${thisEdition.label}) \u2014 fiscal indicators drawn from the two databases (e.g. revenue/expenditure vs. debt/balance) may temporarily reflect different releases.`;
+}
+async function indicatorFromDataMapper(ctx, def, country, opts) {
+  const [code, dataset] = def.datamapper;
+  const now = ctx.now ? ctx.now() : /* @__PURE__ */ new Date();
+  const s = await fetchDataMapperSeries(ctx, code, dataset, country.iso3, now);
+  const { boundaryYear, clamped } = computeBoundaryYear(s.horizonYear, now);
+  const kind = dataset === "FM" ? "IMF Fiscal Monitor" : "IMF WEO";
+  const notes = def.notes ? [def.notes] : [];
+  let editionLabel;
+  if (s.edition?.year && s.edition?.month) {
+    editionLabel = s.edition.label;
+  } else {
+    editionLabel = `${boundaryYear} vintage (April or October edition \u2014 edition metadata unavailable; a newer edition may exist)`;
+    notes.push(
+      "The IMF DataMapper edition-metadata endpoint was unavailable, or does not list this series; only the vintage year could be inferred from the data's own projection horizon, not the edition month."
+    );
+  }
+  if (s.edition?.year && s.edition?.month) {
+    const editionTag = `${dataset}:${s.edition.year}-${String(s.edition.month).padStart(2, "0")}`;
+    const staleNote = weoVintageStaleNote(editionTag, now, "datamapper");
+    if (staleNote) notes.push(staleNote);
+    const gap = s.horizonYear - s.edition.year;
+    if (gap !== 5) {
+      notes.push(
+        `This series' data horizon (through ${s.horizonYear}) is ${Math.abs(gap - 5)} year(s) off the usual edition-year-plus-5 pattern for the ${editionLabel} edition \u2014 the values and edition-label fetches may reflect slightly different load moments. The projection boundary used here (${boundaryYear}) is derived from the data's own horizon, not the label, so this does not affect which values are flagged as projections.`
+      );
+    }
+    if (s.edition.lastModified) {
+      const lm = /* @__PURE__ */ new Date(s.edition.lastModified.replace(" ", "T") + "Z");
+      const editionLoadMs = Date.UTC(s.edition.year, s.edition.month - 1, 1);
+      if (!Number.isNaN(lm.getTime())) {
+        const daysSince = (lm.getTime() - editionLoadMs) / (24 * 3600 * 1e3);
+        if (daysSince > 40) {
+          notes.push(
+            `The IMF reloaded this series' data on ${s.edition.lastModified.slice(0, 10)}, ${Math.round(daysSince)} day(s) after the ${editionLabel} release \u2014 values may include a post-release revision (e.g. a WEO Update) not contained in the originally-published ${editionLabel} database.`
+          );
+        }
+      }
+    }
+  }
+  if (clamped) {
+    notes.push(
+      `The data horizon implied a projection-boundary year that looked implausible against the IMF's release calendar, so the calendar year (${boundaryYear}) was used instead \u2014 possible if this payload is truncated or mid-load.`
+    );
+  }
+  if (DB_PRIMARY.has(def.key)) {
+    const metaTable = await fetchDataMapperMetadata(ctx);
+    const mismatch = crossEditionMismatchNote(metaTable, dataset, s.edition);
+    if (mismatch) notes.push(mismatch);
+  }
+  if (dataset === "WEO") {
+    notes.push(
+      "IMF DataMapper serves WEO-database values rounded to one decimal place (Fiscal Monitor-sourced fiscal series are full precision); derived transforms (e.g. year-over-year change) computed from these values can carry up to \xB10.1 of additional rounding error."
+    );
+  }
+  const countryMaxYear = s.observations.reduce(
+    (m, o) => o.value != null ? Math.max(m, parseInt(o.period, 10) || 0) : m,
+    0
+  );
+  const base = `Values for ${boundaryYear} onward are ${kind} estimates/projections, not final outturns. This boundary is a vintage-year heuristic derived from the data's own projection horizon: the IMF's "latest actual" year varies by country and series, so some observations before ${boundaryYear} may also be IMF staff estimates rather than final outturns.`;
+  notes.push(
+    countryMaxYear > 0 && countryMaxYear < boundaryYear ? `${base} The IMF publishes no current-edition projections for ${country.name} on this series; it ends at ${countryMaxYear} \u2014 treat recent values as unconfirmed estimates, not the IMF's current assessment.` : base
+  );
+  const observations = s.observations.map((o) => ({ ...o }));
+  for (const o of observations) {
+    const y = parseInt(o.period.slice(0, 4), 10);
+    if (Number.isFinite(y) && y >= boundaryYear) o.note = `${kind} estimate/projection`;
+  }
+  const citation = imfDataMapperCitation(ctx, {
+    code: s.code,
+    dataset,
+    seriesName: def.label,
+    editionLabel,
+    sourceUrl: s.humanUrl,
+    apiUrl: s.valuesApiUrl,
+    lastModified: s.edition?.lastModified
+  });
+  const result = {
+    series_id: `imf/${s.code}`,
+    name: def.label,
+    country: { iso3: country.iso3, name: country.name },
+    unit: def.unit,
+    frequency: "annual",
+    observations,
+    citation,
+    notes
+  };
+  return finishSeries(result, opts);
+}
 async function indicatorFromFred(ctx, def, opts) {
   const s = await fetchFredSeries(ctx, def.fred, { start: opts.start, end: opts.end });
   const citation = fredCitation(ctx, { seriesId: s.seriesId, seriesName: s.seriesName, units: s.units, apiUrl: s.apiUrl });
@@ -1235,12 +1533,20 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
   }
   const preferDbnomics = def.dbnomics && (!def.wb || DB_PRIMARY.has(def.key));
   const attempts = [];
+  const pushImfChain = () => {
+    if (def.datamapper) {
+      attempts.push({ label: "IMF DataMapper API", run: () => indicatorFromDataMapper(ctx, def, country, opts) });
+    }
+    if (def.dbnomics) {
+      attempts.push({ label: "IMF WEO (via DBnomics)", run: () => indicatorFromDbnomics(ctx, def, country, opts) });
+    }
+  };
   if (preferDbnomics) {
-    attempts.push({ label: "IMF WEO (via DBnomics)", run: () => indicatorFromDbnomics(ctx, def, country, opts) });
+    pushImfChain();
     if (def.wb) attempts.push({ label: "World Bank WDI", run: () => indicatorFromWb(ctx, def, country, opts) });
   } else {
     if (def.wb) attempts.push({ label: "World Bank WDI", run: () => indicatorFromWb(ctx, def, country, opts) });
-    if (def.dbnomics) attempts.push({ label: "IMF WEO (via DBnomics)", run: () => indicatorFromDbnomics(ctx, def, country, opts) });
+    pushImfChain();
   }
   if (def.fred && country.iso3 === "USA" && fredAvailable(ctx) && attempts.length === 0) {
     attempts.push({ label: "FRED", run: () => indicatorFromFred(ctx, def, opts) });
@@ -1277,6 +1583,10 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
   );
 }
 var DB_PRIMARY = /* @__PURE__ */ new Set(["govt_debt_gdp", "fiscal_balance_gdp", "govt_revenue_gdp", "govt_expenditure_gdp"]);
+var DM_CODE_INFO = /* @__PURE__ */ new Map();
+for (const d of INDICATORS) {
+  if (d.datamapper) DM_CODE_INFO.set(d.datamapper[0], { dataset: d.datamapper[1], def: d });
+}
 async function getSeries(ctx, seriesId, opts = {}) {
   const id = seriesId.trim();
   const lower = id.toLowerCase();
@@ -1306,6 +1616,21 @@ async function getSeries(ctx, seriesId, opts = {}) {
       },
       opts
     );
+  }
+  if (lower.startsWith("imf/")) {
+    const code = id.slice(4);
+    const info = DM_CODE_INFO.get(code);
+    if (!info) {
+      throw new ToolError(
+        `Unrecognized IMF DataMapper code '${code}'. Known codes: ${[...DM_CODE_INFO.keys()].join(", ")}.`,
+        { series_id: id }
+      );
+    }
+    if (!opts.country) {
+      throw new ToolError("IMF DataMapper series require a 'country' parameter (ISO3 code or name).", { series_id: id });
+    }
+    const country = requireCountry(opts.country);
+    return indicatorFromDataMapper(ctx, info.def, country, opts);
   }
   if (lower.startsWith("fred/")) {
     const code = id.slice(5);
@@ -1402,15 +1727,17 @@ async function searchIndicators(ctx, query, opts = {}) {
 }
 function listRegistry() {
   return INDICATORS.map((d) => {
+    const dmLabel = d.datamapper ? "IMF DataMapper API (current WEO/Fiscal Monitor)" : void 0;
     const dbLabel = d.dbnomics ? `${d.dbnomics[0]} ${d.dbnomics[1].replace(":latest", "")} (via DBnomics)` : void 0;
     const wbLabel = d.wb ? "World Bank WDI" : void 0;
     const dbFirst = d.dbnomics && (!d.wb || DB_PRIMARY.has(d.key));
+    const imfChain = [...dmLabel ? [dmLabel] : [], ...dbLabel ? [dbLabel] : []];
     return {
       key: d.key,
       label: d.label,
       unit: d.unit,
       sources: [
-        ...dbFirst ? [dbLabel, ...wbLabel ? [wbLabel] : []] : [...wbLabel ? [wbLabel] : [], ...dbLabel ? [dbLabel] : []],
+        ...dbFirst ? [...imfChain, ...wbLabel ? [wbLabel] : []] : [...wbLabel ? [wbLabel] : [], ...imfChain],
         ...d.fred ? ["FRED (US)"] : []
       ],
       notes: d.notes
@@ -1467,29 +1794,18 @@ async function countrySnapshot(ctx, countryInput) {
   }
   try {
     const debtDef = getIndicatorDef("govt_debt_gdp");
-    const [provider, dataset, template] = debtDef.dbnomics;
-    const s = await fetchDbnomicsSeries(provider, dataset, template.replace("{ISO3}", country.iso3));
-    const m = s.datasetCode.match(/WEO:(\d{4})/);
-    const vintage = m ? parseInt(m[1], 10) : void 0;
-    const historical = vintage ? s.observations.filter((o) => parseInt(o.period.slice(0, 4), 10) < vintage) : s.observations;
-    const latest = latestNonNull(historical);
+    const s = await getIndicator(ctx, "govt_debt_gdp", country.iso3, { limit: 1 });
+    const latest = latestNonNull(s.observations);
     if (latest && latest.value != null) {
       items.push({
         indicator: debtDef.key,
-        label: "General government gross debt (% of GDP)",
+        label: s.name,
         period: latest.period,
         value: latest.value,
         unit: debtDef.unit,
-        citation: dbnomicsCitation(ctx, {
-          providerName: s.providerName,
-          providerCode: s.providerCode,
-          datasetCode: s.datasetCode,
-          datasetName: s.datasetName,
-          seriesCode: s.seriesCode,
-          seriesName: s.seriesName,
-          apiUrl: s.apiUrl
-        })
+        citation: s.citation
       });
+      if (s.fallback_used) notes.push(`Government debt: ${s.notes[s.notes.length - 1] ?? "served from a fallback source."}`);
     } else {
       missing.push("govt_debt_gdp");
     }
@@ -1563,9 +1879,9 @@ async function inflationAdjust(ctx, amount, fromYear, toYear, countryInput = "US
 }
 
 // ../server/src/adapters/frankfurter.ts
-var BASE4 = "https://api.frankfurter.dev/v1";
+var BASE5 = "https://api.frankfurter.dev/v1";
 async function listEcbCurrencies() {
-  return await fetchJson(`${BASE4}/currencies`, { ttlSeconds: 86400 });
+  return await fetchJson(`${BASE5}/currencies`, { ttlSeconds: 86400 });
 }
 async function getEcbRates(base, symbols, date) {
   if (date && date < "1999-01-04") {
@@ -1575,7 +1891,7 @@ async function getEcbRates(base, symbols, date) {
     );
   }
   const path = date ? `/${date}` : "/latest";
-  const apiUrl = `${BASE4}${path}?base=${encodeURIComponent(base)}&symbols=${symbols.map(encodeURIComponent).join(",")}`;
+  const apiUrl = `${BASE5}${path}?base=${encodeURIComponent(base)}&symbols=${symbols.map(encodeURIComponent).join(",")}`;
   const data = await fetchJson(apiUrl, { ttlSeconds: date ? 604800 : 1800 });
   if (!data.rates || !data.date) {
     throw new ToolError("Frankfurter returned an unexpected payload", { api_url: apiUrl });
@@ -1586,7 +1902,7 @@ async function getEcbAnnualAverage(base, symbol, year) {
   if (year < 1999) {
     throw new ToolError("ECB reference rates begin in 1999; earlier years use World Bank annual official rates.", { year });
   }
-  const apiUrl = `${BASE4}/${year}-01-01..${year}-12-31?base=${encodeURIComponent(base)}&symbols=${encodeURIComponent(symbol)}`;
+  const apiUrl = `${BASE5}/${year}-01-01..${year}-12-31?base=${encodeURIComponent(base)}&symbols=${encodeURIComponent(symbol)}`;
   const data = await fetchJson(apiUrl, { ttlSeconds: 604800 });
   const days = Object.values(data.rates ?? {});
   const values = days.map((d) => d[symbol]).filter((v) => typeof v === "number");
@@ -1941,7 +2257,26 @@ async function verifyStat(ctx, p) {
     };
   }
   const official = matched.value;
-  const isProjection = /WEO/i.test(matched.note ?? "") && /estimate|projection/i.test(matched.note ?? "");
+  const isProjection = /WEO|Fiscal Monitor/i.test(matched.note ?? "") && /estimate|projection/i.test(matched.note ?? "");
+  const def = isRegistry ? getIndicatorDef(p.indicator) : void 0;
+  if (Boolean(def?.datamapper) && result.fallback_used === true && result.series_id.startsWith("dbnomics/")) {
+    return {
+      verdict: "cannot_verify",
+      claimed_value: p.claimed_value,
+      official_value: official,
+      is_projection: isProjection,
+      period,
+      difference: null,
+      relative_difference_pct: null,
+      explanation: `The current-edition IMF DataMapper path was unavailable; this indicator's dated DBnomics fallback shows ${fmt(official)}${result.unit ? ` ${result.unit}` : ""} for ${period} \u2014 indicative only, not a verification. IMF vintage revisions (e.g. GDP rebasing) can move WEO/Fiscal Monitor series by more than a percentage point for the same historical year, so a match/mismatch verdict against this superseded vintage would not be trustworthy.`,
+      diagnostics,
+      series: { id: result.series_id, name: result.name, unit: result.unit },
+      country: result.country,
+      citation: result.citation,
+      notes,
+      fallback_used: true
+    };
+  }
   const diff = p.claimed_value - official;
   const relPct = official !== 0 ? diff / Math.abs(official) * 100 : null;
   const ratio = official !== 0 ? p.claimed_value / official : null;
@@ -2058,9 +2393,9 @@ var SOURCES = [
   },
   {
     id: "imf_weo",
-    name: "IMF \u2014 World Economic Outlook (via DBnomics)",
-    coverage: "Growth, fiscal, external indicators for 190+ economies, incl. estimates/projections; twice-yearly vintages. Served vintage is the newest available via DBnomics, which can lag the IMF's release calendar \u2014 every response cites the resolved vintage and adds a stale-vintage note when it trails the expected current release",
-    access: "No key; queried live from api.db.nomics.world v22",
+    name: "IMF \u2014 World Economic Outlook & Fiscal Monitor (via the IMF DataMapper API, with DBnomics as fallback)",
+    coverage: "Growth, fiscal, external indicators for 190+ economies, incl. estimates/projections; twice-yearly vintages (April/October, plus interim Updates). The primary path is the IMF's own DataMapper API \u2014 the current edition, verbatim edition label passed through unrewritten. If that path is unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF's release calendar; every response cites the resolved vintage, and a fallback that crosses editions is disclosed (verify_stat demotes such cases to cannot_verify rather than judging a claim against a superseded vintage). The actual/projection boundary is a heuristic derived from each response's own data horizon, not a per-country authoritative cutoff",
+    access: "No key; queried live from www.imf.org/external/datamapper (primary) and api.db.nomics.world v22 (fallback)",
     license: "Use and redistribution are subject to the IMF's data-usage terms, including attribution and downstream-user conditions; commercial reuse may require IMF permission \u2014 consult the IMF terms directly",
     attribution_required: "Source: International Monetary Fund",
     url: "https://www.imf.org/en/Publications/WEO",

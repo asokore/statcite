@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { handleRequest, type Env } from "../src/index.ts";
 import { _clearMemCache } from "../src/core/upstream.ts";
+import { dmValuesBody, isDataMapperValuesUrl, isDataMapperMetadataUrl, STANDARD_DM_METADATA, DM_CODES } from "./dm-fixtures.ts";
 
 const fixturesDir = fileURLToPath(new URL("./fixtures/", import.meta.url));
 
@@ -26,6 +27,21 @@ const routes: Route[] = [
   { test: (u) => u.includes("api.frankfurter.dev/v1/2020-06-15"), body: () => fixture("frankfurter-hist") },
   { test: (u) => u.includes("api.db.nomics.world") && u.includes("/search"), body: () => fixture("dbnomics-search") },
   { test: (u) => u.includes("api.db.nomics.world") && u.includes("BRB.NGDP_RPCH"), body: () => fixture("dbnomics-series") },
+  { test: (u) => isDataMapperMetadataUrl(u), body: () => STANDARD_DM_METADATA },
+  {
+    test: (u) => isDataMapperValuesUrl(u, DM_CODES.govt_debt_gdp),
+    body: () =>
+      dmValuesBody(DM_CODES.govt_debt_gdp, {
+        // Horizon through 2031 (edition year 2026 + 5) so the projection boundary
+        // (2031-5=2026) matches STANDARD_DM_METADATA's "April 2026" edition
+        // without relying on the calendar-clamp fallback — stable regardless of
+        // real wall-clock test-run date.
+        USA: {
+          "2023": 121.7, "2024": 122.3, "2025": 123.9, "2026": 125.8,
+          "2027": 128.6, "2028": 132.1, "2029": 135.5, "2030": 138.9, "2031": 142.1,
+        },
+      }),
+  },
 ];
 
 export const unmatchedUrls: string[] = [];

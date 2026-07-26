@@ -22,14 +22,14 @@ StatCite is a free remote MCP server + REST API serving official economic statis
 - `rest.ts` — GET mirror of the tools; 422 for helpful failures with suggestions. One non-GET route: `POST /v1/verify_claims` (JSON body `{ claims: [...] }`; GET on it → 405 advice, non-JSON content-type → 415).
 - `core/analytics.ts` — aggregate usage recording (Workers Analytics Engine binding `STATCITE_USAGE` + a `STATCITE_USAGE {json}` log line). Called from `tools.ts` (`callTool`) and `rest.ts` only. **How to read the data: `docs/LAUNCH.md` → "Reading usage analytics".**
 - `core/` — pure logic, no Workers APIs: `series.ts` (indicator orchestration + source fallback), `verify.ts` (verdicts + diagnostics), `inflation.ts`, `fx.ts` (ECB daily + WB annual USD-bridge), `snapshot.ts`, `indicators.ts` (42-key curated registry), `countries.ts` (ISO resolver), `citations.ts` (per-source citation builders), `transforms.ts`, `upstream.ts` (memory+edge cache, timeout, retry).
-- `adapters/` — worldbank (v2 JSON envelope), dbnomics (v22; WEO vintages), frankfurter (`api.frankfurter.dev`), fred (optional `FRED_API_KEY` secret).
+- `adapters/` — worldbank (v2 JSON envelope), datamapper (IMF DataMapper API — current-vintage WEO/Fiscal Monitor; primary for the 6 IMF-backed registry keys), dbnomics (v22; dated WEO vintages — now the fallback behind datamapper, and the reproducibility instrument for a pinned vintage), frankfurter (`api.frankfurter.dev`), fred (optional `FRED_API_KEY` secret).
 - `core-entry.ts` — bundle entry for the Apify actor (`apify/npm run build:core` → `core.bundle.mjs`, committed).
 
 ## Invariants — do not break
 
 1. **Every numeric payload includes a citation object** (`core/citations.ts`); its field names are public API.
 2. **Citations carry the source-required attribution** (WB attribution string; FRED disclaimer notice; "Source: International Monetary Fund"). This is licensing compliance, not decoration.
-3. **IMF WEO forward-year values are labeled** as projections (per-observation `note` + series note); `latest_only` prefers outturns.
+3. **IMF WEO/Fiscal Monitor forward-year values are labeled** as projections (per-observation `note` + series note); `latest_only` prefers outturns. The DataMapper-path boundary is payload-anchored (data horizon − 5), not derived from the edition label — don't recouple it, that's what let cache skew corrupt it before.
 4. **Errors are advice**: unknown country → suggestions; missing year → available range. Keep it that way.
 5. **Zero runtime dependencies** in the Worker; CPU budget is 10ms/invocation (free plan). No KV writes on request paths.
 6. Registry keys (`indicators.ts`) are stable once published — add, don't rename.

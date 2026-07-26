@@ -2,11 +2,10 @@
 
 import type { Citation, Ctx } from "./types.ts";
 import { ToolError } from "./types.ts";
-import { requireCountry } from "./series.ts";
+import { requireCountry, getIndicator } from "./series.ts";
 import { getIndicatorDef } from "./indicators.ts";
 import { fetchWbMulti } from "../adapters/worldbank.ts";
-import { fetchDbnomicsSeries } from "../adapters/dbnomics.ts";
-import { worldBankCitation, dbnomicsCitation } from "./citations.ts";
+import { worldBankCitation } from "./citations.ts";
 import { latestNonNull } from "./transforms.ts";
 
 const SNAPSHOT_WB_KEYS = [
@@ -76,35 +75,26 @@ export async function countrySnapshot(ctx: Ctx, countryInput: string): Promise<S
     });
   }
 
-  // Government debt from IMF WEO (better coverage than WDI central-government series).
+  // Government debt from the same chain get_indicator uses (IMF DataMapper API,
+  // then IMF WEO via DBnomics, then World Bank central-government series) —
+  // previously this fetched DBnomics directly, so country_snapshot and
+  // get_indicator could silently disagree on the same headline number and vintage
+  // for the same query (design D1/F5). finishSeries's limit=1 semantics already
+  // prefer the latest non-projection ("outturn") observation.
   try {
     const debtDef = getIndicatorDef("govt_debt_gdp")!;
-    const [provider, dataset, template] = debtDef.dbnomics!;
-    const s = await fetchDbnomicsSeries(provider, dataset, template.replace("{ISO3}", country.iso3));
-    // WEO includes projections; take the latest period at or before the vintage year.
-    const m = s.datasetCode.match(/WEO:(\d{4})/);
-    const vintage = m ? parseInt(m[1], 10) : undefined;
-    const historical = vintage
-      ? s.observations.filter((o) => parseInt(o.period.slice(0, 4), 10) < vintage)
-      : s.observations;
-    const latest = latestNonNull(historical);
+    const s = await getIndicator(ctx, "govt_debt_gdp", country.iso3, { limit: 1 });
+    const latest = latestNonNull(s.observations);
     if (latest && latest.value != null) {
       items.push({
         indicator: debtDef.key,
-        label: "General government gross debt (% of GDP)",
+        label: s.name,
         period: latest.period,
         value: latest.value,
         unit: debtDef.unit,
-        citation: dbnomicsCitation(ctx, {
-          providerName: s.providerName,
-          providerCode: s.providerCode,
-          datasetCode: s.datasetCode,
-          datasetName: s.datasetName,
-          seriesCode: s.seriesCode,
-          seriesName: s.seriesName,
-          apiUrl: s.apiUrl,
-        }),
+        citation: s.citation,
       });
+      if (s.fallback_used) notes.push(`Government debt: ${s.notes[s.notes.length - 1] ?? "served from a fallback source."}`);
     } else {
       missing.push("govt_debt_gdp");
     }

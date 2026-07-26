@@ -42,7 +42,7 @@ His `C:\dev` already contains: `FiscalDashboard`, `barbados-property-dashboard`,
 
 | Path | What it is | State |
 |---|---|---|
-| `server/` | Cloudflare Worker: stateless MCP (hand-rolled JSON-RPC, zero runtime deps) + REST mirror + 42-indicator registry + 4 data adapters | **50/50 tests pass; live smoke passes against real World Bank / DBnomics / Frankfurter APIs** |
+| `server/` | Cloudflare Worker: stateless MCP (hand-rolled JSON-RPC, zero runtime deps) + REST mirror + 42-indicator registry + 5 data adapters (World Bank, IMF DataMapper, DBnomics, Frankfurter, FRED) | **151/151 tests pass (v1.3.0); live smoke passes against real World Bank / DBnomics / Frankfurter APIs** |
 | `site/` | statcite.com: landing, docs, llms.txt/llms-full.txt, openapi.json, privacy, terms, 404 | Renders; screenshot verified |
 | `apify/` | Pay-per-event actor bundling the same core (`core.bundle.mjs`, committed) | Local core test passes; not pushed |
 | `skill/` | Packaged Claude skill teaching verify-then-cite | Written; **never evaluated** (see §7) |
@@ -102,7 +102,7 @@ These look like omissions and aren't. Overrule them freely — just do it knowin
 - **FRED is optional and secret-gated.** FRED's terms make the API key operator-specific and require a disclaimer. Everything works without it.
 - **The citation object's field names are public API.** Renaming them breaks agents that were told (via `llms-full.txt` and the skill) to read them.
 - **Attribution strings are licensing compliance,** not decoration. World Bank CC BY 4.0, IMF, ECB, FRED all require attribution; the citation object is how the project complies.
-- **IMF WEO projections are labeled as projections** and `latest_only` prefers published outturns. An economist would notice immediately if this broke.
+- **IMF WEO/Fiscal Monitor projections are labeled as projections** and `latest_only` prefers published outturns. An economist would notice immediately if this broke. (v1.3.0: the boundary is now anchored to each response's own data horizon, not the edition label — so it survives cache skew between the IMF's values and metadata endpoints.)
 
 A pre-deploy review found 13 issues including a FRED-key-leak path in error responses. All were fixed with regression tests (`server/test/regressions.test.ts`). Assume more exist — the review was one pass.
 
@@ -113,7 +113,7 @@ A pre-deploy review found 13 issues including a FRED-key-leak path in error resp
 **These are the most valuable part of this file.** In rough order of expected payoff:
 
 ### 6.1 Revision-aware verification (vintage data) — the biggest product idea I didn't build
-Right now `verify_stat` compares a claim against the *currently published* value. But macro data gets revised constantly, so a 2023 report citing 2022 GDP growth was often *correct when written* and looks wrong today. A verifier that distinguishes "this was never right" from "this was right at the time and has since been revised" would be genuinely novel — no one has it, and it's exactly the distinction a professional cares about. FRED's ALFRED provides real-time vintages; IMF WEO ships dated vintages (already visible in the DBnomics dataset codes this repo uses). This could be the real moat rather than a feature.
+Right now `verify_stat` compares a claim against the *currently published* value. But macro data gets revised constantly, so a 2023 report citing 2022 GDP growth was often *correct when written* and looks wrong today. A verifier that distinguishes "this was never right" from "this was right at the time and has since been revised" would be genuinely novel — no one has it, and it's exactly the distinction a professional cares about. FRED's ALFRED provides real-time vintages; IMF WEO ships dated vintages (already visible in the DBnomics dataset codes this repo uses, and now the fallback path behind the DataMapper API's current-vintage primary — v1.3.0). A narrow slice of this shipped in v1.3.0 (a DataMapper→DBnomics fallback that crosses IMF editions returns `cannot_verify` rather than a verdict against a superseded vintage), but the general "was this true when written" verifier described here is still unbuilt. This could be the real moat rather than a feature.
 
 ### 6.2 `verify_report` — verify a whole draft in one call
 Accept a block of text, extract every economic claim (indicator + country + period + value), verify each, return an annotated result. This turns a per-number utility into a workflow, matches how people actually work, and is far more compelling in a demo. It's mostly orchestration over what already exists.
@@ -146,7 +146,7 @@ Bulk/batch endpoints · CSV output for spreadsheet users · OECD and Eurostat as
 - **Country resolver is English-only** and hand-maintained (~230 entries + aggregates). No fuzzy matching for typos.
 - **`country_snapshot` fixes 11 indicators.** Not configurable.
 - **Test fixtures are point-in-time recordings.** `npm run fixtures` re-records; if an upstream changes shape, tests may pass against stale reality. The live smoke script is the real canary — run it monthly.
-- **DBnomics is a community aggregator** with no SLA, used for all IMF WEO data. Fallbacks exist but coverage would degrade if it disappeared.
+- **DBnomics is a community aggregator** with no SLA. As of v1.3.0 it's the *fallback* IMF path (primary is the IMF's own DataMapper API) and the vintage-pinning instrument for `dbnomics/IMF/WEO:YYYY-MM/...` explicit ids — coverage would degrade, not vanish, if it disappeared.
 - **Docs duplicate the registry.** The indicator table in `site/docs.html` and the list in `site/llms-full.txt` were generated from `server/src/core/indicators.ts` by hand at build time. Adding indicators means regenerating both. Worth automating into a script if you touch the registry.
 - **The Apify actor has never run on the platform.** Only the bundled core was tested locally.
 

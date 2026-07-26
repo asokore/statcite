@@ -5,8 +5,8 @@ StatCite serves official economic statistics with full citations. Free, no auth,
 - MCP endpoint (Streamable HTTP, stateless, protocol 2025-03-26/2025-06-18/2025-11-25): https://statcite.com/mcp
 - REST base: https://statcite.com/v1  (OpenAPI: https://statcite.com/openapi.json)
 - Every numeric response includes a citation object: {source, dataset, series_id, series_name, source_url, api_url, license, attribution, retrieved_at, citation_text, notices?}. Reproduce citation_text when presenting numbers to users.
-- Data sources: World Bank WDI (CC BY 4.0), IMF WEO via DBnomics (attribution: "Source: International Monetary Fund"), ECB euro reference rates via Frankfurter, optional FRED (US high-frequency; carries the mandated FRED disclaimer).
-- IMF WEO forward-year values are labeled as estimates/projections per-observation; "latest" prefers published outturns. The projection boundary is a vintage-year heuristic (the IMF's "latest actual" varies by country; some earlier observations may also be staff estimates — notes say so). WEO is served via DBnomics, which can lag the IMF's April/October release calendar: citations state the resolved vintage, and responses carry a stale-vintage note when it trails the expected current release.
+- Data sources: World Bank WDI (CC BY 4.0), IMF WEO/Fiscal Monitor via the IMF DataMapper API — current vintage, DBnomics as a vintage-pinned fallback (attribution: "Source: International Monetary Fund"), ECB euro reference rates via Frankfurter, optional FRED (US high-frequency; carries the mandated FRED disclaimer).
+- IMF forward-year values are labeled as estimates/projections per-observation; "latest" prefers published outturns. The projection boundary is a heuristic derived from each response's own data horizon, not a per-country authoritative cutoff (some earlier observations may also be staff estimates — notes say so; a series ending before the boundary year gets an explicit note). Citations pass through the IMF's own verbatim edition label; a fallback that crosses IMF vintages (DataMapper unavailable, served from an older DBnomics edition) carries an explicit disclosure, and verify_stat/verify_claims return cannot_verify rather than a match/mismatch verdict in that case, since a vintage change can move a value by more than rounding even for identical historical years.
 - Statistics get revised: values reflect the source's currently published figure.
 
 ## MCP tools
@@ -19,7 +19,7 @@ Example: {"indicator":"inflation_cpi","country":"BRB","latest_only":true}
 ### verify_stat
 Check a claimed figure against the official series. THE tool to call before publishing any economic number.
 Args: indicator (registry key or explicit series id), country?, period (usually "YYYY"; quarters as "YYYY-Qn"/"YYYYQn"/"YYYY Qn", months as "YYYY-MM"/"YYYYMM"), claimed_value (number), tolerance_abs?, tolerance_pct?, strict_source? (bool — never verify against a fallback source; error instead). Fallback-based verdicts carry fallback_used: true.
-Returns verdict: match | close | mismatch | cannot_verify, plus official_value, difference, is_projection (true when the matched official observation is an IMF WEO estimate/projection, with the explanation qualified accordingly), diagnostics (year misattribution, percent-vs-decimal, scale confusion up to 10^12, sign flips), citation.
+Returns verdict: match | close | mismatch | cannot_verify, plus official_value, difference, is_projection (true when the matched official observation is an IMF WEO/Fiscal Monitor estimate/projection, with the explanation qualified accordingly), diagnostics (year misattribution, percent-vs-decimal, scale confusion up to 10^12, sign flips), citation. A DataMapper-to-DBnomics vintage-crossing fallback returns cannot_verify instead of judging against a superseded vintage.
 Default thresholds: percent-kind series → match ≤0.06pp or ≤0.5% rel, close ≤0.3pp or ≤2% rel; levels → match ≤0.5% rel, close ≤5% rel.
 
 ### verify_claims
@@ -28,11 +28,11 @@ Args: claims — array of 1–15 objects, each {indicator, country?, period, cla
 Returns: {summary, results, note?}.
 - summary: {total, match, close, mismatch, cannot_verify, error} — verdict counts across the batch.
 - results: in input order; each item is {ok:true, claim, verification} where verification is the full verify_stat payload (verdict, official_value, difference, diagnostics, is_projection, citation) — or {ok:false, claim, error} when that claim could not be resolved (unknown indicator/country, upstream trouble). Per-claim errors never sink the rest of the batch; they count under summary.error.
-- note: present when some claims were verified against IMF WEO projections rather than outturns.
+- note: present when some claims were verified against IMF WEO/Fiscal Monitor projections rather than outturns.
 REST: POST /v1/verify_claims with JSON body {"claims":[...]} — the API's only non-GET route. GET → 405 advice; non-JSON content-type → 415; malformed body → 422.
 
 ### get_series
-Raw series by explicit id: "worldbank/<WDI code>" (+country), "fred/<ID>" (US; needs server FRED key), "dbnomics/<PROVIDER>/<DATASET>/<SERIES>" e.g. "dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change".
+Raw series by explicit id: "worldbank/<WDI code>" (+country), "fred/<ID>" (US; needs server FRED key), "imf/<CODE>" (+country; current-vintage IMF WEO/Fiscal Monitor via DataMapper, e.g. "imf/NGDP_RPCH"), "dbnomics/<PROVIDER>/<DATASET>/<SERIES>" e.g. "dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change" (a dated edition like "WEO:2025-04" pins an exact vintage for reproducibility).
 Args: series_id, country?, start_year?, end_year?, transform?.
 
 ### search_indicators
@@ -74,7 +74,7 @@ Errors: 400 missing params, 422 helpful failure (suggestions included), 502 upst
 
 ## Indicator registry (42 keys)
 
-- gdp_growth — GDP growth (annual %) [% (annual, real)] (sources: World Bank WDI; IMF WEO (via DBnomics))
+- gdp_growth — GDP growth (annual %) [% (annual, real)] (sources: World Bank WDI; IMF DataMapper API (current WEO/Fiscal Monitor); IMF WEO (via DBnomics))
 - gdp_current_usd — GDP (current US$) [current US$] (sources: World Bank WDI)
 - gdp_per_capita_usd — GDP per capita (current US$) [current US$] (sources: World Bank WDI)
 - gdp_per_capita_ppp — GDP per capita, PPP (current international $) [current international $ (PPP)] (sources: World Bank WDI)
@@ -86,11 +86,11 @@ Errors: 400 missing params, 422 helpful failure (suggestions included), 502 upst
 - labor_force_participation — Labor force participation rate (% of population 15+, modeled ILO) [% of population ages 15+] (sources: World Bank WDI)
 - population — Population, total [people] (sources: World Bank WDI)
 - population_growth — Population growth (annual %) [%] (sources: World Bank WDI)
-- current_account_gdp — Current account balance (% of GDP) [% of GDP] (sources: World Bank WDI; IMF WEO (via DBnomics))
-- govt_debt_gdp — General government gross debt (% of GDP) [% of GDP] (sources: IMF WEO (via DBnomics); World Bank WDI)
-- fiscal_balance_gdp — General government net lending/borrowing (% of GDP) [% of GDP] (sources: IMF WEO (via DBnomics))
-- govt_revenue_gdp — General government revenue (% of GDP) [% of GDP] (sources: IMF WEO (via DBnomics))
-- govt_expenditure_gdp — General government total expenditure (% of GDP) [% of GDP] (sources: IMF WEO (via DBnomics))
+- current_account_gdp — Current account balance (% of GDP) [% of GDP] (sources: World Bank WDI; IMF DataMapper API (current WEO/Fiscal Monitor); IMF WEO (via DBnomics))
+- govt_debt_gdp — General government gross debt (% of GDP) [% of GDP] (sources: IMF DataMapper API (current WEO/Fiscal Monitor); IMF WEO (via DBnomics); World Bank WDI)
+- fiscal_balance_gdp — General government net lending/borrowing (% of GDP) [% of GDP] (sources: IMF DataMapper API (current WEO/Fiscal Monitor); IMF WEO (via DBnomics))
+- govt_revenue_gdp — General government revenue (% of GDP) [% of GDP] (sources: IMF DataMapper API (current WEO/Fiscal Monitor); IMF WEO (via DBnomics))
+- govt_expenditure_gdp — General government total expenditure (% of GDP) [% of GDP] (sources: IMF DataMapper API (current WEO/Fiscal Monitor); IMF WEO (via DBnomics))
 - tax_revenue_gdp — Tax revenue (% of GDP) [% of GDP] (sources: World Bank WDI)
 - trade_gdp — Trade (% of GDP) [% of GDP] (sources: World Bank WDI)
 - exports_gdp — Exports of goods and services (% of GDP) [% of GDP] (sources: World Bank WDI)

@@ -18,7 +18,7 @@ AI agents and analysts constantly need macro numbers they can defend: GDP growth
 
 ## Sources
 
-World Bank World Development Indicators (CC BY 4.0) · IMF World Economic Outlook via DBnomics · ECB euro reference rates · optional FRED. Data is fetched live from official APIs — this actor adds no numbers of its own, and labels IMF projections as projections.
+World Bank World Development Indicators (CC BY 4.0) · IMF World Economic Outlook & Fiscal Monitor via the IMF's own DataMapper API (current vintage, DBnomics as fallback) · ECB euro reference rates · optional FRED. Data is fetched live from official APIs — this actor adds no numbers of its own, and labels IMF projections as projections.
 
 ## Example: verify a stat before publishing
 
