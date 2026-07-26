@@ -30,9 +30,9 @@ And when handing over to you, he asked explicitly that you be given this brief *
 
 ### Who he is (this matters for what's defensible)
 
-Professional economist, chief data analyst / chief data scientist, experienced BI analyst. Works on fiscal policy, economic analysis, formal writing, and public commentary. His stated preference: **accuracy and consistency over speed**; outputs feed reports, briefs, and public commentary.
+An economist working in fiscal and macroeconomic analysis, with a strong applied-data background. Stated preference: **accuracy and consistency over speed**; outputs feed formal reports, briefs, and written commentary.
 
-His `C:\dev` already contains: `FiscalDashboard`, `barbados-property-dashboard`, `asokore-com`, `pifini`, `pokemon`. He has a local Power BI MCP connected. **Read those folders.** There is a strong Caribbean/Barbados fiscal thread in his work that this project currently under-exploits — see §6.3, which I think is the single biggest missed opportunity in what I built.
+He maintains several other data projects locally, in adjacent fiscal and investment domains. There is a strong small-states fiscal thread across that work which this project currently under-exploits — see §6.3, which I think is the single biggest missed opportunity in what I built.
 
 ---
 
@@ -118,8 +118,8 @@ Right now `verify_stat` compares a claim against the *currently published* value
 ### 6.2 `verify_report` — verify a whole draft in one call
 Accept a block of text, extract every economic claim (indicator + country + period + value), verify each, return an annotated result. This turns a per-number utility into a workflow, matches how people actually work, and is far more compelling in a demo. It's mostly orchestration over what already exists.
 
-### 6.3 Caribbean / small-states depth — the owner-specific edge I under-used
-World Bank coverage for small economies is thin and patchy; the owner works on Barbados fiscal data (`C:\dev\FiscalDashboard`, `barbados-property-dashboard`) and knows the national sources, definitions, and their quirks. A "Caribbean economic data" layer — CARICOM members, national statistical offices, central bank releases, correct treatment of pegged currencies — would be defensible in a way that "another World Bank wrapper" never is, because it encodes knowledge that isn't in any API. It's also directly reusable in his existing projects. **If I were choosing one thing to build next, it might be this rather than more breadth.** Ask him.
+### 6.3 Caribbean / small-states depth — the maintainer-specific edge I under-used
+World Bank coverage for small economies is thin and patchy; the maintainer has direct working familiarity with small-state fiscal data and knows the national sources, definitions, and their quirks. A "Caribbean economic data" layer — CARICOM members, national statistical offices, central bank releases, correct treatment of pegged currencies — would be defensible in a way that "another World Bank wrapper" never is, because it encodes knowledge that isn't in any API. **If I were choosing one thing to build next, it might be this rather than more breadth.** Ask him.
 
 ### 6.4 The AI Economic-Stats Accuracy Benchmark
 Described in `docs/STRATEGY.md`. Run the major assistants against ~100 economic-stat questions, verify with StatCite, publish error rates by model, indicator, and country. It doesn't exist anywhere. It is simultaneously: the missing demand proof (§4.1), a press-worthy artifact, a quarterly-repeatable content engine, and a credibility asset for an economist. High leverage, moderate effort. Consider doing it *before* heavy distribution work.
@@ -191,7 +191,7 @@ Not a prescription — a default if you want one:
 
 1. Read `docs/RESEARCH.md`, then `CLAUDE.md`. Skim `server/src/core/verify.ts` and `server/src/tools.ts` — that's where the product's actual opinion lives.
 2. Run `npm test` and `npm run smoke`. Confirm reality matches §2.
-3. Look at `C:\dev\FiscalDashboard` and `C:\dev\barbados-property-dashboard` — understand what he actually works on. §6.3 may look different afterward.
+3. Ask him about the small-states fiscal angle in §6.3 — it may look different once you understand the domain he actually works in.
 4. Spot-check the two medium-confidence claims: is anyone shipping per-number citations or stat verification *now*? Has the MCP distribution landscape shifted?
 5. Form your own view. Tell him: what you'd keep, what you'd change, what you'd add, what you'd kill — and what you recommend doing first.
 6. Then build it.
