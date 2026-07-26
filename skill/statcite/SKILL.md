@@ -62,5 +62,6 @@ Before finalizing any document with economic statistics (yours or the user's):
 - Annual-average vs year-end inflation differ; StatCite serves annual-average CPI and says so. If the user's claim is explicitly Dec/Dec, note the definitional difference instead of calling it wrong.
 - Unemployment uses ILO-modeled estimates for cross-country comparability; national definitions can differ — the notes say this, echo it when the gap matters.
 - Government debt defaults to the IMF's general government gross debt series, current vintage (better coverage than the World Bank's central-government-only series); the citation names the exact series and edition either way.
+- To check whether a claim was true *when it was made* rather than against today's revised figure, pass `as_of` (e.g. "2019-04") on `verify_stat`/`verify_claims` — only for the 6 IMF WEO/Fiscal Monitor-backed indicators (gdp_growth, current_account_gdp, govt_debt_gdp, fiscal_balance_gdp, govt_revenue_gdp, govt_expenditure_gdp).
 - All macro data is revised. The citation's `retrieved_at` date is part of the citation for exactly this reason — include it.
 - If StatCite is unreachable, say the number could not be verified against official sources rather than silently falling back to memory.

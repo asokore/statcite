@@ -161,7 +161,7 @@ async function indicatorFromWb(ctx: Ctx, def: IndicatorDef, country: Country, op
   return finishSeries(result, opts);
 }
 
-async function indicatorFromDbnomics(ctx: Ctx, def: IndicatorDef, country: Country, opts: SeriesOpts): Promise<SeriesResult> {
+export async function indicatorFromDbnomics(ctx: Ctx, def: IndicatorDef, country: Country, opts: SeriesOpts): Promise<SeriesResult> {
   const [provider, dataset, template] = def.dbnomics!;
   const code = template.replace("{ISO3}", country.iso3);
   const s = await fetchDbnomicsSeries(provider, dataset, code);
@@ -439,6 +439,68 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
     `Could not retrieve '${def.key}' for ${country.name}: ${errors.join(" | ")}`,
     { indicator: def.key, country: country.iso3 },
   );
+}
+
+/** Registry keys with a dated IMF WEO/Fiscal Monitor DBnomics definition — the
+ * only ones `getIndicatorAsOf` can pin to a historical vintage. */
+export function asOfCapableIndicators(): string[] {
+  return INDICATORS.filter((d) => d.dbnomics).map((d) => d.key);
+}
+
+/**
+ * Fetch a registry indicator pinned to the WEO/Fiscal Monitor edition that was
+ * current as of `asOfDate` — not today's live data. This is the reproducibility
+ * instrument for "was this claim true when it was published?" (revision-aware
+ * verification, BRIEF §6.1): DBnomics carries dated editions back to at least
+ * 2010-04 (spot-checked live), each a frozen historical snapshot, so resolving
+ * the edition the IMF's own April/October calendar had current on a given date
+ * and fetching it directly answers that question honestly. Bypasses the normal
+ * WB/DataMapper fallback chain entirely — there is no sensible fallback for "the
+ * data as it stood on a specific past date", only the one dated source that can
+ * answer it.
+ */
+export async function getIndicatorAsOf(
+  ctx: Ctx,
+  key: string,
+  countryInput: string,
+  asOfDate: Date,
+  opts: SeriesOpts = {},
+): Promise<{ result: SeriesResult; edition: string }> {
+  const def = getIndicatorDef(key);
+  if (!def) {
+    const near = searchIndicatorDefs(key, 5).map((m) => m.def.key);
+    throw new ToolError(
+      `Unknown indicator '${key}'.` + (near.length ? ` Closest matches: ${near.join(", ")}.` : ""),
+      { input: key, suggestions: near },
+    );
+  }
+  if (!def.dbnomics) {
+    throw new ToolError(
+      `'as_of' is only supported for indicators with a dated IMF WEO/Fiscal Monitor edition: ${asOfCapableIndicators().join(", ")}. ` +
+        `'${key}' has no dated-vintage source (World Bank and FRED do not expose historical editions here).`,
+      { indicator: key },
+    );
+  }
+  const country = requireCountry(countryInput);
+  const edition = expectedWeoEdition(asOfDate);
+  const [provider, datasetTemplate, codeTemplate] = def.dbnomics;
+  const dataset = datasetTemplate.replace(/:latest$/, `:${edition}`);
+  const asOfDef: IndicatorDef = { ...def, dbnomics: [provider, dataset, codeTemplate] };
+  let result: SeriesResult;
+  try {
+    result = await indicatorFromDbnomics(ctx, asOfDef, country, opts);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new ToolError(
+      `Could not retrieve the ${dataset} vintage of '${key}' for ${country.name} (resolved from as_of via the IMF's April/October release calendar): ${msg} ` +
+        `DBnomics's dated WEO editions have been confirmed to exist back to 2010-04; a date far outside that range, or a future date past the current edition, may not have a matching edition ingested.`,
+      { indicator: key, country: country.iso3, edition },
+    );
+  }
+  result.notes.push(
+    `Pinned to the ${dataset} vintage — the IMF WEO/Fiscal Monitor edition that was current as of ${asOfDate.toISOString().slice(0, 10)} per the IMF's April/October release calendar — not today's live data. Use this to check whether a claim was true when it was made, not whether it matches the current published figure.`,
+  );
+  return { result, edition };
 }
 
 const DB_PRIMARY = new Set(["govt_debt_gdp", "fiscal_balance_gdp", "govt_revenue_gdp", "govt_expenditure_gdp"]);

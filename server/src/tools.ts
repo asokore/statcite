@@ -67,6 +67,7 @@ export interface ClaimSpec {
   claimed_value: number;
   tolerance_abs?: number;
   tolerance_pct?: number;
+  as_of?: string;
 }
 
 export type ClaimResult =
@@ -135,6 +136,8 @@ function parseClaims(raw: unknown): ClaimSpec[] {
     if (tolAbs !== undefined) claim.tolerance_abs = tolAbs;
     const tolPct = claimNum(o, i, "tolerance_pct", false, "a relative tolerance in percent.");
     if (tolPct !== undefined) claim.tolerance_pct = tolPct;
+    const asOf = claimStr(o, i, "as_of", false, "a date like '2019-04' to verify against the WEO/Fiscal Monitor edition current then.");
+    if (asOf !== undefined) claim.as_of = asOf;
     return claim;
   });
 }
@@ -246,6 +249,11 @@ export const TOOLS: ToolDef[] = [
           description:
             "Reproducibility mode: never verify against a fallback source — error instead if the primary source fails. Default false; without it, a verify served from a transient-failure fallback returns cannot_verify with the fallback value as indicative (fallback_used=true), while a fallback for a series the primary permanently lacks (e.g. Taiwan in WDI) is judged normally with disclosure.",
         },
+        as_of: {
+          type: "string",
+          description:
+            "Verify against the IMF WEO/Fiscal Monitor edition that was current as of this date — e.g. '2019-04', '2019' — instead of today's live data. Answers \"was this claim true when it was made?\" rather than \"does it match the current published figure?\". Only supported for registry indicators with a dated IMF DBnomics definition (gdp_growth, current_account_gdp, govt_debt_gdp, fiscal_balance_gdp, govt_revenue_gdp, govt_expenditure_gdp); rejects with advice otherwise.",
+        },
       },
       required: ["indicator", "period", "claimed_value"],
       additionalProperties: false,
@@ -259,6 +267,7 @@ export const TOOLS: ToolDef[] = [
         tolerance_abs: args.tolerance_abs != null ? num(args, "tolerance_abs") : undefined,
         tolerance_pct: args.tolerance_pct != null ? num(args, "tolerance_pct") : undefined,
         strict_source: args.strict_source === true,
+        as_of: str(args, "as_of", false) || undefined,
       }),
   },
   {
@@ -286,6 +295,11 @@ export const TOOLS: ToolDef[] = [
               claimed_value: { type: "number", description: "The value as claimed (in the series' own units)." },
               tolerance_abs: { type: "number", description: "Optional absolute tolerance in series units (e.g. 0.1 percentage points)." },
               tolerance_pct: { type: "number", description: "Optional relative tolerance in percent." },
+              as_of: {
+                type: "string",
+                description:
+                  "Verify this claim against the IMF WEO/Fiscal Monitor edition current as of this date (e.g. '2019-04') instead of today's live data — only for the 6 registry indicators with a dated IMF DBnomics definition.",
+              },
             },
             required: ["indicator", "period", "claimed_value"],
             additionalProperties: false,

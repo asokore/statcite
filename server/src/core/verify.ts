@@ -3,7 +3,7 @@
 
 import type { Citation, Ctx } from "./types.ts";
 import { ToolError } from "./types.ts";
-import { getIndicator, getSeries } from "./series.ts";
+import { getIndicator, getIndicatorAsOf, getSeries } from "./series.ts";
 import { getIndicatorDef } from "./indicators.ts";
 
 export type Verdict = "match" | "close" | "mismatch" | "cannot_verify";
@@ -59,6 +59,10 @@ export interface VerifyResult {
    * fallback is that country's stable serving source and the verdict is judged
    * normally with disclosure. Absent otherwise. */
   fallback_used?: boolean;
+  /** Present when `as_of` was requested: the verdict was checked against the
+   * historical IMF WEO/Fiscal Monitor edition that was current on that date, not
+   * today's live data — revision-aware verification (BRIEF §6.1). */
+  as_of?: { requested: string; resolved_vintage: string };
 }
 
 interface VerifyParams {
@@ -72,6 +76,25 @@ interface VerifyParams {
   tolerance_pct?: number;
   /** Reproducibility mode: never verify against a fallback source — error instead. */
   strict_source?: boolean;
+  /** Verify against the IMF WEO/Fiscal Monitor edition that was current as of this
+   * date instead of today's live data — e.g. "2019-04", "2019", "2019-04-15".
+   * Only registry indicators with a dated IMF DBnomics definition support this
+   * (see asOfCapableIndicators in series.ts); anything else rejects with advice. */
+  as_of?: string;
+}
+
+/** Accepts "YYYY", "YYYY-MM", or "YYYY-MM-DD". A bare year resolves to 31 December
+ * of that year — "as of the end of 2019" — so it picks up whichever WEO edition
+ * (April or October) was the last one published that year. */
+function parseAsOfDate(input: string): Date {
+  const s = input.trim();
+  let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  m = /^(\d{4})-(\d{2})$/.exec(s);
+  if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, 1));
+  m = /^(\d{4})$/.exec(s);
+  if (m) return new Date(Date.UTC(+m[1], 11, 31));
+  throw new ToolError(`'as_of' should be a date like '2019-04', '2019-04-15', or a bare year '2019'.`, { as_of: input });
 }
 
 function isPercentKind(indicatorKey: string): boolean {
@@ -94,9 +117,25 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
   if (isRegistry && !p.country) {
     throw new ToolError(`Indicator '${p.indicator}' needs a 'country' (ISO3 code or name) to verify against.`);
   }
-  const result = isRegistry
-    ? await getIndicator(ctx, p.indicator, p.country ?? "", { strictSource: p.strict_source })
-    : await getSeries(ctx, p.indicator, { country: p.country, strictSource: p.strict_source });
+  if (p.as_of && !isRegistry) {
+    throw new ToolError(
+      `'as_of' only applies to registry indicator keys (see search_indicators). For an explicit series id, address the dated edition directly, e.g. 'dbnomics/IMF/WEO:2019-04/${p.country ?? "USA"}.NGDP_RPCH.pcent_change'.`,
+      { indicator: p.indicator },
+    );
+  }
+  let asOfResolved: { requested: string; resolved_vintage: string } | undefined;
+  const result = p.as_of
+    ? await (async () => {
+        const asOfDate = parseAsOfDate(p.as_of!);
+        const { result: r, edition } = await getIndicatorAsOf(ctx, p.indicator, p.country ?? "", asOfDate, {
+          strictSource: p.strict_source,
+        });
+        asOfResolved = { requested: p.as_of!, resolved_vintage: edition };
+        return r;
+      })()
+    : isRegistry
+      ? await getIndicator(ctx, p.indicator, p.country ?? "", { strictSource: p.strict_source })
+      : await getSeries(ctx, p.indicator, { country: p.country, strictSource: p.strict_source });
 
   const obs = result.observations;
   const byPeriod = new Map(obs.map((o) => [o.period, o]));
@@ -157,6 +196,7 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
       citation: result.citation,
       notes,
       ...(result.fallback_used ? { fallback_used: true } : {}),
+      ...(asOfResolved ? { as_of: asOfResolved } : {}),
     };
   }
 
@@ -246,6 +286,7 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
       citation: result.citation,
       notes,
       fallback_used: true,
+      ...(asOfResolved ? { as_of: asOfResolved } : {}),
     };
   }
 
@@ -278,6 +319,7 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
     citation: result.citation,
     notes,
     ...(result.fallback_used ? { fallback_used: true } : {}),
+    ...(asOfResolved ? { as_of: asOfResolved } : {}),
   };
 }
 
