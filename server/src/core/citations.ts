@@ -6,6 +6,13 @@ import { today } from "./types.ts";
 export const FRED_NOTICE =
   "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.";
 
+/** The one IMF license line, shared by every IMF citation builder and the sources
+ * registry so the wording cannot drift. Deliberately NOT "free reuse": the IMF's
+ * terms carry downstream-user conditions and potential commercial reuse should be
+ * referred to the IMF for permission. */
+export const IMF_LICENSE =
+  "Use and redistribution are subject to the IMF's data-usage terms, including attribution and downstream-user conditions; commercial reuse may require IMF permission — consult the IMF terms directly";
+
 export function worldBankCitation(
   ctx: Ctx,
   opts: { indicatorId: string; indicatorName: string; iso3?: string; apiUrl?: string; lastUpdated?: string },
@@ -51,9 +58,7 @@ export function dbnomicsCitation(
     series_name: opts.seriesName,
     source_url: sourceUrl,
     api_url: opts.apiUrl,
-    license: isImf
-      ? "IMF terms: free reuse and redistribution with attribution (Source: International Monetary Fund)"
-      : `${opts.providerName} terms apply; retrieved via DBnomics (open aggregator)`,
+    license: isImf ? IMF_LICENSE : `${opts.providerName} terms apply; retrieved via DBnomics (open aggregator)`,
     attribution: isImf ? "Source: International Monetary Fund" : `Source: ${opts.providerName} (via DBnomics)`,
     retrieved_at: date,
     citation_text: `${opts.providerName}, ${opts.datasetName}, series ${opts.seriesCode} (${opts.seriesName}). Retrieved ${date} via DBnomics/StatCite. ${sourceUrl}`,
@@ -87,7 +92,7 @@ export function imfDataMapperCitation(
     series_name: opts.seriesName,
     source_url: opts.sourceUrl,
     api_url: opts.apiUrl,
-    license: "IMF terms: free reuse and redistribution with attribution (Source: International Monetary Fund)",
+    license: IMF_LICENSE,
     attribution: "Source: International Monetary Fund",
     retrieved_at: date,
     citation_text: `International Monetary Fund, ${opts.editionLabel}${datasetSuffix}, ${opts.seriesName}, series ${opts.code}. Retrieved ${date} via the IMF DataMapper API/StatCite. ${opts.sourceUrl}`,

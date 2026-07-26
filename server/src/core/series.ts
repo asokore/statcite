@@ -62,7 +62,10 @@ function finishSeries(result: SeriesResult, opts: SeriesOpts): SeriesResult {
     const nonNull = obs.filter((o) => o.value != null);
     const outturns = nonNull.filter((o) => !/projection/i.test(o.note ?? ""));
     if (outturns.length && nonNull.length > outturns.length) {
-      result.notes.push("Latest published outturn shown; later IMF WEO projection periods exist for this series.");
+      // Deliberately NOT "latest published outturn": the IMF's true latest-actual
+      // year varies by country/series and the boundary here is a heuristic, so
+      // this value may itself be a staff estimate (design D11).
+      result.notes.push("Latest value not marked as a projection shown; later IMF estimate/projection periods exist for this series.");
     }
     obs = (outturns.length ? outturns : nonNull).slice(-1);
   } else if (opts.limit && opts.limit > 0 && obs.length > opts.limit) {
@@ -388,11 +391,16 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
 
   const errors: string[] = [];
   let firstErrorWasTransient = false;
+  // A same-query-different-answer risk exists if ANY skipped source failed
+  // transiently — e.g. primary permanently lacks the country but the secondary
+  // only blipped: the secondary may recover and change which source serves.
+  let anyErrorWasTransient = false;
   for (let i = 0; i < tried.length; i++) {
     try {
       const result = await tried[i].run();
       if (i > 0) {
         result.fallback_used = true;
+        result.fallback_reason = anyErrorWasTransient ? "transient" : "definitive";
         const primaryLabel = tried[0].label;
         const servedLabel = tried[i].label;
         // Two distinct classes of fallback, disclosed differently: a transient
@@ -412,7 +420,9 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
       }
       return result;
     } catch (e) {
-      if (i === 0) firstErrorWasTransient = isTransientUpstreamError(e);
+      const transient = isTransientUpstreamError(e);
+      if (i === 0) firstErrorWasTransient = transient;
+      if (transient) anyErrorWasTransient = true;
       errors.push(e instanceof Error ? e.message : String(e));
     }
   }

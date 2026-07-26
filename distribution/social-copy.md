@@ -53,7 +53,7 @@ Docs: https://statcite.com/docs.html — feedback very welcome.
 
 2/ The part I care about as an economist: verify_stat doesn't just say "wrong". It diagnoses HOW it's wrong — claim matches last year's value? percent-vs-decimal slip? millions vs billions? — and returns the correct figure with the citation attached.
 
-3/ Under the hood: one Cloudflare Worker, zero-dependency stateless MCP, World Bank + IMF WEO/Fiscal Monitor + ECB data (all redistributable with attribution — the citation IS the attribution). REST mirror + OpenAPI for non-MCP stacks. Free. statcite.com/docs.html
+3/ Under the hood: one Cloudflare Worker, zero-dependency stateless MCP, World Bank + IMF WEO/Fiscal Monitor + ECB data (redistributable per each source's terms — the citation carries the required attribution and license for every number). REST mirror + OpenAPI for non-MCP stacks. Free. statcite.com/docs.html
 
 ---
 

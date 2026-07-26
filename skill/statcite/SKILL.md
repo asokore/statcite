@@ -34,7 +34,7 @@ When drafting anything containing macro figures:
 1. Fetch each figure with `get_indicator` (or `/v1/indicator/...&latest_only=true`).
 2. Use the returned value exactly — do not round beyond one decimal for rates without noting it.
 3. Carry the citation: use `citation.citation_text` for footnotes/references, or build an inline citation from the citation fields as a template, e.g. "(World Bank, WDI, series FP.CPI.TOTL.ZG, retrieved {citation.retrieved_at})" — substitute the actual field values, never hardcode a date. Also reproduce `citation.attribution` verbatim when present: it is the source-mandated attribution string.
-4. Read the `notes` array — it flags fallback sources, ILO-modeled definitions, and IMF WEO/Fiscal Monitor projections. If a value is marked as a projection/estimate, say so in the text ("IMF projects…", not "was").
+4. Read the `notes` array — it flags fallback sources, ILO-modeled definitions, and IMF WEO/Fiscal Monitor projections. If a value is marked as a projection/estimate, say so in the text ("IMF projects…", not "was"). Verify responses also carry `observation_status`: treat `estimate_or_actual` (recent IMF values before the projection boundary) as possibly a staff estimate — write "IMF-reported", not "confirmed".
 
 ### 2. Fact-checking a draft (verify → correct)
 
@@ -46,7 +46,7 @@ Before finalizing any document with economic statistics (yours or the user's):
    - `match` — keep the number; attach the citation.
    - `close` — replace with the official value; attach the citation; if the draft's number came from a specific dated source, note the revision possibility.
    - `mismatch` — replace, and read `diagnostics`: they identify wrong-year claims, percent-vs-decimal slips, and millions/billions confusion, which tells you how to fix surrounding text too.
-   - `cannot_verify` — the response lists the available range and nearby values (or, for an IMF indicator, may mean the current-vintage source was unavailable and only a superseded edition could be reached); re-check the claim's period, or use `search_indicators` to find the right series. Never leave the unverifiable number in the text unflagged.
+   - `cannot_verify` — two distinct causes, distinguishable in the response. (1) No observation for that period: the response lists the available range and nearby values — re-check the claim's period, or use `search_indicators` to find the right series. (2) `fallback_used: true`: the indicator's primary source failed transiently and StatCite refuses to judge the claim against the substitute (which can differ by definition or vintage); the explanation reports the fallback's value as indicative — retry later, pass `strict_source=true` to fail hard, or disclose the indicative value as such. Never leave the unverifiable number in the text unflagged.
 
 **Example.** Draft says "US inflation hit 4.5% in 2023."
 `GET /v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=4.5` → verdict `close`, official 4.116. Correct the text to 4.1% and cite: "World Bank, World Development Indicators, series FP.CPI.TOTL.ZG…".

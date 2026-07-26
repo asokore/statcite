@@ -69,6 +69,12 @@ export interface SeriesResult {
    * this result — the value may reflect a different statistical definition than the
    * primary would have returned. Absent on primary-source responses. */
   fallback_used?: boolean;
+  /** Why the fallback served: "transient" — the primary errored and may recover
+   * (same query can return a different source/value later); "definitive" — the
+   * primary permanently lacks this series/country (e.g. Taiwan in WDI), making the
+   * fallback the stable de-facto source. verify_stat demotes transient-fallback
+   * verdicts to cannot_verify but judges definitive-fallback ones normally. */
+  fallback_reason?: "transient" | "definitive";
 }
 
 export type IndicatorKind =

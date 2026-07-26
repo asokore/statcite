@@ -71,7 +71,7 @@ PR to https://github.com/docker/mcp-registry per CONTRIBUTING.md. For a remote s
 
 ## 8. OpenAI ChatGPT Apps directory — days–weeks (optional; larger lift, now heavier)
 
-The server already implements the required `search`/`fetch` pair, so it works today as a custom connector in ChatGPT developer mode. As of the 2026-07-09 restructure, OpenAI merged the Apps directory and plugin listings into a single **unified Plugin Directory**, and submission now additionally requires:
+The server implements the `search`/`fetch` pair (no longer strictly required by OpenAI for connected servers as of ~2026-07 — see the dated note in docs/RESEARCH.md — but still the interface used by deep research and company knowledge), so it works today as a custom connector in ChatGPT developer mode. As of the 2026-07-09 restructure, OpenAI merged the Apps directory and plugin listings into a single **unified Plugin Directory**, and submission now additionally requires:
 - A verification endpoint at `/.well-known/openai-apps-challenge` that returns a token OpenAI supplies at submission time. **The Worker has no such route yet** — TODO: add a route in `server/src/index.ts` when this step is actually attempted; it needs the challenge token from the OpenAI dashboard first, so it can't be pre-built speculatively.
 - Explicit `readOnlyHint` / `openWorldHint` / `destructiveHint` annotations on every tool (some of this already exists per `tools.ts`; audit all 10 before submitting).
 - 5 positive + 3 negative test cases documented per tool.

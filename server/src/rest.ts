@@ -177,7 +177,10 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
 
     const snapMatch = path.match(/^\/v1\/snapshot\/([^/]+)$/);
     if (snapMatch) {
-      return json(200, await countrySnapshot(ctx, decodeURIComponent(snapMatch[1])));
+      const snapshot = await countrySnapshot(ctx, decodeURIComponent(snapMatch[1]));
+      // Same rule as /v1/indicator: a fallback-sourced number must not linger in
+      // shared caches after the primary source recovers.
+      return json(200, snapshot, snapshot.fallback_used ? 0 : 3600);
     }
 
     if (path === "/v1/verify") {
