@@ -2,6 +2,8 @@
 
 **New to this project? Read `BRIEF.md` first.** It carries the owner's actual goal, the reasoning behind every choice here, what I'd challenge about my own work, ideas considered but not built, and explicit authority to change or replace any of it. This file is the operating manual; BRIEF.md is the mandate.
 
+**Also read `docs/VENTURE-CONTEXT.md` if present** (imported 2026-07-26; **local-only by design — gitignored, never commit it**). It carries owner-sensitive strategic context this repo was built without, including a proposed repricing that contradicts `docs/MONETIZATION.md`. If it is absent (fresh clone), ask the owner rather than proceeding without it; the public-safe competitive facts from it live in `docs/RESEARCH.md` §4a.
+
 StatCite is a free remote MCP server + REST API serving official economic statistics where every number carries a full citation, plus a `verify_stat` claim-checker and its batch form `verify_claims`. Monorepo: Cloudflare Worker (`server/`), static site (`site/`), Apify pay-per-event actor twin (`apify/`), Claude skill (`skill/`), distribution kit (`distribution/`), strategy docs (`docs/`).
 
 **If the task is "take this live" or "deploy": follow `HANDOFF.md` step by step** — but read `BRIEF.md` §4 and §9 first and decide whether shipping as-is is actually the right move. Growth sequence: `docs/LAUNCH.md`.

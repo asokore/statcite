@@ -8,3 +8,8 @@ dist/
 apify/storage/
 package-lock.json
 .tools/
+
+# Owner-sensitive strategic context — local-only by design, never commit.
+# Carries personal/venture information that must not enter this public repo.
+# If absent after a fresh clone, the canonical copy lives in the owner's ace-wiki.
+docs/VENTURE-CONTEXT.md

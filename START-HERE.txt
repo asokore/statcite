@@ -1,7 +1,14 @@
 Paste this into Claude Code, opened in C:\dev\statcite
 ──────────────────────────────────────────────────────
 
-Read BRIEF.md, then CLAUDE.md, then docs/RESEARCH.md.
+Read BRIEF.md, then CLAUDE.md, then docs/VENTURE-CONTEXT.md (if present), then
+docs/RESEARCH.md.
+
+docs/VENTURE-CONTEXT.md is the cross-project context this repo was missing (the
+gap flagged below): market research from my ace-wiki project, the IMF StatGPT
+launch, and where this fits against my other ventures. It is deliberately
+local-only (gitignored — it carries context that must not enter this public
+repo). If it's missing, ask me for it before making strategy decisions.
 
 This project was researched and built for me in one Cowork session and handed to
 you deliberately unfinished-in-judgment: BRIEF.md gives you full authority to
