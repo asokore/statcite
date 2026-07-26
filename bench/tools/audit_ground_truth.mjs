@@ -1,10 +1,15 @@
 // bench/tools/audit_ground_truth.mjs — independent primary-source audit (METHODOLOGY §3.2).
 //
 // Re-fetches EVERY ground-truth value DIRECTLY from the primary APIs
-// (api.worldbank.org / api.db.nomics.world). StatCite is nowhere in this code path:
-// the only inputs are the frozen snapshot and the primary sources themselves.
-// Diffs against the snapshot; any divergence is printed and recorded — a divergence
-// is a logged deviation and a corrected, re-hashed snapshot BEFORE scoring.
+// (api.worldbank.org / api.db.nomics.world / www.imf.org DataMapper). StatCite is
+// nowhere in this code path: the only inputs are the frozen snapshot and the
+// primary sources themselves. Diffs against the snapshot; any divergence is
+// printed and recorded — a divergence is a logged deviation and a corrected,
+// re-hashed snapshot BEFORE scoring.
+//
+// imf/ support added for Full Run 1 (v1.3.0+ routes the 6 IMF-backed registry
+// indicators through the DataMapper API as primary; see runs/P0/NOTES.md N-1
+// carry-over (a)). P0 itself predates this and has no imf/-prefixed rows.
 //
 // Output: {base}/snapshots/{run}/audit.json.
 
@@ -19,9 +24,9 @@ Usage: node audit_ground_truth.mjs --run P0 [--base DIR] [--help]
   --base DIR   Base directory (default bench/).
   --help       Show this help.
 
-Fetches every value directly from api.worldbank.org / api.db.nomics.world (never
-StatCite), writes snapshots/{RUN}/audit.json, prints divergences, and exits non-zero
-if any value diverges.`;
+Fetches every value directly from api.worldbank.org / api.db.nomics.world /
+www.imf.org DataMapper (never StatCite), writes snapshots/{RUN}/audit.json,
+prints divergences, and exits non-zero if any value diverges.`;
 
 const REL_TOL = 1e-9; // exact same figure modulo float serialization
 
@@ -32,6 +37,24 @@ async function fetchWorldBankValue(iso3, wbCode, year) {
   const rows = Array.isArray(r.body[1]) ? r.body[1] : [];
   const hit = rows.find((row) => row.date === String(year));
   return { value: hit ? hit.value : null, url };
+}
+
+// Duplicated deliberately, not imported from server/src/adapters/datamapper.ts:
+// the audit's whole point is independence from StatCite's own code, so a bug in
+// the adapter (wrong alias, wrong URL) couldn't pass both serving AND auditing.
+const IMF_COUNTRY_ALIASES = { PSE: "WBG", XKX: "UVK" };
+
+async function fetchImfDataMapperValue(iso3, code, year) {
+  const url = `https://www.imf.org/external/datamapper/api/v1/${encodeURIComponent(code)}`;
+  const r = await politeFetchJson(url, { tag: "audit-imf" });
+  if (r.status !== 200) return { value: undefined, url, error: `http_${r.status}` };
+  const inner = r.body?.values?.[code];
+  if (!inner || typeof inner !== "object") return { value: undefined, url, error: "no_values_envelope" };
+  const dmIso3 = IMF_COUNTRY_ALIASES[iso3] ?? iso3;
+  const countrySeries = inner[dmIso3];
+  if (!countrySeries) return { value: null, url };
+  const raw = countrySeries[String(year)];
+  return { value: typeof raw === "number" ? raw : null, url };
 }
 
 async function fetchDbnomicsValue(seriesId, year) {
@@ -92,6 +115,9 @@ async function main() {
     } else if (row.series_id.startsWith("dbnomics/")) {
       out.primary_api = "api.db.nomics.world";
       res = await fetchDbnomicsValue(row.series_id, row.year);
+    } else if (row.series_id.startsWith("imf/")) {
+      out.primary_api = "www.imf.org/external/datamapper";
+      res = await fetchImfDataMapperValue(row.iso3, row.series_id.slice("imf/".length), row.year);
     } else {
       out.status = "unknown_source";
       out.divergent = true;

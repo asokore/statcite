@@ -39,6 +39,18 @@ interrupted run resumes without refetching.`;
 // exercise T1..T4 logic (large -> small), then falls back to ISO3 order.
 const PROBE_ORDER = ["USA", "JPN", "DEU", "BRA", "VNM", "KEN", "FJI", "BRB", "IND", "NGA", "ARG", "ISL", "TON", "GHA", "URY", "MNG"];
 
+// Informational label only (never consumed by generate_bank.mjs/report.mjs quota
+// or scoring logic — grep-verified). v1.3.0+ routes the 6 IMF-backed indicators
+// through the DataMapper API (series_id imf/{CODE}) ahead of the DBnomics
+// fallback; the prior binary worldbank/dbnomics split silently mislabeled every
+// DataMapper-served cell as "dbnomics_imf_weo".
+function sourceLabel(seriesId) {
+  const id = String(seriesId ?? "");
+  if (id.startsWith("worldbank/")) return "worldbank";
+  if (id.startsWith("imf/")) return "imf_datamapper";
+  return "dbnomics_imf_weo";
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2), {
     "limit-economies": { type: "number" },
@@ -122,7 +134,7 @@ async function main() {
     if (body) {
       seriesMeta.push({
         iso3: e.iso3, indicator: key, series_id: body.series_id,
-        source: String(body.series_id ?? "").startsWith("worldbank/") ? "worldbank" : "dbnomics_imf_weo",
+        source: sourceLabel(body.series_id),
         notes: body.notes ?? [],
       });
     }
@@ -151,7 +163,7 @@ async function main() {
           if (isProbeInd) cell.reason = "null_probe_indicator";
           cell.value = o.value;
           cell.series_id = body.series_id;
-          cell.source = String(body.series_id ?? "").startsWith("worldbank/") ? "worldbank" : "dbnomics_imf_weo";
+          cell.source = sourceLabel(body.series_id);
         }
       }
       cells.push(cell);

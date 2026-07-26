@@ -95,6 +95,7 @@ async function main() {
       unit: body?.unit ?? null,
       series_id: seriesId,
       source_institution: seriesId?.startsWith("worldbank/") ? "World Bank"
+        : seriesId?.startsWith("imf/") ? "IMF (via DataMapper)"
         : seriesId?.startsWith("dbnomics/IMF/") ? "IMF (via DBnomics)"
         : seriesId ? "other" : null,
       citation: body?.citation ?? null,
