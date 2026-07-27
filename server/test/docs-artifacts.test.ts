@@ -21,8 +21,15 @@ test("openapi.json parses and documents /v1 index + is_projection + observation_
   const verifyProps = spec.components.schemas.VerifyResult.properties;
   assert.ok(verifyProps.is_projection, "VerifyResult schema should document is_projection");
   assert.equal(verifyProps.is_projection.type, "boolean");
-  assert.deepEqual(verifyProps.observation_status.enum, ["actual", "estimate_or_actual", "projection", "unknown"]);
+  assert.deepEqual(verifyProps.observation_status.enum, ["actual", "modeled_estimate", "estimate_or_actual", "projection", "unknown"]);
   assert.deepEqual(verifyProps.status_method.enum, ["horizon_heuristic", "as_published"]);
+  // v1.4.1: the as_of schema must disclose resolution method and source change,
+  // and SeriesResult must document fallback_reason (both third-review findings).
+  const asOfProps = verifyProps.as_of.properties;
+  assert.deepEqual(asOfProps.resolution.enum, ["conservative_month_calendar"]);
+  assert.ok(asOfProps.source_changed_for_as_of, "as_of schema should document source_changed_for_as_of");
+  const seriesProps = spec.components.schemas.SeriesResult.properties;
+  assert.deepEqual(seriesProps.fallback_reason.enum, ["transient", "definitive"]);
 });
 
 test("openapi.json version stays in sync with SERVER_VERSION (v1.3.1 drift regression)", async () => {

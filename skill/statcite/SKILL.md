@@ -20,7 +20,7 @@ https://statcite.com/v1/snapshot/{country}
 https://statcite.com/v1/inflation?amount=100&from_year=1995&to_year=2025&country=USA
 https://statcite.com/v1/fx?amount=100&from=USD&to=BBD&date=2024
 https://statcite.com/v1/search?q={topic}
-https://statcite.com/v1/indicators          ← full registry (42 keys)
+https://statcite.com/v1/indicators          ← full registry (42 keys, 36 active)
 ```
 
 Common indicator keys: `inflation_cpi`, `gdp_growth`, `gdp_current_usd`, `gdp_per_capita_usd`, `unemployment_rate`, `population`, `govt_debt_gdp`, `fiscal_balance_gdp`, `current_account_gdp`, `trade_gdp`, `fdi_inflows_gdp`, `life_expectancy`. Countries: ISO3 codes or plain names ("Barbados", "euro area", "world").
@@ -62,6 +62,6 @@ Before finalizing any document with economic statistics (yours or the user's):
 - Annual-average vs year-end inflation differ; StatCite serves annual-average CPI and says so. If the user's claim is explicitly Dec/Dec, note the definitional difference instead of calling it wrong.
 - Unemployment uses ILO-modeled estimates for cross-country comparability; national definitions can differ — the notes say this, echo it when the gap matters.
 - Government debt defaults to the IMF's general government gross debt series, current vintage (better coverage than the World Bank's central-government-only series); the citation names the exact series and edition either way.
-- To check whether a claim was true *when it was made* rather than against today's revised figure, pass `as_of` (e.g. "2019-04") on `verify_stat`/`verify_claims` — only for the 6 IMF WEO/Fiscal Monitor-backed indicators (gdp_growth, current_account_gdp, govt_debt_gdp, fiscal_balance_gdp, govt_revenue_gdp, govt_expenditure_gdp).
+- To check a claim against a *historical IMF WEO edition* rather than today's revised figure, pass `as_of` (e.g. "2019-04") on `verify_stat`/`verify_claims` — only for the 6 IMF-backed indicators (gdp_growth, current_account_gdp, govt_debt_gdp, fiscal_balance_gdp, govt_revenue_gdp, govt_expenditure_gdp). Read the response's `as_of` object and notes: the vintage is resolved with a conservative month calendar (not exact release days), and for some of these indicators the archive source differs from the live primary — say "matched the IMF WEO {vintage} edition", never "was true at the time".
 - All macro data is revised. The citation's `retrieved_at` date is part of the citation for exactly this reason — include it.
 - If StatCite is unreachable, say the number could not be verified against official sources rather than silently falling back to memory.

@@ -8,6 +8,9 @@ import type { Ctx } from "./core/types.ts";
 export interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
   BASE_URL?: string;
+  /** INERT — FRED is permanently disabled (adapters/fred.ts declines regardless;
+   * ToU prohibit AI/ML use and caching/redistribution, v1.3.2). Kept so a
+   * deployment with the old secret still bound doesn't break. */
   FRED_API_KEY?: string;
   /**
    * Workers Analytics Engine dataset (aggregate usage; no personal data).

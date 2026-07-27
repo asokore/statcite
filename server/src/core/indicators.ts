@@ -1,8 +1,12 @@
 // Curated indicator registry — the economist-maintained heart of StatCite.
 // Each entry maps a friendly key to authoritative series, with fallbacks:
-//   wb        World Bank WDI code (primary for cross-country annual data)
-//   dbnomics  [provider, dataset, seriesTemplate] — {ISO3} substituted (IMF WEO etc.)
-//   fred      FRED series id for a higher-frequency US variant (needs FRED_API_KEY)
+//   wb         World Bank WDI code (primary for cross-country annual data)
+//   dbnomics   [provider, dataset, seriesTemplate] — {ISO3} substituted (IMF WEO etc.)
+//   datamapper [code, "WEO"|"FM"] — IMF DataMapper primary (current vintage)
+//   fred       INERT — FRED is permanently disabled (ToU, v1.3.2); these six
+//              US-only keys stay recognized but always decline with an explanation
+//   modeled    the source publishes this series as a modeled estimate (drives
+//              observation_status "modeled_estimate" in verify results)
 
 import type { IndicatorDef } from "./types.ts";
 
@@ -85,6 +89,7 @@ export const INDICATORS: IndicatorDef[] = [
     kind: "percent",
     wb: "SL.UEM.TOTL.ZS",
     fred: "UNRATE",
+    modeled: true,
     synonyms: ["unemployment", "unemployment rate", "jobless rate", "joblessness"],
     notes: "ILO modeled estimates; national definitions may differ from officially published national rates.",
   },
@@ -94,6 +99,7 @@ export const INDICATORS: IndicatorDef[] = [
     unit: "% of population ages 15+",
     kind: "percent",
     wb: "SL.TLF.CACT.ZS",
+    modeled: true,
     synonyms: ["labor force participation", "participation rate", "lfpr"],
   },
   {

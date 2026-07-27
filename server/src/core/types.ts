@@ -3,7 +3,10 @@
 export interface Ctx {
   /** Public base URL of this deployment (for self-links in docs/errors). */
   baseUrl: string;
-  /** Optional FRED API key — unlocks fred/* series (US monthly data). */
+  /** INERT: FRED is permanently disabled (adapters/fred.ts declines regardless of
+   * any configured key — its ToU prohibit AI/ML use and caching/redistribution,
+   * v1.3.2). Field kept only so deployments with the old secret still bound don't
+   * break; nothing reads it to enable anything. */
   fredApiKey?: string;
   /** Injected clock for testability. */
   now?: () => Date;
@@ -95,8 +98,16 @@ export interface IndicatorDef {
   dbnomics?: [string, string, string];
   /** IMF DataMapper primary (current-vintage WEO/Fiscal Monitor): [code, dataset]. */
   datamapper?: [string, "WEO" | "FM"];
-  /** FRED series id for a higher-frequency US variant (requires FRED_API_KEY). */
+  /** FRED series id for a US high-frequency variant — INERT: FRED is permanently
+   * disabled (its terms prohibit AI/ML use and caching/redistribution, v1.3.2).
+   * Kept so the six US-only keys stay recognized and decline with an explanation
+   * instead of 404ing; never re-enable without re-reading the current FRED ToU. */
   fred?: string;
+  /** The source publishes this series as a MODELED estimate (e.g. the World
+   * Bank's ILO-modeled unemployment series) — a published figure, but a model
+   * output, not a measured outturn. Drives observation_status "modeled_estimate"
+   * in verify results (v1.4.1) so "actual" is never claimed for it. */
+  modeled?: boolean;
   synonyms: string[];
   notes?: string;
 }

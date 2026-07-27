@@ -14,7 +14,10 @@ await Actor.init();
 
 const ctx = {
   baseUrl: "https://statcite.com",
-  fredApiKey: process.env.FRED_API_KEY || undefined,
+  // fredApiKey deliberately NOT passed: FRED is permanently disabled (its ToU
+  // prohibit AI/ML use and caching/redistribution — statcite v1.3.2); the
+  // adapter declines regardless of any key, so plumbing one here would only
+  // suggest a capability that doesn't exist.
 };
 
 const input = (await Actor.getInput()) ?? {};
