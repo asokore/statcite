@@ -447,17 +447,49 @@ export function asOfCapableIndicators(): string[] {
   return INDICATORS.filter((d) => d.dbnomics).map((d) => d.key);
 }
 
+/** How an as_of vintage bypass relates to the indicator's normal serving chain —
+ * returned alongside the pinned result so the verifier can DISCLOSE (not hide)
+ * that historical verification may judge against a different statistical source
+ * than the live path would have served. */
+export interface AsOfSourceInfo {
+  /** What this feature actually verifies against. Constant today: the IMF WEO
+   * historical archive is the only dated-vintage source this server has. */
+  verification_scope: "imf_weo_historical_vintage";
+  /** The source the LIVE (non-as_of) path serves this indicator from first. */
+  normal_primary_source: string;
+  /** The source the as_of path actually used. */
+  historical_source: string;
+  /** True when those differ by statistical source or database — a claim
+   * originally made from the normal primary can legitimately differ from the
+   * WEO edition by methodology, not just by revision. */
+  source_changed_for_as_of: boolean;
+}
+
 /**
- * Fetch a registry indicator pinned to the WEO/Fiscal Monitor edition that was
- * current as of `asOfDate` — not today's live data. This is the reproducibility
- * instrument for "was this claim true when it was published?" (revision-aware
- * verification, BRIEF §6.1): DBnomics carries dated editions back to at least
- * 2010-04 (spot-checked live), each a frozen historical snapshot, so resolving
- * the edition the IMF's own April/October calendar had current on a given date
- * and fetching it directly answers that question honestly. Bypasses the normal
- * WB/DataMapper fallback chain entirely — there is no sensible fallback for "the
- * data as it stood on a specific past date", only the one dated source that can
- * answer it.
+ * Fetch a registry indicator pinned to a dated IMF WEO edition — historical
+ * IMF-VINTAGE verification, not general "truth at the time" verification.
+ * Two honesty bounds, both disclosed to the caller:
+ *
+ * 1. RESOLUTION IS A CONSERVATIVE MONTH CALENDAR, not the IMF's actual release
+ *    days. expectedWeoEdition flips editions on May 1 / Nov 1, but the IMF
+ *    publishes in early-to-mid April and October (April 2019 WEO: released
+ *    9 April 2019, verified) — so an as_of date late in a release month
+ *    resolves to the PREVIOUS edition even when the new one already existed.
+ *    Conservative is the right default (never claims an edition existed when
+ *    it might not have), but it must be labeled as month-precision, and dates
+ *    inside a release month get an explicit note with the exact-pinning escape
+ *    hatch (get_series with a dated dbnomics/IMF/WEO:YYYY-MM id).
+ *
+ * 2. THE SOURCE MAY CHANGE. The live chain serves e.g. gdp_growth from World
+ *    Bank WDI first; only the IMF WEO archive has dated vintages, so as_of
+ *    always verifies against WEO. For govt_revenue/expenditure the live
+ *    primary is even a different IMF database (Fiscal Monitor) than the WEO
+ *    codes the archive carries. AsOfSourceInfo carries this to the response.
+ *
+ * DBnomics carries dated WEO editions back to at least 2010-04 (verified
+ * live). Bypasses the normal WB/DataMapper fallback chain entirely — there is
+ * no sensible fallback for "the archive as it stood", only the one dated
+ * source that has it.
  */
 export async function getIndicatorAsOf(
   ctx: Ctx,
@@ -465,7 +497,7 @@ export async function getIndicatorAsOf(
   countryInput: string,
   asOfDate: Date,
   opts: SeriesOpts = {},
-): Promise<{ result: SeriesResult; edition: string }> {
+): Promise<{ result: SeriesResult; edition: string; sourceInfo: AsOfSourceInfo }> {
   const def = getIndicatorDef(key);
   if (!def) {
     const near = searchIndicatorDefs(key, 5).map((m) => m.def.key);
@@ -476,8 +508,8 @@ export async function getIndicatorAsOf(
   }
   if (!def.dbnomics) {
     throw new ToolError(
-      `'as_of' is only supported for indicators with a dated IMF WEO/Fiscal Monitor edition: ${asOfCapableIndicators().join(", ")}. ` +
-        `'${key}' has no dated-vintage source (World Bank and FRED do not expose historical editions here).`,
+      `'as_of' is only supported for indicators with a dated IMF WEO edition: ${asOfCapableIndicators().join(", ")}. ` +
+        `'${key}' has no dated-vintage source (World Bank does not expose historical editions here).`,
       { indicator: key },
     );
   }
@@ -492,15 +524,42 @@ export async function getIndicatorAsOf(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     throw new ToolError(
-      `Could not retrieve the ${dataset} vintage of '${key}' for ${country.name} (resolved from as_of via the IMF's April/October release calendar): ${msg} ` +
+      `Could not retrieve the ${dataset} vintage of '${key}' for ${country.name} (resolved conservatively from as_of via the IMF's April/October publication calendar): ${msg} ` +
         `DBnomics's dated WEO editions have been confirmed to exist back to 2010-04; a date far outside that range, or a future date past the current edition, may not have a matching edition ingested.`,
       { indicator: key, country: country.iso3, edition },
     );
   }
+
+  const isFmPrimary = key === "govt_revenue_gdp" || key === "govt_expenditure_gdp";
+  const wbPrimary = Boolean(def.wb) && !DB_PRIMARY.has(key);
+  const sourceInfo: AsOfSourceInfo = {
+    verification_scope: "imf_weo_historical_vintage",
+    normal_primary_source: wbPrimary
+      ? "World Bank WDI"
+      : isFmPrimary
+        ? "IMF Fiscal Monitor (via the DataMapper API)"
+        : "IMF WEO (via the DataMapper API)",
+    historical_source: `IMF WEO ${edition} dated edition (via DBnomics)`,
+    source_changed_for_as_of: wbPrimary || isFmPrimary,
+  };
+
+  const dateStr = asOfDate.toISOString().slice(0, 10);
   result.notes.push(
-    `Pinned to the ${dataset} vintage — the IMF WEO/Fiscal Monitor edition that was current as of ${asOfDate.toISOString().slice(0, 10)} per the IMF's April/October release calendar — not today's live data. Use this to check whether a claim was true when it was made, not whether it matches the current published figure.`,
+    `Pinned to the ${dataset} vintage, resolved conservatively from ${dateStr} using the IMF's April/October publication calendar (month precision — this is historical IMF-vintage verification, not exact release-date resolution). The value reflects that edition and may differ from both earlier vintages and the currently published figure.`,
   );
-  return { result, edition };
+  const month = asOfDate.getUTCMonth() + 1;
+  if (month === 4 || month === 10) {
+    const inMonthEdition = `${asOfDate.getUTCFullYear()}-${month === 4 ? "04" : "10"}`;
+    result.notes.push(
+      `The IMF typically publishes the ${month === 4 ? "April" : "October"} WEO edition during that month, so the ${inMonthEdition} edition may already have been available on ${dateStr}; this resolver conservatively selects the previous edition for dates inside a release month. To verify against ${inMonthEdition} explicitly, use get_series with 'dbnomics/IMF/WEO:${inMonthEdition}/…' or an as_of date in the following month.`,
+    );
+  }
+  if (sourceInfo.source_changed_for_as_of) {
+    result.notes.push(
+      `Source note: this indicator's live primary source is ${sourceInfo.normal_primary_source}, but only the IMF WEO archive carries dated historical editions, so this verdict is against ${sourceInfo.historical_source}. A claim originally based on ${sourceInfo.normal_primary_source} can legitimately differ from the WEO edition for methodological reasons, not only because of revisions.`,
+    );
+  }
+  return { result, edition, sourceInfo };
 }
 
 const DB_PRIMARY = new Set(["govt_debt_gdp", "fiscal_balance_gdp", "govt_revenue_gdp", "govt_expenditure_gdp"]);

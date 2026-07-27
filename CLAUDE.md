@@ -11,7 +11,7 @@ StatCite is a free remote MCP server + REST API serving official economic statis
 ## Commands (run in `server/`)
 
 - `npm install` — dev deps only (typescript, tsx, workers-types; wrangler on demand via npx)
-- `npm test` — 167 fixture-backed tests (no network)
+- `npm test` — 169 fixture-backed tests (no network)
 - `npm run smoke` — live end-to-end against real upstream APIs (network)
 - `npm run typecheck` · `npm run dev` (wrangler dev) · `npm run deploy`
 - `npm run fixtures` — re-record upstream fixtures if a source changes shape
@@ -23,7 +23,7 @@ StatCite is a free remote MCP server + REST API serving official economic statis
 - `tools.ts` — 11 tool definitions + dispatch (incl. `verify_claims`, the batch wrapper over the `verify_stat` core: 1–15 claims, per-claim error isolation, verdict-count summary). Tool failures return `isError: true` results (never protocol errors). `search`/`fetch` follow OpenAI's deep-research connector schema exactly (outputSchema declared).
 - `rest.ts` — GET mirror of the tools; 422 for helpful failures with suggestions. One non-GET route: `POST /v1/verify_claims` (JSON body `{ claims: [...] }`; GET on it → 405 advice, non-JSON content-type → 415).
 - `core/analytics.ts` — aggregate usage recording (Workers Analytics Engine binding `STATCITE_USAGE` + a `STATCITE_USAGE {json}` log line). Called from `tools.ts` (`callTool`) and `rest.ts` only. **How to read the data: `docs/LAUNCH.md` → "Reading usage analytics".**
-- `core/` — pure logic, no Workers APIs: `series.ts` (indicator orchestration + source fallback), `verify.ts` (verdicts + diagnostics), `inflation.ts`, `fx.ts` (ECB daily + WB annual USD-bridge), `snapshot.ts`, `indicators.ts` (42-key curated registry), `countries.ts` (ISO resolver), `citations.ts` (per-source citation builders), `transforms.ts`, `upstream.ts` (memory+edge cache, timeout, retry).
+- `core/` — pure logic, no Workers APIs: `series.ts` (indicator orchestration + source fallback), `verify.ts` (verdicts + diagnostics), `inflation.ts`, `fx.ts` (ECB daily + WB annual USD-bridge), `snapshot.ts`, `indicators.ts` (42-key curated registry, 36 active — 6 FRED-reserved keys permanently decline), `countries.ts` (ISO resolver), `citations.ts` (per-source citation builders), `transforms.ts`, `upstream.ts` (memory+edge cache, timeout, retry).
 - `adapters/` — worldbank (v2 JSON envelope), datamapper (IMF DataMapper API — current-vintage WEO/Fiscal Monitor; primary for the 6 IMF-backed registry keys), dbnomics (v22; dated WEO vintages — now the fallback behind datamapper, and the reproducibility instrument for a pinned vintage), frankfurter (`api.frankfurter.dev`), fred (optional `FRED_API_KEY` secret).
 - `core-entry.ts` — bundle entry for the Apify actor (`apify/npm run build:core` → `core.bundle.mjs`, committed).
 

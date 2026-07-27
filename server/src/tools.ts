@@ -252,7 +252,7 @@ export const TOOLS: ToolDef[] = [
         as_of: {
           type: "string",
           description:
-            "Verify against the IMF WEO/Fiscal Monitor edition that was current as of this date — e.g. '2019-04', '2019' — instead of today's live data. Answers \"was this claim true when it was made?\" rather than \"does it match the current published figure?\". Only supported for registry indicators with a dated IMF DBnomics definition (gdp_growth, current_account_gdp, govt_debt_gdp, fiscal_balance_gdp, govt_revenue_gdp, govt_expenditure_gdp); rejects with advice otherwise.",
+            "Historical IMF-vintage verification: judge the claim against the dated IMF WEO edition resolved from this date — e.g. '2019-04', '2019' — instead of today's live data. Resolution is a conservative month calendar (editions flip May 1 / Nov 1, not the IMF's exact release days) and always uses the WEO archive even when the indicator's live primary is World Bank WDI or the IMF Fiscal Monitor — the response's as_of object and notes disclose both, so present results as 'matched the IMF WEO {vintage} edition', never 'was true at the time'. Only supported for registry indicators with a dated IMF DBnomics definition (gdp_growth, current_account_gdp, govt_debt_gdp, fiscal_balance_gdp, govt_revenue_gdp, govt_expenditure_gdp); rejects with advice otherwise, and impossible calendar dates are rejected.",
         },
       },
       required: ["indicator", "period", "claimed_value"],
@@ -298,7 +298,7 @@ export const TOOLS: ToolDef[] = [
               as_of: {
                 type: "string",
                 description:
-                  "Verify this claim against the IMF WEO/Fiscal Monitor edition current as of this date (e.g. '2019-04') instead of today's live data — only for the 6 registry indicators with a dated IMF DBnomics definition.",
+                  "Historical IMF-vintage verification for this claim: judge against the dated IMF WEO edition resolved from this date (e.g. '2019-04') instead of today's live data — conservative month-calendar resolution, WEO archive only; the result's as_of object discloses both. Only for the 6 registry indicators with a dated IMF DBnomics definition.",
               },
             },
             required: ["indicator", "period", "claimed_value"],
@@ -351,7 +351,7 @@ export const TOOLS: ToolDef[] = [
     name: "search_indicators",
     title: "Search available indicators and datasets",
     description:
-      "Search StatCite's curated indicator registry (World Bank WDI + IMF DataMapper/WEO/Fiscal Monitor + FRED) by topic — 'inflation', 'debt', 'unemployment', 'poverty' — and discover additional DBnomics datasets. Returns indicator keys usable with get_indicator/verify_stat, with units and source notes.",
+      "Search StatCite's curated indicator registry (World Bank WDI + IMF DataMapper/WEO/Fiscal Monitor) by topic — 'inflation', 'debt', 'unemployment', 'poverty' — and discover additional DBnomics datasets. Returns indicator keys usable with get_indicator/verify_stat, with units and source notes.",
     inputSchema: {
       type: "object",
       properties: { query: { type: "string", description: "Free-text topic, e.g. 'government debt' or 'fx reserves'." } },

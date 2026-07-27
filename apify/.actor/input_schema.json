@@ -26,7 +26,7 @@
     },
     "period": { "title": "Period (verify)", "type": "string", "description": "Year of the claim, e.g. 2024.", "editor": "textfield" },
     "claimed_value": { "title": "Claimed value (verify)", "type": "string", "description": "The figure to check, in the series' own units.", "editor": "textfield" },
-    "as_of": { "title": "As of (verify)", "type": "string", "description": "Optional: verify against the IMF WEO/Fiscal Monitor edition current as of this date (e.g. 2019-04) instead of today's data — only for gdp_growth, current_account_gdp, govt_debt_gdp, fiscal_balance_gdp, govt_revenue_gdp, govt_expenditure_gdp.", "editor": "textfield" },
+    "as_of": { "title": "As of (verify)", "type": "string", "description": "Optional: historical IMF-vintage verification — judge against the dated IMF WEO edition resolved from this date (e.g. 2019-04) instead of today's data (conservative month-calendar resolution; WEO archive only — the result discloses both). Only for gdp_growth, current_account_gdp, govt_debt_gdp, fiscal_balance_gdp, govt_revenue_gdp, govt_expenditure_gdp.", "editor": "textfield" },
     "start_year": { "title": "Start year", "type": "integer", "description": "Optional: only return observations from this year onward." },
     "end_year": { "title": "End year", "type": "integer", "description": "Optional: only return observations up to this year." },
     "latest_only": { "title": "Latest value only", "type": "boolean", "description": "Return just the most recent published observation.", "default": false },

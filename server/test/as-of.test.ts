@@ -92,10 +92,39 @@ test("verify_stat as_of=2019-04 resolves the WEO:2018-10 vintage (April edition 
   assert.equal(payload.verdict, "match");
   assert.equal(payload.official_value, 2.9);
   assert.equal(payload.series.id, "dbnomics/IMF/WEO:2018-10/USA.NGDP_RPCH.pcent_change");
-  assert.deepEqual(payload.as_of, { requested: "2019-04", resolved_vintage: "2018-10" });
+  // v1.4.1: the as_of object discloses HOW the vintage was resolved and that the
+  // source differs from the live primary — never claims exact-date resolution.
+  assert.deepEqual(payload.as_of, {
+    requested: "2019-04",
+    resolved_vintage: "2018-10",
+    resolution: "conservative_month_calendar",
+    verification_scope: "imf_weo_historical_vintage",
+    normal_primary_source: "World Bank WDI",
+    source_changed_for_as_of: true,
+  });
   assert.ok(
-    payload.notes.some((n: string) => /Pinned to the WEO:2018-10 vintage/.test(n)),
-    `expected a vintage-pin disclosure note, got: ${JSON.stringify(payload.notes)}`,
+    payload.notes.some((n: string) => /Pinned to the WEO:2018-10 vintage, resolved conservatively/.test(n)),
+    `expected a conservative-resolution disclosure note, got: ${JSON.stringify(payload.notes)}`,
+  );
+  // "2019-04" (April = a release month) must carry the ambiguity note: the April
+  // 2019 edition may already have been published (it was: 9 April 2019).
+  assert.ok(
+    payload.notes.some((n: string) => /the 2019-04 edition may already have been available/.test(n)),
+    `expected a release-month ambiguity note, got: ${JSON.stringify(payload.notes)}`,
+  );
+  // gdp_growth's live primary is World Bank — the source-change note must say so.
+  assert.ok(
+    payload.notes.some((n: string) => /live primary source is World Bank WDI/.test(n)),
+    `expected a source-change note, got: ${JSON.stringify(payload.notes)}`,
+  );
+  // The contradictory generic revision note must NOT appear on historical results.
+  assert.ok(
+    !payload.notes.some((n: string) => /reflects the source's current published figure/.test(n)),
+    `historical result must not claim to reflect the current published figure: ${JSON.stringify(payload.notes)}`,
+  );
+  assert.ok(
+    payload.notes.some((n: string) => /Historical-vintage verification/.test(n)),
+    `expected the historical-specific revision caveat, got: ${JSON.stringify(payload.notes)}`,
   );
 });
 
@@ -122,7 +151,7 @@ test("verify_stat rejects as_of for an indicator with no dated IMF vintage (popu
     as_of: "2020",
   });
   assert.equal(isError, true);
-  assert.match(payload.error, /'as_of' is only supported for indicators with a dated IMF WEO\/Fiscal Monitor edition/);
+  assert.match(payload.error, /'as_of' is only supported for indicators with a dated IMF WEO edition/);
   assert.match(payload.error, /gdp_growth/);
   assert.equal(fetchCallCount, 0);
 });
@@ -151,8 +180,26 @@ test("verify_stat rejects a malformed as_of date, no fetch attempted", async () 
     as_of: "not-a-date",
   });
   assert.equal(isError, true);
-  assert.match(payload.error, /'as_of' should be a date like/);
+  assert.match(payload.error, /'as_of' should be a real calendar date/);
   assert.equal(fetchCallCount, 0);
+});
+
+test("verify_stat rejects IMPOSSIBLE as_of calendar dates instead of silently normalizing them", async () => {
+  // Date.UTC would roll 2019-02-31 to March 3 and 2019-13-05 to January 2020 —
+  // each resolving a DIFFERENT vintage than the caller asked about. Reject.
+  installNoFetchGuard();
+  for (const bad of ["2019-02-31", "2019-13-05", "2019-00-15", "2019-04-31"]) {
+    const { payload, isError } = await mcpTool("verify_stat", {
+      indicator: "gdp_growth",
+      country: "USA",
+      period: "2019",
+      claimed_value: 2.3,
+      as_of: bad,
+    });
+    assert.equal(isError, true, `expected rejection for as_of='${bad}'`);
+    assert.match(payload.error, /real calendar date/, `expected calendar-date rejection for '${bad}'`);
+  }
+  assert.equal(fetchCallCount, 0, "no upstream call for any impossible date");
 });
 
 test("verify_claims threads as_of per-claim through the batch engine", async () => {
@@ -163,7 +210,8 @@ test("verify_claims threads as_of per-claim through the batch engine", async () 
   assert.equal(isError, false, JSON.stringify(payload));
   assert.equal(payload.summary.match, 1);
   assert.equal(payload.results[0].ok, true);
-  assert.deepEqual(payload.results[0].verification.as_of, { requested: "2019-04", resolved_vintage: "2018-10" });
+  assert.equal(payload.results[0].verification.as_of.resolved_vintage, "2018-10");
+  assert.equal(payload.results[0].verification.as_of.resolution, "conservative_month_calendar");
 });
 
 test("REST GET /v1/verify accepts as_of as a query parameter", async () => {
@@ -174,5 +222,43 @@ test("REST GET /v1/verify accepts as_of as a query parameter", async () => {
   assert.equal(res.status, 200);
   const body = (await res.json()) as any;
   assert.equal(body.verdict, "match");
-  assert.deepEqual(body.as_of, { requested: "2019-04", resolved_vintage: "2018-10" });
+  assert.equal(body.as_of.resolved_vintage, "2018-10");
+  assert.equal(body.as_of.source_changed_for_as_of, true);
+});
+
+// ——— modeled_estimate (v1.4.1): "actual" is never claimed for modeled series ———
+
+const WB_UNEMPLOYMENT_USA = JSON.stringify([
+  { page: 1, pages: 1, per_page: 1000, total: 3, lastupdated: "2026-07-13" },
+  [2021, 2022, 2023].map((y) => ({
+    indicator: { id: "SL.UEM.TOTL.ZS", value: "Unemployment, total (% of total labor force) (modeled ILO estimate)" },
+    country: { id: "US", value: "United States" },
+    countryiso3code: "USA",
+    date: String(y),
+    value: { 2021: 5.35, 2022: 3.65, 2023: 3.638 }[y],
+  })),
+]);
+
+test("verify_stat reports modeled_estimate (never 'actual') for ILO-modeled registry indicators", async () => {
+  _clearMemCache();
+  fetchCallCount = 0;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    fetchCallCount++;
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (url.includes("api.worldbank.org") && url.includes("SL.UEM.TOTL.ZS")) {
+      return new Response(WB_UNEMPLOYMENT_USA, { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ error: "no stub for " + url }), { status: 599 });
+  }) as typeof fetch;
+
+  const { payload, isError } = await mcpTool("verify_stat", {
+    indicator: "unemployment_rate",
+    country: "USA",
+    period: "2022",
+    claimed_value: 3.65,
+  });
+  assert.equal(isError, false, JSON.stringify(payload));
+  assert.equal(payload.verdict, "match");
+  assert.equal(payload.observation_status, "modeled_estimate");
+  assert.equal(payload.status_method, "as_published");
 });

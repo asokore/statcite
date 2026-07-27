@@ -370,6 +370,7 @@ var INDICATORS = [
     kind: "percent",
     wb: "SL.UEM.TOTL.ZS",
     fred: "UNRATE",
+    modeled: true,
     synonyms: ["unemployment", "unemployment rate", "jobless rate", "joblessness"],
     notes: "ILO modeled estimates; national definitions may differ from officially published national rates."
   },
@@ -379,6 +380,7 @@ var INDICATORS = [
     unit: "% of population ages 15+",
     kind: "percent",
     wb: "SL.TLF.CACT.ZS",
+    modeled: true,
     synonyms: ["labor force participation", "participation rate", "lfpr"]
   },
   {
@@ -1600,7 +1602,7 @@ async function getIndicatorAsOf(ctx, key, countryInput, asOfDate, opts = {}) {
   }
   if (!def.dbnomics) {
     throw new ToolError(
-      `'as_of' is only supported for indicators with a dated IMF WEO/Fiscal Monitor edition: ${asOfCapableIndicators().join(", ")}. '${key}' has no dated-vintage source (World Bank and FRED do not expose historical editions here).`,
+      `'as_of' is only supported for indicators with a dated IMF WEO edition: ${asOfCapableIndicators().join(", ")}. '${key}' has no dated-vintage source (World Bank does not expose historical editions here).`,
       { indicator: key }
     );
   }
@@ -1615,14 +1617,35 @@ async function getIndicatorAsOf(ctx, key, countryInput, asOfDate, opts = {}) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     throw new ToolError(
-      `Could not retrieve the ${dataset} vintage of '${key}' for ${country.name} (resolved from as_of via the IMF's April/October release calendar): ${msg} DBnomics's dated WEO editions have been confirmed to exist back to 2010-04; a date far outside that range, or a future date past the current edition, may not have a matching edition ingested.`,
+      `Could not retrieve the ${dataset} vintage of '${key}' for ${country.name} (resolved conservatively from as_of via the IMF's April/October publication calendar): ${msg} DBnomics's dated WEO editions have been confirmed to exist back to 2010-04; a date far outside that range, or a future date past the current edition, may not have a matching edition ingested.`,
       { indicator: key, country: country.iso3, edition }
     );
   }
+  const isFmPrimary = key === "govt_revenue_gdp" || key === "govt_expenditure_gdp";
+  const wbPrimary = Boolean(def.wb) && !DB_PRIMARY.has(key);
+  const sourceInfo = {
+    verification_scope: "imf_weo_historical_vintage",
+    normal_primary_source: wbPrimary ? "World Bank WDI" : isFmPrimary ? "IMF Fiscal Monitor (via the DataMapper API)" : "IMF WEO (via the DataMapper API)",
+    historical_source: `IMF WEO ${edition} dated edition (via DBnomics)`,
+    source_changed_for_as_of: wbPrimary || isFmPrimary
+  };
+  const dateStr = asOfDate.toISOString().slice(0, 10);
   result.notes.push(
-    `Pinned to the ${dataset} vintage \u2014 the IMF WEO/Fiscal Monitor edition that was current as of ${asOfDate.toISOString().slice(0, 10)} per the IMF's April/October release calendar \u2014 not today's live data. Use this to check whether a claim was true when it was made, not whether it matches the current published figure.`
+    `Pinned to the ${dataset} vintage, resolved conservatively from ${dateStr} using the IMF's April/October publication calendar (month precision \u2014 this is historical IMF-vintage verification, not exact release-date resolution). The value reflects that edition and may differ from both earlier vintages and the currently published figure.`
   );
-  return { result, edition };
+  const month = asOfDate.getUTCMonth() + 1;
+  if (month === 4 || month === 10) {
+    const inMonthEdition = `${asOfDate.getUTCFullYear()}-${month === 4 ? "04" : "10"}`;
+    result.notes.push(
+      `The IMF typically publishes the ${month === 4 ? "April" : "October"} WEO edition during that month, so the ${inMonthEdition} edition may already have been available on ${dateStr}; this resolver conservatively selects the previous edition for dates inside a release month. To verify against ${inMonthEdition} explicitly, use get_series with 'dbnomics/IMF/WEO:${inMonthEdition}/\u2026' or an as_of date in the following month.`
+    );
+  }
+  if (sourceInfo.source_changed_for_as_of) {
+    result.notes.push(
+      `Source note: this indicator's live primary source is ${sourceInfo.normal_primary_source}, but only the IMF WEO archive carries dated historical editions, so this verdict is against ${sourceInfo.historical_source}. A claim originally based on ${sourceInfo.normal_primary_source} can legitimately differ from the WEO edition for methodological reasons, not only because of revisions.`
+    );
+  }
+  return { result, edition, sourceInfo };
 }
 var DB_PRIMARY = /* @__PURE__ */ new Set(["govt_debt_gdp", "fiscal_balance_gdp", "govt_revenue_gdp", "govt_expenditure_gdp"]);
 var DM_CODE_INFO = /* @__PURE__ */ new Map();
@@ -2249,13 +2272,28 @@ async function fxConvert(ctx, amount, fromRaw, toRaw, date) {
 // ../server/src/core/verify.ts
 function parseAsOfDate(input) {
   const s = input.trim();
+  const reject = () => {
+    throw new ToolError(
+      `'as_of' should be a real calendar date like '2019-04', '2019-04-15', or a bare year '2019' \u2014 got '${input}'.`,
+      { as_of: input }
+    );
+  };
   let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-  if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  if (m) {
+    const [y, mo, d] = [+m[1], +m[2], +m[3]];
+    const date = new Date(Date.UTC(y, mo - 1, d));
+    if (date.getUTCFullYear() !== y || date.getUTCMonth() !== mo - 1 || date.getUTCDate() !== d) reject();
+    return date;
+  }
   m = /^(\d{4})-(\d{2})$/.exec(s);
-  if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, 1));
+  if (m) {
+    const [y, mo] = [+m[1], +m[2]];
+    if (mo < 1 || mo > 12) reject();
+    return new Date(Date.UTC(y, mo - 1, 1));
+  }
   m = /^(\d{4})$/.exec(s);
   if (m) return new Date(Date.UTC(+m[1], 11, 31));
-  throw new ToolError(`'as_of' should be a date like '2019-04', '2019-04-15', or a bare year '2019'.`, { as_of: input });
+  return reject();
 }
 function isPercentKind(indicatorKey) {
   const def = getIndicatorDef(indicatorKey);
@@ -2283,10 +2321,17 @@ async function verifyStat(ctx, p) {
   let asOfResolved;
   const result = p.as_of ? await (async () => {
     const asOfDate = parseAsOfDate(p.as_of);
-    const { result: r, edition } = await getIndicatorAsOf(ctx, p.indicator, p.country ?? "", asOfDate, {
+    const { result: r, edition, sourceInfo } = await getIndicatorAsOf(ctx, p.indicator, p.country ?? "", asOfDate, {
       strictSource: p.strict_source
     });
-    asOfResolved = { requested: p.as_of, resolved_vintage: edition };
+    asOfResolved = {
+      requested: p.as_of,
+      resolved_vintage: edition,
+      resolution: "conservative_month_calendar",
+      verification_scope: sourceInfo.verification_scope,
+      normal_primary_source: sourceInfo.normal_primary_source,
+      source_changed_for_as_of: sourceInfo.source_changed_for_as_of
+    };
     return r;
   })() : isRegistry ? await getIndicator(ctx, p.indicator, p.country ?? "", { strictSource: p.strict_source }) : await getSeries(ctx, p.indicator, { country: p.country, strictSource: p.strict_source });
   const obs = result.observations;
@@ -2303,7 +2348,7 @@ async function verifyStat(ctx, p) {
   const diagnostics = [];
   const notes = [...result.notes];
   notes.push(
-    "Macro data is revised: the official value reflects the source's current published figure, which may differ from what was published at the time of the claim."
+    asOfResolved ? `Historical-vintage verification: the official value reflects the IMF WEO ${asOfResolved.resolved_vintage} edition, which may differ from both earlier vintages and the source's currently published figure.` : "Macro data is revised: the official value reflects the source's current published figure, which may differ from what was published at the time of the claim."
   );
   const percentKind = isRegistry ? isPercentKind(p.indicator) : /%|percent/i.test(result.unit ?? result.name);
   const imfHeuristicSeries = /^imf\//.test(result.series_id) || /^dbnomics\/IMF\/(WEO|FM):/i.test(result.series_id);
@@ -2334,7 +2379,8 @@ async function verifyStat(ctx, p) {
   }
   const official = matched.value;
   const isProjection = /WEO|Fiscal Monitor/i.test(matched.note ?? "") && /estimate|projection/i.test(matched.note ?? "");
-  const observationStatus = imfHeuristicSeries ? isProjection ? "projection" : "estimate_or_actual" : isRegistry || result.series_id.startsWith("worldbank/") ? "actual" : "unknown";
+  const registryDef = isRegistry ? getIndicatorDef(p.indicator) : void 0;
+  const observationStatus = imfHeuristicSeries ? isProjection ? "projection" : "estimate_or_actual" : registryDef?.modeled ? "modeled_estimate" : isRegistry || result.series_id.startsWith("worldbank/") ? "actual" : "unknown";
   const diff = p.claimed_value - official;
   const relPct = official !== 0 ? diff / Math.abs(official) * 100 : null;
   const ratio = official !== 0 ? p.claimed_value / official : null;
@@ -2362,9 +2408,8 @@ async function verifyStat(ctx, p) {
       diagnostics.push(`The claimed value matches the ${year + offset} figure (${fmt(v)}) \u2014 the year may be misattributed.`);
     }
   }
-  const def = isRegistry ? getIndicatorDef(p.indicator) : void 0;
   if (isRegistry && result.fallback_used === true && result.fallback_reason !== "definitive") {
-    const vintageFlavor = Boolean(def?.datamapper) && result.series_id.startsWith("dbnomics/") ? " IMF vintage revisions (e.g. GDP rebasing) can move WEO/Fiscal Monitor series by more than a percentage point for the same historical year." : " Substitute sources can use different statistical definitions and report materially different values for the same nominal indicator.";
+    const vintageFlavor = Boolean(registryDef?.datamapper) && result.series_id.startsWith("dbnomics/") ? " IMF vintage revisions (e.g. GDP rebasing) can move WEO/Fiscal Monitor series by more than a percentage point for the same historical year." : " Substitute sources can use different statistical definitions and report materially different values for the same nominal indicator.";
     const projFlag = isProjection ? " (an IMF estimate/projection-period value)" : "";
     return {
       verdict: "cannot_verify",

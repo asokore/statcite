@@ -8,7 +8,7 @@ AI agents and analysts constantly need macro numbers they can defend: GDP growth
 
 | Operation | What you get |
 |---|---|
-| `indicator` | Values for any of **42 curated indicators** (inflation, GDP growth, debt/GDP, current account, FDI, …) for **200+ economies**, with citation |
+| `indicator` | Values for any of **36 active curated indicators** (inflation, GDP growth, debt/GDP, current account, FDI, …) for **200+ economies**, with citation |
 | `verify` | **Check a claimed figure** against the official series → `match / close / mismatch / cannot_verify`, with diagnostics (wrong year? percent-vs-decimal? millions-vs-billions?) and the correct citable value |
 | `snapshot` | 11 headline indicators for one country, each with its own citation — instant country brief |
 | `inflation` | "What is \$100 (1995) worth in 2025 money?" — CPI-ratio method, formula disclosed, any country |

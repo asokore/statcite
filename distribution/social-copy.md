@@ -14,7 +14,7 @@ I'm an economist. Since AI started drafting half the reports I review, I keep fi
 
 So I built StatCite: a free remote MCP server + REST API where every number ships with a license-grade citation — source, dataset, series ID, canonical URL, license, retrieval date — and, as far as I've found, the only `verify_stat` tool that checks a claimed figure against the official series and returns match / close / mismatch with diagnostics (wrong-year, percent-vs-decimal, millions-vs-billions).
 
-Data: World Bank WDI, IMF WEO/Fiscal Monitor (current vintage, via the IMF's own DataMapper API), ECB reference rates. 42 curated indicators, 200+ economies, inflation adjustment, historical FX (including ~90 currencies the ECB set doesn't cover — pegged Caribbean currencies convert exactly).
+Data: World Bank WDI, IMF WEO/Fiscal Monitor (current vintage, via the IMF's own DataMapper API), ECB reference rates. 36 active curated indicators, 200+ economies, inflation adjustment, historical FX (including ~90 currencies the ECB set doesn't cover — pegged Caribbean currencies convert exactly).
 
 Try it without installing anything:
 https://statcite.com/v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=4.1
@@ -36,7 +36,7 @@ Happy to answer questions on the data, the licensing (everything is redistributa
 Built by an economist tired of AI-drafted reports with unverifiable numbers.
 
 - `verify_stat`: check any claimed macro figure against the official series → match/close/mismatch + diagnostics + the correct citable value
-- `get_indicator`: 42 curated indicators (inflation, GDP, debt/GDP, unemployment…), 200+ economies, World Bank → IMF DataMapper (current vintage) → IMF WEO (DBnomics) fallback chain
+- `get_indicator`: 36 active curated indicators (inflation, GDP, debt/GDP, unemployment…), 200+ economies, World Bank → IMF DataMapper (current vintage) → IMF WEO (DBnomics) fallback chain
 - `country_snapshot`, `inflation_adjust`, `fx_convert` (ECB daily + ~90 exotic currencies via official annual rates)
 - Every response carries a citation object: source, dataset, series id, canonical URL, license, retrieval date, ready-to-paste citation sentence
 - Free, no auth, stateless Streamable HTTP: `https://statcite.com/mcp`
