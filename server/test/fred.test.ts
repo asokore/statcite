@@ -113,3 +113,59 @@ test("fredAvailable() reports unavailable regardless of a configured key", async
   assert.equal(fredAvailable({ baseUrl: "https://statcite.test", fredApiKey: CANARY_KEY } as any), false);
   assert.equal(fredAvailable({ baseUrl: "https://statcite.test" } as any), false);
 });
+
+// ——— v1.4.2: machine-facing disabled disclosure (fourth external review) ———
+// The human docs table marked the six FRED-reserved keys "— disabled", but the
+// machine surfaces (listRegistry JSON, search_indicators results) presented them
+// like any other key, with a normal usage instruction that always declines.
+
+test("listRegistry marks exactly the six FRED-reserved keys inactive with a disabled_reason", async () => {
+  const { listRegistry } = await import("../src/core/series.ts");
+  const reg = listRegistry();
+  const inactive = reg.filter((r) => !r.active);
+  const active = reg.filter((r) => r.active);
+  assert.equal(inactive.length, 6);
+  assert.equal(active.length, reg.length - 6);
+  for (const r of inactive) {
+    assert.match(r.disabled_reason ?? "", /permanently disabled/i);
+    assert.ok(r.sources.includes("FRED (US) — disabled"), `${r.key} should carry the disabled source label`);
+  }
+  for (const r of active) {
+    assert.equal(r.disabled_reason, undefined);
+    assert.ok(!r.sources.some((s) => s.includes("FRED")), `${r.key} is active — an inert fred field must not surface as a source`);
+  }
+});
+
+test("search_indicators marks a disabled key: active:false, DISABLED description, no normal usage instruction", async () => {
+  installNoFetchGuard(); // DBnomics secondary search is best-effort; the guard just keeps it offline
+  const env = makeEnv();
+  const { payload, isError } = await mcpTool(env, "search_indicators", { query: "federal funds rate" });
+  assert.equal(isError, false);
+  const hit = payload.results.find((r: any) => r.id === "us_fed_funds_rate");
+  assert.ok(hit, "expected us_fed_funds_rate in results");
+  assert.equal(hit.active, false);
+  assert.match(hit.description, /^DISABLED/);
+  assert.match(hit.usage, /Do not call/);
+  assert.ok(!hit.usage.includes("get_indicator("), "a disabled key must not carry the normal usage instruction");
+});
+
+test("search_indicators leaves active keys unmarked and usable", async () => {
+  installNoFetchGuard();
+  const env = makeEnv();
+  const { payload } = await mcpTool(env, "search_indicators", { query: "inflation" });
+  const hit = payload.results.find((r: any) => r.id === "inflation_cpi");
+  assert.ok(hit, "expected inflation_cpi in results");
+  assert.equal(hit.active, true);
+  assert.match(hit.usage, /get_indicator\(/);
+  assert.ok(!/^DISABLED/.test(hit.description));
+});
+
+test("REST /v1/indicators carries active + disabled_reason", async () => {
+  const env = makeEnv();
+  const res = await call(env, "/v1/indicators");
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as any;
+  const disabled = body.indicators.filter((r: any) => r.active === false);
+  assert.equal(disabled.length, 6);
+  assert.ok(disabled.every((r: any) => typeof r.disabled_reason === "string"));
+});

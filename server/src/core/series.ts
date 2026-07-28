@@ -702,19 +702,37 @@ export interface SearchResultItem {
   url?: string;
   /** For indicator results: how to fetch it. */
   usage?: string;
+  /** For indicator results: false when the key is permanently disabled (FRED-reserved) and always declines. */
+  active?: boolean;
 }
+
+/** A registry key with no servable source def (FRED-only) is permanently disabled — it always declines. */
+function isDisabledDef(d: IndicatorDef): boolean {
+  return !d.wb && !d.dbnomics && !d.datamapper;
+}
+
+const FRED_DISABLED_REASON =
+  "FRED is permanently disabled on this service (FRED's terms of use prohibit AI/ML use and redistribution of its content). This key always declines; use an active World Bank/IMF-backed key instead.";
 
 /** Search the curated registry (primary) and DBnomics datasets (secondary). */
 export async function searchIndicators(ctx: Ctx, query: string, opts: { includeDbnomics?: boolean } = {}): Promise<SearchResultItem[]> {
   const matches = searchIndicatorDefs(query, 8);
-  const items: SearchResultItem[] = matches.map((m) => ({
-    type: "indicator",
-    id: m.def.key,
-    title: m.def.label,
-    description: `${m.def.unit}${m.def.notes ? ` — ${m.def.notes}` : ""}`,
-    url: m.def.wb ? `https://data.worldbank.org/indicator/${m.def.wb}` : undefined,
-    usage: `get_indicator(indicator="${m.def.key}", country="<ISO3 or name>")`,
-  }));
+  const items: SearchResultItem[] = matches.map((m) => {
+    const disabled = isDisabledDef(m.def);
+    return {
+      type: "indicator",
+      id: m.def.key,
+      title: m.def.label,
+      description: disabled
+        ? `DISABLED — ${m.def.unit}. ${FRED_DISABLED_REASON}`
+        : `${m.def.unit}${m.def.notes ? ` — ${m.def.notes}` : ""}`,
+      url: m.def.wb ? `https://data.worldbank.org/indicator/${m.def.wb}` : undefined,
+      usage: disabled
+        ? "Do not call: this key always declines. Search again for an active alternative (e.g. unemployment_rate, inflation_cpi, gdp_growth)."
+        : `get_indicator(indicator="${m.def.key}", country="<ISO3 or name>")`,
+      active: !disabled,
+    };
+  });
   if (opts.includeDbnomics !== false && items.length < 5) {
     try {
       const ds = await searchDbnomicsDatasets(query, 4);
@@ -734,7 +752,15 @@ export async function searchIndicators(ctx: Ctx, query: string, opts: { includeD
   return items;
 }
 
-export function listRegistry(): Array<{ key: string; label: string; unit: string; sources: string[]; notes?: string }> {
+export function listRegistry(): Array<{
+  key: string;
+  label: string;
+  unit: string;
+  sources: string[];
+  active: boolean;
+  disabled_reason?: string;
+  notes?: string;
+}> {
   return INDICATORS.map((d) => {
     // Source order mirrors the actual resolution order in getIndicator: for
     // DB_PRIMARY keys (and dbnomics-only defs) the IMF path is primary, not a
@@ -746,14 +772,19 @@ export function listRegistry(): Array<{ key: string; label: string; unit: string
     const wbLabel = d.wb ? "World Bank WDI" : undefined;
     const dbFirst = d.dbnomics && (!d.wb || DB_PRIMARY.has(d.key));
     const imfChain = [...(dmLabel ? [dmLabel] : []), ...(dbLabel ? [dbLabel] : [])];
+    const disabled = isDisabledDef(d);
     return {
       key: d.key,
       label: d.label,
       unit: d.unit,
       sources: [
         ...(dbFirst ? [...imfChain, ...(wbLabel ? [wbLabel] : [])] : [...(wbLabel ? [wbLabel] : []), ...imfChain]),
-        ...(d.fred ? ["FRED (US)"] : []),
+        // For active keys a fred field is INERT (never served); only surface the
+        // FRED label on the disabled keys, where it explains why they decline.
+        ...(disabled ? ["FRED (US) — disabled"] : []),
       ],
+      active: !disabled,
+      ...(disabled ? { disabled_reason: FRED_DISABLED_REASON } : {}),
       notes: d.notes,
     };
   });

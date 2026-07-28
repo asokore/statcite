@@ -11,6 +11,34 @@
 <meta property="og:description" content="Official macro data with full citations, built for AI agents. Free MCP server + REST API, plus stat verification.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://statcite.com/">
+<meta property="og:site_name" content="StatCite">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="StatCite — Economic statistics your AI can actually cite">
+<meta name="twitter:description" content="Official macro data with full citations, built for AI agents. Free MCP server + REST API, plus stat verification.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "StatCite",
+      "url": "https://statcite.com/",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Any",
+      "description": "Free remote MCP server + REST API serving official economic statistics (World Bank, IMF, ECB) where every number ships with a full citation, plus verify_stat claim checking.",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+    },
+    {
+      "@type": "WebAPI",
+      "name": "StatCite REST API",
+      "url": "https://statcite.com/v1",
+      "documentation": "https://statcite.com/openapi.json",
+      "termsOfService": "https://statcite.com/terms.html",
+      "description": "REST mirror of the StatCite MCP tools: indicator lookup, stat verification, FX conversion and inflation adjustment, each response carrying a full source citation."
+    }
+  ]
+}
+</script>
 <style>
 :root{
   --bg:#0b0f14;--bg2:#10161d;--card:#141c25;--line:#22303d;
@@ -87,10 +115,26 @@ footer{border-top:1px solid var(--line);padding:36px 0 48px;color:var(--faint);f
 footer .cols{display:flex;gap:40px;flex-wrap:wrap;justify-content:space-between}
 footer a{color:var(--dim)}
 .verdict{color:var(--accent);font-weight:700}
+.skip{position:absolute;left:-9999px;top:0;background:var(--accent);color:#08130d;padding:10px 18px;border-radius:0 0 8px 0;font-weight:600;z-index:10}
+.skip:focus{left:0;text-decoration:none}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.tabs button:focus-visible,.btn:focus-visible,.try-form :focus-visible{outline:2px solid var(--accent2);outline-offset:2px}
+.try-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;max-width:820px;margin-top:18px}
+.try-form label{display:block;font-size:13px;color:var(--dim);margin-bottom:5px}
+.try-form input,.try-form select{width:100%;background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:10px 12px;font-size:14.5px;font-family:inherit}
+.try-form .go{align-self:end}
+.try-result{margin-top:18px;max-width:820px}
+.try-result .card{font-size:14.5px}
+.try-result .v-match{color:var(--accent);font-weight:700}
+.try-result .v-close{color:var(--warn);font-weight:700}
+.try-result .v-mismatch{color:var(--err);font-weight:700}
+.try-result .v-cannot_verify{color:var(--dim);font-weight:700}
+.try-result .cite{margin-top:10px;color:var(--dim);font-size:13.5px;border-top:1px solid var(--line);padding-top:10px}
 @media(max-width:640px){header{padding:48px 0 32px}}
 </style>
 </head>
 <body>
+<a class="skip" href="#main-content">Skip to main content</a>
 <div class="wrap">
   <nav>
     <a class="logo" href="/">
@@ -106,12 +150,14 @@ footer a{color:var(--dim)}
     </div>
   </nav>
 
+  <main id="main-content">
   <header>
     <span class="badge">MCP server · REST API · free</span>
     <h1>Economic statistics your AI can <em>actually cite</em>.</h1>
     <p class="sub">StatCite serves official macro data — World Bank, IMF, ECB, and more — where <strong>every number ships with its full citation</strong>: source, dataset, series ID, canonical URL, license, and retrieval date. Plus <code style="font-family:var(--mono);color:var(--accent)">verify_stat</code>: check any claimed figure against the official series before it goes in your report.</p>
     <div class="cta">
       <a class="btn primary" href="#connect">Connect your agent</a>
+      <a class="btn ghost" href="#try">Try a live verification</a>
       <a class="btn ghost" href="/docs.html">Read the docs</a>
     </div>
   </header>
@@ -120,9 +166,9 @@ footer a{color:var(--dim)}
     <h2>Why citations, why now</h2>
     <p class="lead">AI agents write a growing share of the world's reports, briefs, and analysis — and they miscite numbers at measurable rates. StatCite exists so the number in your draft is the number in the official series, with the receipt attached.</p>
     <div class="stats">
-      <div class="stat"><b>&gt;60%</b><span> of AI search answers contained incorrect citations in the Tow Center's 1,600-query audit</span><br><a href="https://www.cjr.org/tow_center/we-compared-eight-ai-search-engines-theyre-all-bad-at-citing-news.php">CJR, 2025</a></div>
+      <div class="stat"><b>&gt;60%</b><span> of responses failed the Tow Center's source-identification test across its 1,600-query audit of AI search engines</span><br><a href="https://www.cjr.org/tow_center/we-compared-eight-ai-search-engines-theyre-all-bad-at-citing-news.php">CJR, 2025</a></div>
       <div class="stat"><b>45%</b><span> of AI news answers had at least one significant issue across 3,000 responses in 14 languages</span><br><a href="https://www.ebu.ch/news/2025/10/ai-s-systemic-distortion-of-news-is-consistent-across-languages-and-territories-international-study-by-public-service-broadcaste">EBU/BBC, 2025</a></div>
-      <div class="stat"><b>10.7%</b><span> citation hallucination rate measured for deep-research agents (vs 4.8% for search-augmented LLMs)</span><br><a href="https://arxiv.org/html/2604.03173v1">UPenn, 2026</a></div>
+      <div class="stat"><b>10.7%</b><span> citation hallucination rate measured for deep-research agents (vs 4.8% for search-augmented LLMs)</span><br><a href="https://arxiv.org/html/2604.03173v1">UPenn researchers, 2026 (arXiv preprint)</a></div>
       <div class="stat"><b>146,000+</b><span> AI-hallucinated citations found in academic papers published in 2025 (conservative estimate: 146,932)</span><br><a href="https://arxiv.org/abs/2605.07723">arXiv 2605.07723</a></div>
     </div>
   </section>
@@ -131,26 +177,28 @@ footer a{color:var(--dim)}
     <h2>Connect your agent</h2>
     <p class="lead">One URL. No signup, no API key, no OAuth. Works in every major MCP client.</p>
     <div class="mcpurl"><span id="mcp-url">https://statcite.com/mcp</span><button onclick="copyText('mcp-url',this)">copy</button></div>
-    <div class="tabs" role="tablist">
-      <button class="active" onclick="tab(event,'t-claude')">Claude</button>
-      <button onclick="tab(event,'t-chatgpt')">ChatGPT</button>
-      <button onclick="tab(event,'t-cursor')">Cursor</button>
-      <button onclick="tab(event,'t-vscode')">VS Code</button>
-      <button onclick="tab(event,'t-code')">Claude Code</button>
-      <button onclick="tab(event,'t-stdio')">Other (stdio)</button>
-      <button onclick="tab(event,'t-rest')">REST</button>
+    <div class="tabs" role="tablist" aria-label="Choose your MCP client">
+      <button class="active" id="tab-claude" role="tab" aria-selected="true" aria-controls="t-claude" onclick="tab(event,'t-claude')">Claude</button>
+      <button id="tab-chatgpt" role="tab" aria-selected="false" tabindex="-1" aria-controls="t-chatgpt" onclick="tab(event,'t-chatgpt')">ChatGPT</button>
+      <button id="tab-cursor" role="tab" aria-selected="false" tabindex="-1" aria-controls="t-cursor" onclick="tab(event,'t-cursor')">Cursor</button>
+      <button id="tab-vscode" role="tab" aria-selected="false" tabindex="-1" aria-controls="t-vscode" onclick="tab(event,'t-vscode')">VS Code</button>
+      <button id="tab-code" role="tab" aria-selected="false" tabindex="-1" aria-controls="t-code" onclick="tab(event,'t-code')">Claude Code</button>
+      <button id="tab-stdio" role="tab" aria-selected="false" tabindex="-1" aria-controls="t-stdio" onclick="tab(event,'t-stdio')">Other (stdio)</button>
+      <button id="tab-rest" role="tab" aria-selected="false" tabindex="-1" aria-controls="t-rest" onclick="tab(event,'t-rest')">REST</button>
     </div>
-    <div id="t-claude" class="tabpanel active">
+    <div id="t-claude" class="tabpanel active" role="tabpanel" aria-labelledby="tab-claude" tabindex="0">
       <p>Settings → Connectors → <strong>Add custom connector</strong> → paste the URL. Works on all plans (Free allows one custom connector).</p>
       <pre>Name:  StatCite
 URL:   https://statcite.com/mcp</pre>
+      <p style="margin-top:10px">Then confirm it works with a test prompt: <em>“Using StatCite, verify that US inflation was 4.1% in 2023 and cite the official source.”</em></p>
     </div>
-    <div id="t-chatgpt" class="tabpanel">
+    <div id="t-chatgpt" class="tabpanel" role="tabpanel" aria-labelledby="tab-chatgpt" tabindex="0">
       <p>Settings → Apps &amp; Connectors → enable <strong>Developer mode</strong> (availability varies by plan/tier — see OpenAI's current docs) → create app with No Authentication. The server also implements the <code>search</code>/<code>fetch</code> pair used by deep-research connectors.</p>
       <pre>MCP server URL:  https://statcite.com/mcp
 Authentication:  No authentication</pre>
+      <p style="margin-top:10px">Then confirm it works with a test prompt: <em>“Using StatCite, verify that US inflation was 4.1% in 2023 and cite the official source.”</em></p>
     </div>
-    <div id="t-cursor" class="tabpanel">
+    <div id="t-cursor" class="tabpanel" role="tabpanel" aria-labelledby="tab-cursor" tabindex="0">
       <p>Add to <code>~/.cursor/mcp.json</code> (or per-project <code>.cursor/mcp.json</code>):</p>
       <pre>{
   "mcpServers": {
@@ -158,7 +206,7 @@ Authentication:  No authentication</pre>
   }
 }</pre>
     </div>
-    <div id="t-vscode" class="tabpanel">
+    <div id="t-vscode" class="tabpanel" role="tabpanel" aria-labelledby="tab-vscode" tabindex="0">
       <p>Add to <code>.vscode/mcp.json</code>:</p>
       <pre>{
   "servers": {
@@ -166,11 +214,12 @@ Authentication:  No authentication</pre>
   }
 }</pre>
     </div>
-    <div id="t-code" class="tabpanel">
+    <div id="t-code" class="tabpanel" role="tabpanel" aria-labelledby="tab-code" tabindex="0">
       <p>One command:</p>
       <pre>claude mcp add --transport http statcite https://statcite.com/mcp</pre>
+      <p style="margin-top:10px">Then confirm it works with a test prompt: <em>“Using StatCite, verify that US inflation was 4.1% in 2023 and cite the official source.”</em></p>
     </div>
-    <div id="t-stdio" class="tabpanel">
+    <div id="t-stdio" class="tabpanel" role="tabpanel" aria-labelledby="tab-stdio" tabindex="0">
       <p>Any stdio-only client, via <a href="https://github.com/geelen/mcp-remote">mcp-remote</a> (use ≥ 0.1.16):</p>
       <pre>{
   "mcpServers": {
@@ -181,7 +230,7 @@ Authentication:  No authentication</pre>
   }
 }</pre>
     </div>
-    <div id="t-rest" class="tabpanel">
+    <div id="t-rest" class="tabpanel" role="tabpanel" aria-labelledby="tab-rest" tabindex="0">
       <p>Plain HTTP for scripts, notebooks, spreadsheets, and Custom GPT Actions — <a href="/openapi.json">OpenAPI spec</a>:</p>
       <pre>curl "https://statcite.com/v1/indicator/inflation_cpi?country=BRB&latest_only=true"
 curl "https://statcite.com/v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=4.1"
@@ -209,7 +258,50 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
     <span class="k">"citation_text"</span>: <span class="s">"World Bank, World Development Indicators, series FP.CPI.TOTL.ZG (Inflation, consumer prices, annual %), data last updated 2026-07-13. Retrieved 2026-07-25 via StatCite."</span>
   }
 }</pre>
-    <p style="color:var(--dim);font-size:14px;margin-top:12px">Wrong year? Percent-vs-decimal slip? Billions-vs-millions? <code style="font-family:var(--mono)">verify_stat</code> diagnoses the classic errors and returns the correct, citable figure.</p>
+    <p style="color:var(--faint);font-size:12.5px;margin-top:8px">Illustrative response — live values, source-update dates, and retrieval dates change as sources publish revisions.</p>
+    <p style="color:var(--dim);font-size:14px;margin-top:16px">And when the number is wrong, the diagnostics say <em>how</em> it went wrong. Claim <code style="font-family:var(--mono)">0.041</code> instead and:</p>
+    <pre><span class="c">// tools/call → verify_stat {indicator:"inflation_cpi", country:"USA", period:"2023", claimed_value:0.041}</span>
+{
+  <span class="k">"verdict"</span>: <span class="s" style="color:var(--err)">"mismatch"</span>,
+  <span class="k">"claimed_value"</span>: <span class="n">0.041</span>,
+  <span class="k">"official_value"</span>: <span class="n">4.116338383</span>,
+  <span class="k">"diagnostics"</span>: [<span class="s">"The claimed value is ~100× smaller than the official figure — possibly a percent-vs-decimal mix-up (e.g. 0.05 vs 5%)."</span>]
+}</pre>
+    <p style="color:var(--dim);font-size:14px;margin-top:12px">Wrong year? Percent-vs-decimal slip? Billions-vs-millions? Sign flipped on a fiscal balance? <code style="font-family:var(--mono)">verify_stat</code> diagnoses the classic errors and returns the correct, citable figure.</p>
+  </section>
+
+  <section id="try">
+    <h2>Try a live verification</h2>
+    <p class="lead">No setup, no key — this form calls the same public <code style="font-family:var(--mono)">GET /v1/verify</code> endpoint your agent would. Pick an indicator, claim a number, get the verdict and the citation.</p>
+    <form class="try-form" id="try-form">
+      <div>
+        <label for="try-indicator">Indicator</label>
+        <select id="try-indicator">
+          <option value="inflation_cpi" selected>Inflation, CPI (annual %)</option>
+          <option value="gdp_growth">GDP growth (annual %)</option>
+          <option value="unemployment_rate">Unemployment rate (%)</option>
+          <option value="govt_debt_gdp">Government debt (% of GDP)</option>
+          <option value="current_account_gdp">Current account (% of GDP)</option>
+          <option value="population_growth">Population growth (annual %)</option>
+        </select>
+      </div>
+      <div>
+        <label for="try-country">Country (ISO3 or name)</label>
+        <input id="try-country" type="text" value="USA" required>
+      </div>
+      <div>
+        <label for="try-period">Year</label>
+        <input id="try-period" type="number" value="2023" min="1960" max="2031" required>
+      </div>
+      <div>
+        <label for="try-value">Claimed value</label>
+        <input id="try-value" type="number" step="any" value="4.1" required>
+      </div>
+      <div class="go">
+        <button class="btn primary" type="submit" id="try-go" style="border:none;cursor:pointer;width:100%">Verify</button>
+      </div>
+    </form>
+    <div class="try-result" id="try-result" role="status" aria-live="polite"></div>
   </section>
 
   <section id="tools">
@@ -261,7 +353,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
         <div class="price">Pay per use <small>via Apify Store</small></div>
         <ul>
           <li>Same engine as a managed Apify actor</li>
-          <li>Per-result billing, SLA-backed platform</li>
+          <li>Per-result billing on Apify's managed platform (Apify's store terms govern the offering)</li>
           <li>For pipelines that want an invoice</li>
           <li>Listing: <a href="https://apify.com/asokore/statcite-economic-data">StatCite — Economic Data &amp; Stat Verification</a></li>
         </ul>
@@ -288,6 +380,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
     <details><summary>How should agents cite StatCite itself?</summary><p>Cite the original source (the citation object gives you everything). Mentioning “via StatCite” is appreciated but never required.</p></details>
     <details><summary>What about rate limits?</summary><p>Fair use, no hard published limit. Responses are cache-friendly; identical queries are served from edge cache. If your use case needs guarantees, email <a href="mailto:hello@statcite.com">hello@statcite.com</a>.</p></details>
   </section>
+  </main>
 
   <footer>
     <div class="cols">
@@ -309,18 +402,76 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
     <p style="margin-top:26px">© 2026 StatCite. Data © respective sources (World Bank CC BY 4.0, IMF, ECB). Not affiliated with or endorsed by any data provider.</p>
   </footer>
 </div>
+<span class="visually-hidden" role="status" aria-live="polite" id="copy-status"></span>
 <script>
 function tab(ev, id){
   document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tabs button').forEach(b=>{
+    b.classList.remove('active'); b.setAttribute('aria-selected','false'); b.tabIndex=-1;
+  });
   document.getElementById(id).classList.add('active');
-  ev.currentTarget.classList.add('active');
+  var btn=ev.currentTarget;
+  btn.classList.add('active'); btn.setAttribute('aria-selected','true'); btn.tabIndex=0;
 }
+// Arrow-key navigation between tabs (WAI-ARIA tabs pattern, roving tabindex).
+document.querySelectorAll('[role="tablist"]').forEach(function(list){
+  list.addEventListener('keydown', function(e){
+    var tabs=[].slice.call(list.querySelectorAll('[role="tab"]'));
+    var i=tabs.indexOf(document.activeElement);
+    if(i<0) return;
+    var j=null;
+    if(e.key==='ArrowRight') j=(i+1)%tabs.length;
+    else if(e.key==='ArrowLeft') j=(i-1+tabs.length)%tabs.length;
+    else if(e.key==='Home') j=0;
+    else if(e.key==='End') j=tabs.length-1;
+    if(j!=null){ e.preventDefault(); tabs[j].focus(); tabs[j].click(); }
+  });
+});
 function copyText(id, btn){
-  navigator.clipboard.writeText(document.getElementById(id).textContent).then(()=>{
-    btn.textContent='copied'; setTimeout(()=>btn.textContent='copy',1500);
+  navigator.clipboard.writeText(document.getElementById(id).textContent).then(function(){
+    btn.textContent='copied';
+    document.getElementById('copy-status').textContent='Endpoint URL copied to clipboard';
+    setTimeout(function(){ btn.textContent='copy'; document.getElementById('copy-status').textContent=''; },1500);
   });
 }
+// Live verifier — same public endpoint an agent would call.
+(function(){
+  var form=document.getElementById('try-form');
+  if(!form) return;
+  var esc=function(s){ var d=document.createElement('div'); d.textContent=String(s); return d.innerHTML; };
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var go=document.getElementById('try-go'), out=document.getElementById('try-result');
+    var q=new URLSearchParams({
+      indicator:document.getElementById('try-indicator').value,
+      country:document.getElementById('try-country').value.trim(),
+      period:document.getElementById('try-period').value,
+      value:document.getElementById('try-value').value
+    });
+    go.disabled=true; go.textContent='Verifying…';
+    out.innerHTML='<div class="card">Checking against the official series…</div>';
+    fetch('/v1/verify?'+q.toString())
+      .then(function(r){ return r.json().then(function(b){ return {ok:r.ok, body:b}; }); })
+      .then(function(res){
+        var b=res.body;
+        if(!res.ok || !b.verdict){
+          var msg=(b && b.error && (b.error.message||b.error)) || 'The service could not process that query.';
+          out.innerHTML='<div class="card"><span class="v-cannot_verify">Could not verify.</span> '+esc(msg)+'</div>';
+          return;
+        }
+        var extra='';
+        if(b.diagnostics && b.diagnostics.length) extra='<p style="margin-top:8px">'+esc(b.diagnostics[0])+'</p>';
+        var note='';
+        if(b.is_projection) note='<p style="margin-top:8px;color:var(--warn)">Note: the official observation is an IMF estimate/projection, not a confirmed outturn.</p>';
+        var cite=b.citation&&b.citation.citation_text?'<div class="cite">'+esc(b.citation.citation_text)+(b.citation.source_url?' <a href="'+esc(b.citation.source_url)+'" rel="noopener">source ↗</a>':'')+'</div>':'';
+        out.innerHTML='<div class="card"><span class="v-'+esc(b.verdict)+'">'+esc(b.verdict.replace('_',' '))+'</span> — '+esc(b.explanation||'')+extra+note+cite+'</div>';
+      })
+      .catch(function(){
+        out.innerHTML='<div class="card"><span class="v-cannot_verify">Network error.</span> Please try again.</div>';
+      })
+      .finally(function(){ go.disabled=false; go.textContent='Verify'; });
+  });
+})();
 </script>
 </body>
 </html>

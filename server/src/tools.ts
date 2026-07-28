@@ -237,7 +237,7 @@ export const TOOLS: ToolDef[] = [
       properties: {
         indicator: {
           type: "string",
-          description: "Registry key ('inflation_cpi', 'gdp_growth', …) or explicit series id ('worldbank/FP.CPI.TOTL.ZG', 'fred/UNRATE', 'imf/NGDP_RPCH', 'dbnomics/IMF/WEO:latest/USA.NGDP_RPCH.pcent_change').",
+          description: "Registry key ('inflation_cpi', 'gdp_growth', …) or explicit series id ('worldbank/FP.CPI.TOTL.ZG', 'imf/NGDP_RPCH', 'dbnomics/IMF/WEO:latest/USA.NGDP_RPCH.pcent_change').",
         },
         country: { type: "string", description: "Country for registry indicators / World Bank series." },
         period: { type: "string", description: "Period of the claim, usually a year: '2024'." },
@@ -288,7 +288,7 @@ export const TOOLS: ToolDef[] = [
             properties: {
               indicator: {
                 type: "string",
-                description: "Registry key ('inflation_cpi', 'gdp_growth', …) or explicit series id ('worldbank/FP.CPI.TOTL.ZG', 'fred/UNRATE', 'imf/NGDP_RPCH', 'dbnomics/IMF/WEO:latest/USA.NGDP_RPCH.pcent_change').",
+                description: "Registry key ('inflation_cpi', 'gdp_growth', …) or explicit series id ('worldbank/FP.CPI.TOTL.ZG', 'imf/NGDP_RPCH', 'dbnomics/IMF/WEO:latest/USA.NGDP_RPCH.pcent_change').",
               },
               country: { type: "string", description: "Country for registry indicators / World Bank series." },
               period: { type: "string", description: "Period of the claim, usually a year: '2024'." },
@@ -320,11 +320,11 @@ export const TOOLS: ToolDef[] = [
     name: "get_series",
     title: "Get a raw series by explicit id",
     description:
-      "Fetch any supported series by explicit id: 'worldbank/<WDI code>' (needs country), 'fred/<SERIES>' (US, needs server FRED key), 'imf/<CODE>' (needs country; current-vintage IMF WEO/Fiscal Monitor via the DataMapper API), or 'dbnomics/<PROVIDER>/<DATASET>/<SERIES>' (IMF WEO, OECD, Eurostat and more via DBnomics — dated editions, e.g. 'WEO:2025-04', for vintage-pinned reproducibility). Supports year filters and transforms (yoy, pct_change, index). Every response carries a full citation. Prefer get_indicator for common indicators.",
+      "Fetch any supported series by explicit id: 'worldbank/<WDI code>' (needs country), 'imf/<CODE>' (needs country; current-vintage IMF WEO/Fiscal Monitor via the DataMapper API), or 'dbnomics/<PROVIDER>/<DATASET>/<SERIES>' (IMF WEO, OECD, Eurostat and more via DBnomics — dated editions, e.g. 'WEO:2025-04', for vintage-pinned reproducibility). 'fred/<SERIES>' ids are recognized only so the service can return an explanatory disabled response — FRED is permanently disabled here and those ids are never retrievable. Supports year filters and transforms (yoy, pct_change, index). Every response carries a full citation. Prefer get_indicator for common indicators.",
     inputSchema: {
       type: "object",
       properties: {
-        series_id: { type: "string", description: "e.g. 'worldbank/NY.GDP.MKTP.KD.ZG', 'fred/CPIAUCSL', 'imf/NGDP_RPCH', 'dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change'." },
+        series_id: { type: "string", description: "e.g. 'worldbank/NY.GDP.MKTP.KD.ZG', 'imf/NGDP_RPCH', 'dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change'." },
         country: { type: "string", description: "Required for worldbank/* series." },
         start_year: { type: "integer" },
         end_year: { type: "integer" },

@@ -1763,16 +1763,24 @@ async function getSeries(ctx, seriesId, opts = {}) {
     { series_id: id }
   );
 }
+function isDisabledDef(d) {
+  return !d.wb && !d.dbnomics && !d.datamapper;
+}
+var FRED_DISABLED_REASON = "FRED is permanently disabled on this service (FRED's terms of use prohibit AI/ML use and redistribution of its content). This key always declines; use an active World Bank/IMF-backed key instead.";
 async function searchIndicators(ctx, query, opts = {}) {
   const matches = searchIndicatorDefs(query, 8);
-  const items = matches.map((m) => ({
-    type: "indicator",
-    id: m.def.key,
-    title: m.def.label,
-    description: `${m.def.unit}${m.def.notes ? ` \u2014 ${m.def.notes}` : ""}`,
-    url: m.def.wb ? `https://data.worldbank.org/indicator/${m.def.wb}` : void 0,
-    usage: `get_indicator(indicator="${m.def.key}", country="<ISO3 or name>")`
-  }));
+  const items = matches.map((m) => {
+    const disabled = isDisabledDef(m.def);
+    return {
+      type: "indicator",
+      id: m.def.key,
+      title: m.def.label,
+      description: disabled ? `DISABLED \u2014 ${m.def.unit}. ${FRED_DISABLED_REASON}` : `${m.def.unit}${m.def.notes ? ` \u2014 ${m.def.notes}` : ""}`,
+      url: m.def.wb ? `https://data.worldbank.org/indicator/${m.def.wb}` : void 0,
+      usage: disabled ? "Do not call: this key always declines. Search again for an active alternative (e.g. unemployment_rate, inflation_cpi, gdp_growth)." : `get_indicator(indicator="${m.def.key}", country="<ISO3 or name>")`,
+      active: !disabled
+    };
+  });
   if (opts.includeDbnomics !== false && items.length < 5) {
     try {
       const ds = await searchDbnomicsDatasets(query, 4);
@@ -1797,14 +1805,19 @@ function listRegistry() {
     const wbLabel = d.wb ? "World Bank WDI" : void 0;
     const dbFirst = d.dbnomics && (!d.wb || DB_PRIMARY.has(d.key));
     const imfChain = [...dmLabel ? [dmLabel] : [], ...dbLabel ? [dbLabel] : []];
+    const disabled = isDisabledDef(d);
     return {
       key: d.key,
       label: d.label,
       unit: d.unit,
       sources: [
         ...dbFirst ? [...imfChain, ...wbLabel ? [wbLabel] : []] : [...wbLabel ? [wbLabel] : [], ...imfChain],
-        ...d.fred ? ["FRED (US)"] : []
+        // For active keys a fred field is INERT (never served); only surface the
+        // FRED label on the disabled keys, where it explains why they decline.
+        ...disabled ? ["FRED (US) \u2014 disabled"] : []
       ],
+      active: !disabled,
+      ...disabled ? { disabled_reason: FRED_DISABLED_REASON } : {},
       notes: d.notes
     };
   });
