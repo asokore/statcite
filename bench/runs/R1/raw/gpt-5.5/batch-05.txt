@@ -1,0 +1,12 @@
+[
+  {"qid":"P0-032","value":null,"unit":"years","year_basis":2021,"confidence":0.0,"refused":true,"basis_note":"Do not recall WDI figure reliably"},
+  {"qid":"P0-067","value":0.5,"unit":"percent","year_basis":2019,"confidence":0.7,"refused":false,"basis_note":"WDI CPI annual average inflation"},
+  {"qid":"P0-080","value":-5.2,"unit":"percent of GDP","year_basis":2019,"confidence":0.35,"refused":false,"basis_note":"Approx. WDI/IMF current account"},
+  {"qid":"P0-111","value":2.9,"unit":"percent","year_basis":2021,"confidence":0.45,"refused":false,"basis_note":"ILO modeled unemployment estimate"},
+  {"qid":"P0-115","value":-0.7,"unit":"percent of GDP","year_basis":2019,"confidence":0.55,"refused":false,"basis_note":"IMF WEO general government balance"},
+  {"qid":"P0-038","value":52.8,"unit":"billions of US dollars","year_basis":2018,"confidence":0.45,"refused":false,"basis_note":"WDI total reserves incl. gold"},
+  {"qid":"P0-108","value":16.72,"unit":"millions of people","year_basis":2020,"confidence":0.75,"refused":false,"basis_note":"WDI mid-year population"},
+  {"qid":"P0-050","value":52.1,"unit":"percent of GDP","year_basis":2022,"confidence":0.35,"refused":false,"basis_note":"IMF WEO general government gross debt"},
+  {"qid":"P0-021","value":326.2,"unit":"percent of GDP","year_basis":2018,"confidence":0.4,"refused":false,"basis_note":"WDI trade % of GDP"},
+  {"qid":"P0-116","value":2704.6,"unit":"billions of US dollars","year_basis":2020,"confidence":0.65,"refused":false,"basis_note":"World Bank current US$ GDP"}
+]

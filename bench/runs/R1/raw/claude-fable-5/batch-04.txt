@@ -1,0 +1,12 @@
+[
+  {"qid": "P0-042", "value": null, "unit": "index 0-100", "year_basis": 2019, "confidence": 0.0, "refused": true, "basis_note": "WB Gini for Tunisia exists for 2015 (~32.8) and 2021 (~33.7); I recall no 2019 survey estimate"},
+  {"qid": "P0-051", "value": 2.8, "unit": "percent", "year_basis": 2018, "confidence": 0.7, "refused": false, "basis_note": "ILO modeled estimate via WDI; HK labour force survey rate also ~2.8"},
+  {"qid": "P0-040", "value": 13894, "unit": "billions of US dollars", "year_basis": 2018, "confidence": 0.75, "refused": false, "basis_note": "WDI current US$, ~13.89 trillion"},
+  {"qid": "P0-093", "value": 2.2, "unit": "percent", "year_basis": 2019, "confidence": 0.55, "refused": false, "basis_note": "Rosstat-revised figure carried into WDI/WEO; earlier vintages showed ~1.3"},
+  {"qid": "P0-028", "value": 3.5, "unit": "percent of GDP", "year_basis": 2022, "confidence": 0.35, "refused": false, "basis_note": "FDI net inflows ~US$7-8bn on GDP ~US$217bn; uncertain recall"},
+  {"qid": "P0-047", "value": 60, "unit": "percent of GDP", "year_basis": 2019, "confidence": 0.25, "refused": false, "basis_note": "Rough recall of WDI Trade (% of GDP) for DRC; low confidence"},
+  {"qid": "P0-087", "value": 60.1, "unit": "years", "year_basis": 2022, "confidence": 0.4, "refused": false, "basis_note": "WDI/UN WPP 2022-revision basis, both sexes"},
+  {"qid": "P0-024", "value": 5.1, "unit": "percent", "year_basis": 2021, "confidence": 0.8, "refused": false, "basis_note": "Annual average CPI, GUS/WDI"},
+  {"qid": "P0-088", "value": 57.6, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.5, "refused": false, "basis_note": "IMF WEO general government gross debt"},
+  {"qid": "P0-104", "value": 772, "unit": "thousands of people", "year_basis": 2020, "confidence": 0.55, "refused": false, "basis_note": "WDI mid-year estimate ~772,500; later UN revisions may differ slightly"}
+]

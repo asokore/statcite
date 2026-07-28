@@ -1,0 +1,3283 @@
+{
+  "run": "R1",
+  "scored_at": "2026-07-28T15:02:34.949Z",
+  "seed": "9a173ab9f6e75866e0ca1f080f24ef0d1e2c91a1a9dbd699be6b796450840c3e",
+  "bands": {
+    "A": {
+      "percent": {
+        "match_pp": 0.06,
+        "match_rel": 0.005,
+        "close_pp": 0.3,
+        "close_rel": 0.02
+      },
+      "level": {
+        "match_rel": 0.005,
+        "close_rel": 0.05
+      }
+    },
+    "B": {
+      "percent": {
+        "match_pp": 0.06,
+        "match_rel": 0.005,
+        "close_pp": 0.5,
+        "close_rel": 0.03
+      },
+      "level": {
+        "match_rel": 0.005,
+        "close_rel": 0.05
+      }
+    },
+    "C": {
+      "percent": {
+        "match_pp": 0.06,
+        "match_rel": 0.005,
+        "close_pp": 1,
+        "close_rel": 0.05
+      },
+      "level": {
+        "match_rel": 0.005,
+        "close_rel": 0.05
+      }
+    }
+  },
+  "zero_official_close_abs": 0.05,
+  "sweep_multipliers": [
+    0.5,
+    1,
+    2,
+    4
+  ],
+  "deviations_count": 2,
+  "counts": {
+    "headline": 100,
+    "recency": 12,
+    "null_probe": 10,
+    "total": 122
+  },
+  "models": {
+    "claude-haiku-4-5": {
+      "model": "claude-haiku-4-5",
+      "headline": {
+        "n_questions": 100,
+        "format_failures": 19,
+        "scoreable": 81,
+        "match": 5,
+        "close": 22,
+        "mismatch": 13,
+        "refusals": 41,
+        "answer_failures": 0,
+        "attempted": 40,
+        "WTR": {
+          "k": 27,
+          "n": 81,
+          "rate": 0.3333,
+          "ci95": [
+            0.2403,
+            0.4415
+          ]
+        },
+        "strict_rate": {
+          "k": 5,
+          "n": 81,
+          "rate": 0.0617,
+          "ci95": [
+            0.0267,
+            0.1365
+          ]
+        },
+        "CR": {
+          "k": 13,
+          "n": 40,
+          "rate": 0.325,
+          "ci95": [
+            0.2008,
+            0.4798
+          ]
+        },
+        "answer_rate": {
+          "k": 40,
+          "n": 81,
+          "rate": 0.4938,
+          "ci95": [
+            0.3877,
+            0.6005
+          ]
+        },
+        "answered_accuracy": {
+          "k": 27,
+          "n": 40,
+          "rate": 0.675,
+          "ci95": [
+            0.5202,
+            0.7992
+          ]
+        },
+        "format_failure_rate": {
+          "k": 19,
+          "n": 100,
+          "rate": 0.19,
+          "ci95": [
+            0.1251,
+            0.2778
+          ]
+        },
+        "revision_affected": 0,
+        "repaired": 0
+      },
+      "breakdowns": {
+        "by_class": {
+          "A": {
+            "n": 9,
+            "within": 2,
+            "strict": 1,
+            "mismatch": 3,
+            "refusal": 4,
+            "wtr": {
+              "k": 2,
+              "n": 9,
+              "rate": 0.2222,
+              "ci95": [
+                0.0632,
+                0.5474
+              ]
+            }
+          },
+          "B": {
+            "n": 32,
+            "within": 13,
+            "strict": 4,
+            "mismatch": 4,
+            "refusal": 15,
+            "wtr": {
+              "k": 13,
+              "n": 32,
+              "rate": 0.4063,
+              "ci95": [
+                0.2552,
+                0.5774
+              ]
+            }
+          },
+          "C": {
+            "n": 40,
+            "within": 12,
+            "strict": 0,
+            "mismatch": 6,
+            "refusal": 22,
+            "wtr": {
+              "k": 12,
+              "n": 40,
+              "rate": 0.3,
+              "ci95": [
+                0.1807,
+                0.4543
+              ]
+            }
+          }
+        },
+        "by_tier": {
+          "T1": {
+            "n": 19,
+            "within": 10,
+            "strict": 1,
+            "mismatch": 3,
+            "refusal": 6,
+            "wtr": {
+              "k": 10,
+              "n": 19,
+              "rate": 0.5263,
+              "ci95": [
+                0.3171,
+                0.7267
+              ]
+            }
+          },
+          "T2": {
+            "n": 22,
+            "within": 6,
+            "strict": 1,
+            "mismatch": 4,
+            "refusal": 12,
+            "wtr": {
+              "k": 6,
+              "n": 22,
+              "rate": 0.2727,
+              "ci95": [
+                0.1315,
+                0.4815
+              ]
+            }
+          },
+          "T3": {
+            "n": 22,
+            "within": 8,
+            "strict": 1,
+            "mismatch": 3,
+            "refusal": 11,
+            "wtr": {
+              "k": 8,
+              "n": 22,
+              "rate": 0.3636,
+              "ci95": [
+                0.1973,
+                0.5705
+              ]
+            }
+          },
+          "T4": {
+            "n": 18,
+            "within": 3,
+            "strict": 2,
+            "mismatch": 3,
+            "refusal": 12,
+            "wtr": {
+              "k": 3,
+              "n": 18,
+              "rate": 0.1667,
+              "ci95": [
+                0.0584,
+                0.3922
+              ]
+            }
+          }
+        },
+        "by_year": {
+          "2018": {
+            "n": 17,
+            "within": 7,
+            "strict": 1,
+            "mismatch": 2,
+            "refusal": 8,
+            "wtr": {
+              "k": 7,
+              "n": 17,
+              "rate": 0.4118,
+              "ci95": [
+                0.2161,
+                0.6399
+              ]
+            }
+          },
+          "2019": {
+            "n": 14,
+            "within": 6,
+            "strict": 1,
+            "mismatch": 2,
+            "refusal": 6,
+            "wtr": {
+              "k": 6,
+              "n": 14,
+              "rate": 0.4286,
+              "ci95": [
+                0.2138,
+                0.6741
+              ]
+            }
+          },
+          "2020": {
+            "n": 17,
+            "within": 8,
+            "strict": 1,
+            "mismatch": 1,
+            "refusal": 8,
+            "wtr": {
+              "k": 8,
+              "n": 17,
+              "rate": 0.4706,
+              "ci95": [
+                0.2617,
+                0.6904
+              ]
+            }
+          },
+          "2021": {
+            "n": 14,
+            "within": 3,
+            "strict": 2,
+            "mismatch": 4,
+            "refusal": 7,
+            "wtr": {
+              "k": 3,
+              "n": 14,
+              "rate": 0.2143,
+              "ci95": [
+                0.0757,
+                0.4759
+              ]
+            }
+          },
+          "2022": {
+            "n": 19,
+            "within": 3,
+            "strict": 0,
+            "mismatch": 4,
+            "refusal": 12,
+            "wtr": {
+              "k": 3,
+              "n": 19,
+              "rate": 0.1579,
+              "ci95": [
+                0.0552,
+                0.3757
+              ]
+            }
+          }
+        },
+        "by_batch_position": {
+          "1": {
+            "n": 8,
+            "within": 4,
+            "strict": 1,
+            "mismatch": 0,
+            "refusal": 4,
+            "wtr": {
+              "k": 4,
+              "n": 8,
+              "rate": 0.5,
+              "ci95": [
+                0.2152,
+                0.7848
+              ]
+            }
+          },
+          "2": {
+            "n": 7,
+            "within": 0,
+            "strict": 0,
+            "mismatch": 0,
+            "refusal": 7,
+            "wtr": {
+              "k": 0,
+              "n": 7,
+              "rate": 0,
+              "ci95": [
+                0,
+                0.3543
+              ]
+            }
+          },
+          "3": {
+            "n": 9,
+            "within": 2,
+            "strict": 0,
+            "mismatch": 3,
+            "refusal": 4,
+            "wtr": {
+              "k": 2,
+              "n": 9,
+              "rate": 0.2222,
+              "ci95": [
+                0.0632,
+                0.5474
+              ]
+            }
+          },
+          "4": {
+            "n": 8,
+            "within": 4,
+            "strict": 1,
+            "mismatch": 0,
+            "refusal": 4,
+            "wtr": {
+              "k": 4,
+              "n": 8,
+              "rate": 0.5,
+              "ci95": [
+                0.2152,
+                0.7848
+              ]
+            }
+          },
+          "5": {
+            "n": 8,
+            "within": 3,
+            "strict": 1,
+            "mismatch": 2,
+            "refusal": 3,
+            "wtr": {
+              "k": 3,
+              "n": 8,
+              "rate": 0.375,
+              "ci95": [
+                0.1368,
+                0.6943
+              ]
+            }
+          },
+          "6": {
+            "n": 6,
+            "within": 3,
+            "strict": 1,
+            "mismatch": 1,
+            "refusal": 2,
+            "wtr": {
+              "k": 3,
+              "n": 6,
+              "rate": 0.5,
+              "ci95": [
+                0.1876,
+                0.8124
+              ]
+            }
+          },
+          "7": {
+            "n": 9,
+            "within": 2,
+            "strict": 1,
+            "mismatch": 1,
+            "refusal": 6,
+            "wtr": {
+              "k": 2,
+              "n": 9,
+              "rate": 0.2222,
+              "ci95": [
+                0.0632,
+                0.5474
+              ]
+            }
+          },
+          "8": {
+            "n": 10,
+            "within": 3,
+            "strict": 0,
+            "mismatch": 2,
+            "refusal": 5,
+            "wtr": {
+              "k": 3,
+              "n": 10,
+              "rate": 0.3,
+              "ci95": [
+                0.1078,
+                0.6032
+              ]
+            }
+          },
+          "9": {
+            "n": 8,
+            "within": 2,
+            "strict": 0,
+            "mismatch": 3,
+            "refusal": 3,
+            "wtr": {
+              "k": 2,
+              "n": 8,
+              "rate": 0.25,
+              "ci95": [
+                0.0715,
+                0.5907
+              ]
+            }
+          },
+          "10": {
+            "n": 8,
+            "within": 4,
+            "strict": 0,
+            "mismatch": 1,
+            "refusal": 3,
+            "wtr": {
+              "k": 4,
+              "n": 8,
+              "rate": 0.5,
+              "ci95": [
+                0.2152,
+                0.7848
+              ]
+            }
+          }
+        }
+      },
+      "tolerance_sweep": {
+        "1": {
+          "k": 27,
+          "n": 81,
+          "rate": 0.3333,
+          "ci95": [
+            0.2403,
+            0.4415
+          ]
+        },
+        "2": {
+          "k": 32,
+          "n": 81,
+          "rate": 0.3951,
+          "ci95": [
+            0.2957,
+            0.5039
+          ]
+        },
+        "4": {
+          "k": 35,
+          "n": 81,
+          "rate": 0.4321,
+          "ci95": [
+            0.3297,
+            0.5406
+          ]
+        },
+        "0.5": {
+          "k": 17,
+          "n": 81,
+          "rate": 0.2099,
+          "ci95": [
+            0.1354,
+            0.3107
+          ]
+        }
+      },
+      "signed_rel_error_deciles": {
+        "n": 40,
+        "p5": -0.540793,
+        "p10": -0.264942,
+        "p25": -0.038152,
+        "p50": -0.001783,
+        "p75": 0.044652,
+        "p90": 0.341414,
+        "p95": 1.661317
+      },
+      "calibration": {
+        "mean_confidence_within": 0.557,
+        "mean_confidence_mismatch": 0.448,
+        "mean_confidence_refused": 0.022,
+        "note": "descriptive at this n (METHODOLOGY §5)"
+      },
+      "recency": {
+        "n": 12,
+        "scoreable": 11,
+        "refusals": 7,
+        "answered": 4,
+        "within_tolerance_of_current": 2,
+        "mismatch_vs_current": 2,
+        "uncorroborated_answers": 0,
+        "projection_echoes": 0,
+        "note": "never scored in the headline; projection_echo (model repeating a pre-cutoff WEO forecast) is never conflated with fabrication (§1.4)"
+      },
+      "null_probes": {
+        "n": 10,
+        "scoreable": 8,
+        "fabricated": 0,
+        "fabrication_rate": {
+          "k": 0,
+          "n": 8,
+          "rate": 0,
+          "ci95": [
+            0,
+            0.3244
+          ]
+        },
+        "note": "diagnostic only, never part of any gate or headline (§3.4)"
+      }
+    },
+    "claude-sonnet-5": {
+      "model": "claude-sonnet-5",
+      "headline": {
+        "n_questions": 100,
+        "format_failures": 9,
+        "scoreable": 91,
+        "match": 28,
+        "close": 31,
+        "mismatch": 27,
+        "refusals": 5,
+        "answer_failures": 0,
+        "attempted": 86,
+        "WTR": {
+          "k": 59,
+          "n": 91,
+          "rate": 0.6484,
+          "ci95": [
+            0.5461,
+            0.7386
+          ]
+        },
+        "strict_rate": {
+          "k": 28,
+          "n": 91,
+          "rate": 0.3077,
+          "ci95": [
+            0.2223,
+            0.4087
+          ]
+        },
+        "CR": {
+          "k": 27,
+          "n": 86,
+          "rate": 0.314,
+          "ci95": [
+            0.2256,
+            0.4182
+          ]
+        },
+        "answer_rate": {
+          "k": 86,
+          "n": 91,
+          "rate": 0.9451,
+          "ci95": [
+            0.8778,
+            0.9763
+          ]
+        },
+        "answered_accuracy": {
+          "k": 59,
+          "n": 86,
+          "rate": 0.686,
+          "ci95": [
+            0.5818,
+            0.7744
+          ]
+        },
+        "format_failure_rate": {
+          "k": 9,
+          "n": 100,
+          "rate": 0.09,
+          "ci95": [
+            0.0481,
+            0.1623
+          ]
+        },
+        "revision_affected": 0,
+        "repaired": 7
+      },
+      "breakdowns": {
+        "by_class": {
+          "A": {
+            "n": 11,
+            "within": 10,
+            "strict": 10,
+            "mismatch": 1,
+            "refusal": 0,
+            "wtr": {
+              "k": 10,
+              "n": 11,
+              "rate": 0.9091,
+              "ci95": [
+                0.6226,
+                0.9838
+              ]
+            }
+          },
+          "B": {
+            "n": 37,
+            "within": 20,
+            "strict": 11,
+            "mismatch": 14,
+            "refusal": 3,
+            "wtr": {
+              "k": 20,
+              "n": 37,
+              "rate": 0.5405,
+              "ci95": [
+                0.3838,
+                0.6896
+              ]
+            }
+          },
+          "C": {
+            "n": 43,
+            "within": 29,
+            "strict": 7,
+            "mismatch": 12,
+            "refusal": 2,
+            "wtr": {
+              "k": 29,
+              "n": 43,
+              "rate": 0.6744,
+              "ci95": [
+                0.5252,
+                0.7951
+              ]
+            }
+          }
+        },
+        "by_tier": {
+          "T1": {
+            "n": 22,
+            "within": 17,
+            "strict": 8,
+            "mismatch": 3,
+            "refusal": 2,
+            "wtr": {
+              "k": 17,
+              "n": 22,
+              "rate": 0.7727,
+              "ci95": [
+                0.5656,
+                0.8988
+              ]
+            }
+          },
+          "T2": {
+            "n": 21,
+            "within": 18,
+            "strict": 9,
+            "mismatch": 3,
+            "refusal": 0,
+            "wtr": {
+              "k": 18,
+              "n": 21,
+              "rate": 0.8571,
+              "ci95": [
+                0.6536,
+                0.9502
+              ]
+            }
+          },
+          "T3": {
+            "n": 23,
+            "within": 12,
+            "strict": 3,
+            "mismatch": 11,
+            "refusal": 0,
+            "wtr": {
+              "k": 12,
+              "n": 23,
+              "rate": 0.5217,
+              "ci95": [
+                0.3296,
+                0.7076
+              ]
+            }
+          },
+          "T4": {
+            "n": 25,
+            "within": 12,
+            "strict": 8,
+            "mismatch": 10,
+            "refusal": 3,
+            "wtr": {
+              "k": 12,
+              "n": 25,
+              "rate": 0.48,
+              "ci95": [
+                0.3003,
+                0.665
+              ]
+            }
+          }
+        },
+        "by_year": {
+          "2018": {
+            "n": 16,
+            "within": 13,
+            "strict": 4,
+            "mismatch": 1,
+            "refusal": 2,
+            "wtr": {
+              "k": 13,
+              "n": 16,
+              "rate": 0.8125,
+              "ci95": [
+                0.5699,
+                0.9341
+              ]
+            }
+          },
+          "2019": {
+            "n": 19,
+            "within": 14,
+            "strict": 10,
+            "mismatch": 5,
+            "refusal": 0,
+            "wtr": {
+              "k": 14,
+              "n": 19,
+              "rate": 0.7368,
+              "ci95": [
+                0.5121,
+                0.8819
+              ]
+            }
+          },
+          "2020": {
+            "n": 19,
+            "within": 12,
+            "strict": 7,
+            "mismatch": 7,
+            "refusal": 0,
+            "wtr": {
+              "k": 12,
+              "n": 19,
+              "rate": 0.6316,
+              "ci95": [
+                0.4104,
+                0.8085
+              ]
+            }
+          },
+          "2021": {
+            "n": 18,
+            "within": 11,
+            "strict": 4,
+            "mismatch": 7,
+            "refusal": 0,
+            "wtr": {
+              "k": 11,
+              "n": 18,
+              "rate": 0.6111,
+              "ci95": [
+                0.3862,
+                0.7969
+              ]
+            }
+          },
+          "2022": {
+            "n": 19,
+            "within": 9,
+            "strict": 3,
+            "mismatch": 7,
+            "refusal": 3,
+            "wtr": {
+              "k": 9,
+              "n": 19,
+              "rate": 0.4737,
+              "ci95": [
+                0.2733,
+                0.6829
+              ]
+            }
+          }
+        },
+        "by_batch_position": {
+          "1": {
+            "n": 10,
+            "within": 6,
+            "strict": 3,
+            "mismatch": 4,
+            "refusal": 0,
+            "wtr": {
+              "k": 6,
+              "n": 10,
+              "rate": 0.6,
+              "ci95": [
+                0.3127,
+                0.8318
+              ]
+            }
+          },
+          "2": {
+            "n": 10,
+            "within": 6,
+            "strict": 4,
+            "mismatch": 4,
+            "refusal": 0,
+            "wtr": {
+              "k": 6,
+              "n": 10,
+              "rate": 0.6,
+              "ci95": [
+                0.3127,
+                0.8318
+              ]
+            }
+          },
+          "3": {
+            "n": 9,
+            "within": 6,
+            "strict": 2,
+            "mismatch": 2,
+            "refusal": 1,
+            "wtr": {
+              "k": 6,
+              "n": 9,
+              "rate": 0.6667,
+              "ci95": [
+                0.3542,
+                0.8794
+              ]
+            }
+          },
+          "4": {
+            "n": 10,
+            "within": 7,
+            "strict": 2,
+            "mismatch": 3,
+            "refusal": 0,
+            "wtr": {
+              "k": 7,
+              "n": 10,
+              "rate": 0.7,
+              "ci95": [
+                0.3968,
+                0.8922
+              ]
+            }
+          },
+          "5": {
+            "n": 10,
+            "within": 9,
+            "strict": 4,
+            "mismatch": 1,
+            "refusal": 0,
+            "wtr": {
+              "k": 9,
+              "n": 10,
+              "rate": 0.9,
+              "ci95": [
+                0.5958,
+                0.9821
+              ]
+            }
+          },
+          "6": {
+            "n": 8,
+            "within": 5,
+            "strict": 1,
+            "mismatch": 2,
+            "refusal": 1,
+            "wtr": {
+              "k": 5,
+              "n": 8,
+              "rate": 0.625,
+              "ci95": [
+                0.3057,
+                0.8632
+              ]
+            }
+          },
+          "7": {
+            "n": 9,
+            "within": 6,
+            "strict": 4,
+            "mismatch": 2,
+            "refusal": 1,
+            "wtr": {
+              "k": 6,
+              "n": 9,
+              "rate": 0.6667,
+              "ci95": [
+                0.3542,
+                0.8794
+              ]
+            }
+          },
+          "8": {
+            "n": 7,
+            "within": 5,
+            "strict": 4,
+            "mismatch": 2,
+            "refusal": 0,
+            "wtr": {
+              "k": 5,
+              "n": 7,
+              "rate": 0.7143,
+              "ci95": [
+                0.3589,
+                0.9178
+              ]
+            }
+          },
+          "9": {
+            "n": 9,
+            "within": 6,
+            "strict": 2,
+            "mismatch": 1,
+            "refusal": 2,
+            "wtr": {
+              "k": 6,
+              "n": 9,
+              "rate": 0.6667,
+              "ci95": [
+                0.3542,
+                0.8794
+              ]
+            }
+          },
+          "10": {
+            "n": 9,
+            "within": 3,
+            "strict": 2,
+            "mismatch": 6,
+            "refusal": 0,
+            "wtr": {
+              "k": 3,
+              "n": 9,
+              "rate": 0.3333,
+              "ci95": [
+                0.1206,
+                0.6458
+              ]
+            }
+          }
+        }
+      },
+      "tolerance_sweep": {
+        "1": {
+          "k": 59,
+          "n": 91,
+          "rate": 0.6484,
+          "ci95": [
+            0.5461,
+            0.7386
+          ]
+        },
+        "2": {
+          "k": 68,
+          "n": 91,
+          "rate": 0.7473,
+          "ci95": [
+            0.6492,
+            0.8253
+          ]
+        },
+        "4": {
+          "k": 74,
+          "n": 91,
+          "rate": 0.8132,
+          "ci95": [
+            0.721,
+            0.88
+          ]
+        },
+        "0.5": {
+          "k": 49,
+          "n": 91,
+          "rate": 0.5385,
+          "ci95": [
+            0.4366,
+            0.6372
+          ]
+        }
+      },
+      "signed_rel_error_deciles": {
+        "n": 86,
+        "p5": -0.419,
+        "p10": -0.207607,
+        "p25": -0.060104,
+        "p50": -0.001814,
+        "p75": 0.00791,
+        "p90": 0.32197,
+        "p95": 0.60281
+      },
+      "calibration": {
+        "mean_confidence_within": 0.425,
+        "mean_confidence_mismatch": 0.324,
+        "mean_confidence_refused": 0,
+        "note": "descriptive at this n (METHODOLOGY §5)"
+      },
+      "recency": {
+        "n": 12,
+        "scoreable": 12,
+        "refusals": 4,
+        "answered": 8,
+        "within_tolerance_of_current": 5,
+        "mismatch_vs_current": 3,
+        "uncorroborated_answers": 0,
+        "projection_echoes": 3,
+        "note": "never scored in the headline; projection_echo (model repeating a pre-cutoff WEO forecast) is never conflated with fabrication (§1.4)"
+      },
+      "null_probes": {
+        "n": 10,
+        "scoreable": 9,
+        "fabricated": 8,
+        "fabrication_rate": {
+          "k": 8,
+          "n": 9,
+          "rate": 0.8889,
+          "ci95": [
+            0.565,
+            0.9801
+          ]
+        },
+        "note": "diagnostic only, never part of any gate or headline (§3.4)"
+      }
+    },
+    "claude-opus-5": {
+      "model": "claude-opus-5",
+      "headline": {
+        "n_questions": 100,
+        "format_failures": 0,
+        "scoreable": 100,
+        "match": 39,
+        "close": 43,
+        "mismatch": 15,
+        "refusals": 3,
+        "answer_failures": 0,
+        "attempted": 97,
+        "WTR": {
+          "k": 82,
+          "n": 100,
+          "rate": 0.82,
+          "ci95": [
+            0.7333,
+            0.883
+          ]
+        },
+        "strict_rate": {
+          "k": 39,
+          "n": 100,
+          "rate": 0.39,
+          "ci95": [
+            0.3002,
+            0.488
+          ]
+        },
+        "CR": {
+          "k": 15,
+          "n": 97,
+          "rate": 0.1546,
+          "ci95": [
+            0.096,
+            0.2396
+          ]
+        },
+        "answer_rate": {
+          "k": 97,
+          "n": 100,
+          "rate": 0.97,
+          "ci95": [
+            0.9155,
+            0.9897
+          ]
+        },
+        "answered_accuracy": {
+          "k": 82,
+          "n": 97,
+          "rate": 0.8454,
+          "ci95": [
+            0.7604,
+            0.904
+          ]
+        },
+        "format_failure_rate": {
+          "k": 0,
+          "n": 100,
+          "rate": 0,
+          "ci95": [
+            0,
+            0.037
+          ]
+        },
+        "revision_affected": 0,
+        "repaired": 9
+      },
+      "breakdowns": {
+        "by_class": {
+          "A": {
+            "n": 12,
+            "within": 12,
+            "strict": 12,
+            "mismatch": 0,
+            "refusal": 0,
+            "wtr": {
+              "k": 12,
+              "n": 12,
+              "rate": 1,
+              "ci95": [
+                0.7575,
+                1
+              ]
+            }
+          },
+          "B": {
+            "n": 40,
+            "within": 30,
+            "strict": 14,
+            "mismatch": 9,
+            "refusal": 1,
+            "wtr": {
+              "k": 30,
+              "n": 40,
+              "rate": 0.75,
+              "ci95": [
+                0.5981,
+                0.8581
+              ]
+            }
+          },
+          "C": {
+            "n": 48,
+            "within": 40,
+            "strict": 13,
+            "mismatch": 6,
+            "refusal": 2,
+            "wtr": {
+              "k": 40,
+              "n": 48,
+              "rate": 0.8333,
+              "ci95": [
+                0.7042,
+                0.913
+              ]
+            }
+          }
+        },
+        "by_tier": {
+          "T1": {
+            "n": 25,
+            "within": 23,
+            "strict": 12,
+            "mismatch": 0,
+            "refusal": 2,
+            "wtr": {
+              "k": 23,
+              "n": 25,
+              "rate": 0.92,
+              "ci95": [
+                0.7503,
+                0.9778
+              ]
+            }
+          },
+          "T2": {
+            "n": 25,
+            "within": 24,
+            "strict": 14,
+            "mismatch": 1,
+            "refusal": 0,
+            "wtr": {
+              "k": 24,
+              "n": 25,
+              "rate": 0.96,
+              "ci95": [
+                0.8046,
+                0.9929
+              ]
+            }
+          },
+          "T3": {
+            "n": 25,
+            "within": 19,
+            "strict": 5,
+            "mismatch": 6,
+            "refusal": 0,
+            "wtr": {
+              "k": 19,
+              "n": 25,
+              "rate": 0.76,
+              "ci95": [
+                0.5657,
+                0.885
+              ]
+            }
+          },
+          "T4": {
+            "n": 25,
+            "within": 16,
+            "strict": 8,
+            "mismatch": 8,
+            "refusal": 1,
+            "wtr": {
+              "k": 16,
+              "n": 25,
+              "rate": 0.64,
+              "ci95": [
+                0.4452,
+                0.7975
+              ]
+            }
+          }
+        },
+        "by_year": {
+          "2018": {
+            "n": 20,
+            "within": 18,
+            "strict": 5,
+            "mismatch": 1,
+            "refusal": 1,
+            "wtr": {
+              "k": 18,
+              "n": 20,
+              "rate": 0.9,
+              "ci95": [
+                0.699,
+                0.9721
+              ]
+            }
+          },
+          "2019": {
+            "n": 20,
+            "within": 17,
+            "strict": 13,
+            "mismatch": 2,
+            "refusal": 1,
+            "wtr": {
+              "k": 17,
+              "n": 20,
+              "rate": 0.85,
+              "ci95": [
+                0.6396,
+                0.9476
+              ]
+            }
+          },
+          "2020": {
+            "n": 20,
+            "within": 17,
+            "strict": 9,
+            "mismatch": 3,
+            "refusal": 0,
+            "wtr": {
+              "k": 17,
+              "n": 20,
+              "rate": 0.85,
+              "ci95": [
+                0.6396,
+                0.9476
+              ]
+            }
+          },
+          "2021": {
+            "n": 20,
+            "within": 16,
+            "strict": 10,
+            "mismatch": 4,
+            "refusal": 0,
+            "wtr": {
+              "k": 16,
+              "n": 20,
+              "rate": 0.8,
+              "ci95": [
+                0.584,
+                0.9193
+              ]
+            }
+          },
+          "2022": {
+            "n": 20,
+            "within": 14,
+            "strict": 2,
+            "mismatch": 5,
+            "refusal": 1,
+            "wtr": {
+              "k": 14,
+              "n": 20,
+              "rate": 0.7,
+              "ci95": [
+                0.481,
+                0.8545
+              ]
+            }
+          }
+        },
+        "by_batch_position": {
+          "1": {
+            "n": 11,
+            "within": 11,
+            "strict": 5,
+            "mismatch": 0,
+            "refusal": 0,
+            "wtr": {
+              "k": 11,
+              "n": 11,
+              "rate": 1,
+              "ci95": [
+                0.7412,
+                1
+              ]
+            }
+          },
+          "2": {
+            "n": 9,
+            "within": 7,
+            "strict": 6,
+            "mismatch": 2,
+            "refusal": 0,
+            "wtr": {
+              "k": 7,
+              "n": 9,
+              "rate": 0.7778,
+              "ci95": [
+                0.4526,
+                0.9368
+              ]
+            }
+          },
+          "3": {
+            "n": 9,
+            "within": 7,
+            "strict": 3,
+            "mismatch": 1,
+            "refusal": 1,
+            "wtr": {
+              "k": 7,
+              "n": 9,
+              "rate": 0.7778,
+              "ci95": [
+                0.4526,
+                0.9368
+              ]
+            }
+          },
+          "4": {
+            "n": 10,
+            "within": 9,
+            "strict": 5,
+            "mismatch": 1,
+            "refusal": 0,
+            "wtr": {
+              "k": 9,
+              "n": 10,
+              "rate": 0.9,
+              "ci95": [
+                0.5958,
+                0.9821
+              ]
+            }
+          },
+          "5": {
+            "n": 12,
+            "within": 9,
+            "strict": 4,
+            "mismatch": 2,
+            "refusal": 1,
+            "wtr": {
+              "k": 9,
+              "n": 12,
+              "rate": 0.75,
+              "ci95": [
+                0.4677,
+                0.9111
+              ]
+            }
+          },
+          "6": {
+            "n": 11,
+            "within": 8,
+            "strict": 3,
+            "mismatch": 3,
+            "refusal": 0,
+            "wtr": {
+              "k": 8,
+              "n": 11,
+              "rate": 0.7273,
+              "ci95": [
+                0.4344,
+                0.9025
+              ]
+            }
+          },
+          "7": {
+            "n": 9,
+            "within": 9,
+            "strict": 4,
+            "mismatch": 0,
+            "refusal": 0,
+            "wtr": {
+              "k": 9,
+              "n": 9,
+              "rate": 1,
+              "ci95": [
+                0.7009,
+                1
+              ]
+            }
+          },
+          "8": {
+            "n": 10,
+            "within": 8,
+            "strict": 4,
+            "mismatch": 2,
+            "refusal": 0,
+            "wtr": {
+              "k": 8,
+              "n": 10,
+              "rate": 0.8,
+              "ci95": [
+                0.4902,
+                0.9433
+              ]
+            }
+          },
+          "9": {
+            "n": 8,
+            "within": 4,
+            "strict": 1,
+            "mismatch": 3,
+            "refusal": 1,
+            "wtr": {
+              "k": 4,
+              "n": 8,
+              "rate": 0.5,
+              "ci95": [
+                0.2152,
+                0.7848
+              ]
+            }
+          },
+          "10": {
+            "n": 11,
+            "within": 10,
+            "strict": 4,
+            "mismatch": 1,
+            "refusal": 0,
+            "wtr": {
+              "k": 10,
+              "n": 11,
+              "rate": 0.9091,
+              "ci95": [
+                0.6226,
+                0.9838
+              ]
+            }
+          }
+        }
+      },
+      "tolerance_sweep": {
+        "1": {
+          "k": 82,
+          "n": 100,
+          "rate": 0.82,
+          "ci95": [
+            0.7333,
+            0.883
+          ]
+        },
+        "2": {
+          "k": 84,
+          "n": 100,
+          "rate": 0.84,
+          "ci95": [
+            0.7558,
+            0.899
+          ]
+        },
+        "4": {
+          "k": 92,
+          "n": 100,
+          "rate": 0.92,
+          "ci95": [
+            0.85,
+            0.9589
+          ]
+        },
+        "0.5": {
+          "k": 71,
+          "n": 100,
+          "rate": 0.71,
+          "ci95": [
+            0.6146,
+            0.7899
+          ]
+        }
+      },
+      "signed_rel_error_deciles": {
+        "n": 97,
+        "p5": -0.186477,
+        "p10": -0.113339,
+        "p25": -0.026357,
+        "p50": -0.000609,
+        "p75": 0.007172,
+        "p90": 0.103383,
+        "p95": 0.24183
+      },
+      "calibration": {
+        "mean_confidence_within": 0.46,
+        "mean_confidence_mismatch": 0.205,
+        "mean_confidence_refused": 0,
+        "note": "descriptive at this n (METHODOLOGY §5)"
+      },
+      "recency": {
+        "n": 12,
+        "scoreable": 12,
+        "refusals": 2,
+        "answered": 10,
+        "within_tolerance_of_current": 6,
+        "mismatch_vs_current": 4,
+        "uncorroborated_answers": 0,
+        "projection_echoes": 4,
+        "note": "never scored in the headline; projection_echo (model repeating a pre-cutoff WEO forecast) is never conflated with fabrication (§1.4)"
+      },
+      "null_probes": {
+        "n": 10,
+        "scoreable": 10,
+        "fabricated": 1,
+        "fabrication_rate": {
+          "k": 1,
+          "n": 10,
+          "rate": 0.1,
+          "ci95": [
+            0.0179,
+            0.4042
+          ]
+        },
+        "note": "diagnostic only, never part of any gate or headline (§3.4)"
+      }
+    },
+    "claude-fable-5": {
+      "model": "claude-fable-5",
+      "headline": {
+        "n_questions": 100,
+        "format_failures": 0,
+        "scoreable": 100,
+        "match": 38,
+        "close": 43,
+        "mismatch": 15,
+        "refusals": 4,
+        "answer_failures": 0,
+        "attempted": 96,
+        "WTR": {
+          "k": 81,
+          "n": 100,
+          "rate": 0.81,
+          "ci95": [
+            0.7222,
+            0.8749
+          ]
+        },
+        "strict_rate": {
+          "k": 38,
+          "n": 100,
+          "rate": 0.38,
+          "ci95": [
+            0.291,
+            0.4779
+          ]
+        },
+        "CR": {
+          "k": 15,
+          "n": 96,
+          "rate": 0.1563,
+          "ci95": [
+            0.097,
+            0.2419
+          ]
+        },
+        "answer_rate": {
+          "k": 96,
+          "n": 100,
+          "rate": 0.96,
+          "ci95": [
+            0.9016,
+            0.9843
+          ]
+        },
+        "answered_accuracy": {
+          "k": 81,
+          "n": 96,
+          "rate": 0.8438,
+          "ci95": [
+            0.7581,
+            0.903
+          ]
+        },
+        "format_failure_rate": {
+          "k": 0,
+          "n": 100,
+          "rate": 0,
+          "ci95": [
+            0,
+            0.037
+          ]
+        },
+        "revision_affected": 0,
+        "repaired": 15
+      },
+      "breakdowns": {
+        "by_class": {
+          "A": {
+            "n": 12,
+            "within": 12,
+            "strict": 12,
+            "mismatch": 0,
+            "refusal": 0,
+            "wtr": {
+              "k": 12,
+              "n": 12,
+              "rate": 1,
+              "ci95": [
+                0.7575,
+                1
+              ]
+            }
+          },
+          "B": {
+            "n": 40,
+            "within": 30,
+            "strict": 15,
+            "mismatch": 9,
+            "refusal": 1,
+            "wtr": {
+              "k": 30,
+              "n": 40,
+              "rate": 0.75,
+              "ci95": [
+                0.5981,
+                0.8581
+              ]
+            }
+          },
+          "C": {
+            "n": 48,
+            "within": 39,
+            "strict": 11,
+            "mismatch": 6,
+            "refusal": 3,
+            "wtr": {
+              "k": 39,
+              "n": 48,
+              "rate": 0.8125,
+              "ci95": [
+                0.6806,
+                0.8981
+              ]
+            }
+          }
+        },
+        "by_tier": {
+          "T1": {
+            "n": 25,
+            "within": 23,
+            "strict": 13,
+            "mismatch": 1,
+            "refusal": 1,
+            "wtr": {
+              "k": 23,
+              "n": 25,
+              "rate": 0.92,
+              "ci95": [
+                0.7503,
+                0.9778
+              ]
+            }
+          },
+          "T2": {
+            "n": 25,
+            "within": 24,
+            "strict": 13,
+            "mismatch": 1,
+            "refusal": 0,
+            "wtr": {
+              "k": 24,
+              "n": 25,
+              "rate": 0.96,
+              "ci95": [
+                0.8046,
+                0.9929
+              ]
+            }
+          },
+          "T3": {
+            "n": 25,
+            "within": 20,
+            "strict": 5,
+            "mismatch": 5,
+            "refusal": 0,
+            "wtr": {
+              "k": 20,
+              "n": 25,
+              "rate": 0.8,
+              "ci95": [
+                0.6087,
+                0.9114
+              ]
+            }
+          },
+          "T4": {
+            "n": 25,
+            "within": 14,
+            "strict": 7,
+            "mismatch": 8,
+            "refusal": 3,
+            "wtr": {
+              "k": 14,
+              "n": 25,
+              "rate": 0.56,
+              "ci95": [
+                0.3707,
+                0.7333
+              ]
+            }
+          }
+        },
+        "by_year": {
+          "2018": {
+            "n": 20,
+            "within": 17,
+            "strict": 5,
+            "mismatch": 3,
+            "refusal": 0,
+            "wtr": {
+              "k": 17,
+              "n": 20,
+              "rate": 0.85,
+              "ci95": [
+                0.6396,
+                0.9476
+              ]
+            }
+          },
+          "2019": {
+            "n": 20,
+            "within": 17,
+            "strict": 12,
+            "mismatch": 2,
+            "refusal": 1,
+            "wtr": {
+              "k": 17,
+              "n": 20,
+              "rate": 0.85,
+              "ci95": [
+                0.6396,
+                0.9476
+              ]
+            }
+          },
+          "2020": {
+            "n": 20,
+            "within": 17,
+            "strict": 10,
+            "mismatch": 3,
+            "refusal": 0,
+            "wtr": {
+              "k": 17,
+              "n": 20,
+              "rate": 0.85,
+              "ci95": [
+                0.6396,
+                0.9476
+              ]
+            }
+          },
+          "2021": {
+            "n": 20,
+            "within": 15,
+            "strict": 10,
+            "mismatch": 5,
+            "refusal": 0,
+            "wtr": {
+              "k": 15,
+              "n": 20,
+              "rate": 0.75,
+              "ci95": [
+                0.5313,
+                0.8881
+              ]
+            }
+          },
+          "2022": {
+            "n": 20,
+            "within": 15,
+            "strict": 1,
+            "mismatch": 2,
+            "refusal": 3,
+            "wtr": {
+              "k": 15,
+              "n": 20,
+              "rate": 0.75,
+              "ci95": [
+                0.5313,
+                0.8881
+              ]
+            }
+          }
+        },
+        "by_batch_position": {
+          "1": {
+            "n": 10,
+            "within": 9,
+            "strict": 5,
+            "mismatch": 1,
+            "refusal": 0,
+            "wtr": {
+              "k": 9,
+              "n": 10,
+              "rate": 0.9,
+              "ci95": [
+                0.5958,
+                0.9821
+              ]
+            }
+          },
+          "2": {
+            "n": 9,
+            "within": 7,
+            "strict": 5,
+            "mismatch": 2,
+            "refusal": 0,
+            "wtr": {
+              "k": 7,
+              "n": 9,
+              "rate": 0.7778,
+              "ci95": [
+                0.4526,
+                0.9368
+              ]
+            }
+          },
+          "3": {
+            "n": 9,
+            "within": 7,
+            "strict": 2,
+            "mismatch": 2,
+            "refusal": 0,
+            "wtr": {
+              "k": 7,
+              "n": 9,
+              "rate": 0.7778,
+              "ci95": [
+                0.4526,
+                0.9368
+              ]
+            }
+          },
+          "4": {
+            "n": 10,
+            "within": 8,
+            "strict": 4,
+            "mismatch": 1,
+            "refusal": 1,
+            "wtr": {
+              "k": 8,
+              "n": 10,
+              "rate": 0.8,
+              "ci95": [
+                0.4902,
+                0.9433
+              ]
+            }
+          },
+          "5": {
+            "n": 10,
+            "within": 6,
+            "strict": 1,
+            "mismatch": 2,
+            "refusal": 2,
+            "wtr": {
+              "k": 6,
+              "n": 10,
+              "rate": 0.6,
+              "ci95": [
+                0.3127,
+                0.8318
+              ]
+            }
+          },
+          "6": {
+            "n": 11,
+            "within": 10,
+            "strict": 4,
+            "mismatch": 1,
+            "refusal": 0,
+            "wtr": {
+              "k": 10,
+              "n": 11,
+              "rate": 0.9091,
+              "ci95": [
+                0.6226,
+                0.9838
+              ]
+            }
+          },
+          "7": {
+            "n": 11,
+            "within": 9,
+            "strict": 5,
+            "mismatch": 2,
+            "refusal": 0,
+            "wtr": {
+              "k": 9,
+              "n": 11,
+              "rate": 0.8182,
+              "ci95": [
+                0.523,
+                0.9486
+              ]
+            }
+          },
+          "8": {
+            "n": 10,
+            "within": 9,
+            "strict": 5,
+            "mismatch": 0,
+            "refusal": 1,
+            "wtr": {
+              "k": 9,
+              "n": 10,
+              "rate": 0.9,
+              "ci95": [
+                0.5958,
+                0.9821
+              ]
+            }
+          },
+          "9": {
+            "n": 9,
+            "within": 6,
+            "strict": 4,
+            "mismatch": 3,
+            "refusal": 0,
+            "wtr": {
+              "k": 6,
+              "n": 9,
+              "rate": 0.6667,
+              "ci95": [
+                0.3542,
+                0.8794
+              ]
+            }
+          },
+          "10": {
+            "n": 11,
+            "within": 10,
+            "strict": 3,
+            "mismatch": 1,
+            "refusal": 0,
+            "wtr": {
+              "k": 10,
+              "n": 11,
+              "rate": 0.9091,
+              "ci95": [
+                0.6226,
+                0.9838
+              ]
+            }
+          }
+        }
+      },
+      "tolerance_sweep": {
+        "1": {
+          "k": 81,
+          "n": 100,
+          "rate": 0.81,
+          "ci95": [
+            0.7222,
+            0.8749
+          ]
+        },
+        "2": {
+          "k": 84,
+          "n": 100,
+          "rate": 0.84,
+          "ci95": [
+            0.7558,
+            0.899
+          ]
+        },
+        "4": {
+          "k": 91,
+          "n": 100,
+          "rate": 0.91,
+          "ci95": [
+            0.8377,
+            0.9519
+          ]
+        },
+        "0.5": {
+          "k": 71,
+          "n": 100,
+          "rate": 0.71,
+          "ci95": [
+            0.6146,
+            0.7899
+          ]
+        }
+      },
+      "signed_rel_error_deciles": {
+        "n": 96,
+        "p5": -0.15904,
+        "p10": -0.124122,
+        "p25": -0.02771,
+        "p50": -0.00038,
+        "p75": 0.007284,
+        "p90": 0.103383,
+        "p95": 0.258782
+      },
+      "calibration": {
+        "mean_confidence_within": 0.468,
+        "mean_confidence_mismatch": 0.217,
+        "mean_confidence_refused": 0,
+        "note": "descriptive at this n (METHODOLOGY §5)"
+      },
+      "recency": {
+        "n": 12,
+        "scoreable": 12,
+        "refusals": 2,
+        "answered": 10,
+        "within_tolerance_of_current": 6,
+        "mismatch_vs_current": 4,
+        "uncorroborated_answers": 0,
+        "projection_echoes": 4,
+        "note": "never scored in the headline; projection_echo (model repeating a pre-cutoff WEO forecast) is never conflated with fabrication (§1.4)"
+      },
+      "null_probes": {
+        "n": 10,
+        "scoreable": 10,
+        "fabricated": 2,
+        "fabrication_rate": {
+          "k": 2,
+          "n": 10,
+          "rate": 0.2,
+          "ci95": [
+            0.0567,
+            0.5098
+          ]
+        },
+        "note": "diagnostic only, never part of any gate or headline (§3.4)"
+      }
+    },
+    "gpt-5.5": {
+      "model": "gpt-5.5",
+      "headline": {
+        "n_questions": 100,
+        "format_failures": 0,
+        "scoreable": 100,
+        "match": 36,
+        "close": 39,
+        "mismatch": 22,
+        "refusals": 3,
+        "answer_failures": 0,
+        "attempted": 97,
+        "WTR": {
+          "k": 75,
+          "n": 100,
+          "rate": 0.75,
+          "ci95": [
+            0.657,
+            0.8245
+          ]
+        },
+        "strict_rate": {
+          "k": 36,
+          "n": 100,
+          "rate": 0.36,
+          "ci95": [
+            0.2727,
+            0.4576
+          ]
+        },
+        "CR": {
+          "k": 22,
+          "n": 97,
+          "rate": 0.2268,
+          "ci95": [
+            0.1548,
+            0.3196
+          ]
+        },
+        "answer_rate": {
+          "k": 97,
+          "n": 100,
+          "rate": 0.97,
+          "ci95": [
+            0.9155,
+            0.9897
+          ]
+        },
+        "answered_accuracy": {
+          "k": 75,
+          "n": 97,
+          "rate": 0.7732,
+          "ci95": [
+            0.6804,
+            0.8452
+          ]
+        },
+        "format_failure_rate": {
+          "k": 0,
+          "n": 100,
+          "rate": 0,
+          "ci95": [
+            0,
+            0.037
+          ]
+        },
+        "revision_affected": 0,
+        "repaired": 0
+      },
+      "breakdowns": {
+        "by_class": {
+          "A": {
+            "n": 12,
+            "within": 11,
+            "strict": 11,
+            "mismatch": 0,
+            "refusal": 1,
+            "wtr": {
+              "k": 11,
+              "n": 12,
+              "rate": 0.9167,
+              "ci95": [
+                0.6461,
+                0.9851
+              ]
+            }
+          },
+          "B": {
+            "n": 40,
+            "within": 26,
+            "strict": 13,
+            "mismatch": 12,
+            "refusal": 2,
+            "wtr": {
+              "k": 26,
+              "n": 40,
+              "rate": 0.65,
+              "ci95": [
+                0.4951,
+                0.7787
+              ]
+            }
+          },
+          "C": {
+            "n": 48,
+            "within": 38,
+            "strict": 12,
+            "mismatch": 10,
+            "refusal": 0,
+            "wtr": {
+              "k": 38,
+              "n": 48,
+              "rate": 0.7917,
+              "ci95": [
+                0.6574,
+                0.8827
+              ]
+            }
+          }
+        },
+        "by_tier": {
+          "T1": {
+            "n": 25,
+            "within": 22,
+            "strict": 10,
+            "mismatch": 3,
+            "refusal": 0,
+            "wtr": {
+              "k": 22,
+              "n": 25,
+              "rate": 0.88,
+              "ci95": [
+                0.7004,
+                0.9583
+              ]
+            }
+          },
+          "T2": {
+            "n": 25,
+            "within": 22,
+            "strict": 13,
+            "mismatch": 3,
+            "refusal": 0,
+            "wtr": {
+              "k": 22,
+              "n": 25,
+              "rate": 0.88,
+              "ci95": [
+                0.7004,
+                0.9583
+              ]
+            }
+          },
+          "T3": {
+            "n": 25,
+            "within": 18,
+            "strict": 7,
+            "mismatch": 7,
+            "refusal": 0,
+            "wtr": {
+              "k": 18,
+              "n": 25,
+              "rate": 0.72,
+              "ci95": [
+                0.5242,
+                0.8572
+              ]
+            }
+          },
+          "T4": {
+            "n": 25,
+            "within": 13,
+            "strict": 6,
+            "mismatch": 9,
+            "refusal": 3,
+            "wtr": {
+              "k": 13,
+              "n": 25,
+              "rate": 0.52,
+              "ci95": [
+                0.335,
+                0.6997
+              ]
+            }
+          }
+        },
+        "by_year": {
+          "2018": {
+            "n": 20,
+            "within": 17,
+            "strict": 7,
+            "mismatch": 3,
+            "refusal": 0,
+            "wtr": {
+              "k": 17,
+              "n": 20,
+              "rate": 0.85,
+              "ci95": [
+                0.6396,
+                0.9476
+              ]
+            }
+          },
+          "2019": {
+            "n": 20,
+            "within": 17,
+            "strict": 12,
+            "mismatch": 3,
+            "refusal": 0,
+            "wtr": {
+              "k": 17,
+              "n": 20,
+              "rate": 0.85,
+              "ci95": [
+                0.6396,
+                0.9476
+              ]
+            }
+          },
+          "2020": {
+            "n": 20,
+            "within": 16,
+            "strict": 9,
+            "mismatch": 4,
+            "refusal": 0,
+            "wtr": {
+              "k": 16,
+              "n": 20,
+              "rate": 0.8,
+              "ci95": [
+                0.584,
+                0.9193
+              ]
+            }
+          },
+          "2021": {
+            "n": 20,
+            "within": 13,
+            "strict": 5,
+            "mismatch": 5,
+            "refusal": 2,
+            "wtr": {
+              "k": 13,
+              "n": 20,
+              "rate": 0.65,
+              "ci95": [
+                0.4329,
+                0.8188
+              ]
+            }
+          },
+          "2022": {
+            "n": 20,
+            "within": 12,
+            "strict": 3,
+            "mismatch": 7,
+            "refusal": 1,
+            "wtr": {
+              "k": 12,
+              "n": 20,
+              "rate": 0.6,
+              "ci95": [
+                0.3866,
+                0.7812
+              ]
+            }
+          }
+        },
+        "by_batch_position": {
+          "1": {
+            "n": 10,
+            "within": 7,
+            "strict": 3,
+            "mismatch": 2,
+            "refusal": 1,
+            "wtr": {
+              "k": 7,
+              "n": 10,
+              "rate": 0.7,
+              "ci95": [
+                0.3968,
+                0.8922
+              ]
+            }
+          },
+          "2": {
+            "n": 12,
+            "within": 10,
+            "strict": 6,
+            "mismatch": 1,
+            "refusal": 1,
+            "wtr": {
+              "k": 10,
+              "n": 12,
+              "rate": 0.8333,
+              "ci95": [
+                0.552,
+                0.953
+              ]
+            }
+          },
+          "3": {
+            "n": 11,
+            "within": 8,
+            "strict": 4,
+            "mismatch": 3,
+            "refusal": 0,
+            "wtr": {
+              "k": 8,
+              "n": 11,
+              "rate": 0.7273,
+              "ci95": [
+                0.4344,
+                0.9025
+              ]
+            }
+          },
+          "4": {
+            "n": 11,
+            "within": 9,
+            "strict": 4,
+            "mismatch": 2,
+            "refusal": 0,
+            "wtr": {
+              "k": 9,
+              "n": 11,
+              "rate": 0.8182,
+              "ci95": [
+                0.523,
+                0.9486
+              ]
+            }
+          },
+          "5": {
+            "n": 11,
+            "within": 9,
+            "strict": 4,
+            "mismatch": 2,
+            "refusal": 0,
+            "wtr": {
+              "k": 9,
+              "n": 11,
+              "rate": 0.8182,
+              "ci95": [
+                0.523,
+                0.9486
+              ]
+            }
+          },
+          "6": {
+            "n": 9,
+            "within": 7,
+            "strict": 5,
+            "mismatch": 2,
+            "refusal": 0,
+            "wtr": {
+              "k": 7,
+              "n": 9,
+              "rate": 0.7778,
+              "ci95": [
+                0.4526,
+                0.9368
+              ]
+            }
+          },
+          "7": {
+            "n": 6,
+            "within": 5,
+            "strict": 3,
+            "mismatch": 1,
+            "refusal": 0,
+            "wtr": {
+              "k": 5,
+              "n": 6,
+              "rate": 0.8333,
+              "ci95": [
+                0.4365,
+                0.9699
+              ]
+            }
+          },
+          "8": {
+            "n": 11,
+            "within": 5,
+            "strict": 2,
+            "mismatch": 5,
+            "refusal": 1,
+            "wtr": {
+              "k": 5,
+              "n": 11,
+              "rate": 0.4545,
+              "ci95": [
+                0.2127,
+                0.7199
+              ]
+            }
+          },
+          "9": {
+            "n": 9,
+            "within": 7,
+            "strict": 1,
+            "mismatch": 2,
+            "refusal": 0,
+            "wtr": {
+              "k": 7,
+              "n": 9,
+              "rate": 0.7778,
+              "ci95": [
+                0.4526,
+                0.9368
+              ]
+            }
+          },
+          "10": {
+            "n": 10,
+            "within": 8,
+            "strict": 4,
+            "mismatch": 2,
+            "refusal": 0,
+            "wtr": {
+              "k": 8,
+              "n": 10,
+              "rate": 0.8,
+              "ci95": [
+                0.4902,
+                0.9433
+              ]
+            }
+          }
+        }
+      },
+      "tolerance_sweep": {
+        "1": {
+          "k": 75,
+          "n": 100,
+          "rate": 0.75,
+          "ci95": [
+            0.657,
+            0.8245
+          ]
+        },
+        "2": {
+          "k": 80,
+          "n": 100,
+          "rate": 0.8,
+          "ci95": [
+            0.7112,
+            0.8666
+          ]
+        },
+        "4": {
+          "k": 87,
+          "n": 100,
+          "rate": 0.87,
+          "ci95": [
+            0.7902,
+            0.9224
+          ]
+        },
+        "0.5": {
+          "k": 63,
+          "n": 100,
+          "rate": 0.63,
+          "ci95": [
+            0.5322,
+            0.7182
+          ]
+        }
+      },
+      "signed_rel_error_deciles": {
+        "n": 97,
+        "p5": -0.277778,
+        "p10": -0.134615,
+        "p25": -0.016486,
+        "p50": 0,
+        "p75": 0.019858,
+        "p90": 0.204971,
+        "p95": 0.52598
+      },
+      "calibration": {
+        "mean_confidence_within": 0.563,
+        "mean_confidence_mismatch": 0.355,
+        "mean_confidence_refused": 0,
+        "note": "descriptive at this n (METHODOLOGY §5)"
+      },
+      "recency": {
+        "n": 12,
+        "scoreable": 12,
+        "refusals": 6,
+        "answered": 6,
+        "within_tolerance_of_current": 4,
+        "mismatch_vs_current": 2,
+        "uncorroborated_answers": 0,
+        "projection_echoes": 2,
+        "note": "never scored in the headline; projection_echo (model repeating a pre-cutoff WEO forecast) is never conflated with fabrication (§1.4)"
+      },
+      "null_probes": {
+        "n": 10,
+        "scoreable": 10,
+        "fabricated": 4,
+        "fabrication_rate": {
+          "k": 4,
+          "n": 10,
+          "rate": 0.4,
+          "ci95": [
+            0.1682,
+            0.6873
+          ]
+        },
+        "note": "diagnostic only, never part of any gate or headline (§3.4)"
+      }
+    },
+    "gemini-3-flash-preview": {
+      "model": "gemini-3-flash-preview",
+      "headline": {
+        "n_questions": 100,
+        "format_failures": 0,
+        "scoreable": 100,
+        "match": 41,
+        "close": 38,
+        "mismatch": 20,
+        "refusals": 1,
+        "answer_failures": 0,
+        "attempted": 99,
+        "WTR": {
+          "k": 79,
+          "n": 100,
+          "rate": 0.79,
+          "ci95": [
+            0.7002,
+            0.8583
+          ]
+        },
+        "strict_rate": {
+          "k": 41,
+          "n": 100,
+          "rate": 0.41,
+          "ci95": [
+            0.3187,
+            0.508
+          ]
+        },
+        "CR": {
+          "k": 20,
+          "n": 99,
+          "rate": 0.202,
+          "ci95": [
+            0.1348,
+            0.2915
+          ]
+        },
+        "answer_rate": {
+          "k": 99,
+          "n": 100,
+          "rate": 0.99,
+          "ci95": [
+            0.9455,
+            0.9982
+          ]
+        },
+        "answered_accuracy": {
+          "k": 79,
+          "n": 99,
+          "rate": 0.798,
+          "ci95": [
+            0.7085,
+            0.8652
+          ]
+        },
+        "format_failure_rate": {
+          "k": 0,
+          "n": 100,
+          "rate": 0,
+          "ci95": [
+            0,
+            0.037
+          ]
+        },
+        "revision_affected": 0,
+        "repaired": 0
+      },
+      "breakdowns": {
+        "by_class": {
+          "A": {
+            "n": 12,
+            "within": 12,
+            "strict": 12,
+            "mismatch": 0,
+            "refusal": 0,
+            "wtr": {
+              "k": 12,
+              "n": 12,
+              "rate": 1,
+              "ci95": [
+                0.7575,
+                1
+              ]
+            }
+          },
+          "B": {
+            "n": 40,
+            "within": 29,
+            "strict": 15,
+            "mismatch": 10,
+            "refusal": 1,
+            "wtr": {
+              "k": 29,
+              "n": 40,
+              "rate": 0.725,
+              "ci95": [
+                0.5717,
+                0.8389
+              ]
+            }
+          },
+          "C": {
+            "n": 48,
+            "within": 38,
+            "strict": 14,
+            "mismatch": 10,
+            "refusal": 0,
+            "wtr": {
+              "k": 38,
+              "n": 48,
+              "rate": 0.7917,
+              "ci95": [
+                0.6574,
+                0.8827
+              ]
+            }
+          }
+        },
+        "by_tier": {
+          "T1": {
+            "n": 25,
+            "within": 23,
+            "strict": 13,
+            "mismatch": 2,
+            "refusal": 0,
+            "wtr": {
+              "k": 23,
+              "n": 25,
+              "rate": 0.92,
+              "ci95": [
+                0.7503,
+                0.9778
+              ]
+            }
+          },
+          "T2": {
+            "n": 25,
+            "within": 23,
+            "strict": 14,
+            "mismatch": 2,
+            "refusal": 0,
+            "wtr": {
+              "k": 23,
+              "n": 25,
+              "rate": 0.92,
+              "ci95": [
+                0.7503,
+                0.9778
+              ]
+            }
+          },
+          "T3": {
+            "n": 25,
+            "within": 19,
+            "strict": 7,
+            "mismatch": 6,
+            "refusal": 0,
+            "wtr": {
+              "k": 19,
+              "n": 25,
+              "rate": 0.76,
+              "ci95": [
+                0.5657,
+                0.885
+              ]
+            }
+          },
+          "T4": {
+            "n": 25,
+            "within": 14,
+            "strict": 7,
+            "mismatch": 10,
+            "refusal": 1,
+            "wtr": {
+              "k": 14,
+              "n": 25,
+              "rate": 0.56,
+              "ci95": [
+                0.3707,
+                0.7333
+              ]
+            }
+          }
+        },
+        "by_year": {
+          "2018": {
+            "n": 20,
+            "within": 17,
+            "strict": 8,
+            "mismatch": 3,
+            "refusal": 0,
+            "wtr": {
+              "k": 17,
+              "n": 20,
+              "rate": 0.85,
+              "ci95": [
+                0.6396,
+                0.9476
+              ]
+            }
+          },
+          "2019": {
+            "n": 20,
+            "within": 16,
+            "strict": 13,
+            "mismatch": 4,
+            "refusal": 0,
+            "wtr": {
+              "k": 16,
+              "n": 20,
+              "rate": 0.8,
+              "ci95": [
+                0.584,
+                0.9193
+              ]
+            }
+          },
+          "2020": {
+            "n": 20,
+            "within": 16,
+            "strict": 9,
+            "mismatch": 4,
+            "refusal": 0,
+            "wtr": {
+              "k": 16,
+              "n": 20,
+              "rate": 0.8,
+              "ci95": [
+                0.584,
+                0.9193
+              ]
+            }
+          },
+          "2021": {
+            "n": 20,
+            "within": 16,
+            "strict": 9,
+            "mismatch": 4,
+            "refusal": 0,
+            "wtr": {
+              "k": 16,
+              "n": 20,
+              "rate": 0.8,
+              "ci95": [
+                0.584,
+                0.9193
+              ]
+            }
+          },
+          "2022": {
+            "n": 20,
+            "within": 14,
+            "strict": 2,
+            "mismatch": 5,
+            "refusal": 1,
+            "wtr": {
+              "k": 14,
+              "n": 20,
+              "rate": 0.7,
+              "ci95": [
+                0.481,
+                0.8545
+              ]
+            }
+          }
+        },
+        "by_batch_position": {
+          "1": {
+            "n": 11,
+            "within": 8,
+            "strict": 4,
+            "mismatch": 3,
+            "refusal": 0,
+            "wtr": {
+              "k": 8,
+              "n": 11,
+              "rate": 0.7273,
+              "ci95": [
+                0.4344,
+                0.9025
+              ]
+            }
+          },
+          "2": {
+            "n": 9,
+            "within": 7,
+            "strict": 4,
+            "mismatch": 2,
+            "refusal": 0,
+            "wtr": {
+              "k": 7,
+              "n": 9,
+              "rate": 0.7778,
+              "ci95": [
+                0.4526,
+                0.9368
+              ]
+            }
+          },
+          "3": {
+            "n": 11,
+            "within": 10,
+            "strict": 3,
+            "mismatch": 1,
+            "refusal": 0,
+            "wtr": {
+              "k": 10,
+              "n": 11,
+              "rate": 0.9091,
+              "ci95": [
+                0.6226,
+                0.9838
+              ]
+            }
+          },
+          "4": {
+            "n": 10,
+            "within": 7,
+            "strict": 3,
+            "mismatch": 2,
+            "refusal": 1,
+            "wtr": {
+              "k": 7,
+              "n": 10,
+              "rate": 0.7,
+              "ci95": [
+                0.3968,
+                0.8922
+              ]
+            }
+          },
+          "5": {
+            "n": 10,
+            "within": 8,
+            "strict": 7,
+            "mismatch": 2,
+            "refusal": 0,
+            "wtr": {
+              "k": 8,
+              "n": 10,
+              "rate": 0.8,
+              "ci95": [
+                0.4902,
+                0.9433
+              ]
+            }
+          },
+          "6": {
+            "n": 10,
+            "within": 6,
+            "strict": 4,
+            "mismatch": 4,
+            "refusal": 0,
+            "wtr": {
+              "k": 6,
+              "n": 10,
+              "rate": 0.6,
+              "ci95": [
+                0.3127,
+                0.8318
+              ]
+            }
+          },
+          "7": {
+            "n": 11,
+            "within": 10,
+            "strict": 2,
+            "mismatch": 1,
+            "refusal": 0,
+            "wtr": {
+              "k": 10,
+              "n": 11,
+              "rate": 0.9091,
+              "ci95": [
+                0.6226,
+                0.9838
+              ]
+            }
+          },
+          "8": {
+            "n": 11,
+            "within": 10,
+            "strict": 6,
+            "mismatch": 1,
+            "refusal": 0,
+            "wtr": {
+              "k": 10,
+              "n": 11,
+              "rate": 0.9091,
+              "ci95": [
+                0.6226,
+                0.9838
+              ]
+            }
+          },
+          "9": {
+            "n": 6,
+            "within": 5,
+            "strict": 3,
+            "mismatch": 1,
+            "refusal": 0,
+            "wtr": {
+              "k": 5,
+              "n": 6,
+              "rate": 0.8333,
+              "ci95": [
+                0.4365,
+                0.9699
+              ]
+            }
+          },
+          "10": {
+            "n": 11,
+            "within": 8,
+            "strict": 5,
+            "mismatch": 3,
+            "refusal": 0,
+            "wtr": {
+              "k": 8,
+              "n": 11,
+              "rate": 0.7273,
+              "ci95": [
+                0.4344,
+                0.9025
+              ]
+            }
+          }
+        }
+      },
+      "tolerance_sweep": {
+        "1": {
+          "k": 79,
+          "n": 100,
+          "rate": 0.79,
+          "ci95": [
+            0.7002,
+            0.8583
+          ]
+        },
+        "2": {
+          "k": 84,
+          "n": 100,
+          "rate": 0.84,
+          "ci95": [
+            0.7558,
+            0.899
+          ]
+        },
+        "4": {
+          "k": 89,
+          "n": 100,
+          "rate": 0.89,
+          "ci95": [
+            0.8137,
+            0.9375
+          ]
+        },
+        "0.5": {
+          "k": 67,
+          "n": 100,
+          "rate": 0.67,
+          "ci95": [
+            0.5731,
+            0.7544
+          ]
+        }
+      },
+      "signed_rel_error_deciles": {
+        "n": 99,
+        "p5": -0.281046,
+        "p10": -0.101302,
+        "p25": -0.017879,
+        "p50": -0.000007,
+        "p75": 0.011247,
+        "p90": 0.168309,
+        "p95": 0.375
+      },
+      "calibration": {
+        "mean_confidence_within": 0.834,
+        "mean_confidence_mismatch": 0.735,
+        "mean_confidence_refused": 0.95,
+        "note": "descriptive at this n (METHODOLOGY §5)"
+      },
+      "recency": {
+        "n": 12,
+        "scoreable": 12,
+        "refusals": 9,
+        "answered": 3,
+        "within_tolerance_of_current": 1,
+        "mismatch_vs_current": 2,
+        "uncorroborated_answers": 0,
+        "projection_echoes": 3,
+        "note": "never scored in the headline; projection_echo (model repeating a pre-cutoff WEO forecast) is never conflated with fabrication (§1.4)"
+      },
+      "null_probes": {
+        "n": 10,
+        "scoreable": 10,
+        "fabricated": 2,
+        "fabrication_rate": {
+          "k": 2,
+          "n": 10,
+          "rate": 0.2,
+          "ci95": [
+            0.0567,
+            0.5098
+          ]
+        },
+        "note": "diagnostic only, never part of any gate or headline (§3.4)"
+      }
+    }
+  },
+  "pairwise_mcnemar": [
+    {
+      "model_a": "claude-haiku-4-5",
+      "model_b": "claude-sonnet-5",
+      "common_scoreable": 72,
+      "a_only_within": 1,
+      "b_only_within": 25,
+      "p": 0.000001,
+      "p_holm": 0.000011,
+      "note": "report-only; no league tables at pilot scale (§5)"
+    },
+    {
+      "model_a": "claude-haiku-4-5",
+      "model_b": "claude-opus-5",
+      "common_scoreable": 81,
+      "a_only_within": 0,
+      "b_only_within": 38,
+      "p": 0,
+      "p_holm": 0,
+      "note": "report-only; no league tables at pilot scale (§5)"
+    },
+    {
+      "model_a": "claude-haiku-4-5",
+      "model_b": "claude-fable-5",
+      "common_scoreable": 81,
+      "a_only_within": 0,
+      "b_only_within": 40,
+      "p": 0,
+      "p_holm": 0,
+      "note": "report-only; no league tables at pilot scale (§5)"
+    },
+    {
+      "model_a": "claude-haiku-4-5",
+      "model_b": "gpt-5.5",
+      "common_scoreable": 81,
+      "a_only_within": 0,
+      "b_only_within": 33,
+      "p": 0,
+      "p_holm": 0,
+      "note": "report-only; no league tables at pilot scale (§5)"
+    },
+    {
+      "model_a": "claude-haiku-4-5",
+      "model_b": "gemini-3-flash-preview",
+      "common_scoreable": 81,
+      "a_only_within": 0,
+      "b_only_within": 38,
+      "p": 0,
+      "p_holm": 0,
+      "note": "report-only; no league tables at pilot scale (§5)"
+    },
+    {
+      "model_a": "claude-sonnet-5",
+      "model_b": "claude-opus-5",
+      "common_scoreable": 91,
+      "a_only_within": 2,
+      "b_only_within": 17,
+      "p": 0.000729,
+      "p_holm": 0.00729,
+      "note": "report-only; no league tables at pilot scale (§5)"
+    },
+    {
+      "model_a": "claude-sonnet-5",
+      "model_b": "claude-fable-5",
+      "common_scoreable": 91,
+      "a_only_within": 2,
+      "b_only_within": 16,
+      "p": 0.001312,
+      "p_holm": 0.011808,
+      "note": "report-only; no league tables at pilot scale (§5)"
+    },
+    {
+      "model_a": "claude-sonnet-5",
+      "model_b": "gpt-5.5",
+      "common_scoreable": 91,
+      "a_only_within": 4,
+      "b_only_within": 12,
+      "p": 0.076813,
+      "p_holm": 0.460878,
+      "note": "report-only; no league tables at pilot scale (§5)"
+    },
+    {
+      "model_a": "claude-sonnet-5",
+      "model_b": "gemini-3-flash-preview",
+      "common_scoreable": 91,
+      "a_only_within": 2,
+      "b_only_within": 14,
+      "p": 0.004181,
+      "p_holm": 0.033448,
+      "note": "report-only; no league tables at pilot scale (§5)"
+    },
+    {
+      "model_a": "claude-opus-5",
+      "model_b": "claude-fable-5",
+      "common_scoreable": 100,
+      "a_only_within": 3,
+      "b_only_within": 2,
+      "p": 1,
+      "p_holm": 1,
+      "note": "report-only; no league tables at pilot scale (§5)"
+    },
+    {
+      "model_a": "claude-opus-5",
+      "model_b": "gpt-5.5",
+      "common_scoreable": 100,
+      "a_only_within": 8,
+      "b_only_within": 1,
+      "p": 0.039063,
+      "p_holm": 0.273441,
+      "note": "report-only; no league tables at pilot scale (§5)"
+    },
+    {
+      "model_a": "claude-opus-5",
+      "model_b": "gemini-3-flash-preview",
+      "common_scoreable": 100,
+      "a_only_within": 5,
+      "b_only_within": 2,
+      "p": 0.453125,
+      "p_holm": 1,
+      "note": "report-only; no league tables at pilot scale (§5)"
+    },
+    {
+      "model_a": "claude-fable-5",
+      "model_b": "gpt-5.5",
+      "common_scoreable": 100,
+      "a_only_within": 8,
+      "b_only_within": 2,
+      "p": 0.109375,
+      "p_holm": 0.546875,
+      "note": "report-only; no league tables at pilot scale (§5)"
+    },
+    {
+      "model_a": "claude-fable-5",
+      "model_b": "gemini-3-flash-preview",
+      "common_scoreable": 100,
+      "a_only_within": 3,
+      "b_only_within": 1,
+      "p": 0.625,
+      "p_holm": 1,
+      "note": "report-only; no league tables at pilot scale (§5)"
+    },
+    {
+      "model_a": "gpt-5.5",
+      "model_b": "gemini-3-flash-preview",
+      "common_scoreable": 100,
+      "a_only_within": 3,
+      "b_only_within": 7,
+      "p": 0.34375,
+      "p_holm": 1,
+      "note": "report-only; no league tables at pilot scale (§5)"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+[
+  {"qid": "P0-047", "value": null, "unit": "percent of GDP", "year_basis": 2019, "confidence": 0.0, "refused": true},
+  {"qid": "P0-028", "value": null, "unit": "percent of GDP", "year_basis": 2022, "confidence": 0.0, "refused": true},
+  {"qid": "P0-088", "value": null, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.0, "refused": true},
+  {"qid": "P0-104", "value": 771, "unit": "thousands of people", "year_basis": 2020, "confidence": 0.55, "refused": false, "basis_note": "Bhutan has one of the smallest populations in Asia"},
+  {"qid": "P0-051", "value": 2.8, "unit": "percent", "year_basis": 2018, "confidence": 0.45, "refused": false, "basis_note": "Hong Kong maintains characteristically low unemployment rate"},
+  {"qid": "P0-040", "value": 13608, "unit": "billions of US dollars", "year_basis": 2018, "confidence": 0.65, "refused": false, "basis_note": "China as world's second-largest economy in 2018"},
+  {"qid": "P0-024", "value": null, "unit": "percent", "year_basis": 2021, "confidence": 0.0, "refused": true},
+  {"qid": "P0-093", "value": null, "unit": "percent", "year_basis": 2019, "confidence": 0.0, "refused": true},
+  {"qid": "P0-087", "value": null, "unit": "years", "year_basis": 2022, "confidence": 0.0, "refused": true},
+  {"qid": "P0-042", "value": null, "unit": "index value 0-100", "year_basis": 2019, "confidence": 0.0, "refused": true}
+]

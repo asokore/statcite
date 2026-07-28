@@ -1,0 +1,92 @@
+[
+  {
+    "qid": "P0-119",
+    "value": 71.6,
+    "unit": "years",
+    "year_basis": 2021,
+    "confidence": 0.45,
+    "refused": false,
+    "basis_note": "World Bank WDI life expectancy at birth, total"
+  },
+  {
+    "qid": "P0-076",
+    "value": -1.7,
+    "unit": "percent",
+    "year_basis": 2019,
+    "confidence": 0.75,
+    "refused": false,
+    "basis_note": "WDI/IMF real GDP growth"
+  },
+  {
+    "qid": "P0-063",
+    "value": 258.8,
+    "unit": "billions of US dollars",
+    "year_basis": 2020,
+    "confidence": 0.35,
+    "refused": false,
+    "basis_note": "WDI total reserves including gold"
+  },
+  {
+    "qid": "P0-020",
+    "value": 15.8,
+    "unit": "percent",
+    "year_basis": 2019,
+    "confidence": 0.65,
+    "refused": false,
+    "basis_note": "WDI CPI annual average inflation"
+  },
+  {
+    "qid": "P0-102",
+    "value": 1.8,
+    "unit": "percent of GDP",
+    "year_basis": 2022,
+    "confidence": 0.4,
+    "refused": false,
+    "basis_note": "WDI FDI net inflows"
+  },
+  {
+    "qid": "P0-052",
+    "value": 3.7,
+    "unit": "percent",
+    "year_basis": 2018,
+    "confidence": 0.55,
+    "refused": false,
+    "basis_note": "ILO modeled estimate via WDI"
+  },
+  {
+    "qid": "P0-054",
+    "value": 123.8,
+    "unit": "millions of people",
+    "year_basis": 2024,
+    "confidence": 0.55,
+    "refused": false,
+    "basis_note": "World Bank mid-year population estimate"
+  },
+  {
+    "qid": "P0-084",
+    "value": 98.2,
+    "unit": "percent of GDP",
+    "year_basis": 2019,
+    "confidence": 0.75,
+    "refused": false,
+    "basis_note": "IMF WEO general government gross debt"
+  },
+  {
+    "qid": "P0-106",
+    "value": -3.2,
+    "unit": "percent of GDP",
+    "year_basis": 2025,
+    "confidence": 0.25,
+    "refused": false,
+    "basis_note": "IMF WEO projection, general government balance"
+  },
+  {
+    "qid": "P0-016",
+    "value": 30.4,
+    "unit": "percent of GDP",
+    "year_basis": 2021,
+    "confidence": 0.35,
+    "refused": false,
+    "basis_note": "WDI/IMF current account balance"
+  }
+]

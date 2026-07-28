@@ -1,0 +1,92 @@
+[
+  {
+    "qid": "P0-019",
+    "value": null,
+    "unit": "millions of US dollars",
+    "year_basis": 2023,
+    "confidence": 0,
+    "refused": true,
+    "basis_note": "Do not recall official WDI figure"
+  },
+  {
+    "qid": "P0-033",
+    "value": 2.7,
+    "unit": "percent of GDP",
+    "year_basis": 2020,
+    "confidence": 0.35,
+    "refused": false,
+    "basis_note": "Recalled WDI/IMF BOP ratio"
+  },
+  {
+    "qid": "P0-113",
+    "value": -13.4,
+    "unit": "percent of GDP",
+    "year_basis": 2018,
+    "confidence": 0.3,
+    "refused": false,
+    "basis_note": "Recalled WDI FDI net inflows"
+  },
+  {
+    "qid": "P0-031",
+    "value": 1.812,
+    "unit": "percent",
+    "year_basis": 2019,
+    "confidence": 0.9,
+    "refused": false,
+    "basis_note": "US CPI annual average inflation"
+  },
+  {
+    "qid": "P0-078",
+    "value": 52.4,
+    "unit": "thousands of people",
+    "year_basis": 2018,
+    "confidence": 0.55,
+    "refused": false,
+    "basis_note": "WDI mid-year population"
+  },
+  {
+    "qid": "P0-057",
+    "value": 36.3,
+    "unit": "percent of GDP",
+    "year_basis": 2021,
+    "confidence": 0.45,
+    "refused": false,
+    "basis_note": "IMF WEO general government gross debt"
+  },
+  {
+    "qid": "P0-017",
+    "value": 65.6,
+    "unit": "years",
+    "year_basis": 2020,
+    "confidence": 0.45,
+    "refused": false,
+    "basis_note": "WDI life expectancy at birth"
+  },
+  {
+    "qid": "P0-039",
+    "value": null,
+    "unit": "percent",
+    "year_basis": 2022,
+    "confidence": 0,
+    "refused": true,
+    "basis_note": "Do not recall ILO modeled estimate"
+  },
+  {
+    "qid": "P0-086",
+    "value": 2.0,
+    "unit": "percent",
+    "year_basis": 2019,
+    "confidence": 0.8,
+    "refused": false,
+    "basis_note": "Real GDP growth Netherlands 2019"
+  },
+  {
+    "qid": "P0-109",
+    "value": 38.7,
+    "unit": "Gini index",
+    "year_basis": 2019,
+    "confidence": 0.4,
+    "refused": false,
+    "basis_note": "World Bank survey-based Gini estimate"
+  }
+]

@@ -1,0 +1,92 @@
+[
+  {
+    "qid": "P0-086",
+    "value": 1.7,
+    "unit": "percent",
+    "year_basis": 2019,
+    "confidence": 0.65,
+    "refused": false,
+    "basis_note": "Netherlands real GDP growth moderated in 2019 relative to 2017-18"
+  },
+  {
+    "qid": "P0-039",
+    "value": null,
+    "unit": "percent",
+    "year_basis": 2022,
+    "confidence": 0.15,
+    "refused": true,
+    "basis_note": "Insufficient confidence in ILO modeled estimate for New Caledonia 2022"
+  },
+  {
+    "qid": "P0-031",
+    "value": 2.3,
+    "unit": "percent",
+    "year_basis": 2019,
+    "confidence": 0.75,
+    "refused": false,
+    "basis_note": "US CPI annual average 2019, WDI reported"
+  },
+  {
+    "qid": "P0-113",
+    "value": null,
+    "unit": "percent of GDP",
+    "year_basis": 2018,
+    "confidence": 0.35,
+    "refused": true,
+    "basis_note": "Cannot reliably distinguish 2018 Swiss FDI net inflows from stock without reference"
+  },
+  {
+    "qid": "P0-078",
+    "value": 51.7,
+    "unit": "thousands of people",
+    "year_basis": 2018,
+    "confidence": 0.65,
+    "refused": false,
+    "basis_note": "Small island nation; mid-year estimate circa 2018"
+  },
+  {
+    "qid": "P0-019",
+    "value": null,
+    "unit": "millions of US dollars",
+    "year_basis": 2023,
+    "confidence": 0.10,
+    "refused": true,
+    "basis_note": "Eritrea reserve data for 2023 not reliably available in parametric memory"
+  },
+  {
+    "qid": "P0-109",
+    "value": 40.8,
+    "unit": "index value 0-100",
+    "year_basis": 2019,
+    "confidence": 0.60,
+    "refused": false,
+    "basis_note": "WB Gini estimate for Kenya; inequality moderately high"
+  },
+  {
+    "qid": "P0-057",
+    "value": 34,
+    "unit": "percent of GDP",
+    "year_basis": 2021,
+    "confidence": 0.60,
+    "refused": false,
+    "basis_note": "IMF WEO general government debt estimate; Cambodia developing economy"
+  },
+  {
+    "qid": "P0-033",
+    "value": null,
+    "unit": "percent of GDP",
+    "year_basis": 2020,
+    "confidence": 0.25,
+    "refused": true,
+    "basis_note": "Zimbabwe current account 2020 subject to high measurement uncertainty"
+  },
+  {
+    "qid": "P0-017",
+    "value": 65.8,
+    "unit": "years",
+    "year_basis": 2020,
+    "confidence": 0.60,
+    "refused": false,
+    "basis_note": "Sudan life expectancy at birth; lower-income country baseline"
+  }
+]

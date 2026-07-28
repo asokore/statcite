@@ -1,0 +1,14 @@
+```json
+[
+  {"qid": "P0-074", "value": null, "unit": "percent of GDP", "year_basis": 2025, "confidence": 0.0, "refused": true, "basis_note": "2025 data beyond reliable parametric knowledge"},
+  {"qid": "P0-014", "value": 350.0, "unit": "billions of US dollars", "year_basis": 2021, "confidence": 0.55, "refused": false, "basis_note": "Brazil end-2021 reserves; moderate uncertainty on exact figure"},
+  {"qid": "P0-043", "value": null, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.0, "refused": true, "basis_note": "Bangladesh fiscal data; insufficient reliable recall"},
+  {"qid": "P0-062", "value": null, "unit": "percent of GDP", "year_basis": 2019, "confidence": 0.0, "refused": true, "basis_note": "Guyana BOP 2019; unreliable parametric knowledge"},
+  {"qid": "P0-114", "value": null, "unit": "percent of GDP", "year_basis": 2019, "confidence": 0.0, "refused": true, "basis_note": "Lao PDR debt 2019; insufficient confidence"},
+  {"qid": "P0-082", "value": null, "unit": "percent of population", "year_basis": 2022, "confidence": 0.0, "refused": true, "basis_note": "Uganda poverty 2022; cannot recall reliably"},
+  {"qid": "P0-027", "value": 83.3, "unit": "years", "year_basis": 2018, "confidence": 0.65, "refused": false, "basis_note": "Spain life expectancy; moderate recall confidence"},
+  {"qid": "P0-015", "value": 1.19, "unit": "billions of US dollars", "year_basis": 2020, "confidence": 0.60, "refused": false, "basis_note": "Australia 2020 nominal GDP market rate; approximate"},
+  {"qid": "P0-122", "value": null, "unit": "percent", "year_basis": 2021, "confidence": 0.0, "refused": true, "basis_note": "Chad unemployment 2021; no reliable parametric recall"},
+  {"qid": "P0-070", "value": 15.5, "unit": "percent", "year_basis": 2019, "confidence": 0.60, "refused": false, "basis_note": "Turkey 2019 annual average CPI inflation; high inflation year"}
+]
+```

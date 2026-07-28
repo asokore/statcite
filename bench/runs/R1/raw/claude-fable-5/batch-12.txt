@@ -1,0 +1,12 @@
+[
+  {"qid": "P0-043", "value": -3.6, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.35, "refused": false, "basis_note": "IMF WEO general government net lending, Bangladesh FY2021 vintage recall"},
+  {"qid": "P0-114", "value": 59.0, "unit": "percent of GDP", "year_basis": 2019, "confidence": 0.3, "refused": false, "basis_note": "IMF WEO Lao PDR general government gross debt; rose sharply after 2019"},
+  {"qid": "P0-074", "value": null, "unit": "percent of GDP", "year_basis": 2025, "confidence": 0.0, "refused": true, "basis_note": "No published WDI 2025 trade-openness figure within my knowledge; typically ~140-150% in recent years"},
+  {"qid": "P0-027", "value": 83.4, "unit": "years", "year_basis": 2018, "confidence": 0.7, "refused": false, "basis_note": "World Bank WDI life expectancy at birth, total, Spain 2018"},
+  {"qid": "P0-014", "value": 362.0, "unit": "billions of US dollars", "year_basis": 2021, "confidence": 0.5, "refused": false, "basis_note": "Total reserves incl. gold, end-2021, WDI/BCB"},
+  {"qid": "P0-122", "value": 1.9, "unit": "percent", "year_basis": 2021, "confidence": 0.2, "refused": false, "basis_note": "ILO modeled estimate; Chad's rate is very low single digits, exact value uncertain"},
+  {"qid": "P0-062", "value": -50.0, "unit": "percent of GDP", "year_basis": 2019, "confidence": 0.12, "refused": false, "basis_note": "Very large pre-oil-revenue deficit driven by FDI-financed imports; magnitude uncertain"},
+  {"qid": "P0-082", "value": null, "unit": "percent of population", "year_basis": 2022, "confidence": 0.0, "refused": true, "basis_note": "Latest survey point I recall is UNHS 2019/20 ~42%; unsure a 2022 WDI value exists"},
+  {"qid": "P0-015", "value": 1327.0, "unit": "billions of US dollars", "year_basis": 2020, "confidence": 0.55, "refused": false, "basis_note": "World Bank WDI current US$ GDP, Australia 2020, ~1.33 trillion"},
+  {"qid": "P0-070", "value": 15.2, "unit": "percent", "year_basis": 2019, "confidence": 0.65, "refused": false, "basis_note": "Annual average CPI inflation, Turkiye 2019 (TurkStat/WDI)"}
+]

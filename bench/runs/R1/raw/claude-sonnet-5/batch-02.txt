@@ -1,0 +1,10 @@
+[{"qid":"P0-068","value":-3.1,"unit":"percent","year_basis":2022,"confidence":0.25,"refused":false,"basis_note":"Recall FSM real GDP contracted post-COVID border reopening delay; low confidence"},
+{"qid":"P0-061","value":1.3,"unit":"percent","year_basis":2018,"confidence":0.4,"refused":false,"basis_note":"ILO modeled estimate, Bahrain historically very low unemployment"},
+{"qid":"P0-034","value":600,"unit":"millions of US dollars","year_basis":2022,"confidence":0.3,"refused":false,"basis_note":"Rough recall of Haiti gross reserves declining trend"},
+{"qid":"P0-110","value":0.3,"unit":"percent","year_basis":2019,"confidence":0.55,"refused":false,"basis_note":"Portugal annual average CPI inflation 2019, low-inflation environment"},
+{"qid":"P0-105","value":4.7,"unit":"percent of GDP","year_basis":2022,"confidence":0.3,"refused":false,"basis_note":"Romania FDI inflows rough recall, elevated due to energy investments"},
+{"qid":"P0-044","value":1645,"unit":"billions of US dollars","year_basis":2020,"confidence":0.45,"refused":false,"basis_note":"Canada nominal GDP 2020 approx recall"},
+{"qid":"P0-006","value":88,"unit":"percent of GDP","year_basis":2021,"confidence":0.35,"refused":false,"basis_note":"Egypt general government gross debt IMF WEO rough recall"},
+{"qid":"P0-118","value":42.1,"unit":"index","year_basis":2021,"confidence":0.2,"refused":false,"basis_note":"DRC Gini likely still based on older 2012 survey extrapolation, low confidence"},
+{"qid":"P0-007","value":-3.9,"unit":"percent of GDP","year_basis":2022,"confidence":0.35,"refused":false,"basis_note":"Belgium general government deficit IMF WEO rough recall"},
+{"qid":"P0-112","value":95,"unit":"percent of GDP","year_basis":2021,"confidence":0.25,"refused":false,"basis_note":"Small island economy, high trade openness, rough recall"}]

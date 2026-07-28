@@ -1,0 +1,22 @@
+```json
+[
+  {
+    "qid": "P0-001",
+    "value": 145.0,
+    "unit": "percent",
+    "year_basis": 2021,
+    "confidence": 0.55,
+    "refused": false,
+    "basis_note": "Lebanon experienced severe hyperinflation during 2021 currency crisis; annual average CPI estimate from general knowledge of that period."
+  },
+  {
+    "qid": "P0-049",
+    "value": 38.0,
+    "unit": "percent of population",
+    "year_basis": 2019,
+    "confidence": 0.50,
+    "refused": false,
+    "basis_note": "Pakistan poverty rate at international $2.15/day (2017 PPP) in 2019; moderate uncertainty on exact WDI figure."
+  }
+]
+```

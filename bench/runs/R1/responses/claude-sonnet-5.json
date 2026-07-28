@@ -1,0 +1,1580 @@
+{
+  "run": "R1",
+  "model": "claude-sonnet-5",
+  "parsed_at": "2026-07-28T14:57:58.132Z",
+  "n_questions": 122,
+  "n_format_failures": 10,
+  "format_failures": [
+    "P0-010",
+    "P0-035",
+    "P0-053",
+    "P0-058",
+    "P0-066",
+    "P0-073",
+    "P0-094",
+    "P0-095",
+    "P0-103",
+    "P0-121"
+  ],
+  "batches": [
+    {
+      "batch_id": "batch-01",
+      "raw_present": true,
+      "repair_present": false,
+      "outcome": "parsed",
+      "repaired": false,
+      "n_items": 10,
+      "n_aligned": 10
+    },
+    {
+      "batch_id": "batch-02",
+      "raw_present": true,
+      "repair_present": false,
+      "outcome": "parsed",
+      "repaired": false,
+      "n_items": 10,
+      "n_aligned": 10
+    },
+    {
+      "batch_id": "batch-03",
+      "raw_present": true,
+      "repair_present": false,
+      "outcome": "parsed",
+      "repaired": false,
+      "n_items": 10,
+      "n_aligned": 10
+    },
+    {
+      "batch_id": "batch-04",
+      "raw_present": true,
+      "repair_present": false,
+      "outcome": "parsed",
+      "repaired": false,
+      "n_items": 10,
+      "n_aligned": 10
+    },
+    {
+      "batch_id": "batch-05",
+      "raw_present": true,
+      "repair_present": false,
+      "outcome": "parsed",
+      "repaired": false,
+      "n_items": 10,
+      "n_aligned": 10
+    },
+    {
+      "batch_id": "batch-06",
+      "raw_present": true,
+      "repair_present": false,
+      "outcome": "parsed",
+      "repaired": false,
+      "n_items": 10,
+      "n_aligned": 10
+    },
+    {
+      "batch_id": "batch-07",
+      "raw_present": true,
+      "repair_present": true,
+      "raw_parse_error": "not_a_json_array",
+      "repair_parse_error": "not_a_json_array",
+      "outcome": "format_failure_batch"
+    },
+    {
+      "batch_id": "batch-08",
+      "raw_present": true,
+      "repair_present": false,
+      "outcome": "parsed",
+      "repaired": false,
+      "n_items": 10,
+      "n_aligned": 10
+    },
+    {
+      "batch_id": "batch-09",
+      "raw_present": true,
+      "repair_present": true,
+      "raw_parse_error": "not_a_json_array",
+      "outcome": "parsed",
+      "repaired": true,
+      "n_items": 10,
+      "n_aligned": 10
+    },
+    {
+      "batch_id": "batch-10",
+      "raw_present": true,
+      "repair_present": false,
+      "outcome": "parsed",
+      "repaired": false,
+      "n_items": 10,
+      "n_aligned": 10
+    },
+    {
+      "batch_id": "batch-11",
+      "raw_present": true,
+      "repair_present": false,
+      "outcome": "parsed",
+      "repaired": false,
+      "n_items": 10,
+      "n_aligned": 10
+    },
+    {
+      "batch_id": "batch-12",
+      "raw_present": true,
+      "repair_present": false,
+      "outcome": "parsed",
+      "repaired": false,
+      "n_items": 10,
+      "n_aligned": 10
+    },
+    {
+      "batch_id": "batch-13",
+      "raw_present": true,
+      "repair_present": false,
+      "outcome": "parsed",
+      "repaired": false,
+      "n_items": 2,
+      "n_aligned": 2
+    }
+  ],
+  "items": {
+    "P0-117": {
+      "qid": "P0-117",
+      "value": -5.9,
+      "unit": "percent of GDP",
+      "year_basis": 2018,
+      "confidence": 0.45,
+      "refused": false,
+      "basis_note": "IMF WEO recalled estimate, Saudi fiscal deficit narrowing post-2016 trough",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-01"
+    },
+    "P0-018": {
+      "qid": "P0-018",
+      "value": 58,
+      "unit": "percent of GDP",
+      "year_basis": 2022,
+      "confidence": 0.35,
+      "refused": false,
+      "basis_note": "WDI trade openness recalled approx",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-01"
+    },
+    "P0-098": {
+      "qid": "P0-098",
+      "value": 143.4,
+      "unit": "millions of people",
+      "year_basis": 2021,
+      "confidence": 0.55,
+      "refused": false,
+      "basis_note": "World Bank mid-year estimate recalled",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-01"
+    },
+    "P0-083": {
+      "qid": "P0-083",
+      "value": 541,
+      "unit": "billions of US dollars",
+      "year_basis": 2020,
+      "confidence": 0.45,
+      "refused": false,
+      "basis_note": "WDI current USD nominal GDP recalled",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-01"
+    },
+    "P0-090": {
+      "qid": "P0-090",
+      "value": 8.4,
+      "unit": "percent",
+      "year_basis": 2020,
+      "confidence": 0.25,
+      "refused": false,
+      "basis_note": "ILO modeled estimate, low confidence recall",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-01"
+    },
+    "P0-096": {
+      "qid": "P0-096",
+      "value": 8,
+      "unit": "percent of GDP",
+      "year_basis": 2019,
+      "confidence": 0.15,
+      "refused": false,
+      "basis_note": "Netherlands FDI inflows highly volatile due to SPEs, weak recall",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-01"
+    },
+    "P0-120": {
+      "qid": "P0-120",
+      "value": 30,
+      "unit": "billions of US dollars",
+      "year_basis": 2020,
+      "confidence": 0.35,
+      "refused": false,
+      "basis_note": "Bulgaria total reserves incl gold recalled approx",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-01"
+    },
+    "P0-008": {
+      "qid": "P0-008",
+      "value": 6.1,
+      "unit": "percent",
+      "year_basis": 2022,
+      "confidence": 0.4,
+      "refused": false,
+      "basis_note": "Namibia CPI annual average recalled approx",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-01"
+    },
+    "P0-060": {
+      "qid": "P0-060",
+      "value": -6.5,
+      "unit": "percent",
+      "year_basis": 2020,
+      "confidence": 0.45,
+      "refused": false,
+      "basis_note": "Iceland real GDP contraction, COVID tourism collapse, recalled approx",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-01"
+    },
+    "P0-079": {
+      "qid": "P0-079",
+      "value": 5.8,
+      "unit": "percent of GDP",
+      "year_basis": 2023,
+      "confidence": 0.35,
+      "refused": false,
+      "basis_note": "Vietnam current account surplus recalled approx",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-01"
+    },
+    "P0-068": {
+      "qid": "P0-068",
+      "value": -3.1,
+      "unit": "percent",
+      "year_basis": 2022,
+      "confidence": 0.25,
+      "refused": false,
+      "basis_note": "Recall FSM real GDP contracted post-COVID border reopening delay; low confidence",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-02"
+    },
+    "P0-061": {
+      "qid": "P0-061",
+      "value": 1.3,
+      "unit": "percent",
+      "year_basis": 2018,
+      "confidence": 0.4,
+      "refused": false,
+      "basis_note": "ILO modeled estimate, Bahrain historically very low unemployment",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-02"
+    },
+    "P0-034": {
+      "qid": "P0-034",
+      "value": 600,
+      "unit": "millions of US dollars",
+      "year_basis": 2022,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "Rough recall of Haiti gross reserves declining trend",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-02"
+    },
+    "P0-110": {
+      "qid": "P0-110",
+      "value": 0.3,
+      "unit": "percent",
+      "year_basis": 2019,
+      "confidence": 0.55,
+      "refused": false,
+      "basis_note": "Portugal annual average CPI inflation 2019, low-inflation environment",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-02"
+    },
+    "P0-105": {
+      "qid": "P0-105",
+      "value": 4.7,
+      "unit": "percent of GDP",
+      "year_basis": 2022,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "Romania FDI inflows rough recall, elevated due to energy investments",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-02"
+    },
+    "P0-044": {
+      "qid": "P0-044",
+      "value": 1645,
+      "unit": "billions of US dollars",
+      "year_basis": 2020,
+      "confidence": 0.45,
+      "refused": false,
+      "basis_note": "Canada nominal GDP 2020 approx recall",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-02"
+    },
+    "P0-006": {
+      "qid": "P0-006",
+      "value": 88,
+      "unit": "percent of GDP",
+      "year_basis": 2021,
+      "confidence": 0.35,
+      "refused": false,
+      "basis_note": "Egypt general government gross debt IMF WEO rough recall",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-02"
+    },
+    "P0-118": {
+      "qid": "P0-118",
+      "value": 42.1,
+      "unit": "index",
+      "year_basis": 2021,
+      "confidence": 0.2,
+      "refused": false,
+      "basis_note": "DRC Gini likely still based on older 2012 survey extrapolation, low confidence",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-02"
+    },
+    "P0-007": {
+      "qid": "P0-007",
+      "value": -3.9,
+      "unit": "percent of GDP",
+      "year_basis": 2022,
+      "confidence": 0.35,
+      "refused": false,
+      "basis_note": "Belgium general government deficit IMF WEO rough recall",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-02"
+    },
+    "P0-112": {
+      "qid": "P0-112",
+      "value": 95,
+      "unit": "percent of GDP",
+      "year_basis": 2021,
+      "confidence": 0.25,
+      "refused": false,
+      "basis_note": "Small island economy, high trade openness, rough recall",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-02"
+    },
+    "P0-052": {
+      "qid": "P0-052",
+      "value": 3.7,
+      "unit": "percent",
+      "year_basis": 2018,
+      "confidence": 0.5,
+      "refused": false,
+      "basis_note": "ILO modeled estimate, WDI",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-03"
+    },
+    "P0-063": {
+      "qid": "P0-063",
+      "value": 245,
+      "unit": "billions of US dollars",
+      "year_basis": 2020,
+      "confidence": 0.35,
+      "refused": false,
+      "basis_note": "Banque de France reserves incl. gold, approx",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-03"
+    },
+    "P0-076": {
+      "qid": "P0-076",
+      "value": -1.7,
+      "unit": "percent",
+      "year_basis": 2019,
+      "confidence": 0.55,
+      "refused": false,
+      "basis_note": "HK real GDP growth amid protests/trade war slowdown",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-03"
+    },
+    "P0-102": {
+      "qid": "P0-102",
+      "value": 2.6,
+      "unit": "percent of GDP",
+      "year_basis": 2022,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "Cameroon FDI inflows, WDI, rough estimate",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-03"
+    },
+    "P0-084": {
+      "qid": "P0-084",
+      "value": 98.2,
+      "unit": "percent of GDP",
+      "year_basis": 2019,
+      "confidence": 0.5,
+      "refused": false,
+      "basis_note": "IMF WEO Spain gross general govt debt",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-03"
+    },
+    "P0-054": {
+      "qid": "P0-054",
+      "value": 123.8,
+      "unit": "millions of people",
+      "year_basis": 2024,
+      "confidence": 0.55,
+      "refused": false,
+      "basis_note": "Japan population, World Bank mid-year estimate",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-03"
+    },
+    "P0-020": {
+      "qid": "P0-020",
+      "value": 15.8,
+      "unit": "percent",
+      "year_basis": 2019,
+      "confidence": 0.35,
+      "refused": false,
+      "basis_note": "Ethiopia CPI annual average inflation, WDI",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-03"
+    },
+    "P0-119": {
+      "qid": "P0-119",
+      "value": 70,
+      "unit": "years",
+      "year_basis": 2021,
+      "confidence": 0.4,
+      "refused": false,
+      "basis_note": "Mongolia life expectancy at birth, both sexes, WDI",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-03"
+    },
+    "P0-106": {
+      "qid": "P0-106",
+      "value": null,
+      "unit": "percent of GDP",
+      "year_basis": 2025,
+      "confidence": 0,
+      "refused": true,
+      "basis_note": "Forward-looking WEO projection not reliably recalled",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-03"
+    },
+    "P0-016": {
+      "qid": "P0-016",
+      "value": 14,
+      "unit": "percent of GDP",
+      "year_basis": 2021,
+      "confidence": 0.25,
+      "refused": false,
+      "basis_note": "Macao current account balance, rough recall",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-03"
+    },
+    "P0-088": {
+      "qid": "P0-088",
+      "value": 56.9,
+      "unit": "percent of GDP",
+      "year_basis": 2021,
+      "confidence": 0.4,
+      "refused": false,
+      "basis_note": "IMF WEO general government gross debt estimate",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-04"
+    },
+    "P0-040": {
+      "qid": "P0-040",
+      "value": 13894.9,
+      "unit": "billions of US dollars",
+      "year_basis": 2018,
+      "confidence": 0.55,
+      "refused": false,
+      "basis_note": "WDI/World Bank current US$ market exchange rate",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-04"
+    },
+    "P0-047": {
+      "qid": "P0-047",
+      "value": 45,
+      "unit": "percent of GDP",
+      "year_basis": 2019,
+      "confidence": 0.25,
+      "refused": false,
+      "basis_note": "WDI trade (%GDP) rough recall",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-04"
+    },
+    "P0-042": {
+      "qid": "P0-042",
+      "value": 32.8,
+      "unit": "index",
+      "year_basis": 2019,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "World Bank Gini estimate approx",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-04"
+    },
+    "P0-051": {
+      "qid": "P0-051",
+      "value": 2.8,
+      "unit": "percent",
+      "year_basis": 2018,
+      "confidence": 0.35,
+      "refused": false,
+      "basis_note": "ILO modeled estimate, HK unemployment low",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-04"
+    },
+    "P0-093": {
+      "qid": "P0-093",
+      "value": 2,
+      "unit": "percent",
+      "year_basis": 2019,
+      "confidence": 0.4,
+      "refused": false,
+      "basis_note": "Russia real GDP growth pre-pandemic",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-04"
+    },
+    "P0-087": {
+      "qid": "P0-087",
+      "value": 61.1,
+      "unit": "years",
+      "year_basis": 2022,
+      "confidence": 0.35,
+      "refused": false,
+      "basis_note": "WDI life expectancy Sierra Leone approx",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-04"
+    },
+    "P0-024": {
+      "qid": "P0-024",
+      "value": 5.1,
+      "unit": "percent",
+      "year_basis": 2021,
+      "confidence": 0.4,
+      "refused": false,
+      "basis_note": "Poland CPI annual average 2021",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-04"
+    },
+    "P0-028": {
+      "qid": "P0-028",
+      "value": 1.8,
+      "unit": "percent of GDP",
+      "year_basis": 2022,
+      "confidence": 0.25,
+      "refused": false,
+      "basis_note": "Greece FDI net inflows %GDP rough estimate",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-04"
+    },
+    "P0-104": {
+      "qid": "P0-104",
+      "value": 771.6,
+      "unit": "thousands of people",
+      "year_basis": 2020,
+      "confidence": 0.4,
+      "refused": false,
+      "basis_note": "Bhutan population WDI mid-year estimate",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-04"
+    },
+    "P0-108": {
+      "qid": "P0-108",
+      "value": 15.29,
+      "unit": "millions of people",
+      "year_basis": 2020,
+      "confidence": 0.6,
+      "refused": false,
+      "basis_note": "World Bank WDI mid-year estimate",
+      "repaired": false,
+      "parse_flags": [
+        "refused_missing"
+      ],
+      "batch_id": "batch-05"
+    },
+    "P0-067": {
+      "qid": "P0-067",
+      "value": 0.5,
+      "unit": "percent",
+      "year_basis": 2019,
+      "confidence": 0.55,
+      "refused": false,
+      "basis_note": "Japan CPI annual avg change, WDI",
+      "repaired": false,
+      "parse_flags": [
+        "refused_missing"
+      ],
+      "batch_id": "batch-05"
+    },
+    "P0-115": {
+      "qid": "P0-115",
+      "value": -0.7,
+      "unit": "percent of GDP",
+      "year_basis": 2019,
+      "confidence": 0.45,
+      "refused": false,
+      "basis_note": "IMF WEO general govt balance",
+      "repaired": false,
+      "parse_flags": [
+        "refused_missing"
+      ],
+      "batch_id": "batch-05"
+    },
+    "P0-111": {
+      "qid": "P0-111",
+      "value": 2.9,
+      "unit": "percent",
+      "year_basis": 2021,
+      "confidence": 0.4,
+      "refused": false,
+      "basis_note": "ILO modeled estimate, WDI",
+      "repaired": false,
+      "parse_flags": [
+        "refused_missing"
+      ],
+      "batch_id": "batch-05"
+    },
+    "P0-032": {
+      "qid": "P0-032",
+      "value": 82.6,
+      "unit": "years",
+      "year_basis": 2021,
+      "confidence": 0.35,
+      "refused": false,
+      "basis_note": "World Bank WDI life expectancy",
+      "repaired": false,
+      "parse_flags": [
+        "refused_missing"
+      ],
+      "batch_id": "batch-05"
+    },
+    "P0-116": {
+      "qid": "P0-116",
+      "value": 2704,
+      "unit": "billions of US dollars",
+      "year_basis": 2020,
+      "confidence": 0.55,
+      "refused": false,
+      "basis_note": "UK nominal GDP current US$, WDI/WEO",
+      "repaired": false,
+      "parse_flags": [
+        "refused_missing"
+      ],
+      "batch_id": "batch-05"
+    },
+    "P0-038": {
+      "qid": "P0-038",
+      "value": null,
+      "unit": "billions of US dollars",
+      "year_basis": 2018,
+      "confidence": 0,
+      "refused": true,
+      "basis_note": "Not confident in precise Lebanon reserves figure",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-05"
+    },
+    "P0-050": {
+      "qid": "P0-050",
+      "value": 45,
+      "unit": "percent of GDP",
+      "year_basis": 2022,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "IMF WEO Chad general govt gross debt, rough recall",
+      "repaired": false,
+      "parse_flags": [
+        "refused_missing"
+      ],
+      "batch_id": "batch-05"
+    },
+    "P0-021": {
+      "qid": "P0-021",
+      "value": 322,
+      "unit": "percent of GDP",
+      "year_basis": 2018,
+      "confidence": 0.45,
+      "refused": false,
+      "basis_note": "Singapore trade openness, WDI",
+      "repaired": false,
+      "parse_flags": [
+        "refused_missing"
+      ],
+      "batch_id": "batch-05"
+    },
+    "P0-080": {
+      "qid": "P0-080",
+      "value": -2.8,
+      "unit": "percent of GDP",
+      "year_basis": 2019,
+      "confidence": 0.4,
+      "refused": false,
+      "basis_note": "Panama current account balance, IMF WEO/WDI",
+      "repaired": false,
+      "parse_flags": [
+        "refused_missing"
+      ],
+      "batch_id": "batch-05"
+    },
+    "P0-086": {
+      "qid": "P0-086",
+      "value": 1.7,
+      "unit": "percent",
+      "year_basis": 2019,
+      "confidence": 0.55,
+      "refused": false,
+      "basis_note": "World Bank/IMF WEO recollection, Netherlands real GDP growth",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-06"
+    },
+    "P0-078": {
+      "qid": "P0-078",
+      "value": 53,
+      "unit": "thousands of people",
+      "year_basis": 2018,
+      "confidence": 0.45,
+      "refused": false,
+      "basis_note": "WDI mid-year population estimate, approximate",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-06"
+    },
+    "P0-039": {
+      "qid": "P0-039",
+      "value": null,
+      "unit": "percent",
+      "year_basis": 2022,
+      "confidence": 0,
+      "refused": true,
+      "basis_note": "No reliable recall of ILO modeled estimate for New Caledonia",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-06"
+    },
+    "P0-033": {
+      "qid": "P0-033",
+      "value": 3.4,
+      "unit": "percent of GDP",
+      "year_basis": 2020,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "Recall of Zimbabwe CA surplus 2020 amid import compression; low confidence",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-06"
+    },
+    "P0-031": {
+      "qid": "P0-031",
+      "value": 1.8,
+      "unit": "percent",
+      "year_basis": 2019,
+      "confidence": 0.8,
+      "refused": false,
+      "basis_note": "US CPI annual average inflation 2019, BLS/WDI recollection",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-06"
+    },
+    "P0-019": {
+      "qid": "P0-019",
+      "value": null,
+      "unit": "millions of US dollars",
+      "year_basis": 2023,
+      "confidence": 0,
+      "refused": true,
+      "basis_note": "No reliable recall of Eritrea reserves data",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-06"
+    },
+    "P0-109": {
+      "qid": "P0-109",
+      "value": 40.8,
+      "unit": "index",
+      "year_basis": 2019,
+      "confidence": 0.25,
+      "refused": false,
+      "basis_note": "Recall may reflect a nearby survey year (~2015), not exactly 2019",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-06"
+    },
+    "P0-057": {
+      "qid": "P0-057",
+      "value": 34.9,
+      "unit": "percent of GDP",
+      "year_basis": 2021,
+      "confidence": 0.4,
+      "refused": false,
+      "basis_note": "IMF WEO recollection for Cambodia gross government debt",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-06"
+    },
+    "P0-113": {
+      "qid": "P0-113",
+      "value": null,
+      "unit": "percent of GDP",
+      "year_basis": 2018,
+      "confidence": 0,
+      "refused": true,
+      "basis_note": "Swiss FDI flows highly volatile; no reliable recall for 2018",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-06"
+    },
+    "P0-017": {
+      "qid": "P0-017",
+      "value": 65.1,
+      "unit": "years",
+      "year_basis": 2020,
+      "confidence": 0.45,
+      "refused": false,
+      "basis_note": "WDI recollection, Sudan life expectancy at birth, both sexes",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-06"
+    },
+    "P0-121": {
+      "qid": "P0-121",
+      "format_failure": true,
+      "failure_reason": "not_a_json_array",
+      "batch_id": "batch-07"
+    },
+    "P0-053": {
+      "qid": "P0-053",
+      "format_failure": true,
+      "failure_reason": "not_a_json_array",
+      "batch_id": "batch-07"
+    },
+    "P0-010": {
+      "qid": "P0-010",
+      "format_failure": true,
+      "failure_reason": "not_a_json_array",
+      "batch_id": "batch-07"
+    },
+    "P0-094": {
+      "qid": "P0-094",
+      "format_failure": true,
+      "failure_reason": "not_a_json_array",
+      "batch_id": "batch-07"
+    },
+    "P0-066": {
+      "qid": "P0-066",
+      "format_failure": true,
+      "failure_reason": "not_a_json_array",
+      "batch_id": "batch-07"
+    },
+    "P0-073": {
+      "qid": "P0-073",
+      "format_failure": true,
+      "failure_reason": "not_a_json_array",
+      "batch_id": "batch-07"
+    },
+    "P0-095": {
+      "qid": "P0-095",
+      "format_failure": true,
+      "failure_reason": "not_a_json_array",
+      "batch_id": "batch-07"
+    },
+    "P0-103": {
+      "qid": "P0-103",
+      "format_failure": true,
+      "failure_reason": "not_a_json_array",
+      "batch_id": "batch-07"
+    },
+    "P0-058": {
+      "qid": "P0-058",
+      "format_failure": true,
+      "failure_reason": "not_a_json_array",
+      "batch_id": "batch-07"
+    },
+    "P0-035": {
+      "qid": "P0-035",
+      "format_failure": true,
+      "failure_reason": "not_a_json_array",
+      "batch_id": "batch-07"
+    },
+    "P0-030": {
+      "qid": "P0-030",
+      "value": 38.4,
+      "unit": "percent of GDP",
+      "year_basis": 2021,
+      "confidence": 0.4,
+      "refused": false,
+      "basis_note": "WDI trade openness, recalled approx",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-08"
+    },
+    "P0-029": {
+      "qid": "P0-029",
+      "value": 6.5,
+      "unit": "percent",
+      "year_basis": 2021,
+      "confidence": 0.25,
+      "refused": false,
+      "basis_note": "Tonga CPI annual avg, low confidence recall",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-08"
+    },
+    "P0-046": {
+      "qid": "P0-046",
+      "value": 2.7,
+      "unit": "percent of population",
+      "year_basis": 2019,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "Philippines $2.15/day poverty rate, approx",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-08"
+    },
+    "P0-097": {
+      "qid": "P0-097",
+      "value": 4.6,
+      "unit": "percent of GDP",
+      "year_basis": 2019,
+      "confidence": 0.35,
+      "refused": false,
+      "basis_note": "Vietnam current account surplus, approx",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-08"
+    },
+    "P0-013": {
+      "qid": "P0-013",
+      "value": 81.4,
+      "unit": "years",
+      "year_basis": 2023,
+      "confidence": 0.4,
+      "refused": false,
+      "basis_note": "Netherlands life expectancy, approx WDI",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-08"
+    },
+    "P0-025": {
+      "qid": "P0-025",
+      "value": 5.3,
+      "unit": "percent",
+      "year_basis": 2024,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "Luxembourg ILO modeled unemployment, approx",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-08"
+    },
+    "P0-092": {
+      "qid": "P0-092",
+      "value": 2.5,
+      "unit": "percent of GDP",
+      "year_basis": 2024,
+      "confidence": 0.25,
+      "refused": false,
+      "basis_note": "Romania FDI net inflows, approx",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-08"
+    },
+    "P0-056": {
+      "qid": "P0-056",
+      "value": 40.4,
+      "unit": "percent of GDP",
+      "year_basis": 2019,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "North Macedonia gov gross debt, IMF WEO approx",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-08"
+    },
+    "P0-045": {
+      "qid": "P0-045",
+      "value": 2670,
+      "unit": "billions of US dollars",
+      "year_basis": 2020,
+      "confidence": 0.45,
+      "refused": false,
+      "basis_note": "India nominal GDP 2020, approx WDI",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-08"
+    },
+    "P0-064": {
+      "qid": "P0-064",
+      "value": 123.7,
+      "unit": "billions of US dollars",
+      "year_basis": 2022,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "Czechia total reserves incl gold, end-2022 approx",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-08"
+    },
+    "P0-107": {
+      "qid": "P0-107",
+      "value": 1.8,
+      "unit": "percent",
+      "year_basis": 2019,
+      "confidence": 0.5,
+      "refused": false,
+      "basis_note": "Fiji CPI annual average inflation, WDI, approximate",
+      "repaired": true,
+      "parse_flags": [],
+      "batch_id": "batch-09"
+    },
+    "P0-075": {
+      "qid": "P0-075",
+      "value": 39.2,
+      "unit": "billions of US dollars",
+      "year_basis": 2020,
+      "confidence": 0.45,
+      "refused": false,
+      "basis_note": "Chile total reserves incl. gold, end-2020, approximate",
+      "repaired": true,
+      "parse_flags": [],
+      "batch_id": "batch-09"
+    },
+    "P0-055": {
+      "qid": "P0-055",
+      "value": 90,
+      "unit": "percent of GDP",
+      "year_basis": 2023,
+      "confidence": 0.4,
+      "refused": false,
+      "basis_note": "Jordan general govt gross debt, IMF WEO, approximate",
+      "repaired": true,
+      "parse_flags": [],
+      "batch_id": "batch-09"
+    },
+    "P0-048": {
+      "qid": "P0-048",
+      "value": 5.08,
+      "unit": "millions of people",
+      "year_basis": 2020,
+      "confidence": 0.6,
+      "refused": false,
+      "basis_note": "NZ mid-year population, WDI, approximate",
+      "repaired": true,
+      "parse_flags": [],
+      "batch_id": "batch-09"
+    },
+    "P0-005": {
+      "qid": "P0-005",
+      "value": 1077,
+      "unit": "billions of US dollars",
+      "year_basis": 2020,
+      "confidence": 0.55,
+      "refused": false,
+      "basis_note": "Mexico nominal GDP current US$, WDI, approximate",
+      "repaired": true,
+      "parse_flags": [],
+      "batch_id": "batch-09"
+    },
+    "P0-036": {
+      "qid": "P0-036",
+      "value": 130,
+      "unit": "percent of GDP",
+      "year_basis": 2020,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "Eswatini trade openness, WDI, low-confidence estimate",
+      "repaired": true,
+      "parse_flags": [],
+      "batch_id": "batch-09"
+    },
+    "P0-059": {
+      "qid": "P0-059",
+      "value": 73.6,
+      "unit": "years",
+      "year_basis": 2020,
+      "confidence": 0.45,
+      "refused": false,
+      "basis_note": "Bulgaria life expectancy at birth, WDI, approximate; COVID dip",
+      "repaired": true,
+      "parse_flags": [],
+      "batch_id": "batch-09"
+    },
+    "P0-041": {
+      "qid": "P0-041",
+      "value": 2.3,
+      "unit": "percent",
+      "year_basis": 2024,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "Lesotho real GDP growth, IMF WEO, low-confidence estimate",
+      "repaired": true,
+      "parse_flags": [],
+      "batch_id": "batch-09"
+    },
+    "P0-026": {
+      "qid": "P0-026",
+      "value": -3.7,
+      "unit": "percent of GDP",
+      "year_basis": 2022,
+      "confidence": 0.35,
+      "refused": false,
+      "basis_note": "Albania general govt fiscal balance, IMF WEO, approximate",
+      "repaired": true,
+      "parse_flags": [],
+      "batch_id": "batch-09"
+    },
+    "P0-100": {
+      "qid": "P0-100",
+      "value": 33.4,
+      "unit": "index",
+      "year_basis": 2021,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "Bangladesh Gini index, World Bank, approximate/uncertain vintage",
+      "repaired": true,
+      "parse_flags": [],
+      "batch_id": "batch-09"
+    },
+    "P0-069": {
+      "qid": "P0-069",
+      "value": -4.3,
+      "unit": "percent",
+      "year_basis": 2020,
+      "confidence": 0.35,
+      "refused": false,
+      "basis_note": "Recalled WDI/IMF WEO Tuvalu real GDP growth, COVID shock",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-10"
+    },
+    "P0-072": {
+      "qid": "P0-072",
+      "value": 0.2,
+      "unit": "percent of population",
+      "year_basis": 2019,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "BiH is upper-middle-income; $2.15/day poverty rate very low",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-10"
+    },
+    "P0-089": {
+      "qid": "P0-089",
+      "value": -5.5,
+      "unit": "percent of GDP",
+      "year_basis": 2018,
+      "confidence": 0.35,
+      "refused": false,
+      "basis_note": "Recalled Oman CA deficit amid partial oil price recovery",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-10"
+    },
+    "P0-012": {
+      "qid": "P0-012",
+      "value": 1.9,
+      "unit": "percent of GDP",
+      "year_basis": 2018,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "Recalled Slovak Republic FDI net inflows WDI",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-10"
+    },
+    "P0-022": {
+      "qid": "P0-022",
+      "value": 65,
+      "unit": "percent of GDP",
+      "year_basis": 2018,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "Recalled Gambia trade (%GDP) WDI approx",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-10"
+    },
+    "P0-037": {
+      "qid": "P0-037",
+      "value": -2.4,
+      "unit": "percent of GDP",
+      "year_basis": 2018,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "Recalled Cameroon general govt fiscal balance IMF WEO",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-10"
+    },
+    "P0-011": {
+      "qid": "P0-011",
+      "value": 12,
+      "unit": "millions of people",
+      "year_basis": 2022,
+      "confidence": 0.55,
+      "refused": false,
+      "basis_note": "Recalled Tunisia mid-year population WDI",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-10"
+    },
+    "P0-023": {
+      "qid": "P0-023",
+      "value": 410,
+      "unit": "billions of US dollars",
+      "year_basis": 2025,
+      "confidence": 0.2,
+      "refused": false,
+      "basis_note": "Rough projection; South Africa nominal GDP highly sensitive to ZAR/USD rate",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-10"
+    },
+    "P0-085": {
+      "qid": "P0-085",
+      "value": 4.6,
+      "unit": "percent",
+      "year_basis": 2018,
+      "confidence": 0.4,
+      "refused": false,
+      "basis_note": "Recalled Romania annual average CPI inflation WDI",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-10"
+    },
+    "P0-091": {
+      "qid": "P0-091",
+      "value": 60.4,
+      "unit": "years",
+      "year_basis": 2018,
+      "confidence": 0.35,
+      "refused": false,
+      "basis_note": "Recalled DRC life expectancy at birth, total, WDI",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-10"
+    },
+    "P0-071": {
+      "qid": "P0-071",
+      "value": null,
+      "unit": "percent",
+      "year_basis": 2025,
+      "confidence": 0,
+      "refused": true,
+      "basis_note": "2025 CPI not yet in my training data",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-11"
+    },
+    "P0-004": {
+      "qid": "P0-004",
+      "value": 76.9,
+      "unit": "years",
+      "year_basis": 2019,
+      "confidence": 0.35,
+      "refused": false,
+      "basis_note": "WDI life expectancy at birth, Iran, approx recall",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-11"
+    },
+    "P0-065": {
+      "qid": "P0-065",
+      "value": 19.89,
+      "unit": "millions of people",
+      "year_basis": 2021,
+      "confidence": 0.45,
+      "refused": false,
+      "basis_note": "World Bank mid-year population estimate, approx recall",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-11"
+    },
+    "P0-002": {
+      "qid": "P0-002",
+      "value": 5.3,
+      "unit": "percent",
+      "year_basis": 2021,
+      "confidence": 0.35,
+      "refused": false,
+      "basis_note": "Togo real GDP growth, post-COVID recovery, approx recall",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-11"
+    },
+    "P0-099": {
+      "qid": "P0-099",
+      "value": 30.5,
+      "unit": "percent of GDP",
+      "year_basis": 2022,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "IMF WEO UAE general government gross debt, approx recall",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-11"
+    },
+    "P0-077": {
+      "qid": "P0-077",
+      "value": null,
+      "unit": "millions of US dollars",
+      "year_basis": 2022,
+      "confidence": 0,
+      "refused": true,
+      "basis_note": "Not confident recalling Gabon-specific reserves figure (CEMAC pooling complicates this)",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-11"
+    },
+    "P0-081": {
+      "qid": "P0-081",
+      "value": -8.6,
+      "unit": "percent of GDP",
+      "year_basis": 2022,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "Estonia current account deficit widened sharply in 2022 energy shock, approx recall",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-11"
+    },
+    "P0-101": {
+      "qid": "P0-101",
+      "value": null,
+      "unit": "index",
+      "year_basis": 2021,
+      "confidence": 0,
+      "refused": true,
+      "basis_note": "Not confident of a 2021-specific World Bank Gini estimate for Seychelles",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-11"
+    },
+    "P0-003": {
+      "qid": "P0-003",
+      "value": null,
+      "unit": "percent of GDP",
+      "year_basis": 2022,
+      "confidence": 0,
+      "refused": true,
+      "basis_note": "Not confident recalling Canada FDI net inflows as %GDP for 2022",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-11"
+    },
+    "P0-009": {
+      "qid": "P0-009",
+      "value": -4.4,
+      "unit": "percent of GDP",
+      "year_basis": 2022,
+      "confidence": 0.25,
+      "refused": false,
+      "basis_note": "IMF WEO Vietnam general government balance, approx recall, low confidence",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-11"
+    },
+    "P0-114": {
+      "qid": "P0-114",
+      "value": 63.2,
+      "unit": "percent of GDP",
+      "year_basis": 2019,
+      "confidence": 0.4,
+      "refused": false,
+      "basis_note": "IMF WEO general government gross debt, Lao PDR ~2019, recalled approx",
+      "repaired": false,
+      "parse_flags": [
+        "refused_missing"
+      ],
+      "batch_id": "batch-12"
+    },
+    "P0-082": {
+      "qid": "P0-082",
+      "value": 41.7,
+      "unit": "percent of population",
+      "year_basis": 2022,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "World Bank PIP, Uganda $2.15/day poverty rate, recalled approx",
+      "repaired": false,
+      "parse_flags": [
+        "refused_missing"
+      ],
+      "batch_id": "batch-12"
+    },
+    "P0-043": {
+      "qid": "P0-043",
+      "value": -4.6,
+      "unit": "percent of GDP",
+      "year_basis": 2021,
+      "confidence": 0.35,
+      "refused": false,
+      "basis_note": "IMF WEO Bangladesh general government balance, recalled approx",
+      "repaired": false,
+      "parse_flags": [
+        "refused_missing"
+      ],
+      "batch_id": "batch-12"
+    },
+    "P0-122": {
+      "qid": "P0-122",
+      "value": 4.7,
+      "unit": "percent",
+      "year_basis": 2021,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "ILO modeled estimate, Chad, recalled approx",
+      "repaired": false,
+      "parse_flags": [
+        "refused_missing"
+      ],
+      "batch_id": "batch-12"
+    },
+    "P0-070": {
+      "qid": "P0-070",
+      "value": 15.2,
+      "unit": "percent",
+      "year_basis": 2019,
+      "confidence": 0.45,
+      "refused": false,
+      "basis_note": "Turkiye CPI annual average change 2019, recalled approx",
+      "repaired": false,
+      "parse_flags": [
+        "refused_missing"
+      ],
+      "batch_id": "batch-12"
+    },
+    "P0-015": {
+      "qid": "P0-015",
+      "value": 1330,
+      "unit": "billions of US dollars",
+      "year_basis": 2020,
+      "confidence": 0.4,
+      "refused": false,
+      "basis_note": "Australia nominal GDP 2020 current US$, recalled approx",
+      "repaired": false,
+      "parse_flags": [
+        "refused_missing"
+      ],
+      "batch_id": "batch-12"
+    },
+    "P0-027": {
+      "qid": "P0-027",
+      "value": 83.4,
+      "unit": "years",
+      "year_basis": 2018,
+      "confidence": 0.5,
+      "refused": false,
+      "basis_note": "Spain life expectancy at birth 2018, WDI, recalled approx",
+      "repaired": false,
+      "parse_flags": [
+        "refused_missing"
+      ],
+      "batch_id": "batch-12"
+    },
+    "P0-014": {
+      "qid": "P0-014",
+      "value": 362,
+      "unit": "billions of US dollars",
+      "year_basis": 2021,
+      "confidence": 0.4,
+      "refused": false,
+      "basis_note": "Brazil total reserves incl gold, end 2021, recalled approx",
+      "repaired": false,
+      "parse_flags": [
+        "refused_missing"
+      ],
+      "batch_id": "batch-12"
+    },
+    "P0-074": {
+      "qid": "P0-074",
+      "value": null,
+      "unit": "percent of GDP",
+      "year_basis": 2025,
+      "confidence": 0,
+      "refused": true,
+      "basis_note": "2025 is future/incomplete data, cannot know actual outturn",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-12"
+    },
+    "P0-062": {
+      "qid": "P0-062",
+      "value": -11.2,
+      "unit": "percent of GDP",
+      "year_basis": 2019,
+      "confidence": 0.3,
+      "refused": false,
+      "basis_note": "Guyana current account balance 2019, pre-oil-production, recalled approx",
+      "repaired": false,
+      "parse_flags": [
+        "refused_missing"
+      ],
+      "batch_id": "batch-12"
+    },
+    "P0-049": {
+      "qid": "P0-049",
+      "value": 4.9,
+      "unit": "percent",
+      "year_basis": 2019,
+      "confidence": 0.4,
+      "refused": false,
+      "basis_note": "Recalled WDI headcount ratio at $2.15/day 2017PPP, HIES-based estimate",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-13"
+    },
+    "P0-001": {
+      "qid": "P0-001",
+      "value": 154.8,
+      "unit": "percent",
+      "year_basis": 2021,
+      "confidence": 0.45,
+      "refused": false,
+      "basis_note": "Recalled WDI CPI annual average inflation, Lebanon crisis period",
+      "repaired": false,
+      "parse_flags": [],
+      "batch_id": "batch-13"
+    }
+  }
+}

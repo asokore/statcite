@@ -15,12 +15,40 @@ Usage: node report.mjs --run P0 [--base DIR] [--help]
 Every number in the report comes from runs/{RUN}/scores/summary.json.`;
 
 // Verbatim strings mandated by METHODOLOGY §7 (quarantine banner + disclosure) and §0.
+// P0's banner text was single-vendor-only and must NOT be stamped on every future run
+// regardless of its actual roster — COVENANT §6 citability turns on vendor count, so
+// the banner is derived from the run's real roster (see vendorsOf/isMultiVendor below).
 const PILOT_BANNER =
   "**PILOT — METHODOLOGY VALIDATION RUN.** Claude-family models only, executed on Claude infrastructure by a Claude-assisted developer. Deterministically scored, fully reproducible — and still not for citation as a cross-model or industry finding.";
-const DISCLOSURE =
+const DISCLOSURE_SINGLE_VENDOR =
   "This benchmark's harness, scoring code, and drafts were developed with the assistance of Claude (Anthropic). The pilot tests Claude-family models exclusively because multi-vendor API access was not yet provisioned. No model — Claude or otherwise — plays any role in scoring: verdicts are deterministic numeric comparisons against pinned official values, and the scoring code, prompts, raw responses, and ground truth are published in full.";
+function multiVendorBanner(vendorList) {
+  return (
+    `**MULTI-VENDOR RUN — satisfies COVENANT §6 (>=2 non-Anthropic vendors: ${vendorList.join(", ")}).** ` +
+    "Deterministically scored, fully reproducible. Per COVENANT §1, all outcomes are published regardless of direction; per §3 the quotation unit (WTR, CR, Answer Rate) travels together in any citation."
+  );
+}
+function multiVendorDisclosure(vendorList) {
+  return (
+    "This benchmark's harness, scoring code, and drafts were developed with the assistance of Claude (Anthropic). " +
+    `This run's roster spans ${vendorList.length + 1} vendors (Anthropic plus ${vendorList.join(" and ")}), satisfying COVENANT §6's two-non-Anthropic-vendor threshold for a citable cross-model result. ` +
+    "No model — any vendor's — plays any role in scoring: verdicts are deterministic numeric comparisons against pinned official values, and the scoring code, prompts, raw responses, and ground truth are published in full."
+  );
+}
 const CONCESSION =
   "Agentic deployments with retrieval will outperform these scores. That is expected and is not what this benchmark measures.";
+
+// Vendor inference from model id prefix — extend this map, don't guess, when a new
+// vendor's model naming scheme is added to lib.mjs's MODELS roster.
+function vendorOf(model) {
+  if (model.startsWith("claude")) return "Anthropic";
+  if (model.startsWith("gpt") || /^o[134](-|$)/.test(model)) return "OpenAI";
+  if (model.startsWith("gemini")) return "Google";
+  return "Unknown";
+}
+function nonAnthropicVendors(models) {
+  return [...new Set(models.map(vendorOf).filter((v) => v !== "Anthropic" && v !== "Unknown"))];
+}
 const SCOPE_CLAIM = [
   "> This benchmark measures one thing: how reliably AI assistants state official economic statistics from memory — no tools, no retrieval, no web. It is not a measure of what AI can do with a data connection. It is a measure of what happens in the many real conversations where no data connection is used, and in the moments when a model answers from memory because it believes it knows.",
   ">",
@@ -81,11 +109,14 @@ async function main() {
   const models = Object.keys(summary.models);
   if (!models.length) throw new Error("summary.json contains no scored models");
 
-  let md = `# ${summary.run} — AI Economic-Statistics Accuracy Benchmark (pilot run)\n\n`;
-  md += `${PILOT_BANNER}\n\n`;
+  const nonAnthropic = nonAnthropicVendors(models);
+  const multiVendor = nonAnthropic.length >= 2;
+
+  let md = `# ${summary.run} — AI Economic-Statistics Accuracy Benchmark${multiVendor ? "" : " (pilot run)"}\n\n`;
+  md += `${multiVendor ? multiVendorBanner(nonAnthropic) : PILOT_BANNER}\n\n`;
   md += `${SCOPE_CLAIM}\n\n`;
   md += `${CONCESSION}\n\n`;
-  md += `**Disclosure (verbatim per METHODOLOGY §7):** ${DISCLOSURE}\n\n`;
+  md += `**Disclosure${multiVendor ? "" : " (verbatim per METHODOLOGY §7)"}:** ${multiVendor ? multiVendorDisclosure(nonAnthropic) : DISCLOSURE_SINGLE_VENDOR}\n\n`;
   md += `Run \`${summary.run}\` · scored ${summary.scored_at} · seed \`${summary.seed}\` · bank: ${summary.counts.headline} headline / ${summary.counts.recency} recency / ${summary.counts.null_probe} null probes.\n\n`;
   md += `**Protocol deviations logged for this run: ${summary.deviations_count}** (see bench/DEVIATIONS.md).\n\n`;
 
@@ -163,9 +194,9 @@ async function main() {
     const g = gridEvaluation(summary.models[m]);
     md += `| ${m} | ${g.branch} | ${g.valid ? "yes" : "NO"} | ${g.reason} |\n`;
   }
-  md += `\n*Evaluated per model on point estimates with CIs alongside, never CI-gated; valid only when Answer Rate ≥ 70% (§8). P0 branch outcomes validate the machine — they are not citable findings (§7).*\n`;
+  md += `\n*Evaluated per model on point estimates with CIs alongside, never CI-gated; valid only when Answer Rate ≥ 70% (§8).${multiVendor ? "" : " P0 branch outcomes validate the machine — they are not citable findings (§7)."}*\n`;
 
-  md += `\n---\n\n${PILOT_BANNER}\n`;
+  md += `\n---\n\n${multiVendor ? multiVendorBanner(nonAnthropic) : PILOT_BANNER}\n`;
 
   const outPath = path.join(paths.runDir, "REPORT.md");
   writeText(outPath, md);

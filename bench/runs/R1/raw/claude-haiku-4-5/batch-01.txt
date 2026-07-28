@@ -1,0 +1,12 @@
+[
+  {"qid": "P0-098", "value": 144.4, "unit": "millions of people", "year_basis": 2021, "confidence": 0.65, "refused": false, "basis_note": "Parametric recall of World Bank mid-year estimate"},
+  {"qid": "P0-018", "value": null, "unit": "percent of GDP", "year_basis": 2022, "confidence": 0, "refused": true, "basis_note": ""},
+  {"qid": "P0-008", "value": null, "unit": "percent", "year_basis": 2022, "confidence": 0, "refused": true, "basis_note": ""},
+  {"qid": "P0-120", "value": null, "unit": "billions of US dollars", "year_basis": 2020, "confidence": 0, "refused": true, "basis_note": ""},
+  {"qid": "P0-117", "value": null, "unit": "percent of GDP", "year_basis": 2018, "confidence": 0, "refused": true, "basis_note": ""},
+  {"qid": "P0-079", "value": null, "unit": "percent of GDP", "year_basis": 2023, "confidence": 0, "refused": true, "basis_note": ""},
+  {"qid": "P0-083", "value": null, "unit": "billions of US dollars", "year_basis": 2020, "confidence": 0, "refused": true, "basis_note": ""},
+  {"qid": "P0-096", "value": null, "unit": "percent of GDP", "year_basis": 2019, "confidence": 0, "refused": true, "basis_note": ""},
+  {"qid": "P0-060", "value": -6.5, "unit": "percent", "year_basis": 2020, "confidence": 0.55, "refused": false, "basis_note": "COVID-driven contraction in tourism-dependent island economy"},
+  {"qid": "P0-090", "value": null, "unit": "percent", "year_basis": 2020, "confidence": 0, "refused": true, "basis_note": ""}
+]
