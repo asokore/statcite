@@ -21,8 +21,13 @@ export const STATCITE_BASE = process.env.STATCITE_BASE || "https://statcite.com"
 // Benchmark constants (METHODOLOGY §1, §7)
 // ---------------------------------------------------------------------------
 
-/** §7 pilot roster. Settings are recorded in bench/models.json and the manifest. */
-export const MODELS = ["claude-haiku-4-5", "claude-sonnet-5", "claude-opus-5", "claude-fable-5"];
+/** Active roster. Settings are recorded in bench/models.json and the manifest.
+ * P0 (pilot) used only the 4 Claude entries; R1 (Full Run 1) adds gpt-5.5 and
+ * gemini-3-flash-preview to satisfy COVENANT §6 (>=2 non-Anthropic vendors).
+ * Changing this list does not retroactively touch P0's already-written,
+ * already-frozen prompts/raw/scores — it only affects runs generated after
+ * the change. */
+export const MODELS = ["claude-haiku-4-5", "claude-sonnet-5", "claude-opus-5", "claude-fable-5", "gpt-5.5", "gemini-3-flash-preview"];
 
 /** §1.2 — 12 indicators in 3 revision classes with headline quotas (total 100). */
 export const HEADLINE_QUOTA = {
