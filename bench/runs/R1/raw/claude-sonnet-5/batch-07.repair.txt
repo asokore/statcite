@@ -1,0 +1,14 @@
+```json
+[
+  {"qid": "P0-121", "value": 1.7, "unit": "percent of GDP", "year_basis": 2020, "confidence": 0.4, "refused": false, "basis_note": "Recalled WDI FDI net inflows China 2020, approx"},
+  {"qid": "P0-053", "value": 5040, "unit": "billions of US dollars", "year_basis": 2018, "confidence": 0.55, "refused": false, "basis_note": "Recalled WDI nominal GDP Japan 2018"},
+  {"qid": "P0-010", "value": 32.7, "unit": "index (0-100)", "year_basis": 2021, "confidence": 0.25, "refused": false, "basis_note": "Recalled approximate WB Gini Mongolia ~2020-21"},
+  {"qid": "P0-094", "value": 0.9, "unit": "percent", "year_basis": 2018, "confidence": 0.4, "refused": false, "basis_note": "Recalled Swiss CPI inflation 2018"},
+  {"qid": "P0-066", "value": 180, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.3, "refused": false, "basis_note": "Recalled UAE trade openness approx, low confidence"},
+  {"qid": "P0-073", "value": -0.2, "unit": "percent of GDP", "year_basis": 2019, "confidence": 0.3, "refused": false, "basis_note": "Recalled Kazakhstan fiscal balance approx"},
+  {"qid": "P0-095", "value": -3.8, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.35, "refused": false, "basis_note": "Recalled Sri Lanka current account deficit 2021"},
+  {"qid": "P0-103", "value": 11.0, "unit": "percent", "year_basis": 2022, "confidence": 0.2, "refused": false, "basis_note": "Recalled ILO modeled unemployment Nepal, low confidence"},
+  {"qid": "P0-058", "value": 4.86, "unit": "millions of people", "year_basis": 2018, "confidence": 0.55, "refused": false, "basis_note": "Recalled WB Ireland population 2018"},
+  {"qid": "P0-035", "value": 4.0, "unit": "percent", "year_basis": 2018, "confidence": 0.45, "refused": false, "basis_note": "Recalled Chile real GDP growth 2018"}
+]
+```

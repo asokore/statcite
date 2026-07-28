@@ -1,0 +1,92 @@
+[
+  {
+    "qid": "P0-056",
+    "value": null,
+    "unit": "percent of GDP",
+    "year_basis": 2019,
+    "confidence": 0.05,
+    "refused": true,
+    "basis_note": "No confident recall of North Macedonia's 2019 debt level"
+  },
+  {
+    "qid": "P0-013",
+    "value": 81.8,
+    "unit": "years",
+    "year_basis": 2023,
+    "confidence": 0.60,
+    "refused": false,
+    "basis_note": "Developed country, life expectancy typically 81-82 years"
+  },
+  {
+    "qid": "P0-025",
+    "value": 5.0,
+    "unit": "percent",
+    "year_basis": 2024,
+    "confidence": 0.40,
+    "refused": false,
+    "basis_note": "Luxembourg has historically very low unemployment"
+  },
+  {
+    "qid": "P0-092",
+    "value": null,
+    "unit": "percent of GDP",
+    "year_basis": 2024,
+    "confidence": 0.05,
+    "refused": true,
+    "basis_note": "No confident recall of Romania's 2024 FDI inflows"
+  },
+  {
+    "qid": "P0-029",
+    "value": null,
+    "unit": "percent",
+    "year_basis": 2021,
+    "confidence": 0.05,
+    "refused": true,
+    "basis_note": "No confident recall of Tonga's 2021 inflation rate"
+  },
+  {
+    "qid": "P0-097",
+    "value": 3.0,
+    "unit": "percent of GDP",
+    "year_basis": 2019,
+    "confidence": 0.50,
+    "refused": false,
+    "basis_note": "Vietnam typically runs current account surpluses"
+  },
+  {
+    "qid": "P0-064",
+    "value": null,
+    "unit": "billions of US dollars",
+    "year_basis": 2022,
+    "confidence": 0.05,
+    "refused": true,
+    "basis_note": "No confident recall of Czechia's 2022 total reserves"
+  },
+  {
+    "qid": "P0-045",
+    "value": 2600,
+    "unit": "billions of US dollars",
+    "year_basis": 2020,
+    "confidence": 0.65,
+    "refused": false,
+    "basis_note": "India's 2020 nominal GDP approximately 2.6 trillion USD"
+  },
+  {
+    "qid": "P0-030",
+    "value": 42,
+    "unit": "percent of GDP",
+    "year_basis": 2021,
+    "confidence": 0.50,
+    "refused": false,
+    "basis_note": "Indonesia trade typically 35-45% of GDP"
+  },
+  {
+    "qid": "P0-046",
+    "value": null,
+    "unit": "percent of population",
+    "year_basis": 2019,
+    "confidence": 0.05,
+    "refused": true,
+    "basis_note": "No confident recall of Philippines 2019 poverty rate"
+  }
+]

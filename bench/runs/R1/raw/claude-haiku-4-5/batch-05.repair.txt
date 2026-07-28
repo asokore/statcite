@@ -1,0 +1,94 @@
+```json
+[
+  {
+    "qid": "P0-111",
+    "value": 2.2,
+    "unit": "percent",
+    "year_basis": 2021,
+    "confidence": 0.3,
+    "refused": false,
+    "basis_note": "ILO modeled estimate"
+  },
+  {
+    "qid": "P0-115",
+    "value": -0.7,
+    "unit": "percent of GDP",
+    "year_basis": 2019,
+    "confidence": 0.4,
+    "refused": false,
+    "basis_note": "IMF WEO general government fiscal balance"
+  },
+  {
+    "qid": "P0-116",
+    "value": 2750,
+    "unit": "billions of US dollars",
+    "year_basis": 2020,
+    "confidence": 0.6,
+    "refused": false,
+    "basis_note": "Current US$ at market exchange rates"
+  },
+  {
+    "qid": "P0-050",
+    "value": 55,
+    "unit": "percent of GDP",
+    "year_basis": 2022,
+    "confidence": 0.35,
+    "refused": false,
+    "basis_note": "IMF WEO general government gross debt"
+  },
+  {
+    "qid": "P0-067",
+    "value": 0.5,
+    "unit": "percent",
+    "year_basis": 2019,
+    "confidence": 0.65,
+    "refused": false,
+    "basis_note": "Annual average CPI inflation rate"
+  },
+  {
+    "qid": "P0-032",
+    "value": 83.0,
+    "unit": "years",
+    "year_basis": 2021,
+    "confidence": 0.55,
+    "refused": false,
+    "basis_note": "Life expectancy at birth, both sexes"
+  },
+  {
+    "qid": "P0-021",
+    "value": 318,
+    "unit": "percent of GDP",
+    "year_basis": 2018,
+    "confidence": 0.55,
+    "refused": false,
+    "basis_note": "Exports plus imports of goods and services"
+  },
+  {
+    "qid": "P0-108",
+    "value": 16.7,
+    "unit": "millions of people",
+    "year_basis": 2020,
+    "confidence": 0.65,
+    "refused": false,
+    "basis_note": "Mid-year population estimate"
+  },
+  {
+    "qid": "P0-038",
+    "value": 37,
+    "unit": "billions of US dollars",
+    "year_basis": 2018,
+    "confidence": 0.45,
+    "refused": false,
+    "basis_note": "Total international reserves including gold, end-2018"
+  },
+  {
+    "qid": "P0-080",
+    "value": -4.0,
+    "unit": "percent of GDP",
+    "year_basis": 2019,
+    "confidence": 0.45,
+    "refused": false,
+    "basis_note": "Current account balance, balance-of-payments definition"
+  }
+]
+```

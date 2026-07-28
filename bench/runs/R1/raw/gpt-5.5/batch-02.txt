@@ -1,0 +1,92 @@
+[
+  {
+    "qid": "P0-105",
+    "value": 4.9,
+    "unit": "percent of GDP",
+    "year_basis": 2022,
+    "confidence": 0.35,
+    "refused": false,
+    "basis_note": "World Bank WDI, recalled approximate"
+  },
+  {
+    "qid": "P0-007",
+    "value": -3.5,
+    "unit": "percent of GDP",
+    "year_basis": 2022,
+    "confidence": 0.55,
+    "refused": false,
+    "basis_note": "IMF WEO general government balance"
+  },
+  {
+    "qid": "P0-044",
+    "value": 1645.4,
+    "unit": "billions of US dollars",
+    "year_basis": 2020,
+    "confidence": 0.55,
+    "refused": false,
+    "basis_note": "World Bank current US$ GDP approximate"
+  },
+  {
+    "qid": "P0-061",
+    "value": 1.2,
+    "unit": "percent",
+    "year_basis": 2018,
+    "confidence": 0.25,
+    "refused": false,
+    "basis_note": "ILO modeled estimate, recalled approximate"
+  },
+  {
+    "qid": "P0-006",
+    "value": 89.2,
+    "unit": "percent of GDP",
+    "year_basis": 2021,
+    "confidence": 0.45,
+    "refused": false,
+    "basis_note": "IMF WEO gross debt approximate"
+  },
+  {
+    "qid": "P0-110",
+    "value": 0.3,
+    "unit": "percent",
+    "year_basis": 2019,
+    "confidence": 0.7,
+    "refused": false,
+    "basis_note": "WDI CPI inflation annual average"
+  },
+  {
+    "qid": "P0-118",
+    "value": null,
+    "unit": "index",
+    "year_basis": 2021,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": "Do not recall a 2021 WB Gini estimate"
+  },
+  {
+    "qid": "P0-068",
+    "value": -0.6,
+    "unit": "percent",
+    "year_basis": 2022,
+    "confidence": 0.3,
+    "refused": false,
+    "basis_note": "WDI/IMF real GDP growth approximate"
+  },
+  {
+    "qid": "P0-112",
+    "value": 92.0,
+    "unit": "percent of GDP",
+    "year_basis": 2021,
+    "confidence": 0.25,
+    "refused": false,
+    "basis_note": "WDI trade openness recalled approximate"
+  },
+  {
+    "qid": "P0-034",
+    "value": 476.0,
+    "unit": "millions of US dollars",
+    "year_basis": 2022,
+    "confidence": 0.3,
+    "refused": false,
+    "basis_note": "WDI total reserves incl. gold approximate"
+  }
+]

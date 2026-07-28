@@ -1,0 +1,92 @@
+[
+  {
+    "qid": "P0-012",
+    "value": 2.4,
+    "unit": "percent of GDP",
+    "year_basis": 2018,
+    "confidence": 0.35,
+    "refused": false,
+    "basis_note": "World Bank WDI FDI net inflows"
+  },
+  {
+    "qid": "P0-037",
+    "value": -2.5,
+    "unit": "percent of GDP",
+    "year_basis": 2018,
+    "confidence": 0.3,
+    "refused": false,
+    "basis_note": "IMF WEO general government balance"
+  },
+  {
+    "qid": "P0-072",
+    "value": 0.1,
+    "unit": "percent of population",
+    "year_basis": 2019,
+    "confidence": 0.55,
+    "refused": false,
+    "basis_note": "World Bank WDI poverty at $2.15 2017 PPP"
+  },
+  {
+    "qid": "P0-089",
+    "value": -5.5,
+    "unit": "percent of GDP",
+    "year_basis": 2018,
+    "confidence": 0.35,
+    "refused": false,
+    "basis_note": "WDI/WEO current account balance"
+  },
+  {
+    "qid": "P0-023",
+    "value": null,
+    "unit": "billions of US dollars",
+    "year_basis": 2025,
+    "confidence": 0.95,
+    "refused": true,
+    "basis_note": "Future WDI value not officially published"
+  },
+  {
+    "qid": "P0-085",
+    "value": 4.6,
+    "unit": "percent",
+    "year_basis": 2018,
+    "confidence": 0.75,
+    "refused": false,
+    "basis_note": "World Bank WDI CPI annual average"
+  },
+  {
+    "qid": "P0-022",
+    "value": 72.0,
+    "unit": "percent of GDP",
+    "year_basis": 2018,
+    "confidence": 0.25,
+    "refused": false,
+    "basis_note": "World Bank WDI trade percent of GDP"
+  },
+  {
+    "qid": "P0-069",
+    "value": -4.3,
+    "unit": "percent",
+    "year_basis": 2020,
+    "confidence": 0.35,
+    "refused": false,
+    "basis_note": "WDI/IMF real GDP growth"
+  },
+  {
+    "qid": "P0-011",
+    "value": 12.36,
+    "unit": "millions of people",
+    "year_basis": 2022,
+    "confidence": 0.7,
+    "refused": false,
+    "basis_note": "World Bank mid-year population"
+  },
+  {
+    "qid": "P0-091",
+    "value": 60.7,
+    "unit": "years",
+    "year_basis": 2018,
+    "confidence": 0.45,
+    "refused": false,
+    "basis_note": "World Bank WDI life expectancy"
+  }
+]

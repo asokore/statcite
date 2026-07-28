@@ -1,0 +1,14 @@
+```json
+[
+  {"qid": "P0-107", "value": 1.8, "unit": "percent", "year_basis": 2019, "confidence": 0.5, "refused": false, "basis_note": "Fiji CPI annual average inflation, WDI, approximate"},
+  {"qid": "P0-075", "value": 39.2, "unit": "billions of US dollars", "year_basis": 2020, "confidence": 0.45, "refused": false, "basis_note": "Chile total reserves incl. gold, end-2020, approximate"},
+  {"qid": "P0-055", "value": 90.0, "unit": "percent of GDP", "year_basis": 2023, "confidence": 0.4, "refused": false, "basis_note": "Jordan general govt gross debt, IMF WEO, approximate"},
+  {"qid": "P0-048", "value": 5.08, "unit": "millions of people", "year_basis": 2020, "confidence": 0.6, "refused": false, "basis_note": "NZ mid-year population, WDI, approximate"},
+  {"qid": "P0-005", "value": 1077.0, "unit": "billions of US dollars", "year_basis": 2020, "confidence": 0.55, "refused": false, "basis_note": "Mexico nominal GDP current US$, WDI, approximate"},
+  {"qid": "P0-036", "value": 130.0, "unit": "percent of GDP", "year_basis": 2020, "confidence": 0.3, "refused": false, "basis_note": "Eswatini trade openness, WDI, low-confidence estimate"},
+  {"qid": "P0-059", "value": 73.6, "unit": "years", "year_basis": 2020, "confidence": 0.45, "refused": false, "basis_note": "Bulgaria life expectancy at birth, WDI, approximate; COVID dip"},
+  {"qid": "P0-041", "value": 2.3, "unit": "percent", "year_basis": 2024, "confidence": 0.3, "refused": false, "basis_note": "Lesotho real GDP growth, IMF WEO, low-confidence estimate"},
+  {"qid": "P0-026", "value": -3.7, "unit": "percent of GDP", "year_basis": 2022, "confidence": 0.35, "refused": false, "basis_note": "Albania general govt fiscal balance, IMF WEO, approximate"},
+  {"qid": "P0-100", "value": 33.4, "unit": "index", "year_basis": 2021, "confidence": 0.3, "refused": false, "basis_note": "Bangladesh Gini index, World Bank, approximate/uncertain vintage"}
+]
+```

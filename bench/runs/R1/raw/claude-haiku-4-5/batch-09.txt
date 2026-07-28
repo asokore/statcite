@@ -1,0 +1,92 @@
+[
+  {
+    "qid": "P0-041",
+    "value": null,
+    "unit": "percent",
+    "year_basis": 2024,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": "2024 data not reliably established in parametric memory"
+  },
+  {
+    "qid": "P0-026",
+    "value": null,
+    "unit": "percent of GDP",
+    "year_basis": 2022,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": "Albania 2022 fiscal balance not reliably recalled"
+  },
+  {
+    "qid": "P0-048",
+    "value": 5.1,
+    "unit": "millions of people",
+    "year_basis": 2020,
+    "confidence": 0.70,
+    "refused": false,
+    "basis_note": "Mid-year estimate, typical for NZ census period"
+  },
+  {
+    "qid": "P0-005",
+    "value": 1074,
+    "unit": "billions of US dollars",
+    "year_basis": 2020,
+    "confidence": 0.65,
+    "refused": false,
+    "basis_note": "Nominal GDP at market exchange rates, approximate"
+  },
+  {
+    "qid": "P0-100",
+    "value": null,
+    "unit": "index value 0-100",
+    "year_basis": 2021,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": "Bangladesh Gini 2021 World Bank estimate not reliably recalled"
+  },
+  {
+    "qid": "P0-075",
+    "value": null,
+    "unit": "billions of US dollars",
+    "year_basis": 2020,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": "Chile end-2020 reserves not reliably in parametric memory"
+  },
+  {
+    "qid": "P0-107",
+    "value": null,
+    "unit": "percent",
+    "year_basis": 2019,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": "Fiji 2019 inflation rate not reliably recalled"
+  },
+  {
+    "qid": "P0-059",
+    "value": 74.7,
+    "unit": "years",
+    "year_basis": 2020,
+    "confidence": 0.55,
+    "refused": false,
+    "basis_note": "Life expectancy both sexes combined, approximate"
+  },
+  {
+    "qid": "P0-055",
+    "value": null,
+    "unit": "percent of GDP",
+    "year_basis": 2023,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": "Jordan 2023 gross debt not reliably in parametric memory"
+  },
+  {
+    "qid": "P0-036",
+    "value": null,
+    "unit": "percent of GDP",
+    "year_basis": 2020,
+    "confidence": 0.0,
+    "refused": true,
+    "basis_note": "Eswatini 2020 trade openness not reliably recalled"
+  }
+]

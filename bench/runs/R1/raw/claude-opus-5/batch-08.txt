@@ -1,0 +1,12 @@
+[
+  {"qid": "P0-097", "value": 3.7, "unit": "percent of GDP", "year_basis": 2019, "confidence": 0.4, "refused": false, "basis_note": "Recalling IMF WEO/WDI; Viet Nam ran a CA surplus around 3-4% of GDP in 2019"},
+  {"qid": "P0-025", "value": 6.1, "unit": "percent", "year_basis": 2024, "confidence": 0.3, "refused": false, "basis_note": "ILO modeled estimate; Luxembourg unemployment rose to roughly 6% in 2024"},
+  {"qid": "P0-013", "value": 81.9, "unit": "years", "year_basis": 2023, "confidence": 0.5, "refused": false, "basis_note": "WDI total life expectancy; Netherlands around 81.5-82.2 in 2023"},
+  {"qid": "P0-046", "value": null, "unit": "percent of population", "year_basis": 2019, "confidence": 0.0, "refused": true, "basis_note": "Philippines survey years are 2018 and 2021; unsure a 2019 $2.15 line value is published"},
+  {"qid": "P0-064", "value": 139, "unit": "billions of US dollars", "year_basis": 2022, "confidence": 0.35, "refused": false, "basis_note": "CNB reserves fell from ~174bn (2021) after FX interventions; end-2022 roughly 139bn"},
+  {"qid": "P0-056", "value": 40.4, "unit": "percent of GDP", "year_basis": 2019, "confidence": 0.35, "refused": false, "basis_note": "IMF WEO; North Macedonia general government gross debt around 40% of GDP in 2019"},
+  {"qid": "P0-029", "value": 5.6, "unit": "percent", "year_basis": 2021, "confidence": 0.25, "refused": false, "basis_note": "Tonga annual average CPI inflation; low confidence recall"},
+  {"qid": "P0-030", "value": 40.2, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.4, "refused": false, "basis_note": "WDI Trade (% of GDP); Indonesia exports ~21% plus imports ~19% in 2021"},
+  {"qid": "P0-092", "value": 1.7, "unit": "percent of GDP", "year_basis": 2024, "confidence": 0.2, "refused": false, "basis_note": "BNR FDI ~EUR 6bn on GDP ~EUR 350bn; 2024 WDI vintage uncertain"},
+  {"qid": "P0-045", "value": 2668, "unit": "billions of US dollars", "year_basis": 2020, "confidence": 0.55, "refused": false, "basis_note": "WDI current US$; India 2020 GDP ~2.67 trillion after COVID contraction"}
+]

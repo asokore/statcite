@@ -1,0 +1,12 @@
+[
+  {"qid": "P0-006", "value": null, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.0, "refused": true, "basis_note": ""},
+  {"qid": "P0-112", "value": null, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.0, "refused": true, "basis_note": ""},
+  {"qid": "P0-034", "value": null, "unit": "millions of US dollars", "year_basis": 2022, "confidence": 0.0, "refused": true, "basis_note": ""},
+  {"qid": "P0-118", "value": null, "unit": "index", "year_basis": 2021, "confidence": 0.0, "refused": true, "basis_note": ""},
+  {"qid": "P0-068", "value": null, "unit": "percent", "year_basis": 2022, "confidence": 0.0, "refused": true, "basis_note": ""},
+  {"qid": "P0-110", "value": 0.9, "unit": "percent", "year_basis": 2019, "confidence": 0.35, "refused": false, "basis_note": "Eurozone subdued inflation environment; Portugal typically near-eurozone average"},
+  {"qid": "P0-007", "value": null, "unit": "percent of GDP", "year_basis": 2022, "confidence": 0.0, "refused": true, "basis_note": ""},
+  {"qid": "P0-061", "value": null, "unit": "percent", "year_basis": 2018, "confidence": 0.0, "refused": true, "basis_note": ""},
+  {"qid": "P0-044", "value": 1680, "unit": "billions of US dollars", "year_basis": 2020, "confidence": 0.6, "refused": false, "basis_note": "Nominal GDP at market exchange rate; COVID-impacted from ~1.75 trillion baseline"},
+  {"qid": "P0-105", "value": null, "unit": "percent of GDP", "year_basis": 2022, "confidence": 0.0, "refused": true, "basis_note": ""}
+]

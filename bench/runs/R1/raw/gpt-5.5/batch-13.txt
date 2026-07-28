@@ -1,0 +1,20 @@
+[
+  {
+    "qid": "P0-049",
+    "value": 4.9,
+    "unit": "percent of population",
+    "year_basis": 2019,
+    "confidence": 0.35,
+    "refused": false,
+    "basis_note": "World Bank WDI poverty headcount at $2.15/day 2017 PPP"
+  },
+  {
+    "qid": "P0-001",
+    "value": 154.8,
+    "unit": "percent",
+    "year_basis": 2021,
+    "confidence": 0.65,
+    "refused": false,
+    "basis_note": "World Bank WDI CPI inflation annual average"
+  }
+]

@@ -1,0 +1,12 @@
+[
+  {"qid": "P0-109", "value": null, "unit": "index 0-100", "year_basis": 2019, "confidence": 0.0, "refused": true, "basis_note": "Kenya WB Gini surveys are 2015 (40.8) and 2021 (~38.7); I recall no 2019 estimate"},
+  {"qid": "P0-078", "value": 47.4, "unit": "thousands of people", "year_basis": 2018, "confidence": 0.3, "refused": false, "basis_note": "WDI post-2022 WPP revision (~47k); older vintages showed ~52k"},
+  {"qid": "P0-057", "value": 35.5, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.35, "refused": false, "basis_note": "IMF WEO general government gross debt, recalled roughly mid-30s"},
+  {"qid": "P0-017", "value": 65.3, "unit": "years", "year_basis": 2020, "confidence": 0.4, "refused": false, "basis_note": "WDI total life expectancy, post-WPP-2022 revision"},
+  {"qid": "P0-039", "value": null, "unit": "percent", "year_basis": 2022, "confidence": 0.0, "refused": true, "basis_note": "Unsure New Caledonia is covered by ILO modeled estimates; cannot recall a figure"},
+  {"qid": "P0-086", "value": 1.7, "unit": "percent", "year_basis": 2019, "confidence": 0.4, "refused": false, "basis_note": "CBS/WEO ~1.7; later CBS revisions nearer 2.0"},
+  {"qid": "P0-019", "value": null, "unit": "millions of US dollars", "year_basis": 2023, "confidence": 0.0, "refused": true, "basis_note": "Eritrea does not report reserves to WDI; no published official value recalled"},
+  {"qid": "P0-033", "value": 2.5, "unit": "percent of GDP", "year_basis": 2020, "confidence": 0.3, "refused": false, "basis_note": "Zimbabwe posted an unusual CA surplus in 2020 (remittances, import compression)"},
+  {"qid": "P0-031", "value": 1.8, "unit": "percent", "year_basis": 2019, "confidence": 0.9, "refused": false, "basis_note": "US CPI annual average 2019 = 1.81% (BLS/WDI)"},
+  {"qid": "P0-113", "value": null, "unit": "percent of GDP", "year_basis": 2018, "confidence": 0.0, "refused": true, "basis_note": "Recall Swiss 2018 FDI net inflows were negative (disinvestment) but not the WDI magnitude"}
+]

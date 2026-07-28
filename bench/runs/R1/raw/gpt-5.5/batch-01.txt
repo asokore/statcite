@@ -1,0 +1,92 @@
+[
+  {
+    "qid": "P0-120",
+    "value": 40.75,
+    "unit": "billions of US dollars",
+    "year_basis": 2020,
+    "confidence": 0.45,
+    "refused": false,
+    "basis_note": "World Bank WDI total reserves incl. gold, end-2020"
+  },
+  {
+    "qid": "P0-060",
+    "value": -6.6,
+    "unit": "percent",
+    "year_basis": 2020,
+    "confidence": 0.7,
+    "refused": false,
+    "basis_note": "WDI/IMF real GDP growth"
+  },
+  {
+    "qid": "P0-096",
+    "value": -3.7,
+    "unit": "percent of GDP",
+    "year_basis": 2019,
+    "confidence": 0.25,
+    "refused": false,
+    "basis_note": "WDI FDI net inflows; Netherlands volatile"
+  },
+  {
+    "qid": "P0-018",
+    "value": 64.8,
+    "unit": "percent of GDP",
+    "year_basis": 2022,
+    "confidence": 0.35,
+    "refused": false,
+    "basis_note": "WDI trade (% of GDP)"
+  },
+  {
+    "qid": "P0-098",
+    "value": 143.4,
+    "unit": "millions of people",
+    "year_basis": 2021,
+    "confidence": 0.55,
+    "refused": false,
+    "basis_note": "World Bank mid-year population"
+  },
+  {
+    "qid": "P0-008",
+    "value": 6.1,
+    "unit": "percent",
+    "year_basis": 2022,
+    "confidence": 0.6,
+    "refused": false,
+    "basis_note": "WDI CPI annual average inflation"
+  },
+  {
+    "qid": "P0-079",
+    "value": 5.8,
+    "unit": "percent of GDP",
+    "year_basis": 2023,
+    "confidence": 0.45,
+    "refused": false,
+    "basis_note": "BOP current account balance"
+  },
+  {
+    "qid": "P0-083",
+    "value": 541.1,
+    "unit": "billions of US dollars",
+    "year_basis": 2020,
+    "confidence": 0.65,
+    "refused": false,
+    "basis_note": "WDI GDP current US$"
+  },
+  {
+    "qid": "P0-117",
+    "value": -5.9,
+    "unit": "percent of GDP",
+    "year_basis": 2018,
+    "confidence": 0.45,
+    "refused": false,
+    "basis_note": "IMF WEO general government net lending/borrowing"
+  },
+  {
+    "qid": "P0-090",
+    "value": 8.7,
+    "unit": "percent",
+    "year_basis": 2020,
+    "confidence": 0.35,
+    "refused": false,
+    "basis_note": "ILO modeled unemployment, WDI"
+  }
+]

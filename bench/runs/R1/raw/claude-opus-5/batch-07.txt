@@ -1,0 +1,12 @@
+[
+  {"qid": "P0-103", "value": 11.1, "unit": "percent", "year_basis": 2022, "confidence": 0.4, "refused": false, "basis_note": "ILO modeled estimate via World Bank WDI; Nepal's national survey rates are much lower"},
+  {"qid": "P0-073", "value": -0.6, "unit": "percent of GDP", "year_basis": 2019, "confidence": 0.3, "refused": false, "basis_note": "IMF WEO general government net lending; recalled as a small deficit"},
+  {"qid": "P0-121", "value": 1.7, "unit": "percent of GDP", "year_basis": 2020, "confidence": 0.5, "refused": false, "basis_note": "WDI BoP net FDI inflows ~US$253bn on ~US$14.7tn GDP"},
+  {"qid": "P0-053", "value": 5040, "unit": "billions of US dollars", "year_basis": 2018, "confidence": 0.5, "refused": false, "basis_note": "WDI current US$; ~5.0 trillion"},
+  {"qid": "P0-035", "value": 3.9, "unit": "percent", "year_basis": 2018, "confidence": 0.6, "refused": false, "basis_note": "WDI/IMF WEO constant-price growth; recalled ~3.9-4.0"},
+  {"qid": "P0-010", "value": 31.4, "unit": "index 0-100", "year_basis": 2021, "confidence": 0.2, "refused": false, "basis_note": "WB Gini; Mongolia 2018 was 32.7, later HIES rounds slightly lower; low confidence on 2021 vintage"},
+  {"qid": "P0-094", "value": 0.9, "unit": "percent", "year_basis": 2018, "confidence": 0.7, "refused": false, "basis_note": "WDI annual average CPI inflation"},
+  {"qid": "P0-095", "value": -3.7, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.35, "refused": false, "basis_note": "BoP current account; Sri Lanka pre-crisis deficit widened in 2021"},
+  {"qid": "P0-066", "value": 168, "unit": "percent of GDP", "year_basis": 2021, "confidence": 0.25, "refused": false, "basis_note": "WDI Trade (% of GDP); UAE re-export hub, very high openness, exact value uncertain"},
+  {"qid": "P0-058", "value": 4.87, "unit": "millions of people", "year_basis": 2018, "confidence": 0.75, "refused": false, "basis_note": "WB mid-year estimate ~4.867m"}
+]

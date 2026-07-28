@@ -1,0 +1,92 @@
+[
+  {
+    "qid": "P0-028",
+    "value": 3.58,
+    "unit": "percent of GDP",
+    "year_basis": 2022,
+    "confidence": 0.35,
+    "refused": false,
+    "basis_note": "World Bank WDI FDI net inflows"
+  },
+  {
+    "qid": "P0-024",
+    "value": 5.1,
+    "unit": "percent",
+    "year_basis": 2021,
+    "confidence": 0.85,
+    "refused": false,
+    "basis_note": "WDI CPI annual average"
+  },
+  {
+    "qid": "P0-088",
+    "value": 57.6,
+    "unit": "percent of GDP",
+    "year_basis": 2021,
+    "confidence": 0.55,
+    "refused": false,
+    "basis_note": "IMF WEO general government gross debt"
+  },
+  {
+    "qid": "P0-040",
+    "value": 13894.8,
+    "unit": "billions of US dollars",
+    "year_basis": 2018,
+    "confidence": 0.75,
+    "refused": false,
+    "basis_note": "World Bank WDI current US$ GDP"
+  },
+  {
+    "qid": "P0-093",
+    "value": 2.2,
+    "unit": "percent",
+    "year_basis": 2019,
+    "confidence": 0.8,
+    "refused": false,
+    "basis_note": "WDI/IMF real GDP growth"
+  },
+  {
+    "qid": "P0-047",
+    "value": 73.4,
+    "unit": "percent of GDP",
+    "year_basis": 2019,
+    "confidence": 0.35,
+    "refused": false,
+    "basis_note": "WDI trade % of GDP"
+  },
+  {
+    "qid": "P0-042",
+    "value": 32.8,
+    "unit": "index",
+    "year_basis": 2019,
+    "confidence": 0.45,
+    "refused": false,
+    "basis_note": "World Bank Gini estimate"
+  },
+  {
+    "qid": "P0-051",
+    "value": 2.8,
+    "unit": "percent",
+    "year_basis": 2018,
+    "confidence": 0.65,
+    "refused": false,
+    "basis_note": "ILO modeled estimate via WDI"
+  },
+  {
+    "qid": "P0-087",
+    "value": 60.4,
+    "unit": "years",
+    "year_basis": 2022,
+    "confidence": 0.55,
+    "refused": false,
+    "basis_note": "World Bank WDI life expectancy"
+  },
+  {
+    "qid": "P0-104",
+    "value": 772.5,
+    "unit": "thousands of people",
+    "year_basis": 2020,
+    "confidence": 0.7,
+    "refused": false,
+    "basis_note": "World Bank mid-year population"
+  }
+]

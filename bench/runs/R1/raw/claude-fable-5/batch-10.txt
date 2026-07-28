@@ -1,0 +1,12 @@
+[
+  {"qid": "P0-022", "value": 60, "unit": "percent of GDP", "year_basis": 2018, "confidence": 0.2, "refused": false, "basis_note": "WDI trade openness; recalled roughly, low precision"},
+  {"qid": "P0-012", "value": 1.5, "unit": "percent of GDP", "year_basis": 2018, "confidence": 0.15, "refused": false, "basis_note": "WDI FDI net inflows; weak recall"},
+  {"qid": "P0-037", "value": -2.5, "unit": "percent of GDP", "year_basis": 2018, "confidence": 0.3, "refused": false, "basis_note": "IMF WEO general government balance"},
+  {"qid": "P0-089", "value": -5.4, "unit": "percent of GDP", "year_basis": 2018, "confidence": 0.35, "refused": false, "basis_note": "IMF WEO/WDI current account"},
+  {"qid": "P0-023", "value": 410, "unit": "billions of US dollars", "year_basis": 2025, "confidence": 0.25, "refused": false, "basis_note": "WEO-style projection; 2025 figure likely provisional"},
+  {"qid": "P0-085", "value": 4.6, "unit": "percent", "year_basis": 2018, "confidence": 0.6, "refused": false, "basis_note": "Annual average CPI, WDI"},
+  {"qid": "P0-069", "value": 1.0, "unit": "percent", "year_basis": 2020, "confidence": 0.12, "refused": false, "basis_note": "Tuvalu stayed positive in 2020; magnitude uncertain"},
+  {"qid": "P0-091", "value": 60.4, "unit": "years", "year_basis": 2018, "confidence": 0.5, "refused": false, "basis_note": "WDI life expectancy, both sexes"},
+  {"qid": "P0-072", "value": 0.1, "unit": "percent of population", "year_basis": 2019, "confidence": 0.35, "refused": false, "basis_note": "WDI $2.15/day 2017 PPP; near zero for BiH"},
+  {"qid": "P0-011", "value": 12.3, "unit": "millions of people", "year_basis": 2022, "confidence": 0.65, "refused": false, "basis_note": "World Bank mid-year estimate"}
+]
