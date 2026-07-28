@@ -29,69 +29,101 @@ account-creation-and-billing situation as OpenAI: that's the owner's action, not
 something to do inside this session. Worth deciding now whether to get both keys
 in one pass rather than running twice.
 
-## Open owner action: second vendor key (deferred 2026-07-26)
+## Second vendor key: obtained and tested (2026-07-28)
 
-Gemini (Google AI Studio) key deferred by the owner, to be obtained later.
-Until it exists, Full Run 1 **cannot** be run as a citable result — see the
-COVENANT §6 catch below. Nothing else about the run is blocked: ground truth
-is frozen and audited clean (snapshots/R1/, 2026-07-26), the OpenAI path is
-built and connectivity-tested, and `call_gemini.mjs` is a short follow-on in
-the same shape as `call_openai.mjs` once the key exists.
+Gemini key created (Google AI Studio, "Default Gemini Project", key named
+`statcite-bench` in `bench/.env` as `GEMINI_API_KEY`, never handled by the
+agent — the owner pasted it directly into the file). `tools/call_gemini.mjs`
+built to the exact same prompt-in/raw-out contract as `call_openai.mjs`.
 
-Google AI Studio keys have a free tier that may cover this run's volume
-entirely — worth checking before assuming it costs anything, given the $10
-OpenAI cap noted above.
+**Model availability, verified live, not assumed:**
+- `gemini-2.5-flash`, `gemini-2.5-flash-lite` — reject with "no longer
+  available to new users."
+- `gemini-2.0-flash` — free-tier quota is exactly 0 for this project/account.
+- `gemini-3-flash-preview` — **works.** Real test call returned a correctly
+  formatted response (210 tokens, valid JSON array matching the harness
+  contract). **Decision: this is the Gemini roster entry for Full Run 1.**
+  Caveat to disclose in `models.json`: this is a *preview* model, which can
+  change behavior or be deprecated mid-run without notice — a real limitation,
+  not just a formality, and the only model of the ones tried that this key
+  can actually call.
 
-## What's ready now
+## New blocker found (2026-07-28): the OpenAI key stopped working
 
-- `tools/call_openai.mjs` — reads `runs/{run}/prompts/<model>/*.json` (from the
-  existing `make_prompts.mjs`, unchanged), calls the OpenAI Chat Completions API,
-  writes `runs/{run}/raw/<model>/*.txt` in the exact shape `parse_responses.mjs`
-  already expects. Verified with `--dry-run` against a synthetic prompt file:
-  builds the right request, writes to the right path, makes no network call.
-  Untested against the real API (no key available in this session).
-- `bench/.gitignore` now excludes `.env` — a key dropped in `bench/.env` as
-  `OPENAI_API_KEY=sk-...` is picked up automatically (Node's built-in
-  `process.loadEnvFile`, no dependency) and never risks being committed.
-- A second tool in the same shape (`call_gemini.mjs` or similar) is a short
-  follow-on once there's a second vendor to call — same contract, different
-  endpoint and auth header.
+Testing the OpenAI path for real (not dry-run) before freezing the roster
+surfaced a problem: **every OpenAI model tried — `gpt-4o-mini` (the same
+model that returned a real, correct 161-token response earlier this
+session), `gpt-5-mini`, `gpt-5.5` — now fails identically:**
 
-## What still needs a decision before pre-registering
+> "You exceeded your current quota, please check your plan and billing details."
 
-1. **Roster.** Proposed: keep the 4 Claude models from P0 (comparability with the
-   pilot), add one OpenAI model (a current flagship, e.g. whatever GPT-5 variant
-   is current when this runs) and one Google model (current Gemini flagship).
-   6 models total, 3 vendors, satisfies COVENANT §6.
-2. **Question bank: reuse P0's 100 questions, or redraw fresh?** Reusing
-   `questions/P0.json` verbatim gives a clean apples-to-apples read against the
-   P0 pilot numbers (quarantined but still informative as an internal check) and
-   skips the ~4-hour frame re-enumeration `enumerate_frame.mjs` needed the first
-   time. Recommended: reuse the question text and qids, but **re-freeze ground
-   truth fresh** (see below) — the questions ("what was X's Y in year Z") don't
-   go stale, but the served *values* can have revised since 2026-07-25, and the
-   whole point of Full Run 1 is scoring against current, correct ground truth.
-3. **Ground truth refresh, now safe to do because of two fixes already shipped:**
-   - `imf/` audit support (this session) — the 6 DataMapper-served indicators
-     will no longer false-flag as divergent.
-   - v1.3.0's DataMapper-as-primary path — ground truth can freeze against the
-     IMF's *current* edition rather than whatever DBnomics had ingested (the
-     root cause of P0's own vintage-lag limitation, `runs/P0/NOTES.md` N-1).
-   Running `snapshot_ground_truth.mjs` + `audit_ground_truth.mjs` against
-   `questions/P0.json` under a **new run id** (not `--run P0` — that would touch
-   P0's frozen, hashed artifacts) produces a clean, current ground truth ready
-   for a Full Run 1 the moment the roster is decided. This is safe, cheap
-   (no model calls, no cost), and doesn't commit to anything else above.
-4. **Temperature / reasoning settings for the new vendors**, disclosed the same
-   honest way `models.json` discloses Claude's (not fully controllable in this
-   harness; state exactly what was actually used, don't claim a nominal value
-   that wasn't verified).
+This is account-level, not model-level (three different models, identical
+error). The API key itself is still valid (the error is a quota/billing
+response, not an auth failure). Checking `/v1/organization/costs` for a
+diagnosis hit a separate permissions wall (the key lacks the
+`api.usage.read` scope), so the cause can't be confirmed from this session —
+it needs the owner to check the OpenAI platform billing/usage page directly.
+Possible causes, not verified: the $10 credit didn't actually apply to the
+project this key is scoped to, auto-recharge is off and the balance is
+genuinely at $0, or a billing/payment-method issue paused the account.
 
-## Suggested next concrete step
+**Net effect: Full Run 1 is blocked again, same COVENANT §6 gate, different
+cause.** Gemini alone is one non-Anthropic vendor, same as OpenAI alone was
+before — two working non-Anthropic vendors are still needed at the same time.
 
-Once the roster question (item 1) is settled: run
-`node tools/snapshot_ground_truth.mjs --run R1 --base <staging>` and
-`node tools/audit_ground_truth.mjs --run R1 --base <staging>` against a copy of
-P0's question bank, under a new run id, to produce a fresh, clean, audited
-ground truth — before spending anything on the actual model calls. That step
-needs no new API keys and can happen as soon as it's approved.
+**Next step (owner action):** check https://platform.openai.com/settings/organization/billing
+for the actual balance/status, fix whatever it shows, then say so — the
+Gemini side needs no further action and `gpt-5.5` is the intended roster
+entry once billing is confirmed working (current-generation flagship,
+picked over the oddly-named unversioned `gpt-5.6-*` variants which look
+experimental/limited-access).
+
+## What's ready now (as of 2026-07-28)
+
+- **Ground truth: frozen and audited clean.** `snapshots/R1/{ground_truth,audit,revision_check}.json`
+  — 122/122 rows, 0 violations, all data-bearing rows current, 18 `imf/`-routed
+  cells reproduced with zero divergence (the `imf/` audit-fetcher fix and the
+  v1.3.0 DataMapper-as-primary path both hold up at real scale). This does not
+  need to be redone regardless of how the OpenAI blocker resolves.
+- **Question bank: `questions/R1.json`**, a verbatim copy of `questions/P0.json`
+  (same 122 questions, same qids) — decided: reuse, not redraw. No `R1-batches.json`
+  exists yet (the per-model batch/order file) — that's generated right before
+  the pre-registration freeze, once the roster is final, using the documented
+  deterministic formula in `generate_bank.mjs` (`shuffle(qids,
+  rngFromHex(deriveSeed(seed, "{model}:{batch_id}")))`) so the 4 existing Claude
+  orders are exactly reproducible and the 2 new vendors get orders from the same
+  formula — not a fresh draw, not hand-picked.
+- **`tools/call_openai.mjs`** — built, dry-run verified, and real-call verified
+  earlier this session (161-token `gpt-4o-mini` response). **Now blocked** — see
+  the OpenAI section above; the code itself is not in question.
+- **`tools/call_gemini.mjs`** — built and real-call verified against
+  `gemini-3-flash-preview` (see above).
+- `bench/.gitignore` excludes `.env`; both `OPENAI_API_KEY` and `GEMINI_API_KEY`
+  load via Node's built-in `process.loadEnvFile`, no dependency, never committed.
+
+## Remaining before the pre-registration freeze
+
+1. **Roster — settled:** `claude-haiku-4-5`, `claude-sonnet-5`, `claude-opus-5`,
+   `claude-fable-5` (unchanged from P0, via Claude Code subagents same as P0),
+   `gpt-5.5` (OpenAI, blocked pending billing fix), `gemini-3-flash-preview`
+   (Google, working). 6 models, 3 vendors — satisfies COVENANT §6 once OpenAI
+   is unblocked.
+2. **Temperature / reasoning settings**, to disclose in `models.json` the same
+   honest way as Claude's: OpenAI arm sends `reasoning_effort: "minimal"` for
+   `gpt-5.*` models, no temperature override (some `gpt-5` models reject a
+   nonzero value when `reasoning_effort` is set); Gemini arm sends no
+   generation-config override at all — nominal defaults, not independently
+   verified as "minimal," disclosed as such rather than assumed.
+3. **Extend `R1-batches.json`'s `model_order`** for `gpt-5.5` and
+   `gemini-3-flash-preview` using the exact formula above, then update
+   `models.json` to the 6-model roster, then run `make_prompts.mjs --run R1`.
+4. **Freeze:** commit + tag `prereg-R1` (same pattern as `prereg-P0`) — only
+   after the OpenAI blocker clears, since freezing now would either omit a
+   vendor (back to one-vendor quarantine) or freeze a roster entry that can't
+   actually be called yet.
+
+## Currently blocking: OpenAI billing (owner action)
+
+Everything above this line is done or ready. The one open item is the OpenAI
+quota error — see the dedicated section above for the exact error, what's been
+ruled out, and the billing page to check.
