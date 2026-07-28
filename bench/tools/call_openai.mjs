@@ -37,13 +37,35 @@ model regardless of how its raw output was produced.`;
 const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
 const MIN_GAP_MS = 250; // OpenAI's own rate limits are generous; this is politeness, not a workaround.
 
-function loadKey() {
+function readEnvFileKey(varName) {
   try {
-    process.loadEnvFile(path.join(import.meta.dirname, "..", ".env"));
+    const content = fs.readFileSync(path.join(import.meta.dirname, "..", ".env"), "utf8");
+    for (const line of content.split(/\r?\n/)) {
+      if (line.startsWith(`${varName}=`)) return line.slice(varName.length + 1).trim();
+    }
   } catch {
     /* no .env file — fine, may already be in the environment */
   }
-  const key = process.env.OPENAI_API_KEY;
+  return undefined;
+}
+
+function loadKey() {
+  // bench/.env must win over an already-set shell variable, not the other way around:
+  // Node's process.loadEnvFile() does NOT override a variable already present in
+  // process.env, which silently made every call in this project use a stale/shared
+  // shell-level OPENAI_API_KEY instead of this project's own key in bench/.env for
+  // an entire session (2026-07-28) — the file was correct the whole time, the shell
+  // env var was shadowing it. Read the file directly and prefer it explicitly.
+  const fileKey = readEnvFileKey("OPENAI_API_KEY");
+  const shellKey = process.env.OPENAI_API_KEY;
+  if (fileKey && shellKey && fileKey !== shellKey) {
+    log(
+      `NOTE: bench/.env's OPENAI_API_KEY differs from an already-set shell OPENAI_API_KEY ` +
+        `(shell ends ...${shellKey.slice(-4)}, file ends ...${fileKey.slice(-4)}) — using the ` +
+        `file's value. bench/.env always takes precedence over the shell environment here.`,
+    );
+  }
+  const key = fileKey || shellKey;
   if (!key) {
     throw new Error(
       "OPENAI_API_KEY not set. Set it as an environment variable, or create bench/.env " +
@@ -52,6 +74,21 @@ function loadKey() {
     );
   }
   return key;
+}
+
+// Minimum reasoning_effort value per model family, verified live rather than assumed
+// (METHODOLOGY §2.5 disclosure requirement: state exactly what was sent, not a nominal
+// guess). gpt-5.5 rejected "minimal" on 2026-07-28 with the API's own valid-values list
+// (none/low/medium/high/xhigh) — a different scale than earlier gpt-5 ids (minimal/low/
+// medium/high). Extend this map, don't guess, if a new model needs a new minimum.
+const REASONING_EFFORT_MIN = {
+  "gpt-5.5": "none",
+};
+
+function minReasoningEffort(model) {
+  if (REASONING_EFFORT_MIN[model]) return REASONING_EFFORT_MIN[model];
+  if (model.startsWith("gpt-5")) return "minimal";
+  return undefined;
 }
 
 async function callOnce(apiKey, model, system, user) {
@@ -73,7 +110,7 @@ async function callOnce(apiKey, model, system, user) {
       // gets, nothing more. temperature omitted (some models reject a nonzero value
       // when reasoning_effort is set; leaving unset is the honest disclosed setting,
       // same posture as models.json's Claude entries).
-      ...(model.startsWith("gpt-5") ? { reasoning_effort: "minimal" } : {}),
+      ...(minReasoningEffort(model) ? { reasoning_effort: minReasoningEffort(model) } : {}),
     }),
     signal: AbortSignal.timeout(60000),
   });

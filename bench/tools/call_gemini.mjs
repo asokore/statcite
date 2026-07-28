@@ -34,13 +34,32 @@ model regardless of how its raw output was produced.`;
 const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
 const MIN_GAP_MS = 250; // politeness, not a workaround — same posture as call_openai.mjs.
 
-function loadKey() {
+function readEnvFileKey(varName) {
   try {
-    process.loadEnvFile(path.join(import.meta.dirname, "..", ".env"));
+    const content = fs.readFileSync(path.join(import.meta.dirname, "..", ".env"), "utf8");
+    for (const line of content.split(/\r?\n/)) {
+      if (line.startsWith(`${varName}=`)) return line.slice(varName.length + 1).trim();
+    }
   } catch {
     /* no .env file — fine, may already be in the environment */
   }
-  const key = process.env.GEMINI_API_KEY;
+  return undefined;
+}
+
+function loadKey() {
+  // bench/.env must win over an already-set shell variable — see call_openai.mjs for
+  // why: process.loadEnvFile() doesn't override process.env, which let a stale shell
+  // key silently shadow this project's own file for a whole session (2026-07-28).
+  const fileKey = readEnvFileKey("GEMINI_API_KEY");
+  const shellKey = process.env.GEMINI_API_KEY;
+  if (fileKey && shellKey && fileKey !== shellKey) {
+    log(
+      `NOTE: bench/.env's GEMINI_API_KEY differs from an already-set shell GEMINI_API_KEY ` +
+        `(shell ends ...${shellKey.slice(-4)}, file ends ...${fileKey.slice(-4)}) — using the ` +
+        `file's value. bench/.env always takes precedence over the shell environment here.`,
+    );
+  }
+  const key = fileKey || shellKey;
   if (!key) {
     throw new Error(
       "GEMINI_API_KEY not set. Set it as an environment variable, or add it to bench/.env " +
