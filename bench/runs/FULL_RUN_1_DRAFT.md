@@ -122,8 +122,35 @@ experimental/limited-access).
    vendor (back to one-vendor quarantine) or freeze a roster entry that can't
    actually be called yet.
 
-## Currently blocking: OpenAI billing (owner action)
+## Root cause found and fixed (2026-07-28)
 
-Everything above this line is done or ready. The one open item is the OpenAI
-quota error — see the dedicated section above for the exact error, what's been
-ruled out, and the billing page to check.
+The OpenAI billing page (checked live, `platform.openai.com/settings/organization/billing`)
+showed credit balance **-$0.12** — not a huge deficit, but enough to hard-block
+every request regardless of model, since auto-recharge is off. Usage breakdown
+(`platform.openai.com/usage/chat-completions`) showed the entire draw: **5.431M
+input tokens on `gpt-5_5-2026-04-23`**, not on anything this session called
+(my one real `gpt-4o-mini` test this session used 118 input tokens, exactly
+matching the earlier-session record; my one `gpt-5.5` test today failed
+instantly on a quota rejection before any generation, so it billed nothing).
+
+API Keys page named the actual source: **two keys exist on this account** —
+`statcite-bench` (created 2026-07-26, this project's key, **$0.00 monthly
+spend**) and **`OpenClaw`** (created 2026-04-03, months before this project,
+**$10.12 monthly spend**, last used the same day the account was topped up).
+OpenClaw is the third autonomous engine on this operator's machine (alongside
+Claude Code and ChatGPT Cowork, per the operator's own multi-engine
+discipline note) and evidently shares this OpenAI account/project with no
+budget isolation from `statcite-bench`.
+
+**Owner action taken:** OpenClaw's key revoked via the API Keys page
+(2026-07-28) — it no longer appears in the Active key list. `statcite-bench`
+is untouched, $0.00 spend, ready for a fresh top-up whenever the owner adds
+one. OpenAI's key-level edit dialog only exposes name/permissions, no
+per-key dollar cap; project-level "Usage limits" would have capped both keys
+together, not isolated one from the other, so revoking the second engine's
+key was the correct fix, not a project-limit workaround.
+
+This is a distinct, real root cause from Gemini's blocker — it has nothing to
+do with model choice or quota tiers, only with a second, older key on the
+same account spending against the same balance. Once a fresh top-up lands,
+the roster (§ above) is otherwise ready to freeze and run.
