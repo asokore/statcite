@@ -19,7 +19,7 @@ Example: {"indicator":"inflation_cpi","country":"BRB","latest_only":true}
 ### verify_stat
 Check a claimed figure against the official series. THE tool to call before publishing any economic number.
 Args: indicator (registry key or explicit series id), country?, period (usually "YYYY"; quarters as "YYYY-Qn"/"YYYYQn"/"YYYY Qn", months as "YYYY-MM"/"YYYYMM"), claimed_value (number), tolerance_abs?, tolerance_pct?, strict_source? (bool — never verify against a fallback source; error instead), as_of? (date, e.g. "2019-04" — historical IMF-vintage verification: judge against a dated IMF WEO edition instead of today's data; only for gdp_growth, current_account_gdp, govt_debt_gdp, fiscal_balance_gdp, govt_revenue_gdp, govt_expenditure_gdp; impossible calendar dates are rejected).
-Returns verdict: match | close | mismatch | cannot_verify, plus official_value, difference, is_projection (true when the matched official observation is an IMF WEO/Fiscal Monitor estimate/projection, with the explanation qualified accordingly), observation_status (actual | modeled_estimate | estimate_or_actual | projection | unknown — "modeled_estimate" means the registry flags the series as a modeled publication, e.g. ILO-modeled unemployment: a published figure but a model output, never an outturn; "estimate_or_actual" means an IMF observation before the projection boundary, which may still be a staff estimate, never a confirmed actual; "unknown" also covers explicit series ids StatCite doesn't classify, which can be forecast datasets), status_method (horizon_heuristic for IMF series, as_published otherwise), diagnostics (year misattribution, percent-vs-decimal, scale confusion up to 10^12, sign flips), citation, as_of ({requested, resolved_vintage} — present only when as_of was used). A registry verify served from a transient-failure fallback returns cannot_verify with the fallback value as indicative (fallback_used: true) — substitutes can differ by definition or vintage beyond the verdict bands, and the primary may recover and serve a different number. When the primary permanently lacks the series/country (e.g. Taiwan in WDI), the fallback is the stable serving source and the verdict is judged normally with disclosure.
+Returns verdict: match | close | mismatch | cannot_verify, plus official_value, difference, is_projection (true when the matched official observation is an IMF WEO/Fiscal Monitor estimate/projection, with the explanation qualified accordingly), observation_status (actual | modeled_estimate | estimate_or_actual | projection | unknown — "modeled_estimate" means the registry flags the series as a modeled publication, e.g. ILO-modeled unemployment: a published figure but a model output, never an outturn; "estimate_or_actual" means an IMF observation before the projection boundary, which may still be a staff estimate, never a confirmed actual; "unknown" also covers explicit series ids StatCite doesn't classify, which can be forecast datasets), status_method (horizon_heuristic for IMF series, as_published otherwise), diagnostics (year misattribution, percent-vs-decimal, scale confusion up to 10^12, sign flips), citation, as_of ({requested, resolved_vintage, resolution, verification_scope, normal_primary_source, source_changed_for_as_of} — present only when as_of was used; see the historical-verification paragraph below). A registry verify served from a transient-failure fallback returns cannot_verify with the fallback value as indicative (fallback_used: true) — substitutes can differ by definition or vintage beyond the verdict bands, and the primary may recover and serve a different number. When the primary permanently lacks the series/country (e.g. Taiwan in WDI), the fallback is the stable serving source and the verdict is judged normally with disclosure.
 Default thresholds: percent-kind series → match ≤0.06pp or ≤0.5% rel, close ≤0.3pp or ≤2% rel; levels → match ≤0.5% rel, close ≤5% rel.
 Historical IMF-vintage verification (as_of): judges the claim against a dated IMF WEO edition — NOT exact "truth at the time". Two disclosed bounds: (1) the vintage is resolved with a CONSERVATIVE month calendar (editions flip May 1 / Nov 1, not the IMF's actual release days — a date inside a release month resolves to the previous edition even if the new one already existed; the response's as_of.resolution and a note say so, and get_series with a dated dbnomics/IMF/WEO:YYYY-MM id pins exactly); (2) as_of always verifies against the WEO archive even when the indicator's live primary is World Bank WDI or the IMF Fiscal Monitor — as_of.source_changed_for_as_of flags this, since a claim from the live primary can differ from WEO for methodological reasons, not only revisions. Dated editions confirmed back to at least 2010-04. Rejects with advice for indicators/ids with no dated vintage. Full as_of response object: {requested, resolved_vintage, resolution, verification_scope, normal_primary_source, source_changed_for_as_of}.
 
@@ -37,7 +37,7 @@ Raw series by explicit id: "worldbank/<WDI code>" (+country), "imf/<CODE>" (+cou
 Args: series_id, country?, start_year?, end_year?, transform?.
 
 ### search_indicators
-Free-text search over the registry + DBnomics dataset discovery. Args: query.
+Free-text search over the registry + DBnomics dataset discovery. Args: query. Indicator results carry active (boolean) — a disabled FRED-reserved key says so in its description and usage ("do not call") instead of pretending to be fetchable.
 
 ### country_snapshot
 11 headline indicators for one country, each with its own citation. Args: country.
@@ -59,12 +59,12 @@ fetch({id}) → {id,title,text,url,metadata}; text contains recent observations 
 ## REST endpoints (GET unless noted)
 
 - /v1 — endpoint index
-- /v1/indicators — full registry
+- /v1/indicators — full registry; each entry carries active (boolean) and, on the six permanently-disabled FRED-reserved keys, disabled_reason
 - /v1/indicator/{key}?country=&start_year=&end_year=&transform=&latest_only=
 - /v1/series?id=&country=&start_year=&end_year=&transform=
 - /v1/search?q=
 - /v1/snapshot/{country}
-- /v1/verify?indicator=&country=&period=&value=&tolerance_abs=&tolerance_pct=&strict_source=
+- /v1/verify?indicator=&country=&period=&value=&tolerance_abs=&tolerance_pct=&strict_source=&as_of=
 - /v1/verify_claims — POST, JSON body {"claims":[...], "strict_source"?: bool}, 1–15 claims (the only non-GET route)
 - /v1/inflation?amount=&from_year=&to_year=&country=
 - /v1/fx?amount=&from=&to=&date=

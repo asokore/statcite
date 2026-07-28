@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StatCite API",
-    "version": "1.4.1",
+    "version": "1.4.2",
     "description": "Official economic statistics with full citations, built for AI agents. Every numeric response includes a citation object (source, dataset, series_id, source_url, license, attribution, retrieved_at, citation_text). Free, no auth, read-only. MCP endpoint at https://statcite.com/mcp.",
     "contact": {
       "email": "hello@statcite.com",
@@ -47,7 +47,51 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "indicators": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "unit": {
+                            "type": "string"
+                          },
+                          "sources": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Serving order = fallback chain."
+                          },
+                          "active": {
+                            "type": "boolean",
+                            "description": "False for the six permanently-disabled FRED-reserved keys — they are recognized but always decline (added 1.4.2)."
+                          },
+                          "disabled_reason": {
+                            "type": "string",
+                            "description": "Present only when active is false: why the key declines and what to use instead."
+                          },
+                          "notes": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "label",
+                          "unit",
+                          "sources",
+                          "active"
+                        ]
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -762,7 +806,10 @@
           },
           "fallback_reason": {
             "type": "string",
-            "enum": ["transient", "definitive"],
+            "enum": [
+              "transient",
+              "definitive"
+            ],
             "description": "Present only alongside fallback_used: 'transient' means the primary failed temporarily and may serve a different value for the same query once recovered (verify_stat demotes such verifies to cannot_verify); 'definitive' means the primary permanently lacks this series/country (e.g. Taiwan in WDI), so the fallback is that combination's stable serving source and verifies are judged normally with disclosure."
           }
         }
@@ -794,12 +841,21 @@
           },
           "observation_status": {
             "type": "string",
-            "enum": ["actual", "modeled_estimate", "estimate_or_actual", "projection", "unknown"],
+            "enum": [
+              "actual",
+              "modeled_estimate",
+              "estimate_or_actual",
+              "projection",
+              "unknown"
+            ],
             "description": "Honest status of the matched observation. 'actual': a series StatCite classifies as outturn data (registry World Bank indicators not flagged as modeled, explicit worldbank/ WDI ids), subject to routine revision. 'modeled_estimate' (added 1.4.1): the registry flags this indicator as a modeled series — e.g. the World Bank's ILO-modeled unemployment and labor-force-participation estimates — a published figure, but a model output, not a measured outturn. 'estimate_or_actual': IMF WEO/Fiscal Monitor observation before the projection boundary — the IMF's true latest-actual year varies by country and is not exposed by the data path, so recent values may be staff estimates; never read this as a confirmed actual. 'projection': at/after the heuristic boundary. 'unknown': no observation matched the period, or the series is an explicit id outside StatCite's classification (arbitrary DBnomics series can be forecast datasets — consult the source)."
           },
           "status_method": {
             "type": "string",
-            "enum": ["horizon_heuristic", "as_published"],
+            "enum": [
+              "horizon_heuristic",
+              "as_published"
+            ],
             "description": "How observation_status was determined: 'horizon_heuristic' for IMF WEO/Fiscal Monitor series (boundary derived from the response's own data — the payload's projection horizon on the DataMapper channel, the dataset-code vintage year on the DBnomics channel; a heuristic, not IMF per-country metadata); 'as_published' otherwise."
           },
           "period": {
@@ -849,12 +905,36 @@
             "type": "object",
             "description": "Present when the as_of parameter was used: historical IMF-VINTAGE verification — the verdict was checked against a dated IMF WEO edition, not today's live data. Absent otherwise.",
             "properties": {
-              "requested": { "type": "string", "description": "The as_of date as passed by the caller." },
-              "resolved_vintage": { "type": "string", "description": "The IMF WEO edition (YYYY-MM) resolved from it." },
-              "resolution": { "type": "string", "enum": ["conservative_month_calendar"], "description": "How the vintage was resolved: a conservative month calendar (editions flip May 1 / Nov 1), NOT the IMF's exact release days — a date late in a release month resolves to the previous edition even if the new one had already been published; a note discloses this for dates inside release months." },
-              "verification_scope": { "type": "string", "enum": ["imf_weo_historical_vintage"], "description": "What was verified against: the IMF WEO historical archive, the only dated-vintage source this server has." },
-              "normal_primary_source": { "type": "string", "description": "The source the live (non-as_of) path serves this indicator from first (e.g. 'World Bank WDI', 'IMF Fiscal Monitor (via the DataMapper API)')." },
-              "source_changed_for_as_of": { "type": "boolean", "description": "True when the live primary differs from the WEO archive by source or IMF database — a claim originally made from the live primary can legitimately differ from the WEO edition for methodological reasons, not only because of revisions." }
+              "requested": {
+                "type": "string",
+                "description": "The as_of date as passed by the caller."
+              },
+              "resolved_vintage": {
+                "type": "string",
+                "description": "The IMF WEO edition (YYYY-MM) resolved from it."
+              },
+              "resolution": {
+                "type": "string",
+                "enum": [
+                  "conservative_month_calendar"
+                ],
+                "description": "How the vintage was resolved: a conservative month calendar (editions flip May 1 / Nov 1), NOT the IMF's exact release days — a date late in a release month resolves to the previous edition even if the new one had already been published; a note discloses this for dates inside release months."
+              },
+              "verification_scope": {
+                "type": "string",
+                "enum": [
+                  "imf_weo_historical_vintage"
+                ],
+                "description": "What was verified against: the IMF WEO historical archive, the only dated-vintage source this server has."
+              },
+              "normal_primary_source": {
+                "type": "string",
+                "description": "The source the live (non-as_of) path serves this indicator from first (e.g. 'World Bank WDI', 'IMF Fiscal Monitor (via the DataMapper API)')."
+              },
+              "source_changed_for_as_of": {
+                "type": "boolean",
+                "description": "True when the live primary differs from the WEO archive by source or IMF database — a claim originally made from the live primary can legitimately differ from the WEO edition for methodological reasons, not only because of revisions."
+              }
             }
           }
         }
