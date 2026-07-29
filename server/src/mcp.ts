@@ -76,7 +76,7 @@ function toolTextObj(id: JsonRpcId, payload: unknown, isError = false): Record<s
  * notifications/client-responses (which produce no body). `httpStatus` is a
  * hint used only for single (non-batch) messages.
  */
-async function dispatchMessage(
+export async function dispatchMessage(
   msg: JsonRpcMessage,
   ctx: Ctx,
 ): Promise<{ body: Record<string, unknown> | null; httpStatus: number }> {
