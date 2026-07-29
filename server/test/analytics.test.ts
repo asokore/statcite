@@ -86,7 +86,12 @@ function flatten(p: Point): string {
 // Guard: nothing in this file may reach the network, and console noise from the
 // second (free) sink is swallowed so the test output stays readable.
 const realFetch = globalThis.fetch;
-const realLog = console.log;
+// console.error, not console.log: the free console sink writes there (see
+// core/analytics.ts) so stdio MCP transports (server/src/stdio-entry.ts) can
+// keep stdout as pure JSON-RPC. Workers captures both identically for
+// wrangler tail/Logs, so this is a spy-target change only, not a behavior
+// change for production monitoring.
+const realError = console.error;
 let fetchCalls: string[] = [];
 const logLines: string[] = [];
 
@@ -96,14 +101,14 @@ before(() => {
     fetchCalls.push(u);
     throw new Error(`network access is not allowed in analytics.test.ts (${u})`);
   }) as typeof fetch;
-  console.log = (...args: unknown[]) => {
+  console.error = (...args: unknown[]) => {
     logLines.push(args.map(String).join(" "));
   };
 });
 
 after(() => {
   globalThis.fetch = realFetch;
-  console.log = realLog;
+  console.error = realError;
 });
 
 beforeEach(() => {

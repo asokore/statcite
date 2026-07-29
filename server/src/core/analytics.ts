@@ -174,8 +174,13 @@ export function recordUsage(sink: UsageSink | undefined, ev: UsageEvent): void {
       }
     }
     // Always emit the free, zero-setup line too (wrangler tail / Logs view).
+    // console.error, not console.log: Workers captures both identically for
+    // wrangler tail/Logs, but stdio MCP transports (e.g. server/src/stdio-entry.ts,
+    // used by Glama's build-and-scan flow) require stdout to carry ONLY
+    // JSON-RPC messages — a stray console.log line here breaks any real
+    // line-oriented stdio client parsing every stdout line as a message.
     try {
-      console.log(
+      console.error(
         `STATCITE_USAGE ${JSON.stringify({
           transport: dp.blobs[0],
           op: dp.blobs[1],
