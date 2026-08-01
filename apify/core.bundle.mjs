@@ -675,6 +675,13 @@ function searchIndicatorDefs(query, limit = 8) {
 }
 
 // ../server/src/core/transforms.ts
+var TRANSFORM_VALUES = ["none", "yoy", "pct_change", "index"];
+function parseTransform(v) {
+  if (v == null || v === "") return "none";
+  const s = String(v).toLowerCase().trim();
+  if (TRANSFORM_VALUES.includes(s)) return s;
+  throw new ToolError(`Unknown transform '${String(v)}'. Valid: ${TRANSFORM_VALUES.join(", ")}.`);
+}
 function yoyLag(frequency) {
   switch ((frequency || "annual").toLowerCase()) {
     case "monthly":
@@ -1939,7 +1946,7 @@ async function inflationAdjust(ctx, amount, fromYear, toYear, countryInput = "US
     "CPI measures consumer prices \u2014 for comparing incomes or output across years, a GDP deflator may be more appropriate."
   ];
   if (country.iso3 === "USA") {
-    notes.push("For US monthly precision, the FRED series CPIAUCSL is available via get_series('fred/CPIAUCSL') when the server has a FRED key.");
+    notes.push("This calculation uses World Bank annual-average CPI; US monthly-frequency CPI (FRED's CPIAUCSL) is not available \u2014 FRED is permanently disabled on this deployment per its terms of use.");
   }
   return {
     original_amount: amount,
@@ -2558,12 +2565,12 @@ var SOURCES = [
   {
     id: "fred",
     name: "Federal Reserve Bank of St. Louis \u2014 FRED (permanently disabled)",
-    coverage: "Not served. FRED's terms of use (updated June 2024) prohibit AI/ML use and caching/redistribution of its content, which conflicts with how this service serves data \u2014 there is no compliant way to offer it here.",
+    coverage: "Not served. The FRED Services Terms of Use, clauses (p) and (q), prohibit use in connection with training or running AI/ML/LLM systems and prohibit storing, caching or archiving FRED content, which conflicts with how this service serves data \u2014 there is no compliant way to offer it here.",
     access: "Disabled \u2014 the six US-only registry keys and the fred/ series id are recognized but always decline",
-    license: "FRED API Terms of Use \u2014 see https://fred.stlouisfed.org/docs/api/terms_of_use.html",
+    license: "FRED Services Terms of Use, clauses (p) and (q) \u2014 see https://fred.stlouisfed.org/legal/",
     attribution_required: "Not applicable \u2014 no FRED content is served.",
     url: "https://fred.stlouisfed.org",
-    terms_url: "https://fred.stlouisfed.org/docs/api/terms_of_use.html"
+    terms_url: "https://fred.stlouisfed.org/legal/"
   },
   {
     id: "dbnomics",
@@ -2585,6 +2592,7 @@ export {
   getSeries,
   inflationAdjust,
   listRegistry,
+  parseTransform,
   searchIndicators,
   verifyStat
 };

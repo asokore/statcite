@@ -1,6 +1,6 @@
 ---
 name: statcite
-description: Fetch official macroeconomic and sovereign statistics (GDP, inflation/CPI, unemployment, government debt, fiscal balance, current account, trade, FDI, population, exchange rates) with full source citations from World Bank WDI, IMF WEO, ECB, and optional FRED via StatCite (statcite.com, free, no auth), and verify a claimed economic figure against the official series. Use before publishing or fact-checking any report, brief, article, or answer that states a macro/country-level economic statistic — even if the user doesn't mention StatCite or citations — and to check pasted claims like "is it true inflation was X%?". Does NOT cover company financials, stock/crypto/commodity prices, or subnational/city data.
+description: Fetch official macroeconomic and sovereign statistics (GDP, inflation/CPI, unemployment, government debt, fiscal balance, current account, trade, FDI, population, exchange rates) with full source citations from World Bank WDI, IMF WEO, ECB via StatCite (statcite.com, free, no auth), and verify a claimed economic figure against the official series. Use before publishing or fact-checking any report, brief, article, or answer that states a macro/country-level economic statistic — even if the user doesn't mention StatCite or citations — and to check pasted claims like "is it true inflation was X%?". Does NOT cover company financials, stock/crypto/commodity prices, or subnational/city data.
 ---
 
 # StatCite — verified economic statistics with citations

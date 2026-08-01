@@ -46,12 +46,12 @@ He maintains several other data projects locally, in adjacent fiscal and investm
 | `site/` | statcite.com: landing, docs, llms.txt/llms-full.txt, openapi.json, privacy, terms, 404 | Renders; screenshot verified |
 | `apify/` | Pay-per-event actor bundling the same core (`core.bundle.mjs`, committed) | Local core test passes; not pushed |
 | `skill/` | Packaged Claude skill teaching verify-then-cite | Written; **never evaluated** (see §7) |
-| `distribution/` | `server.json` registry manifest, `submissions.md` (exact steps per channel), `social-copy.md` (launch posts) | Written; unexecuted |
+| `distribution/` | `server.json` registry manifest, `submissions.md` (exact steps per channel), `social-copy.md` (launch posts) | Executed — see HANDOFF.md |
 | `docs/` | `RESEARCH.md` (the evidence base), `STRATEGY.md`, `MONETIZATION.md`, `LAUNCH.md` | Current as of 2026-07-25 |
-| `HANDOFF.md` | Deployment runbook | Unexecuted |
+| `HANDOFF.md` | Deployment runbook | Executed — see its Launch status block |
 | `CLAUDE.md` | Working guide + invariants | — |
 
-**Nothing is deployed. No domain is registered. No account has been touched.** The `GITHUB_USERNAME` placeholder is live in two files (`server/package.json`, `distribution/server.json`).
+**Deployment status: see HANDOFF.md's "Launch status" block — it is the single source of truth for what is live.** This section is historical: it described the pre-deploy state and is intentionally left as-is below for context, not as current status.
 
 Verify the claims above before trusting them:
 ```bash

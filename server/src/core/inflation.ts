@@ -57,7 +57,7 @@ export async function inflationAdjust(
     "CPI measures consumer prices — for comparing incomes or output across years, a GDP deflator may be more appropriate.",
   ];
   if (country.iso3 === "USA") {
-    notes.push("For US monthly precision, the FRED series CPIAUCSL is available via get_series('fred/CPIAUCSL') when the server has a FRED key.");
+    notes.push("This calculation uses World Bank annual-average CPI; US monthly-frequency CPI (FRED's CPIAUCSL) is not available — FRED is permanently disabled on this deployment per its terms of use.");
   }
   return {
     original_amount: amount,

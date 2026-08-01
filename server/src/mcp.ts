@@ -207,6 +207,14 @@ export async function handleMcp(request: Request, ctx: Ctx): Promise<Response> {
     if (parsed.length === 0) {
       return json(400, errorObj(null, -32600, "Invalid Request: empty batch."));
     }
+    // A tiny per-message body (e.g. country_snapshot at ~113 bytes) lets ~2,300
+    // messages fit the 256KB request cap, each fanning out to multiple upstream
+    // subrequests — one request could exhaust the Worker's subrequest budget.
+    // 20 mirrors the verify_claims per-call cap (tools.ts MAX_CLAIMS) for the
+    // same free-tier-budget reason.
+    if (parsed.length > 20) {
+      return json(400, errorObj(null, -32600, "Invalid Request: batch too large (max 20 messages)."));
+    }
     const bodies: Record<string, unknown>[] = [];
     for (const m of parsed) {
       const r = await dispatchMessage(m as JsonRpcMessage, ctx);

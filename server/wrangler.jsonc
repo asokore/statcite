@@ -36,6 +36,7 @@
   // "analytics_engine_datasets": [{ "binding": "STATCITE_USAGE", "dataset": "statcite_usage" }],
   "observability": { "enabled": true }
   // Secrets (set via `wrangler secret put`):
-  //   FRED_API_KEY  — optional; unlocks FRED (US monthly) series. Get a free key:
-  //                   https://fredaccount.stlouisfed.org/apikeys
+  //   FRED_API_KEY — INERT. FRED is permanently disabled (server/src/adapters/fred.ts
+  //                  declines unconditionally per a verified terms-of-use conflict).
+  //                  Do not set; do not re-enable without re-reading the current ToU.
 }

@@ -32,6 +32,12 @@ const annotations = {
   openWorldHint: true,
 };
 
+// Bounds every free-text string parameter (country, indicator, period, series_id,
+// query, as_of, ...) at one call site. Without this, a single unauthenticated
+// request can hand a many-KB non-resolving string to suggestCountries' O(names
+// x tokens) scan, burning CPU with no upstream I/O at all.
+const MAX_STR_LEN = 200;
+
 function str(args: Json, key: string, required = true): string {
   const v = args[key];
   if (v == null || v === "") {
@@ -39,6 +45,7 @@ function str(args: Json, key: string, required = true): string {
     return "";
   }
   if (typeof v !== "string") throw new ToolError(`Parameter '${key}' must be a string.`);
+  if (v.length > MAX_STR_LEN) throw new ToolError(`Parameter '${key}' is too long (max ${MAX_STR_LEN} characters).`);
   return v;
 }
 
@@ -87,6 +94,7 @@ function claimStr(claim: Json, index: number, key: string, required: boolean, hi
     return undefined;
   }
   if (typeof v !== "string") throw new ToolError(`claims[${index}].${key} must be a string — ${hint}`);
+  if (v.length > MAX_STR_LEN) throw new ToolError(`claims[${index}].${key} is too long (max ${MAX_STR_LEN} characters) — ${hint}`);
   return v;
 }
 
@@ -418,7 +426,7 @@ export const TOOLS: ToolDef[] = [
     name: "list_sources",
     title: "List data sources, licenses, and attribution rules",
     description:
-      "The official sources behind StatCite (World Bank WDI, IMF WEO & Fiscal Monitor via the IMF DataMapper API — with DBnomics as a vintage-pinned fallback, ECB reference rates, optional FRED), what each covers, its license, and the attribution line to use when citing.",
+      "The official sources behind StatCite (World Bank WDI, IMF WEO & Fiscal Monitor via the IMF DataMapper API — with DBnomics as a vintage-pinned fallback, ECB reference rates, FRED disabled), what each covers, its license, and the attribution line to use when citing.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     handler: async () => ({ sources: SOURCES, registry_size: INDICATORS.length }),
   },
