@@ -7,18 +7,25 @@
 import { Actor, log } from "apify";
 import {
   getIndicator, getSeries, verifyStat, inflationAdjust, fxConvert,
-  countrySnapshot, searchIndicators, listRegistry, ToolError,
+  countrySnapshot, searchIndicators, listRegistry, parseTransform, ToolError,
 } from "./core.bundle.mjs";
 
 await Actor.init();
 
-const ctx = {
-  baseUrl: "https://statcite.com",
-  // fredApiKey deliberately NOT passed: FRED is permanently disabled (its ToU
-  // prohibit AI/ML use and caching/redistribution — statcite v1.3.2); the
-  // adapter declines regardless of any key, so plumbing one here would only
-  // suggest a capability that doesn't exist.
-};
+// A fresh ctx per item, not one shared for the whole run: _dmMemo (see
+// core/types.ts) memoizes rejections too, which is correct within one item
+// but would let one transient IMF blip serve degraded fallback data — while
+// still charging statcite-lookup — for the rest of a batch run if ctx were
+// reused across items.
+function newCtx() {
+  return {
+    baseUrl: "https://statcite.com",
+    // fredApiKey deliberately NOT passed: FRED is permanently disabled (its ToU
+    // prohibit AI/ML use and caching/redistribution — statcite v1.3.2); the
+    // adapter declines regardless of any key, so plumbing one here would only
+    // suggest a capability that doesn't exist.
+  };
+}
 
 const input = (await Actor.getInput()) ?? {};
 const operation = input.operation ?? "indicator";
@@ -26,13 +33,13 @@ const operation = input.operation ?? "indicator";
 // top-level input is the single item.
 const items = Array.isArray(input.items) && input.items.length > 0 ? input.items : [input];
 
-async function runOne(op, p) {
+async function runOne(ctx, op, p) {
   switch (op) {
     case "indicator":
       return getIndicator(ctx, must(p, "indicator"), must(p, "country"), {
         start: p.start_year ? String(p.start_year) : undefined,
         end: p.end_year ? String(p.end_year) : undefined,
-        transform: p.transform ?? "none",
+        transform: parseTransform(p.transform),
         limit: p.latest_only ? 1 : 80,
       });
     case "series":
@@ -40,7 +47,7 @@ async function runOne(op, p) {
         country: p.country || undefined,
         start: p.start_year ? String(p.start_year) : undefined,
         end: p.end_year ? String(p.end_year) : undefined,
-        transform: p.transform ?? "none",
+        transform: parseTransform(p.transform),
         limit: 120,
       });
     case "verify":
@@ -78,7 +85,7 @@ let budgetReached = false;
 for (const [i, item] of items.entries()) {
   const op = item.operation ?? operation;
   try {
-    const result = await runOne(op, item);
+    const result = await runOne(newCtx(), op, item);
     // Charge one pay-per-event unit per successful query (no charge on failures).
     // 'verify' is priced separately from lookups — see apify/README.md "Pricing".
     // Respect the run's charge budget: stop serving once the limit is reached.

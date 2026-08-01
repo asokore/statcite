@@ -38,6 +38,4 @@ StatCite is a free remote MCP server + REST API serving official economic statis
 6b. **Analytics is aggregate-only and best-effort**: never record IP, user agent, headers, free-text queries or claimed values (`site/privacy.html` promises no profiling); every recorded string comes from a closed set; `recordUsage()` must never throw into the response path. Analytics Engine blob positions are a schema — append, never reorder.
 7. If you change `core/`, run `npm test && npm run smoke`, and rebuild the actor bundle (`cd ../apify && npm run build:core`), and regenerate the docs registry table if keys changed (table in `site/docs.html` + list in `site/llms-full.txt` + `skill/statcite/SKILL.md` + repackage `skill/statcite.skill`).
 
-## Placeholders to resolve at deploy
-
-`GITHUB_USERNAME` in `server/package.json` (mcpName) and `distribution/server.json`. Domain is `statcite.com` throughout (BASE_URL var in `wrangler.jsonc`).
+Domain is `statcite.com` throughout (BASE_URL var in `wrangler.jsonc`). The `GITHUB_USERNAME` placeholder mentioned in older docs is already resolved to `asokore` in `server/package.json` (mcpName) and `distribution/server.json` — nothing left to do there.

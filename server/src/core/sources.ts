@@ -37,12 +37,12 @@ export const SOURCES = [
   {
     id: "fred",
     name: "Federal Reserve Bank of St. Louis — FRED (permanently disabled)",
-    coverage: "Not served. FRED's terms of use (updated June 2024) prohibit AI/ML use and caching/redistribution of its content, which conflicts with how this service serves data — there is no compliant way to offer it here.",
+    coverage: "Not served. The FRED Services Terms of Use, clauses (p) and (q), prohibit use in connection with training or running AI/ML/LLM systems and prohibit storing, caching or archiving FRED content, which conflicts with how this service serves data — there is no compliant way to offer it here.",
     access: "Disabled — the six US-only registry keys and the fred/ series id are recognized but always decline",
-    license: "FRED API Terms of Use — see https://fred.stlouisfed.org/docs/api/terms_of_use.html",
+    license: "FRED Services Terms of Use, clauses (p) and (q) — see https://fred.stlouisfed.org/legal/",
     attribution_required: "Not applicable — no FRED content is served.",
     url: "https://fred.stlouisfed.org",
-    terms_url: "https://fred.stlouisfed.org/docs/api/terms_of_use.html",
+    terms_url: "https://fred.stlouisfed.org/legal/",
   },
   {
     id: "dbnomics",
