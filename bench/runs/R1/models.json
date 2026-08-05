@@ -1,0 +1,57 @@
+{
+  "run": "R1",
+  "spec": "METHODOLOGY §2.5 and §7 — Full Run 1: first roster to satisfy COVENANT §6 (>=2 non-Anthropic vendors). Claude models invoked as Claude Code subagents (same as P0); OpenAI and Google models invoked via real API calls (tools/call_openai.mjs, tools/call_gemini.mjs).",
+  "roster": [
+    {
+      "model": "claude-haiku-4-5",
+      "invocation": "Claude Code subagent (Task tool), one call per batch",
+      "temperature": "not controllable in this harness (vendor-managed); disclosed per METHODOLOGY §7 deviation (2)",
+      "reasoning_effort": "minimum available for this harness",
+      "tools": "no structured-output tool provided; memory-only enforcement is instruction-based (system_prompt_v1.txt); per-agent tool-call counts are published as the compliance check"
+    },
+    {
+      "model": "claude-sonnet-5",
+      "invocation": "Claude Code subagent (Task tool), one call per batch",
+      "temperature": "not controllable in this harness (vendor-managed); disclosed per METHODOLOGY §7 deviation (2)",
+      "reasoning_effort": "minimum available for this harness",
+      "tools": "no structured-output tool provided; memory-only enforcement is instruction-based (system_prompt_v1.txt); per-agent tool-call counts are published as the compliance check"
+    },
+    {
+      "model": "claude-opus-5",
+      "invocation": "Claude Code subagent (Task tool), one call per batch",
+      "temperature": "not controllable in this harness (vendor-managed); disclosed per METHODOLOGY §7 deviation (2)",
+      "reasoning_effort": "minimum available for this harness",
+      "tools": "no structured-output tool provided; memory-only enforcement is instruction-based (system_prompt_v1.txt); per-agent tool-call counts are published as the compliance check"
+    },
+    {
+      "model": "claude-fable-5",
+      "invocation": "Claude Code subagent (Task tool), one call per batch",
+      "temperature": "not controllable in this harness (vendor-managed); disclosed per METHODOLOGY §7 deviation (2)",
+      "reasoning_effort": "minimum available for this harness",
+      "tools": "no structured-output tool provided; memory-only enforcement is instruction-based (system_prompt_v1.txt); per-agent tool-call counts are published as the compliance check"
+    },
+    {
+      "model": "gpt-5.5",
+      "invocation": "Real API call via tools/call_openai.mjs, POST /v1/chat/completions, one call per batch",
+      "temperature": "omitted (not sent) — some gpt-5.x models reject a nonzero value when reasoning_effort is set; leaving unset is the honestly-disclosed setting, not a claimed nominal value",
+      "reasoning_effort": "\"none\" — the minimum value gpt-5.5 accepts (verified live 2026-07-28; this model's valid set is none/low/medium/high/xhigh, a different scale than earlier gpt-5 ids which used minimal/low/medium/high)",
+      "tools": "no tools, no structured-output/response-format mode; same bare instruction-based JSON-array protocol as every other roster entry"
+    },
+    {
+      "model": "gemini-3-flash-preview",
+      "invocation": "Real API call via tools/call_gemini.mjs, POST generateContent, one call per batch",
+      "temperature": "omitted (not sent) — no generationConfig override; nominal defaults, not independently verified as \"minimal,\" disclosed as such rather than assumed",
+      "reasoning_effort": "not exposed by this model's API in the fields this harness sends; no thinking-budget override applied",
+      "tools": "no tools, no structured-output/response-schema mode; same bare instruction-based JSON-array protocol as every other roster entry. NOTE: this is a preview model — it can change behavior or be deprecated without notice; it was the only Gemini model this account's key could call as of 2026-07-28 (gemini-2.5-* rejected as unavailable to new users, gemini-2.0-flash had zero free-tier quota)."
+    }
+  ],
+  "settings_notes": [
+    "Uniform protocol arm only (§2.5): minimum reasoning/thinking settings across the roster; an as-deployed arm starts with the first multi-vendor wave.",
+    "Temperature is not exposed by the Claude Code subagent harness (deviation (2)); OpenAI and Gemini arms omit temperature entirely rather than claim a nominal value not independently verified.",
+    "The platform's own system prompt is vendor-controlled and not publishable for the Claude arm — disclosed limitation, METHODOLOGY §7 deviation (1); full harness prompt texts and raw outputs are published verbatim for every vendor.",
+    "R1 reuses P0's question bank and batch assignment verbatim (questions/R1.json = questions/P0.json; questions/R1-batches.json's `batches` array is identical to P0's). Ground truth was refrozen fresh under snapshots/R1/ rather than reused from P0, since served values can revise between freezes.",
+    "R1-batches.json's model_order for gpt-5.5 and gemini-3-flash-preview was computed from the exact same documented formula as P0's 4 Claude entries (shuffle(qids, rngFromHex(deriveSeed(seed, \"{model}:{batch_id}\")))), not a fresh draw or hand-picked order. Verified before use: recomputing all 4 existing Claude orders from this formula reproduced P0's frozen file byte-for-byte.",
+    "R1 satisfies COVENANT §6 (>=2 non-Anthropic vendors: OpenAI and Google, alongside Anthropic/Claude) — the first roster in this benchmark eligible to produce a citable cross-model result.",
+    "P0 results remain quarantined per METHODOLOGY §7: methodology validation only, never citable as a finding about Claude or about AI. R1 is a distinct run with its own manifest and its own citability status."
+  ]
+}

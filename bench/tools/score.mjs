@@ -155,6 +155,12 @@ async function main() {
   const snapshot = readJson(path.join(paths.snapshotDir, "ground_truth.json"));
   const revCheckPath = path.join(paths.snapshotDir, "revision_check.json");
   const revCheck = fs.existsSync(revCheckPath) ? readJson(revCheckPath) : { rows: [] };
+  // §1.3 reweighting weights (optional: absent for pre-R2 runs).
+  const weightsPath = path.join(paths.snapshotDir, "weights.json");
+  const weightsFile = fs.existsSync(weightsPath) ? readJson(weightsPath) : null;
+  const weights = weightsFile
+    ? new Map(weightsFile.rows.map((r) => [r.iso3, { gdp: r.gdp_current_usd?.value ?? null, pop: r.population?.value ?? null }]))
+    : null;
 
   const qByQid = new Map(bank.questions.map((q) => [q.qid, q]));
   const gtByQid = new Map(snapshot.rows.map((r) => [r.qid, r]));
@@ -357,6 +363,62 @@ async function main() {
       return cs.length ? Number((cs.reduce((a, b) => a + b, 0) / cs.length).toFixed(3)) : null;
     };
 
+    // §1.3 reweighting sensitivity: headline WTR recomputed with each question
+    // weighted by its economy's GDP / population (weights.json, frozen pre-call).
+    // Economies with a null weight fall back to the mean non-null weight —
+    // disclosed via null_weight_economies, never silently dropped.
+    function weightedWtr(weightOf) {
+      const ws = scoreable.map((r) => weightOf(r.iso3));
+      const known = ws.filter((w) => w != null);
+      if (!known.length) return null;
+      const mean = known.reduce((a, b) => a + b, 0) / known.length;
+      let num = 0, den = 0;
+      scoreable.forEach((r, i) => {
+        const w = ws[i] ?? mean;
+        den += w;
+        if (r.status === "match" || r.status === "close") num += w;
+      });
+      return den > 0 ? Number((num / den).toFixed(4)) : null;
+    }
+    let reweighting = null;
+    if (weights) {
+      const gdpOf = (iso3) => weights.get(iso3)?.gdp ?? null;
+      const popOf = (iso3) => weights.get(iso3)?.pop ?? null;
+      const nullEcon = [...new Set(scoreable.map((r) => r.iso3))].filter((i) => weights.get(i)?.gdp == null || weights.get(i)?.pop == null);
+      reweighting = {
+        wtr_equal: rate(within.length, scoreable.length).rate,
+        wtr_gdp_weighted: weightedWtr(gdpOf),
+        wtr_population_weighted: weightedWtr(popOf),
+        null_weight_economies: nullEcon,
+      };
+    }
+
+    // ADDENDA §3 dual metric: WTR restricted to YEAR-DISCRIMINATING questions —
+    // those where an adjacent-year official value would NOT score within
+    // tolerance, so a right answer proves the model knows the asked year, not
+    // just the series' neighbourhood. Computed from ground truth only (identical
+    // subset for every model), never from the model's answer.
+    const ydQids = new Set(
+      bank.questions
+        .filter((q) => {
+          if (q.segment !== "headline") return false;
+          const g = gtByQid.get(q.qid);
+          if (!g || g.value == null) return false;
+          for (const adj of [g.adjacent?.prev, g.adjacent?.next]) {
+            if (adj?.value != null && judgeBand(adj.value, g.value, q.kind, q.revision_class) !== "mismatch") return false;
+          }
+          return true;
+        })
+        .map((q) => q.qid),
+    );
+    const ydScoreable = scoreable.filter((r) => ydQids.has(r.qid));
+    const ydWithin = ydScoreable.filter((r) => r.status === "match" || r.status === "close");
+    const yearDiscrimination = {
+      n_year_discriminating: ydQids.size,
+      WTR_year_discriminating: rate(ydWithin.length, ydScoreable.length),
+      WTR_all: rate(within.length, scoreable.length),
+    };
+
     const R = rows.filter((r) => r.segment === "recency");
     const rScoreable = R.filter((r) => r.status !== "format_failure");
     const rAnswered = rScoreable.filter((r) => !["refusal", "answer_failure"].includes(r.status));
@@ -390,6 +452,8 @@ async function main() {
         // never again produce a plausible-looking all-zero table silently.
         vintage_eligible_misses: scoreable.filter((r) => r.vintage_status === "ok").length,
         repaired: H.filter((r) => r.repaired).length,
+        ...(reweighting ? { reweighting } : {}),
+        year_discrimination: yearDiscrimination,
       },
       breakdowns: {
         by_class: breakdown((r) => r.revision_class),

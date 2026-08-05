@@ -27,7 +27,20 @@ export const STATCITE_BASE = process.env.STATCITE_BASE || "https://statcite.com"
  * Changing this list does not retroactively touch P0's already-written,
  * already-frozen prompts/raw/scores — it only affects runs generated after
  * the change. */
-export const MODELS = ["claude-haiku-4-5", "claude-sonnet-5", "claude-opus-5", "claude-fable-5", "gpt-5.5", "gemini-3-flash-preview"];
+// R2 roster (mechanical rule + snapshot, see models.json and D-008). Order is
+// presentation-stable, never a ranking. R1 runs re-score correctly: score.mjs
+// skips roster models with no responses file for that run.
+export const MODELS = [
+  "claude-haiku-4-5",
+  "claude-sonnet-5",
+  "claude-opus-5",
+  "claude-fable-5",
+  "gpt-5.5",
+  "gpt-5.5-pro",
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  "gemini-3-flash-preview",
+];
 
 /** §1.2 — 12 indicators in 3 revision classes with headline quotas (total 100). */
 export const HEADLINE_QUOTA = {

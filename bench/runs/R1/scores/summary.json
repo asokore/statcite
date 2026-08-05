@@ -1,6 +1,6 @@
 {
   "run": "R1",
-  "scored_at": "2026-08-05T20:44:27.071Z",
+  "scored_at": "2026-08-05T21:43:27.584Z",
   "seed": "9a173ab9f6e75866e0ca1f080f24ef0d1e2c91a1a9dbd699be6b796450840c3e",
   "bands": {
     "A": {
@@ -123,7 +123,28 @@
         },
         "revision_affected": 0,
         "vintage_eligible_misses": 3,
-        "repaired": 0
+        "repaired": 0,
+        "year_discrimination": {
+          "n_year_discriminating": 40,
+          "WTR_year_discriminating": {
+            "k": 7,
+            "n": 33,
+            "rate": 0.2121,
+            "ci95": [
+              0.1068,
+              0.3775
+            ]
+          },
+          "WTR_all": {
+            "k": 27,
+            "n": 81,
+            "rate": 0.3333,
+            "ci95": [
+              0.2403,
+              0.4415
+            ]
+          }
+        }
       },
       "breakdowns": {
         "by_class": {
@@ -636,7 +657,28 @@
         },
         "revision_affected": 0,
         "vintage_eligible_misses": 4,
-        "repaired": 7
+        "repaired": 7,
+        "year_discrimination": {
+          "n_year_discriminating": 40,
+          "WTR_year_discriminating": {
+            "k": 20,
+            "n": 36,
+            "rate": 0.5556,
+            "ci95": [
+              0.3958,
+              0.7046
+            ]
+          },
+          "WTR_all": {
+            "k": 59,
+            "n": 91,
+            "rate": 0.6484,
+            "ci95": [
+              0.5461,
+              0.7386
+            ]
+          }
+        }
       },
       "breakdowns": {
         "by_class": {
@@ -1149,7 +1191,28 @@
         },
         "revision_affected": 1,
         "vintage_eligible_misses": 2,
-        "repaired": 9
+        "repaired": 9,
+        "year_discrimination": {
+          "n_year_discriminating": 40,
+          "WTR_year_discriminating": {
+            "k": 29,
+            "n": 40,
+            "rate": 0.725,
+            "ci95": [
+              0.5717,
+              0.8389
+            ]
+          },
+          "WTR_all": {
+            "k": 82,
+            "n": 100,
+            "rate": 0.82,
+            "ci95": [
+              0.7333,
+              0.883
+            ]
+          }
+        }
       },
       "breakdowns": {
         "by_class": {
@@ -1662,7 +1725,28 @@
         },
         "revision_affected": 0,
         "vintage_eligible_misses": 2,
-        "repaired": 15
+        "repaired": 15,
+        "year_discrimination": {
+          "n_year_discriminating": 40,
+          "WTR_year_discriminating": {
+            "k": 29,
+            "n": 40,
+            "rate": 0.725,
+            "ci95": [
+              0.5717,
+              0.8389
+            ]
+          },
+          "WTR_all": {
+            "k": 81,
+            "n": 100,
+            "rate": 0.81,
+            "ci95": [
+              0.7222,
+              0.8749
+            ]
+          }
+        }
       },
       "breakdowns": {
         "by_class": {
@@ -2175,7 +2259,28 @@
         },
         "revision_affected": 0,
         "vintage_eligible_misses": 4,
-        "repaired": 0
+        "repaired": 0,
+        "year_discrimination": {
+          "n_year_discriminating": 40,
+          "WTR_year_discriminating": {
+            "k": 26,
+            "n": 40,
+            "rate": 0.65,
+            "ci95": [
+              0.4951,
+              0.7787
+            ]
+          },
+          "WTR_all": {
+            "k": 75,
+            "n": 100,
+            "rate": 0.75,
+            "ci95": [
+              0.657,
+              0.8245
+            ]
+          }
+        }
       },
       "breakdowns": {
         "by_class": {
@@ -2688,7 +2793,28 @@
         },
         "revision_affected": 0,
         "vintage_eligible_misses": 4,
-        "repaired": 0
+        "repaired": 0,
+        "year_discrimination": {
+          "n_year_discriminating": 40,
+          "WTR_year_discriminating": {
+            "k": 29,
+            "n": 40,
+            "rate": 0.725,
+            "ci95": [
+              0.5717,
+              0.8389
+            ]
+          },
+          "WTR_all": {
+            "k": 79,
+            "n": 100,
+            "rate": 0.79,
+            "ci95": [
+              0.7002,
+              0.8583
+            ]
+          }
+        }
       },
       "breakdowns": {
         "by_class": {

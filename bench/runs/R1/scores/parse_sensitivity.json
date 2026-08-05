@@ -1,0 +1,86 @@
+{
+  "run": "R1",
+  "generated_at": "2026-08-05T21:36:46.364Z",
+  "total_fence_files": 9,
+  "note": "Strict §2.4 parse is the pre-registered headline; the stripped column shows the score under fence-tolerant parsing, all other policy unchanged.",
+  "models": {
+    "claude-haiku-4-5": {
+      "strict": {
+        "wtr": 0.3333,
+        "cr": 0.325,
+        "ar": 0.4938
+      },
+      "stripped": {
+        "wtr": 0.35,
+        "cr": 0.3636,
+        "ar": 0.55
+      },
+      "fence_files": 6
+    },
+    "claude-sonnet-5": {
+      "strict": {
+        "wtr": 0.6484,
+        "cr": 0.314,
+        "ar": 0.9451
+      },
+      "stripped": {
+        "wtr": 0.68,
+        "cr": 0.2842,
+        "ar": 0.95
+      },
+      "fence_files": 3
+    },
+    "claude-opus-5": {
+      "strict": {
+        "wtr": 0.82,
+        "cr": 0.1546,
+        "ar": 0.97
+      },
+      "stripped": {
+        "wtr": 0.82,
+        "cr": 0.1546,
+        "ar": 0.97
+      },
+      "fence_files": 0
+    },
+    "claude-fable-5": {
+      "strict": {
+        "wtr": 0.81,
+        "cr": 0.1563,
+        "ar": 0.96
+      },
+      "stripped": {
+        "wtr": 0.81,
+        "cr": 0.1563,
+        "ar": 0.96
+      },
+      "fence_files": 0
+    },
+    "gpt-5.5": {
+      "strict": {
+        "wtr": 0.75,
+        "cr": 0.2268,
+        "ar": 0.97
+      },
+      "stripped": {
+        "wtr": 0.75,
+        "cr": 0.2268,
+        "ar": 0.97
+      },
+      "fence_files": 0
+    },
+    "gemini-3-flash-preview": {
+      "strict": {
+        "wtr": 0.79,
+        "cr": 0.202,
+        "ar": 0.99
+      },
+      "stripped": {
+        "wtr": 0.79,
+        "cr": 0.202,
+        "ar": 0.99
+      },
+      "fence_files": 0
+    }
+  }
+}

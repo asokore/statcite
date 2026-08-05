@@ -168,6 +168,57 @@ async function main() {
   }
   md += `\n*No result here is a knife-edge artifact of band choice; the full signed-error distribution ships in scores/<model>.json (§4).*\n`;
 
+  // Parse-policy sensitivity (the boundary the tolerance sweep does not cover) —
+  // rendered whenever the automated fence-strip re-run has been produced.
+  const psPath = path.join(paths.runDir, "scores", "parse_sensitivity.json");
+  if (fs.existsSync(psPath)) {
+    const ps = readJson(psPath);
+    md += `\n## Parse-policy sensitivity (strict §2.4 parse vs fence-stripped)\n\n| model | strict WTR / CR / AR | fence-stripped WTR / CR / AR | fence-affected raw files |\n|---|---|---|---|\n`;
+    for (const m of models) {
+      const r = ps.models?.[m];
+      if (!r) continue;
+      md += `| ${m} | ${fmt1(r.strict.wtr * 100)} / ${fmt1(r.strict.cr * 100)} / ${fmt1(r.strict.ar * 100)} | ${fmt1(r.stripped.wtr * 100)} / ${fmt1(r.stripped.cr * 100)} / ${fmt1(r.stripped.ar * 100)} | ${r.fence_files} |\n`;
+    }
+    md += `\n*The strict-parse figures are the pre-registered headline (§2.4). This table shows how much of any model's score is parse policy rather than recall; a §8 branch label sitting within this delta of a boundary must carry the sensitivity when quoted.*\n`;
+  }
+
+  md += `\n## Year-discrimination sensitivity (ADDENDA §3 dual metric)\n\n| model | WTR (all headline) | WTR (year-discriminating subset) |\n|---|---|---|\n`;
+  for (const m of models) {
+    const y = summary.models[m].headline.year_discrimination;
+    if (!y) continue;
+    md += `| ${m} | ${fmtPct(y.WTR_all)}${fmtCI(y.WTR_all)} | ${fmtPct(y.WTR_year_discriminating)}${fmtCI(y.WTR_year_discriminating)} (${fmtKN(y.WTR_year_discriminating)}) |\n`;
+  }
+  {
+    const anyY = summary.models[models[0]]?.headline.year_discrimination;
+    if (anyY) {
+      md += `\n*${anyY.n_year_discriminating} of the headline questions are year-discriminating: an adjacent-year official value would NOT score within tolerance, so a correct answer proves the model knows the asked year rather than the series' neighbourhood. The subset is identical for every model and computed from ground truth alone.*\n`;
+    }
+  }
+
+  // §1.3 reweighting sensitivity — rendered when weights were frozen for the run.
+  if (summary.models[models[0]]?.headline.reweighting) {
+    md += `\n## Reweighting sensitivity (§1.3)\n\n| model | WTR equal-weight | WTR GDP-weighted | WTR population-weighted |\n|---|---|---|---|\n`;
+    for (const m of models) {
+      const rw = summary.models[m].headline.reweighting;
+      if (!rw) continue;
+      const p = (x) => (x == null ? "—" : `${fmt1(x * 100)}%`);
+      md += `| ${m} | ${p(rw.wtr_equal)} | ${p(rw.wtr_gdp_weighted)} | ${p(rw.wtr_population_weighted)} |\n`;
+    }
+    const nw = summary.models[models[0]].headline.reweighting.null_weight_economies;
+    md += `\n*Headline WTR under three weighting schemes (no weighting is neutral — §1.3). ${nw.length ? `Economies with a missing weight fell back to the mean weight: ${nw.join(", ")}.` : "Every bank economy had frozen GDP and population weights."}*\n`;
+  }
+
+  // Retrieval-delta arm (§0) — rendered when the arm has been scored.
+  const rdPath = path.join(paths.runDir, "scores", "retrieval_delta.json");
+  if (fs.existsSync(rdPath)) {
+    const rd = readJson(rdPath);
+    md += `\n## Retrieval-delta arm (§0 — vendor-native retrieval, never StatCite)\n\n| model | arm | subset n | WTR | CR | Answer Rate |\n|---|---|---|---|---|---|\n`;
+    for (const row of rd.rows) {
+      md += `| ${row.model} | ${row.arm} | ${row.n} | ${fmt1(row.wtr * 100)}% | ${row.cr == null ? "—" : fmt1(row.cr * 100) + "%"} | ${fmt1(row.ar * 100)}% |\n`;
+    }
+    md += `\n*${rd.note}*\n`;
+  }
+
   md += `\n## Signed relative error distribution (deciles)\n\n| model | n | p5 | p10 | p25 | p50 | p75 | p90 | p95 |\n|---|---|---|---|---|---|---|---|---|\n`;
   for (const m of models) {
     const d = summary.models[m].signed_rel_error_deciles;

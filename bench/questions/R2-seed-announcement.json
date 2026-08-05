@@ -1,0 +1,10 @@
+{
+  "run": "R2",
+  "announced_at": "2026-08-05T21:43:58.983Z",
+  "pulse_time_utc": "2026-08-05T21:49:00.000Z",
+  "pulse_time_ms": 1785966540000,
+  "source": "NIST Randomness Beacon 2.0",
+  "pulse_url": "https://beacon.nist.gov/beacon/2.0/pulse/time/1785966540000",
+  "derivation": "master_seed = SHA-256(lowercase outputValue hex string); per-purpose seeds via tools/prng.mjs deriveSeed(master_seed, namespace)",
+  "status": "announced"
+}

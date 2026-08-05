@@ -1,7 +1,7 @@
 {
   "run": "R1",
   "model": "claude-haiku-4-5",
-  "scored_at": "2026-08-05T20:44:27.071Z",
+  "scored_at": "2026-08-05T21:43:27.584Z",
   "bands": {
     "A": {
       "percent": {
@@ -108,7 +108,28 @@
       },
       "revision_affected": 0,
       "vintage_eligible_misses": 3,
-      "repaired": 0
+      "repaired": 0,
+      "year_discrimination": {
+        "n_year_discriminating": 40,
+        "WTR_year_discriminating": {
+          "k": 7,
+          "n": 33,
+          "rate": 0.2121,
+          "ci95": [
+            0.1068,
+            0.3775
+          ]
+        },
+        "WTR_all": {
+          "k": 27,
+          "n": 81,
+          "rate": 0.3333,
+          "ci95": [
+            0.2403,
+            0.4415
+          ]
+        }
+      }
     },
     "breakdowns": {
       "by_class": {

@@ -70,7 +70,7 @@ function loadKey() {
   return key;
 }
 
-async function callOnce(apiKey, model, system, user) {
+async function callOnce(apiKey, model, system, user, retrieval = false) {
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: "POST",
     headers: {
@@ -83,6 +83,9 @@ async function callOnce(apiKey, model, system, user) {
       // nothing extra — no tools, no thinking budget override, no response schema.
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: "user", parts: [{ text: user }] }],
+      // §0 retrieval-delta arm: Google's vendor-native grounding tool. Uniform
+      // arm sends no tools at all.
+      ...(retrieval ? { tools: [{ google_search: {} }] } : {}),
     }),
     signal: AbortSignal.timeout(60000),
   });
@@ -103,11 +106,11 @@ async function callOnce(apiKey, model, system, user) {
   return { status: res.status, ok: true, content, usage: body.usageMetadata, finishReason };
 }
 
-async function callWithRetry(apiKey, model, system, user) {
+async function callWithRetry(apiKey, model, system, user, retrieval = false) {
   const backoff = [2000, 5000, 12000];
   let lastErr;
   for (let attempt = 0; attempt <= backoff.length; attempt++) {
-    const r = await callOnce(apiKey, model, system, user);
+    const r = await callOnce(apiKey, model, system, user, retrieval);
     if (r.ok) return r;
     if (!RETRY_STATUSES.has(r.status) || attempt === backoff.length) return r;
     lastErr = r;
@@ -123,6 +126,7 @@ async function main() {
     base: { type: "string" },
     limit: { type: "string" },
     "dry-run": { type: "boolean" },
+    retrieval: { type: "boolean" },
     help: { type: "boolean" },
   });
   if (args.help) {
@@ -153,7 +157,7 @@ async function main() {
       log(`  [dry-run] would POST batch ${prompt.batch_id} (${prompt.qids.length} qids, system ${prompt.system.length} chars, user ${prompt.user.length} chars) -> ${outPath}`);
       continue;
     }
-    const r = await callWithRetry(apiKey, args.model, prompt.system, prompt.user);
+    const r = await callWithRetry(apiKey, args.model, prompt.system, prompt.user, Boolean(args.retrieval));
     if (!r.ok) {
       failed++;
       log(`  FAILED ${prompt.batch_id}: ${r.error ?? `http_${r.status}`}`);

@@ -21,13 +21,22 @@ import path from "node:path";
 
 const HELP = `generate_bank.mjs — seeded stratified question bank draw (METHODOLOGY §1)
 
-Usage: node generate_bank.mjs --run P0 --seed <hex> [--base DIR] [--allow-partial] [--help]
+Usage: node generate_bank.mjs --run P0 --seed <hex> [--base DIR] [--allow-partial]
+                              [--core FILE] [--null-probes N] [--help]
 
   --run RUN         Run id (qid prefix and file names), e.g. P0.
-  --seed HEX        Hex seed (pilot: SHA-256 of the pre-registration commit hash).
+  --seed HEX        Hex seed (pilot: SHA-256 of the pre-registration commit hash;
+                    from Wave 1: derived from a pre-announced NIST beacon pulse).
   --base DIR        Base directory holding frame/ and receiving questions/ (default bench/).
   --allow-partial   Probe mode: accept the best draw even when quotas cannot all be
                     met (small probe frames); shortfalls are recorded in the genlog.
+  --core FILE       METHODOLOGY §6 contamination protocol: JSON {source_run, qids:[...]}
+                    naming headline questions from a prior bank to carry verbatim as the
+                    frozen core panel. Core cells are preselected into the draw (they must
+                    fit the same quotas — any prior valid draw's subset does); the fresh
+                    majority fills the rest. Carried questions get core:true + source_qid.
+  --null-probes N   Null-probe count (default 10; METHODOLOGY §3.4 requires >=25
+                    from the first full wave).
   --help            Show this help.
 
 Requires {base}/frame/frame.json (+ tiers.json, exclusions.json) from enumerate_frame.mjs.
@@ -52,12 +61,24 @@ function tierAllowed(indicator, tier) {
 /** One randomized-greedy headline draw attempt. Success <=> exactly 100 selected
  * (tier caps sum to 100 and year caps sum to 100, so hitting 100 forces every
  * quota to be met exactly). */
-function drawAttempt(cells, rng) {
+function drawAttempt(cells, rng, preselected = []) {
   const ind = { ...HEADLINE_QUOTA };
   const tier = { ...TIER_QUOTA };
   const year = { ...YEAR_QUOTA };
   const econ = {};
   const selected = [];
+  // §6 contamination protocol: the frozen core panel enters the draw first,
+  // consuming its quota slots; the fresh majority fills what remains. Core
+  // cells came from a prior valid draw under the same quotas, so a subset can
+  // never overrun them.
+  for (const c of preselected) {
+    selected.push(c);
+    ind[c.indicator]--; tier[c.tier]--; year[c.year]--;
+    econ[c.iso3] = (econ[c.iso3] ?? 0) + 1;
+    if (ind[c.indicator] < 0 || tier[c.tier] < 0 || year[c.year] < 0 || econ[c.iso3] > MAX_PER_ECONOMY) {
+      throw new Error(`core panel violates quotas at ${cellKey(c)} — core file is not a subset of a valid draw`);
+    }
+  }
   for (const c of shuffle(cells, rng, cellKey)) {
     if (ind[c.indicator] > 0 && tier[c.tier] > 0 && year[c.year] > 0 && (econ[c.iso3] ?? 0) < MAX_PER_ECONOMY) {
       selected.push(c);
@@ -81,6 +102,8 @@ async function main() {
     seed: { type: "string" },
     base: { type: "string" },
     "allow-partial": { type: "boolean" },
+    core: { type: "string" },
+    "null-probes": { type: "number" },
     help: { type: "boolean" },
   });
   if (args.help) {
@@ -91,6 +114,7 @@ async function main() {
   const run = args.run;
   const seed = args.seed.toLowerCase();
   const allowPartial = Boolean(args["allow-partial"]);
+  const nNullProbes = args["null-probes"] ?? N_NULL_PROBES;
   const paths = benchPaths(args.base, run);
 
   const frame = readJson(path.join(paths.frameDir, "frame.json"));
@@ -104,6 +128,25 @@ async function main() {
   );
   log(`headline pool: ${pool.length} eligible cells`);
 
+  // ---- Core panel (§6 contamination protocol) ---------------------------------
+  let coreCells = [];
+  if (args.core) {
+    const coreSpec = readJson(args.core);
+    const sourceBank = readJson(path.join(paths.questionsDir, `${coreSpec.source_run}.json`));
+    const sourceByQid = new Map(sourceBank.questions.map((q) => [q.qid, q]));
+    const poolByKey = new Map(pool.map((c) => [cellKey(c), c]));
+    for (const qid of coreSpec.qids) {
+      const q = sourceByQid.get(qid);
+      if (!q) throw new Error(`core qid ${qid} not found in ${coreSpec.source_run} bank`);
+      if (q.segment !== "headline") throw new Error(`core qid ${qid} is ${q.segment}, not headline`);
+      const cell = poolByKey.get(`${q.iso3}|${q.indicator}|${q.year}`);
+      if (!cell) throw new Error(`core qid ${qid} (${q.iso3}|${q.indicator}|${q.year}) has no eligible frame cell — frame changed since ${coreSpec.source_run}`);
+      coreCells.push({ ...cell, core: true, source_qid: qid });
+    }
+    genlog.core_panel = { source_run: coreSpec.source_run, n: coreCells.length, selection_rule: coreSpec.selection_rule ?? null };
+    log(`core panel: ${coreCells.length} cells carried from ${coreSpec.source_run}`);
+  }
+
   // ---- Draw + verify loop (verify failures shrink the pool, then redraw) ------
   let headline = null;
   let verifyLog = [];
@@ -111,9 +154,11 @@ async function main() {
     let best = [];
     let drawn = null;
     const maxAttempts = 1000;
+    const coreKeys = new Set(coreCells.map(cellKey));
+    const freshPool = pool.filter((c) => !coreKeys.has(cellKey(c)));
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const rng = rngFromHex(deriveSeed(seed, `headline-draw:${cycle}:${attempt}`));
-      const sel = drawAttempt(pool, rng);
+      const sel = drawAttempt(freshPool, rng, coreCells);
       if (sel.length > best.length) best = sel;
       if (sel.length === 100) {
         drawn = sel;
@@ -166,6 +211,13 @@ async function main() {
       genlog.notes.push(`verify round-trip removed ${bad.length} cells in cycle ${cycle}: ${bad.map(cellKey).join(", ")}`);
       const badKeys = new Set(bad.map(cellKey));
       pool = pool.filter((c) => !badKeys.has(cellKey(c)));
+      // A core cell that no longer verifies is dropped from the panel (its slot
+      // is refilled by the fresh draw) — logged, since it shrinks the §6 metric.
+      const droppedCore = coreCells.filter((c) => badKeys.has(cellKey(c)));
+      if (droppedCore.length) {
+        coreCells = coreCells.filter((c) => !badKeys.has(cellKey(c)));
+        genlog.notes.push(`core panel shrank by ${droppedCore.length} (verify round-trip failures): ${droppedCore.map((c) => c.source_qid).join(", ")}`);
+      }
       if (allowPartial) {
         headline = drawn.filter((c) => !badKeys.has(cellKey(c)));
       }
@@ -213,7 +265,7 @@ async function main() {
   const probeEcon = new Set();
   const probeValidation = [];
   for (const c of probeOrder) {
-    if (nullProbes.length >= N_NULL_PROBES) break;
+    if (nullProbes.length >= nNullProbes) break;
     if (probeEcon.has(c.iso3)) continue;
     // Live validation: /v1/verify with an arbitrary claimed value must say cannot_verify.
     const r = await scVerifyRobust({ indicator: c.indicator, country: c.iso3, period: c.year, value: 42 });
@@ -224,8 +276,8 @@ async function main() {
       probeEcon.add(c.iso3);
     }
   }
-  if (nullProbes.length < N_NULL_PROBES && !allowPartial) {
-    throw new Error(`only ${nullProbes.length}/${N_NULL_PROBES} null probes validated as cannot_verify`);
+  if (nullProbes.length < nNullProbes && !allowPartial) {
+    throw new Error(`only ${nullProbes.length}/${nNullProbes} null probes validated as cannot_verify`);
   }
   log(`null probes: ${nullProbes.length} validated cannot_verify`);
   genlog.null_probe_validation = probeValidation;
@@ -263,6 +315,7 @@ async function main() {
       expected_unit: expectedUnit,
       unit_scale: scale ? { label: scale.label, factor: scale.factor } : null,
       strata: { revision_class: REVISION_CLASS[cell.indicator] ?? null, tier: cell.tier, year: cell.year },
+      ...(cell.core ? { core: true, source_qid: cell.source_qid } : {}),
     };
   }
 
