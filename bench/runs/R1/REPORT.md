@@ -22,12 +22,12 @@ Per the quotation covenant, WTR, CR, and Answer Rate are one unit and travel tog
 
 | model | WTR [95% CI] | strict | CR [95% CI] | Answer Rate | Answered Accuracy | refusals | answer_failures | format_failures | scoreable |
 |---|---|---|---|---|---|---|---|---|---|
-| claude-haiku-4-5 † | 33.3% [24.0–44.1] (27/81) | 6.2% | 32.5% [20.1–48.0] | 49.4% | 67.5% | 41 | 0 | 19 | 81 |
+| claude-haiku-4-5 † | 33.3% [24.0–44.2] (27/81) | 6.2% | 32.5% [20.1–48.0] | 49.4% | 67.5% | 41 | 0 | 19 | 81 |
 | claude-sonnet-5 | 64.8% [54.6–73.9] (59/91) | 30.8% | 31.4% [22.6–41.8] | 94.5% | 68.6% | 5 | 0 | 9 | 91 |
 | claude-opus-5 | 82.0% [73.3–88.3] (82/100) | 39.0% | 15.5% [9.6–24.0] | 97.0% | 84.5% | 3 | 0 | 0 | 100 |
 | claude-fable-5 | 81.0% [72.2–87.5] (81/100) | 38.0% | 15.6% [9.7–24.2] | 96.0% | 84.4% | 4 | 0 | 0 | 100 |
 | gpt-5.5 | 75.0% [65.7–82.5] (75/100) | 36.0% | 22.7% [15.5–32.0] | 97.0% | 77.3% | 3 | 0 | 0 | 100 |
-| gemini-3-flash-preview | 79.0% [70.0–85.8] (79/100) | 41.0% | 20.2% [13.5–29.1] | 99.0% | 79.8% | 1 | 0 | 0 | 100 |
+| gemini-3-flash-preview | 79.0% [70.0–85.8] (79/100) | 41.0% | 20.2% [13.5–29.2] | 99.0% | 79.8% | 1 | 0 | 0 | 100 |
 
 *Wilson 95% intervals; at n≈100 the half-width is ±7–10pp. Minimum detectable model-vs-model difference ~12–15pp — no league tables at pilot scale (§5).*
 
@@ -53,7 +53,7 @@ Per the quotation covenant, WTR, CR, and Answer Rate are one unit and travel tog
 | Revision class | claude-haiku-4-5 WTR | claude-sonnet-5 WTR | claude-opus-5 WTR | claude-fable-5 WTR | gpt-5.5 WTR | gemini-3-flash-preview WTR |
 |---|---|---|---|---|---|---|
 | A | 22.2% (2/9) | 90.9% (10/11) | 100.0% (12/12) | 100.0% (12/12) | 91.7% (11/12) | 100.0% (12/12) |
-| B | 40.6% (13/32) | 54.0% (20/37) | 75.0% (30/40) | 75.0% (30/40) | 65.0% (26/40) | 72.5% (29/40) |
+| B | 40.6% (13/32) | 54.1% (20/37) | 75.0% (30/40) | 75.0% (30/40) | 65.0% (26/40) | 72.5% (29/40) |
 | C | 30.0% (12/40) | 67.4% (29/43) | 83.3% (40/48) | 81.3% (39/48) | 79.2% (38/48) | 79.2% (38/48) |
 
 *Strata cells with n<50 are descriptive only — no significance language (§5).*
@@ -103,7 +103,7 @@ Per the quotation covenant, WTR, CR, and Answer Rate are one unit and travel tog
 | model | ×0.5 | ×1 | ×2 | ×4 |
 |---|---|---|---|---|
 | claude-haiku-4-5 | 21.0% | 33.3% | 39.5% | 43.2% |
-| claude-sonnet-5 | 53.8% | 64.8% | 74.7% | 81.3% |
+| claude-sonnet-5 | 53.9% | 64.8% | 74.7% | 81.3% |
 | claude-opus-5 | 71.0% | 82.0% | 84.0% | 92.0% |
 | claude-fable-5 | 71.0% | 81.0% | 84.0% | 91.0% |
 | gpt-5.5 | 63.0% | 75.0% | 80.0% | 87.0% |
@@ -118,9 +118,9 @@ Per the quotation covenant, WTR, CR, and Answer Rate are one unit and travel tog
 | claude-haiku-4-5 | 40 | -54.1% | -26.5% | -3.8% | -0.2% | 4.5% | 34.1% | 166.1% |
 | claude-sonnet-5 | 86 | -41.9% | -20.8% | -6.0% | -0.2% | 0.8% | 32.2% | 60.3% |
 | claude-opus-5 | 97 | -18.6% | -11.3% | -2.6% | -0.1% | 0.7% | 10.3% | 24.2% |
-| claude-fable-5 | 96 | -15.9% | -12.4% | -2.8% | -0.0% | 0.7% | 10.3% | 25.9% |
+| claude-fable-5 | 96 | -15.9% | -12.4% | -2.8% | 0.0% | 0.7% | 10.3% | 25.9% |
 | gpt-5.5 | 97 | -27.8% | -13.5% | -1.6% | 0.0% | 2.0% | 20.5% | 52.6% |
-| gemini-3-flash-preview | 99 | -28.1% | -10.1% | -1.8% | -0.0% | 1.1% | 16.8% | 37.5% |
+| gemini-3-flash-preview | 99 | -28.1% | -10.1% | -1.8% | 0.0% | 1.1% | 16.8% | 37.5% |
 
 ## Recency supplement (2023–2025 — never scored in the headline)
 
@@ -153,11 +153,11 @@ Per the quotation covenant, WTR, CR, and Answer Rate are one unit and travel tog
 | model | mean conf (within) | mean conf (mismatch) | mean conf (refused) |
 |---|---|---|---|
 | claude-haiku-4-5 | 0.56 | 0.45 | 0.02 |
-| claude-sonnet-5 | 0.42 | 0.32 | 0.00 |
-| claude-opus-5 | 0.46 | 0.20 | 0.00 |
+| claude-sonnet-5 | 0.43 | 0.32 | 0.00 |
+| claude-opus-5 | 0.46 | 0.21 | 0.00 |
 | claude-fable-5 | 0.47 | 0.22 | 0.00 |
-| gpt-5.5 | 0.56 | 0.35 | 0.00 |
-| gemini-3-flash-preview | 0.83 | 0.73 | 0.95 |
+| gpt-5.5 | 0.56 | 0.36 | 0.00 |
+| gemini-3-flash-preview | 0.83 | 0.74 | 0.95 |
 
 ## Model-vs-model (exact McNemar, Holm-corrected — report-only)
 
@@ -185,7 +185,7 @@ Per the quotation covenant, WTR, CR, and Answer Rate are one unit and travel tog
 
 ## Permitted claims (filled templates, §5)
 
-- claude-haiku-4-5 answered 33.3% of questions within the published tolerance of the current official value (95% CI [24.0–44.1]; 27/81 scoreable), with a Confabulation Rate of 32.5% and an Answer Rate of 49.4%. **[§8 grid branch INVALID: Answer Rate below 70% — not quotable as a comparable accuracy figure]**
+- claude-haiku-4-5 answered 33.3% of questions within the published tolerance of the current official value (95% CI [24.0–44.2]; 27/81 scoreable), with a Confabulation Rate of 32.5% and an Answer Rate of 49.4%. **[§8 grid branch INVALID: Answer Rate below 70% — not quotable as a comparable accuracy figure]**
 - claude-sonnet-5 answered 64.8% of questions within the published tolerance of the current official value (95% CI [54.6–73.9]; 59/91 scoreable), with a Confabulation Rate of 31.4% and an Answer Rate of 94.5%.
 - claude-opus-5 answered 82.0% of questions within the published tolerance of the current official value (95% CI [73.3–88.3]; 82/100 scoreable), with a Confabulation Rate of 15.5% and an Answer Rate of 97.0%.
 - claude-fable-5 answered 81.0% of questions within the published tolerance of the current official value (95% CI [72.2–87.5]; 81/100 scoreable), with a Confabulation Rate of 15.6% and an Answer Rate of 96.0%.
