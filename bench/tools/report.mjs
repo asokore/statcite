@@ -56,8 +56,20 @@ const SCOPE_CLAIM = [
   "> Read the scores as a trust ceiling for uncited figures: a model's accuracy here tells you how far to trust a number it states in a chat window without a citation — nothing more, and nothing less.",
 ].join("\n");
 
-const fmtPct = (r) => (r?.rate == null ? "—" : `${(r.rate * 100).toFixed(1)}%`);
-const fmtCI = (r) => (r?.ci95 == null ? "" : ` [${(r.ci95[0] * 100).toFixed(1)}–${(r.ci95[1] * 100).toFixed(1)}]`);
+// Naive (x*100).toFixed(1) double-rounds and misfires at the .x5 boundary:
+// binary float can't represent 29.15 exactly, so (29.15).toFixed(1) === "29.1"
+// not "29.2" (verified: also 0.5405 -> "54.0" not "54.1"). A tiny epsilon
+// before rounding corrects the misrepresentation without affecting any other
+// value (checked against every published R1 figure — only the three known
+// .x5-boundary cases changed).
+function fmt1(x) {
+  return (Math.round((x + (x >= 0 ? 1e-9 : -1e-9)) * 10) / 10).toFixed(1);
+}
+function fmt2(x) {
+  return (Math.round((x + (x >= 0 ? 1e-9 : -1e-9)) * 100) / 100).toFixed(2);
+}
+const fmtPct = (r) => (r?.rate == null ? "—" : `${fmt1(r.rate * 100)}%`);
+const fmtCI = (r) => (r?.ci95 == null ? "" : ` [${fmt1(r.ci95[0] * 100)}–${fmt1(r.ci95[1] * 100)}]`);
 const fmtKN = (r) => (r ? `${r.k}/${r.n}` : "—");
 
 function gridEvaluation(m) {
@@ -74,8 +86,8 @@ function gridEvaluation(m) {
   return {
     branch, valid,
     reason: valid
-      ? `WTR ${(wtr * 100).toFixed(1)}%, CR ${cr == null ? "—" : (cr * 100).toFixed(1)}%, Answer Rate ${(ar * 100).toFixed(1)}% (>= 70%: grid valid)`
-      : `Answer Rate ${(ar * 100).toFixed(1)}% < 70% — grid evaluation not valid for this model (§8)`,
+      ? `WTR ${fmt1(wtr * 100)}%, CR ${cr == null ? "—" : fmt1(cr * 100)}%, Answer Rate ${fmt1(ar * 100)}% (>= 70%: grid valid)`
+      : `Answer Rate ${fmt1(ar * 100)}% < 70% — grid evaluation not valid for this model (§8)`,
   };
 }
 
@@ -159,7 +171,7 @@ async function main() {
   md += `\n## Signed relative error distribution (deciles)\n\n| model | n | p5 | p10 | p25 | p50 | p75 | p90 | p95 |\n|---|---|---|---|---|---|---|---|---|\n`;
   for (const m of models) {
     const d = summary.models[m].signed_rel_error_deciles;
-    const f = (x) => (x == null ? "—" : `${(x * 100).toFixed(1)}%`);
+    const f = (x) => (x == null ? "—" : `${fmt1(x * 100)}%`);
     md += `| ${m} | ${d.n} | ${f(d.p5)} | ${f(d.p10)} | ${f(d.p25)} | ${f(d.p50)} | ${f(d.p75)} | ${f(d.p90)} | ${f(d.p95)} |\n`;
   }
 
@@ -181,7 +193,7 @@ async function main() {
   md += `\n## Calibration (descriptive)\n\n| model | mean conf (within) | mean conf (mismatch) | mean conf (refused) |\n|---|---|---|---|\n`;
   for (const m of models) {
     const c = summary.models[m].calibration;
-    const f = (x) => (x == null ? "—" : x.toFixed(2));
+    const f = (x) => (x == null ? "—" : fmt2(x));
     md += `| ${m} | ${f(c.mean_confidence_within)} | ${f(c.mean_confidence_mismatch)} | ${f(c.mean_confidence_refused)} |\n`;
   }
 

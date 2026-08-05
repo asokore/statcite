@@ -1,6 +1,6 @@
 {
   "run": "R1",
-  "built_at": "2026-08-05T20:45:00.866Z",
+  "built_at": "2026-08-05T21:12:04.438Z",
   "algorithm": "sha256",
   "n_files": 211,
   "files": {
@@ -22,7 +22,7 @@
     "base/tools/make_prompts.mjs": "4e3ffaf2d17e0fa1f5bc46f06cafffc2f549cec1727cb1f058a46b8dac6f5c60",
     "base/tools/parse_responses.mjs": "dbdf47a55858029c43e7f4b41436589e43d0103f5917327dc5c000a095e5bd5e",
     "base/tools/prng.mjs": "9e441f535756368685cbc98f1c4d839752c46920615cef0c236e88f5ff1f0d02",
-    "base/tools/report.mjs": "38461b84e5a27bc7e1807eb5f815ef3e33d0815c2b40395efaf24197de2f76c6",
+    "base/tools/report.mjs": "2441f93cfbf6967b862692b0fe3b9645765c78cae40ed3e7217ba90d4427c391",
     "base/tools/score.mjs": "0bed84f3ab19a380d283191946a3cfbfdb8818e8bf0928a7c36ee37b3a581e4c",
     "base/tools/snapshot_ground_truth.mjs": "fb01bd27aee54e0ffe3d94b0aff30066c8790e5f189d9e1c2bcf681242088be8",
     "base/tools/unit_rules.json": "b4a1c49306d37067e507c9fbc30bd21980c13803068dcfc6f069ed7dfc06150d",
@@ -37,7 +37,7 @@
     "base/snapshots/R1/revision_check.json": "a097190e485019f4bc7b6e9fb7e1892d492c0ad14e6a849e5a412224cfa254db",
     "base/snapshots/R1/revision_check.pre-D003.json": "9087cf4a1475a308e163a39fcf1ed98e449e6cfd065e25ac2b48a55c6226c773",
     "base/runs/R1/ADDENDA.md": "81c82c9073d502588e45b457e3529f70eddc5eee35608aa69b2c1463d006c9af",
-    "base/runs/R1/REPORT.md": "d16107c991de33fbcecf0876f847ba016af3e819a85a295b3f0d554a8924a00a",
+    "base/runs/R1/REPORT.md": "8f1db440e4155050cf091af78ddb7d91873e5b2ed43859257a0d3ca9e5853f21",
     "base/runs/R1/prompts/claude-fable-5/batch-01.json": "6e3bbb44c22d77b77dbb036d0713b67d20a66cad6421c05abacb63a15fc55948",
     "base/runs/R1/prompts/claude-fable-5/batch-02.json": "c1c87ad4b7858e9b9f9e73ca1070ac7c88983bd83f7d0c77bcfb2753eb1e7dd8",
     "base/runs/R1/prompts/claude-fable-5/batch-03.json": "6e20088ab720972161b09ee3ed13250d6d4d3d418cfe5668522db81e3906ca29",
