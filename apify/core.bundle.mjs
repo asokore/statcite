@@ -743,6 +743,9 @@ function applyTransform(observations, transform, opts = {}) {
       note: transform === "yoy" ? `Computed by StatCite: year-over-year % change (lag ${lag} period${lag > 1 ? "s" : ""}).` : "Computed by StatCite: period-over-period % change."
     };
   }
+  if (transform !== "index") {
+    throw new ToolError(`Unknown transform '${String(transform)}'. Valid: ${TRANSFORM_VALUES.join(", ")}.`);
+  }
   let base = obs.find((o) => o.period === opts.indexBasePeriod);
   if (!base) base = obs.find((o) => o.value != null);
   if (!base || base.value == null || base.value === 0) {

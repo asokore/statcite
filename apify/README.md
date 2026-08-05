@@ -63,6 +63,10 @@ Pass `items` (array of parameter objects, each may set its own `operation`) to r
 }
 ```
 
+## Batch runs and upstream fetches
+
+Each batch item runs with a fresh internal context, so upstream fetches are not memoized across items. This is deliberate: the memo caches failures for its lifetime (by design, to protect the per-request budget), and a shared context would let one transient IMF failure serve degraded fallback data — while still charging lookups — for the remainder of a run. The cost is some repeated upstream fetches on large batches; correctness of paid results wins.
+
 ## Pricing
 
 Pay per successful query event — failures are never charged. Two event tiers:

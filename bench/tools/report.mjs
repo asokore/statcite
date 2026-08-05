@@ -119,7 +119,7 @@ async function main() {
   md += `${CONCESSION}\n\n`;
   md += `**Disclosure${multiVendor ? "" : " (verbatim per METHODOLOGY §7)"}:** ${multiVendor ? multiVendorDisclosure(nonAnthropic) : DISCLOSURE_SINGLE_VENDOR}\n\n`;
   md += `Run \`${summary.run}\` · scored ${summary.scored_at} · seed \`${summary.seed}\` · bank: ${summary.counts.headline} headline / ${summary.counts.recency} recency / ${summary.counts.null_probe} null probes.\n\n`;
-  md += `**Protocol deviations logged: ${summary.deviations_count}** (see bench/DEVIATIONS.md).\n\n`;
+  md += `**Protocol deviations logged for this run: ${summary.deviations_count}** (see bench/DEVIATIONS.md).\n\n`;
   if (fs.existsSync(path.join(paths.runDir, "ADDENDA.md"))) {
     md += `**Post-publication addenda for this run: see [ADDENDA.md](ADDENDA.md)** — sensitivity analyses and disclosures added after first publication.\n\n`;
   }
@@ -129,9 +129,13 @@ async function main() {
   md += `| model | WTR [95% CI] | strict | CR [95% CI] | Answer Rate | Answered Accuracy | refusals | answer_failures | format_failures | scoreable |\n|---|---|---|---|---|---|---|---|---|---|\n`;
   for (const m of models) {
     const h = summary.models[m].headline;
-    md += `| ${m} | ${fmtPct(h.WTR)}${fmtCI(h.WTR)} (${fmtKN(h.WTR)}) | ${fmtPct(h.strict_rate)} | ${fmtPct(h.CR)}${fmtCI(h.CR)} | ${fmtPct(h.answer_rate)} | ${fmtPct(h.answered_accuracy)} | ${h.refusals} | ${h.answer_failures} | ${h.format_failures} | ${h.scoreable} |\n`;
+    // The dagger travels with the model NAME in the most-quoted table, so an
+    // invalid-branch row cannot be screenshotted into a comparison undecorated.
+    const gridInvalid = h.answer_rate?.rate != null && h.answer_rate.rate < 0.7;
+    md += `| ${m}${gridInvalid ? " †" : ""} | ${fmtPct(h.WTR)}${fmtCI(h.WTR)} (${fmtKN(h.WTR)}) | ${fmtPct(h.strict_rate)} | ${fmtPct(h.CR)}${fmtCI(h.CR)} | ${fmtPct(h.answer_rate)} | ${fmtPct(h.answered_accuracy)} | ${h.refusals} | ${h.answer_failures} | ${h.format_failures} | ${h.scoreable} |\n`;
   }
   md += `\n*Wilson 95% intervals; at n≈100 the half-width is ±7–10pp. Minimum detectable model-vs-model difference ~12–15pp — no league tables at pilot scale (§5).*\n`;
+  md += `\n*† Answer Rate below 70%: the §8 interpretation grid is INVALID for this model — reported for completeness, never as a comparable accuracy figure.*\n`;
 
   md += `\n## Revision-affected misses\n\n| model | vintage-eligible misses | revision_affected |\n|---|---|---|\n`;
   for (const m of models) {

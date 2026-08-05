@@ -10,9 +10,9 @@ Agentic deployments with retrieval will outperform these scores. That is expecte
 
 **Disclosure:** This benchmark's harness, scoring code, and drafts were developed with the assistance of Claude (Anthropic). This run's roster spans 3 vendors (Anthropic plus OpenAI and Google), satisfying COVENANT §6's two-non-Anthropic-vendor threshold for a citable cross-model result. No model — any vendor's — plays any role in scoring: verdicts are deterministic numeric comparisons against pinned official values, and the scoring code, prompts, raw responses, and ground truth are published in full.
 
-Run `R1` · scored 2026-08-05T20:03:07.876Z · seed `9a173ab9f6e75866e0ca1f080f24ef0d1e2c91a1a9dbd699be6b796450840c3e` · bank: 100 headline / 12 recency / 10 null probes.
+Run `R1` · scored 2026-08-05T20:44:27.071Z · seed `9a173ab9f6e75866e0ca1f080f24ef0d1e2c91a1a9dbd699be6b796450840c3e` · bank: 100 headline / 12 recency / 10 null probes.
 
-**Protocol deviations logged: 7** (see bench/DEVIATIONS.md).
+**Protocol deviations logged for this run: 6** (see bench/DEVIATIONS.md).
 
 **Post-publication addenda for this run: see [ADDENDA.md](ADDENDA.md)** — sensitivity analyses and disclosures added after first publication.
 
@@ -22,7 +22,7 @@ Per the quotation covenant, WTR, CR, and Answer Rate are one unit and travel tog
 
 | model | WTR [95% CI] | strict | CR [95% CI] | Answer Rate | Answered Accuracy | refusals | answer_failures | format_failures | scoreable |
 |---|---|---|---|---|---|---|---|---|---|
-| claude-haiku-4-5 | 33.3% [24.0–44.1] (27/81) | 6.2% | 32.5% [20.1–48.0] | 49.4% | 67.5% | 41 | 0 | 19 | 81 |
+| claude-haiku-4-5 † | 33.3% [24.0–44.1] (27/81) | 6.2% | 32.5% [20.1–48.0] | 49.4% | 67.5% | 41 | 0 | 19 | 81 |
 | claude-sonnet-5 | 64.8% [54.6–73.9] (59/91) | 30.8% | 31.4% [22.6–41.8] | 94.5% | 68.6% | 5 | 0 | 9 | 91 |
 | claude-opus-5 | 82.0% [73.3–88.3] (82/100) | 39.0% | 15.5% [9.6–24.0] | 97.0% | 84.5% | 3 | 0 | 0 | 100 |
 | claude-fable-5 | 81.0% [72.2–87.5] (81/100) | 38.0% | 15.6% [9.7–24.2] | 96.0% | 84.4% | 4 | 0 | 0 | 100 |
@@ -30,6 +30,8 @@ Per the quotation covenant, WTR, CR, and Answer Rate are one unit and travel tog
 | gemini-3-flash-preview | 79.0% [70.0–85.8] (79/100) | 41.0% | 20.2% [13.5–29.1] | 99.0% | 79.8% | 1 | 0 | 0 | 100 |
 
 *Wilson 95% intervals; at n≈100 the half-width is ±7–10pp. Minimum detectable model-vs-model difference ~12–15pp — no league tables at pilot scale (§5).*
+
+*† Answer Rate below 70%: the §8 interpretation grid is INVALID for this model — reported for completeness, never as a comparable accuracy figure.*
 
 ## Revision-affected misses
 

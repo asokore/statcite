@@ -28,7 +28,7 @@
 
 This runbook takes the repo from `C:\dev\statcite` to a running product. Total time: **~60–90 minutes** of guided steps. It is written for Claude Code to execute with you (open Claude Code in this folder and say *"execute HANDOFF.md"*), or for you to follow manually.
 
-**State of the build:** code complete and verified — 173 fixture-backed tests pass, a live smoke suite passed against the real World Bank / IMF-DBnomics / Frankfurter APIs from the build environment, and the site is ready. Nothing below writes code; it's accounts, wiring, and submissions.
+**State of the build:** code complete and verified — 174 fixture-backed tests pass, a live smoke suite passed against the real World Bank / IMF-DBnomics / Frankfurter APIs from the build environment, and the site is ready. Nothing below writes code; it's accounts, wiring, and submissions.
 
 **You already have:** GitHub (paid), Cloudflare, Apify accounts. ✔
 
@@ -59,7 +59,7 @@ Commit and push. Add repo topics per `distribution/submissions.md` §2.
 ```bash
 cd server
 npm install
-npm test        # expect: 173 pass
+npm test        # expect: 174 pass
 npm run smoke   # expect: SMOKE: ALL PASS (live network calls)
 npm run dev     # wrangler dev → open http://localhost:8787 (site) and check /health
 ```
@@ -81,7 +81,7 @@ This deploys the Worker **and** the static site (assets binding) to `statcite.<y
 **Optional but recommended:**
 - Email: Cloudflare dashboard → Email → Email Routing → route `hello@statcite.com` → your Gmail.
 
-**Not offered by design:** a FRED key. FRED's June 2024 terms of use prohibit AI/ML use and caching/redistribution of its content, which is exactly what this service does — the adapter declines permanently regardless of `FRED_API_KEY`. Don't wire the key back in without re-reading the current ToU.
+**Not offered by design:** a FRED key. FRED's Services Terms of Use (clauses (p) and (q)) prohibit AI/ML use and caching/redistribution of its content, which is exactly what this service does — the adapter declines permanently regardless of `FRED_API_KEY`. Don't wire the key back in without re-reading the current ToU.
 
 ## 5. Production smoke test (~3 min)
 

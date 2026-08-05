@@ -222,11 +222,17 @@ export async function mapLimit(items, limit, fn) {
 }
 
 /** Count logged deviations in bench/DEVIATIONS.md (top-level markdown list items). */
-export function countDeviations() {
+export function countDeviations(run) {
   try {
-    // Entries are `## D-NNN — ...` headings (one per logged deviation).
+    // Entries are `## D-NNN — date — Run XX — ...` headings (one per logged
+    // deviation). With a run id, count only that run's entries: DEVIATIONS.md
+    // is shared across runs, and a global count stamped into a per-run summary
+    // presents other runs' deviations as this run's (armed once R1 logged five
+    // entries against P0's one).
     const text = fs.readFileSync(path.join(BENCH_DIR, "DEVIATIONS.md"), "utf8");
-    return text.split(/\r?\n/).filter((l) => /^##\s+D-\d+\b/.test(l)).length;
+    const headings = text.split(/\r?\n/).filter((l) => /^##\s+D-\d+\b/.test(l));
+    if (!run) return headings.length;
+    return headings.filter((l) => l.includes(`Run ${run}`)).length;
   } catch {
     return 0;
   }

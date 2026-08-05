@@ -53,7 +53,7 @@ CLAUDE.md      Working guide: commands, architecture, invariants
 ```bash
 cd server
 npm install
-npm test          # 173 tests, fixture-backed, no network
+npm test          # 174 tests, fixture-backed, no network
 npm run smoke     # live end-to-end against real upstream APIs
 npm run dev       # wrangler dev (local Workers runtime + static site)
 npm run deploy    # wrangler deploy
@@ -61,6 +61,6 @@ npm run deploy    # wrangler deploy
 
 ## Data & licensing
 
-StatCite does not originate the underlying statistical observations; derived values and verification verdicts are calculated transparently from cited source data with the method disclosed. World Bank (CC BY 4.0); IMF (per IMF terms — attribution + downstream conditions; commercial reuse may require IMF permission); ECB (attribution, informational rates); Eurostat via DBnomics (CC BY 4.0); FRED permanently disabled — its June 2024 terms of use prohibit AI/ML use and caching/redistribution of its content, which conflicts with how this service serves data. IMF WEO/Fiscal Monitor projections are labeled as projections. The primary IMF path is the DataMapper API (current edition, verbatim edition label); if unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF's release calendar — responses cite the resolved vintage, flag stale ones, and every fallback is disclosed (verify_stat/verify_claims return cannot_verify with the fallback value as indicative when the primary failed transiently, rather than judging against a substitute that may differ by definition or vintage; a series the primary permanently lacks is judged against its stable fallback source with disclosure). Server code: MIT.
+StatCite does not originate the underlying statistical observations; derived values and verification verdicts are calculated transparently from cited source data with the method disclosed. World Bank (CC BY 4.0); IMF (per IMF terms — attribution + downstream conditions; commercial reuse may require IMF permission); ECB (attribution, informational rates); Eurostat via DBnomics (CC BY 4.0); FRED permanently disabled — its Services Terms of Use (clauses (p) and (q), https://fred.stlouisfed.org/legal/) prohibit AI/ML use and caching/redistribution of its content, which conflicts with how this service serves data. IMF WEO/Fiscal Monitor projections are labeled as projections. The primary IMF path is the DataMapper API (current edition, verbatim edition label); if unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF's release calendar — responses cite the resolved vintage, flag stale ones, and every fallback is disclosed (verify_stat/verify_claims return cannot_verify with the fallback value as indicative when the primary failed transiently, rather than judging against a substitute that may differ by definition or vintage; a series the primary permanently lacks is judged against its stable fallback source with disclosure). Server code: MIT.
 
 Built and curated by a professional economist. Contact: hello@statcite.com
