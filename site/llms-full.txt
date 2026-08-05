@@ -60,8 +60,8 @@ fetch({id}) → {id,title,text,url,metadata}; text contains recent observations 
 
 - /v1 — endpoint index
 - /v1/indicators — full registry; each entry carries active (boolean) and, on the six permanently-disabled FRED-reserved keys, disabled_reason
-- /v1/indicator/{key}?country=&start_year=&end_year=&transform=&latest_only=
-- /v1/series?id=&country=&start_year=&end_year=&transform=
+- /v1/indicator/{key}?country=&start_year=&end_year=&transform=&latest_only=&strict_source=
+- /v1/series?id=&country=&start_year=&end_year=&transform=&strict_source=
 - /v1/search?q=
 - /v1/snapshot/{country}
 - /v1/verify?indicator=&country=&period=&value=&tolerance_abs=&tolerance_pct=&strict_source=&as_of=

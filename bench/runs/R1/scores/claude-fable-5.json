@@ -1,7 +1,7 @@
 {
   "run": "R1",
   "model": "claude-fable-5",
-  "scored_at": "2026-07-28T15:02:34.949Z",
+  "scored_at": "2026-08-05T20:03:07.876Z",
   "bands": {
     "A": {
       "percent": {
@@ -107,6 +107,7 @@
         ]
       },
       "revision_affected": 0,
+      "vintage_eligible_misses": 2,
       "repaired": 15
     },
     "breakdowns": {
@@ -1070,7 +1071,8 @@
       "diagnostics": [
         "adjacent_year:prev:2020"
       ],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-017",
@@ -1126,7 +1128,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-019",
@@ -1225,7 +1228,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-023",
@@ -1599,7 +1603,8 @@
       "diagnostics": [
         "adjacent_year:next:2021"
       ],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-037",
@@ -1657,7 +1662,8 @@
       "diagnostics": [
         "adjacent_year:prev:2017"
       ],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-039",
@@ -2113,7 +2119,10 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_value": 25.942,
+      "vintage_edition": "2024-10",
+      "vintage_status": "ok"
     },
     {
       "qid": "P0-058",
@@ -2250,7 +2259,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-063",
@@ -2360,7 +2370,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-067",
@@ -2432,7 +2443,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-070",
@@ -2628,7 +2640,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-078",
@@ -3487,7 +3500,8 @@
       "diagnostics": [
         "adjacent_year:prev:2020"
       ],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-112",
@@ -3516,7 +3530,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-113",
@@ -3545,7 +3560,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-114",
@@ -3576,7 +3592,10 @@
       "diagnostics": [
         "adjacent_year:prev:2018"
       ],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_value": 69.129,
+      "vintage_edition": "2024-10",
+      "vintage_status": "ok"
     },
     {
       "qid": "P0-115",
@@ -3731,7 +3750,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-121",

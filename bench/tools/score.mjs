@@ -295,8 +295,14 @@ async function main() {
           row.revision_affected = judgeBand(claimed, rev.vintage_value, q.kind, q.revision_class) !== "mismatch";
           row.vintage_value = rev.vintage_value;
           row.vintage_edition = rev.vintage_edition;
+          row.vintage_status = "ok";
         } else {
           row.revision_affected = false;
+          // Never a silent false: distinguish "instrument ran, no usable
+          // vintage cell" from "cell was never targeted at all". A silent
+          // false here previously masked a run where the instrument covered
+          // zero headline cells while every table still rendered (D-003).
+          row.vintage_status = rev ? rev.status : "not_targeted";
         }
       }
     }
@@ -377,6 +383,12 @@ async function main() {
         answered_accuracy: rate(within.length, numericAttempted.length),
         format_failure_rate: rate(formatFailures.length, H.length),
         revision_affected: scoreable.filter((r) => r.revision_affected).length,
+        // Instrument-coverage sentinel: how many misses HAD a usable vintage
+        // cell to be re-judged against. All-zero across every model means the
+        // vintage instrument did not run (D-003), not that no miss was
+        // revision-driven — the report renders this so a dead instrument can
+        // never again produce a plausible-looking all-zero table silently.
+        vintage_eligible_misses: scoreable.filter((r) => r.vintage_status === "ok").length,
         repaired: H.filter((r) => r.repaired).length,
       },
       breakdowns: {

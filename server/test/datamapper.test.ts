@@ -559,3 +559,46 @@ test("budget: 15 concurrent claims against one DataMapper-down indicator share o
   const dmValuesCalls = callLog.filter((u) => isDataMapperValuesUrl(u, "GGXWDG_NGDP")).length;
   assert.ok(dmValuesCalls <= 3, `expected the memo to cap DataMapper values attempts at 3 total, got ${dmValuesCalls}`);
 });
+
+// ——— 9. Percent-kind detection for explicit ids must not hang on upstream free text ———
+// The unit field is absent on the DBnomics path, so before the series-id-aware
+// fix the tolerance model was chosen by regexing the provider's series NAME:
+// "…– Percent of GDP" armed percentage-point bands while an upstream rename to
+// "…general government gross debt" silently flipped the same numbers to
+// relative bands — match became mismatch with no data change. The WEO series
+// code suffix (.pcent_gdp) is the stable signal.
+test("verify explicit dbnomics WEO id: percent-kind bands arm from the series CODE even when the name lacks a percent token", async () => {
+  installRoutes({
+    test: (u) => u.includes("api.db.nomics.world") && u.includes("BRB.GGXWDG_NGDP"),
+    res: () =>
+      jsonRes(
+        JSON.stringify({
+          provider: { name: "International Monetary Fund" },
+          dataset: { code: "WEO:2025-04", name: "World Economic Outlook" },
+          series: {
+            docs: [
+              {
+                "@frequency": "annual",
+                dataset_code: "WEO:2025-04",
+                dataset_name: "World Economic Outlook",
+                provider_code: "IMF",
+                series_code: "BRB.GGXWDG_NGDP.pcent_gdp",
+                series_name: "Barbados general government gross debt",
+                period: ["2015"],
+                value: [0.1],
+              },
+            ],
+          },
+        }),
+      ),
+  });
+  const r = await verifyStat(newCtx(), {
+    indicator: "dbnomics/IMF/WEO:2025-04/BRB.GGXWDG_NGDP.pcent_gdp",
+    period: "2015",
+    claimed_value: 0.15,
+  });
+  // 0.15 vs 0.1: 0.05pp is within the percentage-point close/match band; under
+  // relative bands it is a 50% difference and would wrongly read as mismatch.
+  assert.equal(r.verdict, "match", r.explanation);
+  assert.match(r.explanation, /pp is within normal rounding|difference of 0\.050 pp/i);
+});

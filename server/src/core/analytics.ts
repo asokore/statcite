@@ -150,7 +150,11 @@ export function buildDataPoint(ev: UsageEvent): { indexes: string[]; blobs: stri
       transport,
       op,
       indicatorLabel(ev.indicator) ?? "",
-      countryLabel(ev.country) ?? (typeof ev.country === "string" && /^[A-Z0-9]{2,3}$/.test(ev.country) ? ev.country : ""),
+      // No raw pass-through, even for short code-shaped strings: the closed-set
+      // guarantee must hold inside this function, not by call-site discipline.
+      // Callers already resolve through countryLabel, so anything it cannot
+      // re-resolve here was never a recordable country to begin with.
+      countryLabel(ev.country) ?? "",
       verdictLabel(ev.verdict) ?? "",
       outcome,
       durationBucket(ms),

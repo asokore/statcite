@@ -21,11 +21,15 @@ import path from "node:path";
 
 const HELP = `snapshot_ground_truth.mjs — freeze ground truth for a run (METHODOLOGY §3.1)
 
-Usage: node snapshot_ground_truth.mjs --run P0 [--base DIR] [--help]
+Usage: node snapshot_ground_truth.mjs --run P0 [--base DIR] [--revision-only] [--help]
 
-  --run RUN    Run id whose questions/{RUN}.json to snapshot.
-  --base DIR   Base directory (default bench/). Reads questions/, writes snapshots/{RUN}/.
-  --help       Show this help.
+  --run RUN        Run id whose questions/{RUN}.json to snapshot.
+  --base DIR       Base directory (default bench/). Reads questions/, writes snapshots/{RUN}/.
+  --revision-only  Rebuild ONLY revision_check.json, reading served series ids from the
+                   already-FROZEN ground_truth.json (which is never rewritten in this
+                   mode). For repairing the vintage instrument on a completed run
+                   without moving its scored ground truth (D-003).
+  --help           Show this help.
 
 Writes ground_truth.json (frozen payload per question, incl. asked-year ±1 values)
 and revision_check.json (older dated WEO vintage values for WEO-sourced cells and
@@ -61,6 +65,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2), {
     run: { type: "string" },
     base: { type: "string" },
+    "revision-only": { type: "boolean" },
     help: { type: "boolean" },
   });
   if (args.help) {
@@ -70,6 +75,22 @@ async function main() {
   if (!args.run) throw new Error("--run is required (see --help)");
   const paths = benchPaths(args.base, args.run);
   const bank = readJson(paths.questions);
+
+  if (args["revision-only"]) {
+    // Repair mode (D-003): the scored ground truth stays FROZEN — read the
+    // existing snapshot for served series ids and rebuild only the vintage
+    // instrument's output. ground_truth.json is never rewritten here.
+    const frozen = readJson(path.join(paths.snapshotDir, "ground_truth.json"));
+    log(`revision-only: reading FROZEN ground truth (snapshot_at ${frozen.snapshot_at}, ${frozen.rows.length} rows); ground_truth.json will NOT be rewritten`);
+    // Candidate selection uses the FROZEN snapshot date, not today: the rule is
+    // "nearest to snapshot date minus 18 months", and the repair must reproduce
+    // the edition the instrument would have chosen at the original snapshot
+    // (2026-07-26 selects 2024-10, matching P0's instrument), not drift with
+    // the repair date.
+    await buildRevisionCheck(paths, args, bank, frozen.rows, new Date(frozen.snapshot_at));
+    return;
+  }
+
   log(`snapshotting ground truth for ${bank.questions.length} questions (run ${args.run})`);
 
   // ---- 1. Frozen current payload per question -------------------------------
@@ -148,15 +169,23 @@ async function main() {
   });
   log(`ground_truth.json written (${rows.length} rows, ${violations.length} violations)`);
 
-  // ---- 2. Revision check: older dated WEO vintage ----------------------------
+  await buildRevisionCheck(paths, args, bank, rows, new Date());
+}
+
+// ---- 2. Revision check: older dated WEO vintage ------------------------------
+async function buildRevisionCheck(paths, args, bank, rows, candidateDate) {
   // Applies to: (a) cells actually served from IMF WEO, (b) all recency questions on
   // indicators that have a WEO series template (projection_echo material).
   const rowByQid = new Map(rows.map((r) => [r.qid, r]));
   const targets = bank.questions.filter((q) => {
     const served = rowByQid.get(q.qid)?.series_id ?? "";
-    const weoServed = /^dbnomics\/IMF\/WEO/i.test(served);
+    // Both IMF channels count as WEO-served: the dated-DBnomics scheme AND the
+    // DataMapper scheme (imf/CODE) that v1.3.0 moved the fiscal cells onto.
+    // Matching only the DBnomics scheme silently shrank R1's instrument to zero
+    // headline cells while every table still rendered — D-003.
+    const weoServed = /^dbnomics\/IMF\/WEO/i.test(served) || /^imf\//i.test(served);
     const weoCapable = Boolean(WEO_SERIES_TEMPLATE[q.indicator]);
-    return weoServed || (q.segment === "recency" && weoCapable);
+    return (weoServed && weoCapable) || (q.segment === "recency" && weoCapable);
   });
   log(`revision check: ${targets.length} WEO-relevant questions`);
 
@@ -167,7 +196,7 @@ async function main() {
     .sort()
     .pop() ?? null;
   if (currentEdition) log(`current live WEO edition (from snapshot series ids): ${currentEdition}`);
-  const candidates = weoVintageCandidates(new Date(), currentEdition);
+  const candidates = weoVintageCandidates(candidateDate, currentEdition);
   // Probe which dated editions exist (one cheap call per edition, USA cell).
   const probeCode = WEO_SERIES_TEMPLATE.gdp_growth.replace("{ISO3}", "USA");
   const editionExists = {};

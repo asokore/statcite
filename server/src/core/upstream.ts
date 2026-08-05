@@ -90,7 +90,12 @@ export async function fetchJson(
 ): Promise<unknown> {
   const hit = mem.get(url);
   const now = Date.now();
-  if (hit && hit.exp > now) return hit.data;
+  // Re-validate on cache read, not only on write: today every URL with a
+  // validate hook has exactly one call site, but the "never serve an
+  // unvalidated body" guarantee must hold structurally, not by call-site
+  // discipline — a future hookless caller for the same URL would otherwise
+  // let an unvalidated body be served to a strict caller from cache.
+  if (hit && hit.exp > now && (!validate || validate(hit.data))) return hit.data;
 
   let lastErr: unknown;
   const maxAttempts = RETRY_DELAYS_MS.length + 1;

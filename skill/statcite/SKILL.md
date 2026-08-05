@@ -11,7 +11,7 @@ Why this matters: economic numbers recalled from memory are frequently stale (da
 
 ## How to call it
 
-If the StatCite MCP connector is installed, prefer its tools (`get_indicator`, `verify_stat`, `verify_claims`, `country_snapshot`, `inflation_adjust`, `fx_convert`, `get_series`, `search_indicators`, `list_sources`). Otherwise use the REST API — plain HTTPS GETs, no key, no auth (one exception: `/v1/verify_claims` is a POST):
+If the StatCite MCP connector is installed, prefer its tools (`get_indicator`, `verify_stat`, `verify_claims`, `country_snapshot`, `inflation_adjust`, `fx_convert`, `get_series`, `search_indicators`, `list_sources`; two further tools, `search` and `fetch`, exist for deep-research connectors and are not needed from this skill). Otherwise use the REST API — plain HTTPS GETs, no key, no auth (one exception: `/v1/verify_claims` is a POST):
 
 ```
 https://statcite.com/v1/indicator/{key}?country={ISO3}&latest_only=true

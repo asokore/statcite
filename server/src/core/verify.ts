@@ -210,7 +210,15 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
       : "Macro data is revised: the official value reflects the source's current published figure, which may differ from what was published at the time of the claim.",
   );
 
-  const percentKind = isRegistry ? isPercentKind(p.indicator) : /%|percent/i.test(result.unit ?? result.name);
+  // For non-registry (explicit-id) series the unit field is often absent (the
+  // DBnomics adapter carries no unit), so keying off the free-text series NAME
+  // alone lets an upstream rename flip the tolerance model between
+  // percentage-point and relative bands — identical numbers, opposite verdicts.
+  // The series id itself is the stable signal: IMF WEO codes end in
+  // pcent_gdp / pcent_change, so include id and unit alongside the name.
+  const percentKind = isRegistry
+    ? isPercentKind(p.indicator)
+    : /%|percent|pcent/i.test([result.unit, result.series_id, result.name].filter(Boolean).join(" "));
 
   // IMF WEO/Fiscal Monitor series are the only ones whose actual-vs-projection
   // status comes from the boundary heuristic (design D3); the colon keeps

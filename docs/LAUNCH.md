@@ -6,17 +6,17 @@ Deployment runbook lives in ../HANDOFF.md. This file is the go-to-market sequenc
 
 - [ ] Smoke test against production: `cd server && BASE=https://statcite.com npm run smoke` (or run the curl checks in HANDOFF §6)
 - [ ] Add StatCite to your own Claude as a custom connector; use it for a real task; fix anything that annoys you
-- [ ] Register hello@statcite.com forwarding (Cloudflare Email Routing)
-- [ ] Join the Cloudflare Monetization Gateway waitlist
+- [x] Register hello@statcite.com forwarding (Cloudflare Email Routing) (done 2026-07-25)
+- [x] Join the Cloudflare Monetization Gateway waitlist (done 2026-07-25)
 
 ## T+1–3 (distribution wave 1 — ~half a day total)
 
-- [ ] Push repo to GitHub (public), topics + README polish (distribution/submissions.md §2)
-- [ ] Publish to the official MCP registry (§1) — the cascade starts here
-- [ ] Smithery (§4), Glama claim (§5)
-- [ ] awesome-mcp-servers PR + awesome-remote-mcp-servers PR (§7)
-- [ ] Submit to Claude Connectors Directory (§3) — review takes days–weeks, start early
-- [ ] Push the Apify actor + enable pay-per-event (§9)
+- [x] Push repo to GitHub (public), topics + README polish (distribution/submissions.md §2) (done 2026-07-25)
+- [x] Publish to the official MCP registry (§1) — the cascade starts here (done 2026-07-25, v1.4.2 latest)
+- [x] Smithery (§4), Glama claim (§5) (done; Glama scored A quality 2026-07-29)
+- [x] awesome-mcp-servers PR + awesome-remote-mcp-servers PR (§7) (both open, awaiting maintainers)
+- [x] Submit to Claude Connectors Directory (§3) (approved + published 2026-07-29)
+- [x] Push the Apify actor + enable pay-per-event (§9) (live, differentiated PPE pricing)
 
 ## T+4–10 (launch wave)
 

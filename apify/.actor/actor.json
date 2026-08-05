@@ -1,16 +1,19 @@
 {
   "actorSpecification": 1,
   "name": "statcite-economic-data",
-  "title": "StatCite — Economic Data & Stat Verification (with citations)",
-  "description": "Official economic statistics with full citations — World Bank, IMF WEO, ECB — plus verify_stat: check any claimed figure against the official series. 36 active indicators, 200+ economies, ~120 currencies, inflation adjustment, historical FX.",
-  "version": "1.0",
+  "title": "StatCite \u2014 Economic Data & Stat Verification (with citations)",
+  "description": "Official economic statistics with full citations \u2014 World Bank, IMF WEO, ECB \u2014 plus verify_stat: check any claimed figure against the official series. 36 active indicators, 200+ economies, ~120 currencies, inflation adjustment, historical FX.",
+  "version": "1.4",
   "input": "./input_schema.json",
   "output": "./output_schema.json",
   "meta": {
     "templateId": "js-empty"
   },
   "dockerfile": "./Dockerfile",
-  "categories": ["BUSINESS", "AI"],
+  "categories": [
+    "BUSINESS",
+    "AI"
+  ],
   "minMemoryMbytes": 256,
   "maxMemoryMbytes": 512
 }

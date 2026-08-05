@@ -2,7 +2,7 @@
 
 import type { Ctx } from "./core/types.ts";
 import { ToolError } from "./core/types.ts";
-import { getIndicator, getSeries, searchIndicators, listRegistry } from "./core/series.ts";
+import { getIndicator, getSeries, searchIndicators, listRegistry, wbIsPrimarySource } from "./core/series.ts";
 import { countrySnapshot } from "./core/snapshot.ts";
 import { inflationAdjust } from "./core/inflation.ts";
 import { fxConvert } from "./core/fx.ts";
@@ -478,7 +478,10 @@ export const TOOLS: ToolDef[] = [
         results.push({
           id: `indicator/${m.def.key}/${iso}`,
           title: `${m.def.label} — ${cname}`,
-          url: m.def.wb
+          // Only link data.worldbank.org when WB is actually the primary source;
+          // for IMF-primary keys the WB page is a different statistical concept
+          // (central vs general government) with different numbers.
+          url: wbIsPrimarySource(m.def)
             ? `https://data.worldbank.org/indicator/${m.def.wb}?locations=${iso}`
             : `${ctx.baseUrl}/docs#indicators`,
         });

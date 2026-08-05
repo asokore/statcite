@@ -41,6 +41,7 @@ site/          statcite.com static site (landing, docs, llms.txt, OpenAPI, legal
 apify/         Metered twin: Apify actor (pay-per-event) bundling the same core
 skill/         Claude skill teaching agents the verify-then-cite workflow
 distribution/  Registry manifests, submission steps, launch copy
+bench/         pre-registered AI-accuracy benchmark: COVENANT.md, METHODOLOGY.md, question bank, frozen snapshots, runs/ (R1 REPORT + ADDENDA)
 docs/          Research report, strategy, launch plan, monetization roadmap
 BRIEF.md       Context + mandate for anyone (human or agent) picking this up
 HANDOFF.md     Deployment runbook (the mechanical steps to take it live)

@@ -219,7 +219,7 @@ async function indicatorFromDataMapper(ctx: Ctx, def: IndicatorDef, country: Cou
   const [code, dataset] = def.datamapper!;
   const now = ctx.now ? ctx.now() : new Date();
   const s = await fetchDataMapperSeries(ctx, code, dataset, country.iso3, now);
-  const { boundaryYear, clamped } = computeBoundaryYear(s.horizonYear, now);
+  const { boundaryYear, clamped } = computeBoundaryYear(s.horizonYear, now, s.edition?.year);
   const kind = dataset === "FM" ? "IMF Fiscal Monitor" : "IMF WEO";
 
   const notes: string[] = def.notes ? [def.notes] : [];
@@ -260,7 +260,9 @@ async function indicatorFromDataMapper(ctx: Ctx, def: IndicatorDef, country: Cou
   }
   if (clamped) {
     notes.push(
-      `The data horizon implied a projection-boundary year that looked implausible against the IMF's release calendar, so the calendar year (${boundaryYear}) was used instead — possible if this payload is truncated or mid-load.`,
+      s.edition?.year != null
+        ? `The data horizon implied a projection-boundary year that looked implausible against the IMF's release calendar, so it was clamped to ${boundaryYear} (the older of the payload's own edition year and the calendar-expected edition year) — consistent with the DataMapper serving a stale edition, or a truncated/mid-load payload.`
+        : `The data horizon implied a projection-boundary year that looked implausible against the IMF's release calendar, so the calendar year (${boundaryYear}) was used instead — possible if this payload is truncated or mid-load.`,
     );
   }
   if (DB_PRIMARY.has(def.key)) {
@@ -412,10 +414,16 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
         // the same nominal indicator. A hard failure (series/country genuinely
         // absent from the primary) doesn't carry that same-query-different-answer
         // risk, so it gets the plainer note it always had.
+        // The note must agree with fallback_reason (which is keyed off ANY
+        // transient failure, not just the primary's): a payload carrying
+        // fallback_reason "transient" alongside a "primary does not have this"
+        // note is self-contradictory. Three cases, one truth each.
         result.notes.push(
           firstErrorWasTransient
             ? `${primaryLabel} was transiently unavailable for this request; served from ${servedLabel} instead, which may use a different statistical definition and can report a different value for the same nominal indicator. If exact consistency with ${primaryLabel} matters, retry this query — the primary source may have recovered. (${errors[0]})`
-            : `${primaryLabel} does not have this indicator/country/period; served from ${servedLabel} instead. (${errors[0]})`,
+            : anyErrorWasTransient
+              ? `${primaryLabel} does not have this indicator/country/period, and an intermediate fallback source was transiently unavailable; served from ${servedLabel} instead. A skipped source may recover, so the serving source for this query can change on retry. (${errors[0]})`
+              : `${primaryLabel} does not have this indicator/country/period; served from ${servedLabel} instead. (${errors[0]})`,
         );
       }
       return result;
@@ -563,6 +571,15 @@ export async function getIndicatorAsOf(
 }
 
 const DB_PRIMARY = new Set(["govt_debt_gdp", "fiscal_balance_gdp", "govt_revenue_gdp", "govt_expenditure_gdp"]);
+
+/** True when World Bank WDI is the PRIMARY source for this def — the only case
+ * where a data.worldbank.org link matches the data actually served. The search
+ * url builders previously linked WB unconditionally, which for IMF-primary keys
+ * (e.g. govt_debt_gdp) sent users to the central-government debt page while the
+ * served values are IMF general-government — a different statistical concept. */
+export function wbIsPrimarySource(def: IndicatorDef): boolean {
+  return Boolean(def.wb) && !(def.dbnomics && DB_PRIMARY.has(def.key));
+}
 
 /** Reverse lookup for the `imf/{CODE}` explicit series id (design D9). */
 const DM_CODE_INFO = new Map<string, { dataset: "WEO" | "FM"; def: IndicatorDef }>();
@@ -726,7 +743,7 @@ export async function searchIndicators(ctx: Ctx, query: string, opts: { includeD
       description: disabled
         ? `DISABLED — ${m.def.unit}. ${FRED_DISABLED_REASON}`
         : `${m.def.unit}${m.def.notes ? ` — ${m.def.notes}` : ""}`,
-      url: m.def.wb ? `https://data.worldbank.org/indicator/${m.def.wb}` : undefined,
+      url: wbIsPrimarySource(m.def) ? `https://data.worldbank.org/indicator/${m.def.wb}` : undefined,
       usage: disabled
         ? "Do not call: this key always declines. Search again for an active alternative (e.g. unemployment_rate, inflation_cpi, gdp_growth)."
         : `get_indicator(indicator="${m.def.key}", country="<ISO3 or name>")`,

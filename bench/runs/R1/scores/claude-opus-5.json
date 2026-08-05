@@ -1,7 +1,7 @@
 {
   "run": "R1",
   "model": "claude-opus-5",
-  "scored_at": "2026-07-28T15:02:34.949Z",
+  "scored_at": "2026-08-05T20:03:07.876Z",
   "bands": {
     "A": {
       "percent": {
@@ -106,7 +106,8 @@
           0.037
         ]
       },
-      "revision_affected": 0,
+      "revision_affected": 1,
+      "vintage_eligible_misses": 2,
       "repaired": 9
     },
     "breakdowns": {
@@ -1073,7 +1074,8 @@
       "diagnostics": [
         "adjacent_year:prev:2020"
       ],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-017",
@@ -1129,7 +1131,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-019",
@@ -1228,7 +1231,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-023",
@@ -1546,7 +1550,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-035",
@@ -1602,7 +1607,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-037",
@@ -1866,7 +1872,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-048",
@@ -1942,7 +1949,10 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": true,
+      "vintage_value": 34.54,
+      "vintage_edition": "2024-10",
+      "vintage_status": "ok"
     },
     {
       "qid": "P0-051",
@@ -2127,7 +2137,10 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_value": 25.942,
+      "vintage_edition": "2024-10",
+      "vintage_status": "ok"
     },
     {
       "qid": "P0-058",
@@ -2264,7 +2277,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-063",
@@ -2374,7 +2388,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-067",
@@ -2430,7 +2445,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-069",
@@ -2459,7 +2475,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-070",
@@ -2651,7 +2668,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-078",
@@ -3535,7 +3553,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-113",
@@ -3731,7 +3750,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-121",

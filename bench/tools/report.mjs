@@ -3,6 +3,7 @@
 
 import { benchPaths, log, parseArgs, readJson, writeText } from "./lib.mjs";
 import path from "node:path";
+import fs from "node:fs";
 
 const HELP = `report.mjs — render REPORT.md from summary.json (METHODOLOGY §6, §7)
 
@@ -118,7 +119,10 @@ async function main() {
   md += `${CONCESSION}\n\n`;
   md += `**Disclosure${multiVendor ? "" : " (verbatim per METHODOLOGY §7)"}:** ${multiVendor ? multiVendorDisclosure(nonAnthropic) : DISCLOSURE_SINGLE_VENDOR}\n\n`;
   md += `Run \`${summary.run}\` · scored ${summary.scored_at} · seed \`${summary.seed}\` · bank: ${summary.counts.headline} headline / ${summary.counts.recency} recency / ${summary.counts.null_probe} null probes.\n\n`;
-  md += `**Protocol deviations logged for this run: ${summary.deviations_count}** (see bench/DEVIATIONS.md).\n\n`;
+  md += `**Protocol deviations logged: ${summary.deviations_count}** (see bench/DEVIATIONS.md).\n\n`;
+  if (fs.existsSync(path.join(paths.runDir, "ADDENDA.md"))) {
+    md += `**Post-publication addenda for this run: see [ADDENDA.md](ADDENDA.md)** — sensitivity analyses and disclosures added after first publication.\n\n`;
+  }
 
   md += `## Headline (Within-Tolerance Rate, refusals count against)\n\n`;
   md += `Per the quotation covenant, WTR, CR, and Answer Rate are one unit and travel together.\n\n`;
@@ -129,9 +133,12 @@ async function main() {
   }
   md += `\n*Wilson 95% intervals; at n≈100 the half-width is ±7–10pp. Minimum detectable model-vs-model difference ~12–15pp — no league tables at pilot scale (§5).*\n`;
 
-  md += `\n## Revision-affected misses\n\n| model | revision_affected |\n|---|---|\n`;
-  for (const m of models) md += `| ${m} | ${summary.models[m].headline.revision_affected} |\n`;
-  md += `\n*Re-judged against the older dated WEO vintage (§3.3.4): still not within-tolerance in the headline (the figure is outdated today), and per the covenant never described as model errors.*\n`;
+  md += `\n## Revision-affected misses\n\n| model | vintage-eligible misses | revision_affected |\n|---|---|---|\n`;
+  for (const m of models) {
+    const h = summary.models[m].headline;
+    md += `| ${m} | ${h.vintage_eligible_misses ?? "n/a (pre-D-003 scoring)"} | ${h.revision_affected} |\n`;
+  }
+  md += `\n*Re-judged against the older dated WEO vintage (§3.3.4): still not within-tolerance in the headline (the figure is outdated today), and per the covenant never described as model errors. The vintage-eligible column is the instrument's own coverage: all-zero there would mean the vintage instrument did not run (the D-003 failure mode), not that no miss was revision-driven.*\n`;
 
   md += `\n## Breakdowns\n`;
   md += breakdownTable(models, summary, "by_class", "Revision class");
@@ -175,7 +182,7 @@ async function main() {
   }
 
   if (summary.pairwise_mcnemar?.length) {
-    md += `\n## Model-vs-model (exact McNemar, Holm-corrected — report-only)\n\n| pair | discordant (a-only / b-only) | p | p (Holm) |\n|---|---|---|---|\n`;
+    md += `\n## Model-vs-model (exact McNemar, Holm-corrected — report-only)\n\n*Pairs involving a model whose §8 grid branch is invalid (Answer Rate < 70%) are shown for completeness only and must not be quoted as model-vs-model comparisons.*\n\n| pair | discordant (a-only / b-only) | p | p (Holm) |\n|---|---|---|---|\n`;
     for (const p of summary.pairwise_mcnemar) {
       md += `| ${p.model_a} vs ${p.model_b} | ${p.a_only_within} / ${p.b_only_within} | ${p.p} | ${p.p_holm} |\n`;
     }
@@ -185,7 +192,12 @@ async function main() {
   md += `\n## Permitted claims (filled templates, §5)\n\n`;
   for (const m of models) {
     const h = summary.models[m].headline;
-    md += `- ${m} answered ${fmtPct(h.WTR)} of questions within the published tolerance of the current official value (95% CI${fmtCI(h.WTR) || " n/a"}; ${fmtKN(h.WTR)} scoreable), with a Confabulation Rate of ${fmtPct(h.CR)} and an Answer Rate of ${fmtPct(h.answer_rate)}.\n`;
+    // The §8 grid-validity condition must travel WITH the claim text: this is
+    // the copy-paste block, and an invalid-branch model's line quoted without
+    // the qualifier presents a sub-70%-answer-rate score as a comparable
+    // accuracy figure.
+    const invalid = h.answer_rate?.rate != null && h.answer_rate.rate < 0.7;
+    md += `- ${m} answered ${fmtPct(h.WTR)} of questions within the published tolerance of the current official value (95% CI${fmtCI(h.WTR) || " n/a"}; ${fmtKN(h.WTR)} scoreable), with a Confabulation Rate of ${fmtPct(h.CR)} and an Answer Rate of ${fmtPct(h.answer_rate)}.${invalid ? " **[§8 grid branch INVALID: Answer Rate below 70% — not quotable as a comparable accuracy figure]**" : ""}\n`;
   }
   md += `\n*Never: "model X is wrong Y% of the time."*\n`;
 

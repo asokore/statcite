@@ -25,3 +25,37 @@ Rejecting those cells would have been the wrong repair twice over: it would sile
 **Why.** `report.mjs` was written once, for P0, before any multi-vendor run existed, and the banner text was never made conditional — a case this codebase hadn't needed until R1.
 
 **Effect on results.** No effect on any scored number, verdict, band, or ground truth — `score.mjs`'s output (`summary.json`) is unchanged; only `report.mjs`'s prose banner/title/footnote changed. Re-ran `report.mjs --run P0` after the fix to confirm P0's `REPORT.md` is byte-identical (P0 is single-vendor, so it takes the unchanged original-banner branch) — confirmed via `git diff --stat` showing no change. This fix happened after the `prereg-R1` freeze (commit `322e64e`) and after all R1 model calls were made, so it is logged here per COVENANT §7 even though it touches presentation, not analysis.
+
+---
+
+## D-003 — 2026-08-01 — Run R1 — The revision/vintage instrument covered zero headline cells as published
+
+**What changed.** `snapshot_ground_truth.mjs` selected vintage-check targets by matching served series ids against the dated-DBnomics scheme only (`dbnomics/IMF/WEO...`). StatCite v1.3.0 (2026-07-25) moved the WEO/Fiscal Monitor cells onto the DataMapper scheme (`imf/CODE`), so at R1's snapshot the filter matched nothing: `revision_check.json` held 4 rows, all recency-segment, zero headline. `score.mjs` then silently emitted `revision_affected: false` for every miss, and REPORT.md rendered a "Revision-affected misses" table of six zeros footnoted as "re-judged against the older dated WEO vintage" — a re-judgement that never ran. 19 headline mismatches on the two WEO-capable indicators were published without the vintage defence §3.3.4 promises. This was foreseeable: P0's NOTES.md carry-over (a) warned the bench tools only understood `worldbank/` and `dbnomics/` schemes.
+
+**Repair (2026-08-01).** The filter now accepts both IMF channels; a `--revision-only` mode rebuilds `revision_check.json` against the FROZEN ground truth (never re-snapshotting it), with vintage-candidate selection pinned to the original snapshot date (2026-07-26, selecting the 2024-10 edition, matching P0's instrument). `score.mjs` now records a `vintage_status` on every miss (never a silent false), and the report renders the instrument's own coverage column so an all-zero table can no longer be read as a result when the instrument is dead. The pre-repair artifact is preserved as `snapshots/R1/revision_check.pre-D003.json`.
+
+**Effect on results.** No headline rate changes (WTR/CR/Answer Rate are unaffected by §3.3.4, re-verified identical after re-scoring). Of the 19 eligible misses, exactly one relabels: claude-opus-5 on P0-050 matches the 2024-10 vintage value and is now marked `revision_affected` (per §5, never described as a model error). The other 18 stand as genuine misses.
+
+---
+
+## D-004 — 2026-08-01 — Run R1 — §8 vendor courtesy preview was not provided
+
+**What happened.** COVENANT §8 and METHODOLOGY §6 commit to a 5-business-day courtesy preview (notification, not approval) to covered vendors from the first multi-vendor wave. R1 is that wave. The scored report was committed 2026-07-28 11:03 and published to statcite.com at 11:18 the same day. No preview was sent. The breach was found in a 2026-08-01 audit and is logged here; vendor notifications are being prepared. Nothing about the published numbers changes; the process commitment was broken and this log entry is the covenant's required record of that.
+
+---
+
+## D-005 — 2026-08-01 — Run R1 — Published without the §6 integrity manifest
+
+**What happened.** METHODOLOGY §6 commits to a SHA-256 manifest of every artifact per run; P0 has one; R1 was published without one, while `models.json` asserted "R1 is a distinct run with its own manifest". Built 2026-08-01 with the existing `hash_manifest.mjs` after the D-003 repair (so the manifest hashes the corrected artifacts). The scorer still performs no automatic hash verification in any run; `hash_manifest.mjs --verify` remains a manual step.
+
+---
+
+## D-006 — 2026-08-01 — Run R1 — The "independent" ground-truth audit was served from the bench's own HTTP cache
+
+**What happened.** §3.2 describes `audit_ground_truth.mjs` as re-fetching every ground-truth value directly from the primary APIs. The tool used `politeFetchJson` defaults (7-day disk cache): 99 of the 117 data-bearing rows in R1's `audit.json` were verified against bytes cached on 2026-07-25, the day BEFORE the audit ran. "0 divergences" therefore meant "0 divergences against yesterday's bytes" — a weaker claim than written. The tool now forces a refresh on every audit fetch. The July artifact is retained unmodified (re-running in August would conflate later upstream revisions with snapshot error); the weakness is disclosed here instead.
+
+---
+
+## D-007 — 2026-08-01 — Run R1 — Consolidated: pre-registered commitments not met in this run
+
+Logged per §7; none were disclosed in DEVIATIONS.md at publication. In R1: (1) the §6 contamination protocol's fresh majority draw was not performed — `questions/R1.json` is byte-identical to P0's bank, and no core-vs-fresh contamination metric exists; (2) the §6 NIST-beacon seed was not used — R1 reuses P0's commit-hash seed; (3) the §2.5 as-deployed arm, pre-registered as required from the first multi-vendor wave with a binding pairing rule, was not run; (4) the §0 retrieval-delta arm was not run; (5) §3.4 commits to ≥25 null probes from the first full wave — R1 has 10; (6) the §4 reweighting sensitivity (GDP/population/equal weights) appears in no report; (7) §3.3.6's `revision_events.json` was never created; (8) the §4 CI equivalence test exists but is not wired into CI; (9) the §6 roster rule ("every generally-available model in each covered vendor's current public lineup") was not applied mechanically — R1 ran 4 Anthropic models, 1 OpenAI model, and 1 Google preview model selected by API-key availability. Each remains open until either implemented in R2 or formally amended in the methodology with its own deviation entry.
