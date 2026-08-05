@@ -10,7 +10,7 @@ Agentic deployments with retrieval will outperform these scores. That is expecte
 
 **Disclosure:** This benchmark's harness, scoring code, and drafts were developed with the assistance of Claude (Anthropic). This run's roster spans 3 vendors (Anthropic plus OpenAI and Google), satisfying COVENANT §6's two-non-Anthropic-vendor threshold for a citable cross-model result. No model — any vendor's — plays any role in scoring: verdicts are deterministic numeric comparisons against pinned official values, and the scoring code, prompts, raw responses, and ground truth are published in full.
 
-Run `R1` · scored 2026-08-05T20:44:27.071Z · seed `9a173ab9f6e75866e0ca1f080f24ef0d1e2c91a1a9dbd699be6b796450840c3e` · bank: 100 headline / 12 recency / 10 null probes.
+Run `R1` · scored 2026-08-05T21:43:27.584Z · seed `9a173ab9f6e75866e0ca1f080f24ef0d1e2c91a1a9dbd699be6b796450840c3e` · bank: 100 headline / 12 recency / 10 null probes.
 
 **Protocol deviations logged for this run: 6** (see bench/DEVIATIONS.md).
 
@@ -110,6 +110,32 @@ Per the quotation covenant, WTR, CR, and Answer Rate are one unit and travel tog
 | gemini-3-flash-preview | 67.0% | 79.0% | 84.0% | 89.0% |
 
 *No result here is a knife-edge artifact of band choice; the full signed-error distribution ships in scores/<model>.json (§4).*
+
+## Parse-policy sensitivity (strict §2.4 parse vs fence-stripped)
+
+| model | strict WTR / CR / AR | fence-stripped WTR / CR / AR | fence-affected raw files |
+|---|---|---|---|
+| claude-haiku-4-5 | 33.3 / 32.5 / 49.4 | 35.0 / 36.4 / 55.0 | 6 |
+| claude-sonnet-5 | 64.8 / 31.4 / 94.5 | 68.0 / 28.4 / 95.0 | 3 |
+| claude-opus-5 | 82.0 / 15.5 / 97.0 | 82.0 / 15.5 / 97.0 | 0 |
+| claude-fable-5 | 81.0 / 15.6 / 96.0 | 81.0 / 15.6 / 96.0 | 0 |
+| gpt-5.5 | 75.0 / 22.7 / 97.0 | 75.0 / 22.7 / 97.0 | 0 |
+| gemini-3-flash-preview | 79.0 / 20.2 / 99.0 | 79.0 / 20.2 / 99.0 | 0 |
+
+*The strict-parse figures are the pre-registered headline (§2.4). This table shows how much of any model's score is parse policy rather than recall; a §8 branch label sitting within this delta of a boundary must carry the sensitivity when quoted.*
+
+## Year-discrimination sensitivity (ADDENDA §3 dual metric)
+
+| model | WTR (all headline) | WTR (year-discriminating subset) |
+|---|---|---|
+| claude-haiku-4-5 | 33.3% [24.0–44.2] | 21.2% [10.7–37.8] (7/33) |
+| claude-sonnet-5 | 64.8% [54.6–73.9] | 55.6% [39.6–70.5] (20/36) |
+| claude-opus-5 | 82.0% [73.3–88.3] | 72.5% [57.2–83.9] (29/40) |
+| claude-fable-5 | 81.0% [72.2–87.5] | 72.5% [57.2–83.9] (29/40) |
+| gpt-5.5 | 75.0% [65.7–82.5] | 65.0% [49.5–77.9] (26/40) |
+| gemini-3-flash-preview | 79.0% [70.0–85.8] | 72.5% [57.2–83.9] (29/40) |
+
+*40 of the headline questions are year-discriminating: an adjacent-year official value would NOT score within tolerance, so a correct answer proves the model knows the asked year rather than the series' neighbourhood. The subset is identical for every model and computed from ground truth alone.*
 
 ## Signed relative error distribution (deciles)
 

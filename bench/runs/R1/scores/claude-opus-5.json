@@ -1,7 +1,7 @@
 {
   "run": "R1",
   "model": "claude-opus-5",
-  "scored_at": "2026-08-05T20:44:27.071Z",
+  "scored_at": "2026-08-05T21:43:27.584Z",
   "bands": {
     "A": {
       "percent": {
@@ -108,7 +108,28 @@
       },
       "revision_affected": 1,
       "vintage_eligible_misses": 2,
-      "repaired": 9
+      "repaired": 9,
+      "year_discrimination": {
+        "n_year_discriminating": 40,
+        "WTR_year_discriminating": {
+          "k": 29,
+          "n": 40,
+          "rate": 0.725,
+          "ci95": [
+            0.5717,
+            0.8389
+          ]
+        },
+        "WTR_all": {
+          "k": 82,
+          "n": 100,
+          "rate": 0.82,
+          "ci95": [
+            0.7333,
+            0.883
+          ]
+        }
+      }
     },
     "breakdowns": {
       "by_class": {

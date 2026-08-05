@@ -91,7 +91,43 @@ function minReasoningEffort(model) {
   return undefined;
 }
 
-async function callOnce(apiKey, model, system, user) {
+// §0 retrieval-delta arm: OpenAI's vendor-native web_search tool is exposed via
+// the Responses API, not chat/completions. Same instruction contract; the model
+// may search, the output must still be ONLY the JSON array.
+async function callOnceRetrieval(apiKey, model, system, user) {
+  const res = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      instructions: system,
+      input: user,
+      tools: [{ type: "web_search" }],
+    }),
+    signal: AbortSignal.timeout(180000),
+  });
+  const text = await res.text();
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return { status: res.status, ok: false, raw: text, error: "non_json_response" };
+  }
+  if (!res.ok) return { status: res.status, ok: false, raw: text, error: body?.error?.message ?? `http_${res.status}` };
+  // Responses API: concatenate output_text parts from message items.
+  const parts = [];
+  for (const item of body?.output ?? []) {
+    if (item.type === "message") {
+      for (const c of item.content ?? []) {
+        if (c.type === "output_text" && typeof c.text === "string") parts.push(c.text);
+      }
+    }
+  }
+  if (!parts.length) return { status: res.status, ok: false, raw: text, error: "no_output_text" };
+  return { status: res.status, ok: true, content: parts.join(""), usage: body.usage };
+}
+
+async function callOnce(apiKey, model, system, user, arm = "uniform") {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -110,7 +146,9 @@ async function callOnce(apiKey, model, system, user) {
       // gets, nothing more. temperature omitted (some models reject a nonzero value
       // when reasoning_effort is set; leaving unset is the honest disclosed setting,
       // same posture as models.json's Claude entries).
-      ...(minReasoningEffort(model) ? { reasoning_effort: minReasoningEffort(model) } : {}),
+      // §2.5 as-deployed arm: vendor defaults — no reasoning_effort override at
+      // all. Uniform arm keeps the verified per-model minimum.
+      ...(arm !== "deployed" && minReasoningEffort(model) ? { reasoning_effort: minReasoningEffort(model) } : {}),
     }),
     signal: AbortSignal.timeout(60000),
   });
@@ -127,11 +165,11 @@ async function callOnce(apiKey, model, system, user) {
   return { status: res.status, ok: true, content, usage: body.usage };
 }
 
-async function callWithRetry(apiKey, model, system, user) {
+async function callWithRetry(apiKey, model, system, user, { arm = "uniform", retrieval = false } = {}) {
   const backoff = [2000, 5000, 12000];
   let lastErr;
   for (let attempt = 0; attempt <= backoff.length; attempt++) {
-    const r = await callOnce(apiKey, model, system, user);
+    const r = retrieval ? await callOnceRetrieval(apiKey, model, system, user) : await callOnce(apiKey, model, system, user, arm);
     if (r.ok) return r;
     if (!RETRY_STATUSES.has(r.status) || attempt === backoff.length) return r;
     lastErr = r;
@@ -144,6 +182,8 @@ async function main() {
   const args = parseArgs(process.argv.slice(2), {
     run: { type: "string" },
     model: { type: "string" },
+    arm: { type: "string" },
+    retrieval: { type: "boolean" },
     base: { type: "string" },
     limit: { type: "string" },
     "dry-run": { type: "boolean" },
@@ -177,7 +217,7 @@ async function main() {
       log(`  [dry-run] would POST batch ${prompt.batch_id} (${prompt.qids.length} qids, system ${prompt.system.length} chars, user ${prompt.user.length} chars) -> ${outPath}`);
       continue;
     }
-    const r = await callWithRetry(apiKey, args.model, prompt.system, prompt.user);
+    const r = await callWithRetry(apiKey, args.model, prompt.system, prompt.user, { arm: args.arm ?? "uniform", retrieval: Boolean(args.retrieval) });
     if (!r.ok) {
       failed++;
       log(`  FAILED ${prompt.batch_id}: ${r.error ?? `http_${r.status}`}`);

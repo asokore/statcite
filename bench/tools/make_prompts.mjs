@@ -23,6 +23,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2), {
     run: { type: "string" },
     base: { type: "string" },
+    "system-template": { type: "string" },
     help: { type: "boolean" },
   });
   if (args.help) {
@@ -33,7 +34,13 @@ async function main() {
   const paths = benchPaths(args.base, args.run);
   const bank = readJson(paths.questions);
   const batchesFile = readJson(paths.batches);
-  const system = fs.readFileSync(path.join(TOOLS_DIR, "..", "templates", "system_prompt_v1.txt"), "utf8");
+  // Default: the frozen memory-only prompt. The retrieval-delta arm (§0) passes
+  // its own committed template — the memory-only wording cannot be sent to an
+  // arm that is then handed retrieval tools.
+  const system = fs.readFileSync(
+    args["system-template"] ?? path.join(TOOLS_DIR, "..", "templates", "system_prompt_v1.txt"),
+    "utf8",
+  );
   const qByQid = new Map(bank.questions.map((q) => [q.qid, q]));
 
   let written = 0;

@@ -17,6 +17,18 @@ jobs:
       - run: npm install
       - run: npm run typecheck
       - run: npm test
+  bench-equivalence:
+    # METHODOLOGY §4: the benchmark scorer's Class-A bands must stay equivalent to
+    # the server's judge() — this is the pre-registered CI check (D-007 item 8).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+        working-directory: server
+      - run: node bench/tools/equivalence.test.mjs
   smoke:
     # Live upstream check — allowed to fail without blocking merges (upstreams are third parties).
     runs-on: ubuntu-latest

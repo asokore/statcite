@@ -1,7 +1,7 @@
 {
   "run": "R1",
   "model": "gemini-3-flash-preview",
-  "scored_at": "2026-08-05T20:44:27.071Z",
+  "scored_at": "2026-08-05T21:43:27.584Z",
   "bands": {
     "A": {
       "percent": {
@@ -108,7 +108,28 @@
       },
       "revision_affected": 0,
       "vintage_eligible_misses": 4,
-      "repaired": 0
+      "repaired": 0,
+      "year_discrimination": {
+        "n_year_discriminating": 40,
+        "WTR_year_discriminating": {
+          "k": 29,
+          "n": 40,
+          "rate": 0.725,
+          "ci95": [
+            0.5717,
+            0.8389
+          ]
+        },
+        "WTR_all": {
+          "k": 79,
+          "n": 100,
+          "rate": 0.79,
+          "ci95": [
+            0.7002,
+            0.8583
+          ]
+        }
+      }
     },
     "breakdowns": {
       "by_class": {
