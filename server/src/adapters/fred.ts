@@ -1,5 +1,5 @@
 // FRED adapter — permanently disabled (2026-07-26).
-// FRED's Terms of Use (updated June 2024) prohibit both (1) using FRED content
+// FRED's Services Terms of Use (clauses (p) and (q), fred.stlouisfed.org/legal/) prohibit both (1) using FRED content
 // in connection with development or training of AI/ML/LLM/generative-AI systems,
 // and (2) storing/caching FRED content or serving cached/archived content to
 // third parties. StatCite is an AI-agent-facing MCP/REST service that edge-caches

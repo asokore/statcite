@@ -101,7 +101,14 @@ export function applyTransform(
     };
   }
 
-  // index rebase
+  // index rebase — assert we really were asked for it: TypeScript's closed
+  // union makes this unreachable for typed callers, but the Apify bundle is
+  // consumed from plain JS, where an unknown transform falling through to a
+  // silent index rebase was a real, observed bug (charged a lookup for a
+  // wrong answer). The invariant lives here, at the function that owns it.
+  if (transform !== "index") {
+    throw new ToolError(`Unknown transform '${String(transform)}'. Valid: ${TRANSFORM_VALUES.join(", ")}.`);
+  }
   let base = obs.find((o) => o.period === opts.indexBasePeriod);
   if (!base) base = obs.find((o) => o.value != null);
   if (!base || base.value == null || base.value === 0) {

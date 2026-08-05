@@ -177,7 +177,7 @@ async function main() {
     bands: BANDS,
     zero_official_close_abs: ZERO_OFFICIAL_CLOSE_ABS,
     sweep_multipliers: SWEEP_MULTIPLIERS,
-    deviations_count: countDeviations(),
+    deviations_count: countDeviations(args.run),
     counts: bank.counts,
     models: {},
     pairwise_mcnemar: [],

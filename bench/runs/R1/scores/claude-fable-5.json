@@ -1,7 +1,7 @@
 {
   "run": "R1",
   "model": "claude-fable-5",
-  "scored_at": "2026-08-05T20:03:07.876Z",
+  "scored_at": "2026-08-05T20:44:27.071Z",
   "bands": {
     "A": {
       "percent": {

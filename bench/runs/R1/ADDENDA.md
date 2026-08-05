@@ -36,3 +36,7 @@ The run states "6 models across 3 vendors"; the composition is 4 Anthropic model
 ## 6. Ground-truth audit independence (D-006)
 
 The R1 audit's "0 divergences" was computed against the bench's own ≤1-day-old HTTP cache for 99 of 117 rows, not against fresh primary-API bytes. The audit tool now forces refresh; the July artifact is retained unmodified with this disclosure.
+
+## 7. Ground truth is source-dependent for the 18 relocated fiscal cells
+
+Between P0 and R1 the served source for 18 WEO/Fiscal Monitor cells moved from dated-DBnomics (`dbnomics/IMF/WEO:2025-04/...`) to the IMF DataMapper (`imf/...`, April 2026 edition), and every one of those cells' frozen ground-truth values changed. Sixteen changed only by the DataMapper's one-decimal rounding (e.g. EGY government debt 89.903 to 89.9). Two moved materially: Jordan government debt 2023 (96.961 to 81, a change of roughly 16 percentage points) and Central African Republic fiscal balance 2025 (-1.619 to -5.5). Both material movers are recency-segment cells, so no headline rate is affected — but they are live evidence that "the official value" for a fiscal indicator depends on which IMF channel and edition serves it, the same class of source-dependence D-001 logged on the World Bank side. Treat cross-run comparisons of individual fiscal cells accordingly.
