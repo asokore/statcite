@@ -1,0 +1,877 @@
+{
+  "run": "R2",
+  "snapshot_at": "2026-08-05T22:22:58.200Z",
+  "note": "Reweighting sensitivity weights (§1.3). Null weights fall back to the economy's equal weight, disclosed in the report.",
+  "n": 79,
+  "rows": [
+    {
+      "iso3": "AFG",
+      "gdp_current_usd": {
+        "year": "2024",
+        "value": 17778508875.7396
+      },
+      "population": {
+        "year": "2025",
+        "value": 43844111
+      }
+    },
+    {
+      "iso3": "AGO",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 122174889423.635
+      },
+      "population": {
+        "year": "2025",
+        "value": 39040039
+      }
+    },
+    {
+      "iso3": "ALB",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 30540188271.3421
+      },
+      "population": {
+        "year": "2025",
+        "value": 2349580
+      }
+    },
+    {
+      "iso3": "AND",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 4500982731.80784
+      },
+      "population": {
+        "year": "2025",
+        "value": 82904
+      }
+    },
+    {
+      "iso3": "ARE",
+      "gdp_current_usd": {
+        "year": "2024",
+        "value": 552324919095.872
+      },
+      "population": {
+        "year": "2025",
+        "value": 11513149
+      }
+    },
+    {
+      "iso3": "ARG",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 683097891618.597
+      },
+      "population": {
+        "year": "2025",
+        "value": 45851378
+      }
+    },
+    {
+      "iso3": "ARM",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 29243452882.3545
+      },
+      "population": {
+        "year": "2025",
+        "value": 3086700
+      }
+    },
+    {
+      "iso3": "BDI",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 3364713864.08488
+      },
+      "population": {
+        "year": "2025",
+        "value": 14390003
+      }
+    },
+    {
+      "iso3": "BEL",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 725466462859.646
+      },
+      "population": {
+        "year": "2025",
+        "value": 11941781
+      }
+    },
+    {
+      "iso3": "BGR",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 130777235529.606
+      },
+      "population": {
+        "year": "2025",
+        "value": 6433302
+      }
+    },
+    {
+      "iso3": "BIH",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 32599982936.3931
+      },
+      "population": {
+        "year": "2025",
+        "value": 3140095
+      }
+    },
+    {
+      "iso3": "BOL",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 64768947525.3256
+      },
+      "population": {
+        "year": "2025",
+        "value": 12581843
+      }
+    },
+    {
+      "iso3": "BRA",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 2279920092492.13
+      },
+      "population": {
+        "year": "2025",
+        "value": 212812405
+      }
+    },
+    {
+      "iso3": "BRB",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 8016550000
+      },
+      "population": {
+        "year": "2025",
+        "value": 282623
+      }
+    },
+    {
+      "iso3": "BTN",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 3579320145.13077
+      },
+      "population": {
+        "year": "2025",
+        "value": 796682
+      }
+    },
+    {
+      "iso3": "CAN",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 2319899772425.92
+      },
+      "population": {
+        "year": "2025",
+        "value": 41651653
+      }
+    },
+    {
+      "iso3": "CHE",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 1043529899250.92
+      },
+      "population": {
+        "year": "2025",
+        "value": 9092436
+      }
+    },
+    {
+      "iso3": "CHL",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 357371159574.862
+      },
+      "population": {
+        "year": "2025",
+        "value": 19859921
+      }
+    },
+    {
+      "iso3": "CHN",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 19498039388042.6
+      },
+      "population": {
+        "year": "2025",
+        "value": 1406585000
+      }
+    },
+    {
+      "iso3": "CMR",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 58933453923.761
+      },
+      "population": {
+        "year": "2025",
+        "value": 29879337
+      }
+    },
+    {
+      "iso3": "COD",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 91030531316.9936
+      },
+      "population": {
+        "year": "2025",
+        "value": 112832473
+      }
+    },
+    {
+      "iso3": "COM",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 1814920856.27026
+      },
+      "population": {
+        "year": "2025",
+        "value": 882847
+      }
+    },
+    {
+      "iso3": "CRI",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 102904921157.478
+      },
+      "population": {
+        "year": "2025",
+        "value": 5152950
+      }
+    },
+    {
+      "iso3": "DEU",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 5050922925047.05
+      },
+      "population": {
+        "year": "2025",
+        "value": 83491249
+      }
+    },
+    {
+      "iso3": "DNK",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 462526660468.393
+      },
+      "population": {
+        "year": "2025",
+        "value": 6009169
+      }
+    },
+    {
+      "iso3": "DZA",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 287031225987.736
+      },
+      "population": {
+        "year": "2025",
+        "value": 47435312
+      }
+    },
+    {
+      "iso3": "EGY",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 365254630179.737
+      },
+      "population": {
+        "year": "2025",
+        "value": 118365995
+      }
+    },
+    {
+      "iso3": "ESP",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 1906453309985.88
+      },
+      "population": {
+        "year": "2025",
+        "value": 49355143
+      }
+    },
+    {
+      "iso3": "EST",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 47030833798.5866
+      },
+      "population": {
+        "year": "2025",
+        "value": 1366475
+      }
+    },
+    {
+      "iso3": "ETH",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 126358758448.356
+      },
+      "population": {
+        "year": "2025",
+        "value": 135472051
+      }
+    },
+    {
+      "iso3": "FJI",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 6198013062.06553
+      },
+      "population": {
+        "year": "2025",
+        "value": 933154
+      }
+    },
+    {
+      "iso3": "FRA",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 3366315927447.33
+      },
+      "population": {
+        "year": "2025",
+        "value": 68720337
+      }
+    },
+    {
+      "iso3": "FSM",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 501797600
+      },
+      "population": {
+        "year": "2025",
+        "value": 113683
+      }
+    },
+    {
+      "iso3": "GAB",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 21427119323.2764
+      },
+      "population": {
+        "year": "2025",
+        "value": 2593130
+      }
+    },
+    {
+      "iso3": "GTM",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 123306008821.471
+      },
+      "population": {
+        "year": "2025",
+        "value": 18687881
+      }
+    },
+    {
+      "iso3": "IRL",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 721701359046.313
+      },
+      "population": {
+        "year": "2025",
+        "value": 5484367
+      }
+    },
+    {
+      "iso3": "IRN",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 362682115433.364
+      },
+      "population": {
+        "year": "2025",
+        "value": 92417681
+      }
+    },
+    {
+      "iso3": "ISR",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 610777842873.595
+      },
+      "population": {
+        "year": "2025",
+        "value": 10122800
+      }
+    },
+    {
+      "iso3": "ITA",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 2551556954100.35
+      },
+      "population": {
+        "year": "2025",
+        "value": 58915656
+      }
+    },
+    {
+      "iso3": "JPN",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 4435162999976.94
+      },
+      "population": {
+        "year": "2025",
+        "value": 123366734
+      }
+    },
+    {
+      "iso3": "KAZ",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 306239209650.024
+      },
+      "population": {
+        "year": "2025",
+        "value": 20843754
+      }
+    },
+    {
+      "iso3": "KGZ",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 22623752095.4613
+      },
+      "population": {
+        "year": "2025",
+        "value": 7343064
+      }
+    },
+    {
+      "iso3": "KHM",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 51267065842.9641
+      },
+      "population": {
+        "year": "2025",
+        "value": 17847982
+      }
+    },
+    {
+      "iso3": "KOR",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 1872374961553.15
+      },
+      "population": {
+        "year": "2025",
+        "value": 51684564
+      }
+    },
+    {
+      "iso3": "LBN",
+      "gdp_current_usd": {
+        "year": "2024",
+        "value": 25971643441.3408
+      },
+      "population": {
+        "year": "2025",
+        "value": 5849421
+      }
+    },
+    {
+      "iso3": "LIE",
+      "gdp_current_usd": {
+        "year": "2024",
+        "value": 8905764270.4054
+      },
+      "population": {
+        "year": "2025",
+        "value": 41024
+      }
+    },
+    {
+      "iso3": "MAC",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 52061007670.169
+      },
+      "population": {
+        "year": "2025",
+        "value": 685900
+      }
+    },
+    {
+      "iso3": "MAR",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 182374250612.28
+      },
+      "population": {
+        "year": "2025",
+        "value": 38430770
+      }
+    },
+    {
+      "iso3": "MDG",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 19620352035.7899
+      },
+      "population": {
+        "year": "2025",
+        "value": 32740678
+      }
+    },
+    {
+      "iso3": "MEX",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 1832641364775.52
+      },
+      "population": {
+        "year": "2025",
+        "value": 131946900
+      }
+    },
+    {
+      "iso3": "MKD",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 19101199817.0174
+      },
+      "population": {
+        "year": "2025",
+        "value": 1820909
+      }
+    },
+    {
+      "iso3": "MLI",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 30069148580.7688
+      },
+      "population": {
+        "year": "2025",
+        "value": 25198821
+      }
+    },
+    {
+      "iso3": "MWI",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 14918276698.303
+      },
+      "population": {
+        "year": "2025",
+        "value": 22216120
+      }
+    },
+    {
+      "iso3": "MYS",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 472193128644.597
+      },
+      "population": {
+        "year": "2025",
+        "value": 35977838
+      }
+    },
+    {
+      "iso3": "NAM",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 15080340653.5276
+      },
+      "population": {
+        "year": "2025",
+        "value": 3092816
+      }
+    },
+    {
+      "iso3": "NOR",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 530755719438.879
+      },
+      "population": {
+        "year": "2025",
+        "value": 5610870
+      }
+    },
+    {
+      "iso3": "NPL",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 45489810283.1132
+      },
+      "population": {
+        "year": "2025",
+        "value": 29618118
+      }
+    },
+    {
+      "iso3": "NZL",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 264057413739.965
+      },
+      "population": {
+        "year": "2025",
+        "value": 5324700
+      }
+    },
+    {
+      "iso3": "OMN",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 109604780696.23
+      },
+      "population": {
+        "year": "2025",
+        "value": 5494691
+      }
+    },
+    {
+      "iso3": "PAN",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 90462600000
+      },
+      "population": {
+        "year": "2025",
+        "value": 4571189
+      }
+    },
+    {
+      "iso3": "PER",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 334854659181.893
+      },
+      "population": {
+        "year": "2025",
+        "value": 34576665
+      }
+    },
+    {
+      "iso3": "POL",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 1035491784197.44
+      },
+      "population": {
+        "year": "2025",
+        "value": 36435861
+      }
+    },
+    {
+      "iso3": "PRT",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 346639825141.821
+      },
+      "population": {
+        "year": "2025",
+        "value": 10804871
+      }
+    },
+    {
+      "iso3": "RUS",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 2561310169358.74
+      },
+      "population": {
+        "year": "2025",
+        "value": 143513328
+      }
+    },
+    {
+      "iso3": "RWA",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 16372132990.2271
+      },
+      "population": {
+        "year": "2025",
+        "value": 14569341
+      }
+    },
+    {
+      "iso3": "SAU",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 1276942933333.33
+      },
+      "population": {
+        "year": "2025",
+        "value": 36973555
+      }
+    },
+    {
+      "iso3": "SGP",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 603869516998.738
+      },
+      "population": {
+        "year": "2025",
+        "value": 6111175
+      }
+    },
+    {
+      "iso3": "SVK",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 154530066506.895
+      },
+      "population": {
+        "year": "2025",
+        "value": 5413813
+      }
+    },
+    {
+      "iso3": "SWZ",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 5160679612.81734
+      },
+      "population": {
+        "year": "2025",
+        "value": 1256174
+      }
+    },
+    {
+      "iso3": "SXM",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 1887728480.44693
+      },
+      "population": {
+        "year": "2025",
+        "value": 43923
+      }
+    },
+    {
+      "iso3": "SYC",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 2387022853.48583
+      },
+      "population": {
+        "year": "2025",
+        "value": 122730
+      }
+    },
+    {
+      "iso3": "TON",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 679218218.578017
+      },
+      "population": {
+        "year": "2025",
+        "value": 103742
+      }
+    },
+    {
+      "iso3": "TUN",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 57502836548.0878
+      },
+      "population": {
+        "year": "2025",
+        "value": 12348573
+      }
+    },
+    {
+      "iso3": "TUR",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 1597293229287
+      },
+      "population": {
+        "year": "2025",
+        "value": 85878556
+      }
+    },
+    {
+      "iso3": "USA",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 30769700000000
+      },
+      "population": {
+        "year": "2025",
+        "value": 341784857
+      }
+    },
+    {
+      "iso3": "VNM",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 514697215165.065
+      },
+      "population": {
+        "year": "2025",
+        "value": 101598527
+      }
+    },
+    {
+      "iso3": "WSM",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 1287936621.64619
+      },
+      "population": {
+        "year": "2025",
+        "value": 219306
+      }
+    },
+    {
+      "iso3": "ZAF",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 427184325997.307
+      },
+      "population": {
+        "year": "2025",
+        "value": 64747319
+      }
+    },
+    {
+      "iso3": "ZWE",
+      "gdp_current_usd": {
+        "year": "2025",
+        "value": 51215643905.5886
+      },
+      "population": {
+        "year": "2025",
+        "value": 16950795
+      }
+    }
+  ]
+}

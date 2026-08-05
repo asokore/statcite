@@ -1,25 +1,25 @@
 {
   "run": "R2",
-  "spec": "METHODOLOGY §2.5, §6 — Full Run 2: first run with the mechanical roster rule applied and snapshotted (D-007 item 9), plus the §2.5 as-deployed arm and the §0 retrieval-delta arm (scopes in DEVIATIONS D-008). R1's roster file is preserved at runs/R1/models.json.",
+  "spec": "METHODOLOGY \u00a72.5, \u00a76 \u2014 Full Run 2: first run with the mechanical roster rule applied and snapshotted (D-007 item 9), plus the \u00a72.5 as-deployed arm and the \u00a70 retrieval-delta arm (scopes in DEVIATIONS D-008). R1's roster file is preserved at runs/R1/models.json.",
   "roster_rule": {
     "stated_snapshot_date": "2026-08-05",
-    "rule": "For each covered vendor (Anthropic, OpenAI, Google — the R1 set): every generally-available model in the vendor's current top model family at the snapshot date, enumerated mechanically from the vendor's models API where one exists, excluding specialist ids (codex/search/tts/image/embedding/audio), '-lite' ultralight tiers, '-chat-latest' aliases (they float, breaking reproducibility), dated snapshot duplicates of an included base id, and preview/codename models (no dated GA snapshot); PLUS any prior-wave model still callable, carried for cross-wave comparability and flagged. Access gaps between the public lineup and what this project's keys can call are logged as deviations, never silently absorbed.",
-    "anthropic_snapshot": "Current deployed lineup: Claude 5 family (claude-fable-5, claude-opus-5, claude-sonnet-5) + claude-haiku-4-5 — 4 models, unchanged from R1.",
+    "rule": "For each covered vendor (Anthropic, OpenAI, Google \u2014 the R1 set): every generally-available model in the vendor's current top model family at the snapshot date, enumerated mechanically from the vendor's models API where one exists, excluding specialist ids (codex/search/tts/image/embedding/audio), '-lite' ultralight tiers, '-chat-latest' aliases (they float, breaking reproducibility), dated snapshot duplicates of an included base id, and preview/codename models (no dated GA snapshot); PLUS any prior-wave model still callable, carried for cross-wave comparability and flagged. Access gaps between the public lineup and what this project's keys can call are logged as deviations, never silently absorbed.",
+    "anthropic_snapshot": "Current deployed lineup: Claude 5 family (claude-fable-5, claude-opus-5, claude-sonnet-5) + claude-haiku-4-5 \u2014 4 models, unchanged from R1.",
     "openai_snapshot": "GET /v1/models on 2026-08-05: highest GA family with dated snapshots = gpt-5.5 (gpt-5.5-2026-04-23) -> gpt-5.5, gpt-5.5-pro. gpt-5.6-luna/sol/terra excluded as codename previews (no dated snapshots). Superseded-family light tiers (gpt-5.4-mini/nano) excluded by the top-family rule; noted, not hidden: OpenAI currently markets no 5.5-tier mini/nano.",
-    "google_snapshot": "ListModels on 2026-08-05: highest GA (non-preview) family callable = Gemini 2.5 -> gemini-2.5-pro, gemini-2.5-flash (gemini-2.5-flash-lite excluded as '-lite'). gemini-3-* and 3.1-* are all '-preview'. gemini-3-flash-preview carried from R1 (prior-wave comparability), flagged preview. NOTE the access change since R1: this key could call NO GA Gemini model on 2026-07-28; it can now — the R1 single-preview-model asymmetry (ADDENDA §4) is closed."
+    "google_snapshot": "ListModels on 2026-08-05: highest GA (non-preview) family = Gemini 2.5 -> gemini-2.5-pro, gemini-2.5-flash under the rule. CAPABILITY PROBES (2026-08-05, logged D-009) show both are access-blocked on this project's key despite being listed: gemini-2.5-pro returns quota-exceeded on a first trivial call (free-tier quota 0), gemini-2.5-flash returns 'no longer available to new users'. The effective Google roster is therefore gemini-3-flash-preview (prior-wave carryover, flagged preview) alone - the R1 single-preview-model asymmetry (ADDENDA SS4) persists and is logged, not absorbed."
   },
   "arms": {
-    "uniform": "The §2.5 uniform minimum-reasoning protocol arm — the headline. Settings per roster entry below.",
-    "deployed": "The §2.5 as-deployed arm (vendor defaults). Materially distinct ONLY for the OpenAI models (reasoning_effort omitted instead of pinned to minimum). For the Claude arm the harness exposes no settings, so uniform == as-deployed by construction; for the Gemini arm the uniform arm already sends no overrides, so uniform == as-deployed. Both coincidences are disclosed here and in the report rather than double-run to fabricate an arm. Run as sibling run id R2D sharing R2's frozen bank and snapshots.",
-    "retrieval": "The §0 retrieval-delta arm — vendor-native retrieval only, never StatCite (the committed retrieval prompt bans StatCite by name). Scope pre-registered in D-008: a seeded 30-question stratified subset of the R2 headline, one flagship per vendor chosen mechanically (highest R1 uniform WTR per vendor: claude-opus-5, gpt-5.5, gemini-3-flash-preview), run as sibling run id R2V. Claude via a Claude Code subagent with web search permitted; OpenAI via the Responses API web_search tool; Google via the google_search grounding tool."
+    "uniform": "The \u00a72.5 uniform minimum-reasoning protocol arm \u2014 the headline. Settings per roster entry below.",
+    "deployed": "The \u00a72.5 as-deployed arm (vendor defaults). Materially distinct ONLY for the OpenAI models (reasoning_effort omitted instead of pinned to minimum). For the Claude arm the harness exposes no settings, so uniform == as-deployed by construction; for the Gemini arm the uniform arm already sends no overrides, so uniform == as-deployed. Both coincidences are disclosed here and in the report rather than double-run to fabricate an arm. Run as sibling run id R2D sharing R2's frozen bank and snapshots.",
+    "retrieval": "The \u00a70 retrieval-delta arm \u2014 vendor-native retrieval only, never StatCite (the committed retrieval prompt bans StatCite by name). Scope pre-registered in D-008: a seeded 30-question stratified subset of the R2 headline, one flagship per vendor chosen mechanically (highest R1 uniform WTR per vendor: claude-opus-5, gpt-5.5, gemini-3-flash-preview), run as sibling run id R2V. Claude via a Claude Code subagent with web search permitted; OpenAI via the Responses API web_search tool; Google via the google_search grounding tool."
   },
   "roster": [
     {
       "model": "claude-haiku-4-5",
       "invocation": "Claude Code subagent (Agent tool, model=haiku), one call per batch",
-      "temperature": "not controllable in this harness (vendor-managed); disclosed per METHODOLOGY §7 deviation (2)",
+      "temperature": "not controllable in this harness (vendor-managed); disclosed per METHODOLOGY \u00a77 deviation (2)",
       "reasoning_effort": "not controllable in this harness; harness default; disclosed",
-      "tools": "no tools provided; memory-only enforcement is instruction-based (system_prompt_v1.txt); per-agent tool-call counts captured from the harness usage report and published in runs/R2/compliance.json (closing ADDENDA §5)"
+      "tools": "no tools provided; memory-only enforcement is instruction-based (system_prompt_v1.txt); per-agent tool-call counts captured from the harness usage report and published in runs/R2/compliance.json (closing ADDENDA \u00a75)"
     },
     {
       "model": "claude-sonnet-5",
@@ -46,43 +46,29 @@
       "model": "gpt-5.5",
       "invocation": "tools/call_openai.mjs, POST /v1/chat/completions, one call per batch",
       "temperature": "omitted (not sent)",
-      "reasoning_effort": "uniform arm: \"none\" (verified minimum, R1); deployed arm (R2D): omitted entirely — vendor default",
+      "reasoning_effort": "uniform arm: \"none\" (verified minimum, R1); deployed arm (R2D): omitted entirely \u2014 vendor default",
       "tools": "none in uniform/deployed arms; web_search via Responses API in the retrieval arm (R2V)"
     },
     {
       "model": "gpt-5.5-pro",
-      "invocation": "tools/call_openai.mjs; capability-probed live before the run — if chat/completions rejects this id, the Responses API path is used and recorded here; if neither serves it, the gap is a logged deviation",
+      "invocation": "tools/call_openai.mjs --api responses (capability probe 2026-08-05: chat/completions rejects this id as 'not a chat model'; the Responses API serves it - recorded here per the pre-registered contingency)",
       "temperature": "omitted (not sent)",
-      "reasoning_effort": "uniform arm: the minimum this model accepts, verified live at call time and recorded in the manifest (pro-tier models may refuse low reasoning settings); deployed arm: omitted",
-      "tools": "none"
-    },
-    {
-      "model": "gemini-2.5-flash",
-      "invocation": "tools/call_gemini.mjs, POST generateContent, one call per batch",
-      "temperature": "omitted — no generationConfig override; nominal defaults, disclosed as such",
-      "reasoning_effort": "no thinking-budget override applied",
-      "tools": "none"
-    },
-    {
-      "model": "gemini-2.5-pro",
-      "invocation": "tools/call_gemini.mjs, POST generateContent, one call per batch",
-      "temperature": "omitted — no generationConfig override; nominal defaults, disclosed as such",
-      "reasoning_effort": "no thinking-budget override applied",
+      "reasoning_effort": "uniform arm: the minimum the Responses API accepts for this model, verified at call time and recorded in the manifest; deployed arm: omitted",
       "tools": "none"
     },
     {
       "model": "gemini-3-flash-preview",
       "invocation": "tools/call_gemini.mjs, POST generateContent, one call per batch. PREVIEW model carried from R1 for cross-wave comparability; can change behavior or be deprecated without notice",
-      "temperature": "omitted — no generationConfig override; nominal defaults, disclosed as such",
+      "temperature": "omitted \u2014 no generationConfig override; nominal defaults, disclosed as such",
       "reasoning_effort": "no thinking-budget override applied",
       "tools": "none in uniform arm; google_search grounding in the retrieval arm (R2V)"
     }
   ],
   "settings_notes": [
-    "Batching retained at 10 questions per call with the §2.3 controls. §2.3's pre-committed intent to move to single-question calls 'if budget allows' is again not exercised: ~9 models x ~137 questions x up to 3 arms at single-question granularity is outside this run's budget; logged in D-008 rather than silently dropped.",
-    "The seed is a pre-announced NIST Randomness Beacon 2.0 pulse (questions/R2-seed-announcement.json), fulfilling §6's Wave-1 seeding commitment; the announcement commit precedes the pulse's existence.",
-    "The §6 contamination protocol runs for the first time: 40-question frozen core panel selected mechanically from R1's bank (questions/R2-core.json, seeded by the beacon master seed), fresh majority draw for the remaining 60; the core-vs-fresh gap is published in the report.",
-    "Null probes: 25 (§3.4 first-full-wave floor). Reweighting weights frozen pre-call (snapshots/R2/weights.json). Year-discrimination dual metric reported per ADDENDA §3. Parse-policy sensitivity produced by tools/parse_sensitivity.mjs as a standard output.",
-    "Publication sequencing: R2 results are NOT pushed to the public repo or statcite.com until covered vendors have received the §8 courtesy preview and 5 business days have elapsed — the reverse of R1's D-004 breach. Pre-registration artifacts (this file, the bank, snapshots, amendments) are public before model calls; results are held locally through the preview window."
+    "Batching retained at 10 questions per call with the \u00a72.3 controls. \u00a72.3's pre-committed intent to move to single-question calls 'if budget allows' is again not exercised: ~9 models x ~137 questions x up to 3 arms at single-question granularity is outside this run's budget; logged in D-008 rather than silently dropped.",
+    "The seed is a pre-announced NIST Randomness Beacon 2.0 pulse (questions/R2-seed-announcement.json), fulfilling \u00a76's Wave-1 seeding commitment; the announcement commit precedes the pulse's existence.",
+    "The \u00a76 contamination protocol runs for the first time: 40-question frozen core panel selected mechanically from R1's bank (questions/R2-core.json, seeded by the beacon master seed), fresh majority draw for the remaining 60; the core-vs-fresh gap is published in the report.",
+    "Null probes: 25 (\u00a73.4 first-full-wave floor). Reweighting weights frozen pre-call (snapshots/R2/weights.json). Year-discrimination dual metric reported per ADDENDA \u00a73. Parse-policy sensitivity produced by tools/parse_sensitivity.mjs as a standard output.",
+    "Publication sequencing: R2 results are NOT pushed to the public repo or statcite.com until covered vendors have received the \u00a78 courtesy preview and 5 business days have elapsed \u2014 the reverse of R1's D-004 breach. Pre-registration artifacts (this file, the bank, snapshots, amendments) are public before model calls; results are held locally through the preview window."
   ]
 }

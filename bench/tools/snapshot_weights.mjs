@@ -33,14 +33,23 @@ async function main() {
   const economies = [...new Set(bank.questions.filter((q) => q.segment === "headline").map((q) => q.iso3))].sort();
   log(`fetching weights for ${economies.length} economies`);
 
+  async function fetchOne(indicator, iso3) {
+    // A null here is almost always a transient upstream blip, not a data gap
+    // (USA population is never null) — retry with a pause before accepting it.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const r = await scIndicatorRobust(indicator, iso3, { start: 2018, end: 2026 }, { attempts: 3, forceRefresh: true });
+      const v = r.status === 200 ? latestValue(r.body) : null;
+      if (v) return v;
+      await new Promise((res) => setTimeout(res, 3000));
+    }
+    return null;
+  }
   const rows = [];
   for (const iso3 of economies) {
-    const gdp = await scIndicatorRobust("gdp_current_usd", iso3, { start: 2018, end: 2026 }, { attempts: 3, forceRefresh: true });
-    const pop = await scIndicatorRobust("population", iso3, { start: 2018, end: 2026 }, { attempts: 3, forceRefresh: true });
     rows.push({
       iso3,
-      gdp_current_usd: gdp.status === 200 ? latestValue(gdp.body) : null,
-      population: pop.status === 200 ? latestValue(pop.body) : null,
+      gdp_current_usd: await fetchOne("gdp_current_usd", iso3),
+      population: await fetchOne("population", iso3),
     });
     log(`  ${iso3}: gdp ${rows.at(-1).gdp_current_usd?.value ?? "null"} pop ${rows.at(-1).population?.value ?? "null"}`);
   }
