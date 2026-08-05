@@ -150,7 +150,7 @@ async function main() {
   // ---- Draw + verify loop (verify failures shrink the pool, then redraw) ------
   let headline = null;
   let verifyLog = [];
-  for (let cycle = 0; cycle < 8 && !headline; cycle++) {
+  for (let cycle = 0; cycle < 12 && !headline; cycle++) {
     let best = [];
     let drawn = null;
     const maxAttempts = 1000;
@@ -185,14 +185,26 @@ async function main() {
     log(`verify round-trip for ${drawn.length} headline cells…`);
     const bad = [];
     for (const c of drawn) {
-      const r = await scVerifyRobust({ indicator: c.indicator, country: c.iso3, period: c.year, value: c.value });
-      const verdict = r.status === 200 ? r.body.verdict : `http_${r.status}`;
-      const official = r.status === 200 ? r.body.official_value : undefined;
-      const usable =
-        r.status === 200 &&
-        verdict !== "cannot_verify" &&
-        Number.isFinite(official) &&
-        r.body.is_projection !== true;
+      // A transient upstream blip mid-round-trip serves the cell from a
+      // fallback source, which verify correctly demotes to cannot_verify — but
+      // that is D-001's upstream-wobble class, not ineligibility. Retry those
+      // before declaring the cell bad, or transient noise consumes the pool
+      // and burns redraw cycles (observed: the 2026-08-05 R2 draw failed all
+      // 8 cycles at 1-6 transient-looking failures per pass).
+      let r, verdict, official, usable;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        r = await scVerifyRobust({ indicator: c.indicator, country: c.iso3, period: c.year, value: c.value });
+        verdict = r.status === 200 ? r.body.verdict : `http_${r.status}`;
+        official = r.status === 200 ? r.body.official_value : undefined;
+        usable =
+          r.status === 200 &&
+          verdict !== "cannot_verify" &&
+          Number.isFinite(official) &&
+          r.body.is_projection !== true;
+        const transientLooking = !usable && (r.status !== 200 || r.body?.fallback_used === true);
+        if (usable || !transientLooking) break;
+        await new Promise((res) => setTimeout(res, 4000));
+      }
       verifyLog.push({ cell: cellKey(c), verdict, official_value: official ?? null });
       if (!usable) {
         bad.push(c);
@@ -223,7 +235,7 @@ async function main() {
       }
     }
   }
-  if (!headline) throw new Error("could not assemble a fully verified headline draw in 8 cycles");
+  if (!headline) throw new Error("could not assemble a fully verified headline draw in 12 cycles");
   log(`headline: ${headline.length} questions verified as match`);
 
   // ---- Recency supplement (2023-2025, never headline-scored) ------------------

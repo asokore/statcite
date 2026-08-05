@@ -94,7 +94,7 @@ function minReasoningEffort(model) {
 // §0 retrieval-delta arm: OpenAI's vendor-native web_search tool is exposed via
 // the Responses API, not chat/completions. Same instruction contract; the model
 // may search, the output must still be ONLY the JSON array.
-async function callOnceRetrieval(apiKey, model, system, user) {
+async function callOnceResponses(apiKey, model, system, user, { tools, reasoningEffort } = {}) {
   const res = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
@@ -102,9 +102,10 @@ async function callOnceRetrieval(apiKey, model, system, user) {
       model,
       instructions: system,
       input: user,
-      tools: [{ type: "web_search" }],
+      ...(tools ? { tools } : {}),
+      ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
     }),
-    signal: AbortSignal.timeout(180000),
+    signal: AbortSignal.timeout(600000),
   });
   const text = await res.text();
   let body;
@@ -165,11 +166,15 @@ async function callOnce(apiKey, model, system, user, arm = "uniform") {
   return { status: res.status, ok: true, content, usage: body.usage };
 }
 
-async function callWithRetry(apiKey, model, system, user, { arm = "uniform", retrieval = false } = {}) {
+async function callWithRetry(apiKey, model, system, user, { arm = "uniform", retrieval = false, api = "chat", responsesMinEffort } = {}) {
   const backoff = [2000, 5000, 12000];
   let lastErr;
   for (let attempt = 0; attempt <= backoff.length; attempt++) {
-    const r = retrieval ? await callOnceRetrieval(apiKey, model, system, user) : await callOnce(apiKey, model, system, user, arm);
+    const r = retrieval
+      ? await callOnceResponses(apiKey, model, system, user, { tools: [{ type: "web_search" }] })
+      : api === "responses"
+        ? await callOnceResponses(apiKey, model, system, user, { reasoningEffort: arm === "deployed" ? undefined : responsesMinEffort })
+        : await callOnce(apiKey, model, system, user, arm);
     if (r.ok) return r;
     if (!RETRY_STATUSES.has(r.status) || attempt === backoff.length) return r;
     lastErr = r;
@@ -184,6 +189,8 @@ async function main() {
     model: { type: "string" },
     arm: { type: "string" },
     retrieval: { type: "boolean" },
+    api: { type: "string" },
+    "responses-min-effort": { type: "string" },
     base: { type: "string" },
     limit: { type: "string" },
     "dry-run": { type: "boolean" },
@@ -217,7 +224,7 @@ async function main() {
       log(`  [dry-run] would POST batch ${prompt.batch_id} (${prompt.qids.length} qids, system ${prompt.system.length} chars, user ${prompt.user.length} chars) -> ${outPath}`);
       continue;
     }
-    const r = await callWithRetry(apiKey, args.model, prompt.system, prompt.user, { arm: args.arm ?? "uniform", retrieval: Boolean(args.retrieval) });
+    const r = await callWithRetry(apiKey, args.model, prompt.system, prompt.user, { arm: args.arm ?? "uniform", retrieval: Boolean(args.retrieval), api: args.api ?? "chat", responsesMinEffort: args["responses-min-effort"] });
     if (!r.ok) {
       failed++;
       log(`  FAILED ${prompt.batch_id}: ${r.error ?? `http_${r.status}`}`);

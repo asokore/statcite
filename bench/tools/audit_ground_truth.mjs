@@ -30,6 +30,20 @@ prints divergences, and exits non-zero if any value diverges.`;
 
 const REL_TOL = 1e-9; // exact same figure modulo float serialization
 
+// Forced-refresh bursts can trip transient primary-side throttling (observed
+// 2026-08-05: 8/137 World Bank fetches returned 400 on URLs that served 200
+// seconds later). Retry non-200s with a pause before recording an error —
+// the audit's independence claim needs fresh bytes, not first-try bytes.
+async function refreshFetchWithRetry(url, tag) {
+  let r;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    r = await politeFetchJson(url, { tag, refresh: true });
+    if (r.status === 200) return r;
+    await new Promise((res) => setTimeout(res, 5000));
+  }
+  return r;
+}
+
 async function fetchWorldBankValue(iso3, wbCode, year) {
   const url = `https://api.worldbank.org/v2/country/${iso3}/indicator/${wbCode}?format=json&date=${year}`;
   // refresh: the audit's entire claim is INDEPENDENT re-fetching from the
@@ -37,7 +51,7 @@ async function fetchWorldBankValue(iso3, wbCode, year) {
   // silently weakens "0 divergences" to "0 divergences vs yesterday's bytes"
   // (found in the 2026-08 audit: 99 of 117 R1 rows verified against cached
   // bytes predating the audit run — logged as D-006).
-  const r = await politeFetchJson(url, { tag: "audit-wb", refresh: true });
+  const r = await refreshFetchWithRetry(url, "audit-wb");
   if (r.status !== 200 || !Array.isArray(r.body)) return { value: undefined, url, error: `http_${r.status}` };
   const rows = Array.isArray(r.body[1]) ? r.body[1] : [];
   const hit = rows.find((row) => row.date === String(year));
@@ -51,7 +65,7 @@ const IMF_COUNTRY_ALIASES = { PSE: "WBG", XKX: "UVK" };
 
 async function fetchImfDataMapperValue(iso3, code, year) {
   const url = `https://www.imf.org/external/datamapper/api/v1/${encodeURIComponent(code)}`;
-  const r = await politeFetchJson(url, { tag: "audit-imf", refresh: true });
+  const r = await refreshFetchWithRetry(url, "audit-imf");
   if (r.status !== 200) return { value: undefined, url, error: `http_${r.status}` };
   const inner = r.body?.values?.[code];
   if (!inner || typeof inner !== "object") return { value: undefined, url, error: "no_values_envelope" };
@@ -68,7 +82,7 @@ async function fetchDbnomicsValue(seriesId, year) {
   const [, provider, dataset, ...rest] = parts;
   const code = rest.join("/");
   const url = `https://api.db.nomics.world/v22/series/${encodeURIComponent(provider)}/${encodeURIComponent(dataset)}/${encodeURIComponent(code)}?observations=1`;
-  const r = await politeFetchJson(url, { tag: "audit-dbn", refresh: true });
+  const r = await refreshFetchWithRetry(url, "audit-dbn");
   if (r.status !== 200) return { value: undefined, url, error: `http_${r.status}` };
   const doc = (r.body?.series?.docs ?? []).find((d) => d.series_code === code) ?? (r.body?.series?.docs ?? [])[0];
   if (!doc) return { value: undefined, url, error: "series_not_found" };
