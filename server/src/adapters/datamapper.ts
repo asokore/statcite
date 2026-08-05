@@ -71,10 +71,14 @@ function isWithinReleaseWindow(now: Date): boolean {
   const year = now.getUTCFullYear();
   const windowMs = 10 * 24 * 3600 * 1000;
   for (const month of [4, 10]) {
-    // Check both the current-year and prior-year occurrence so a window spanning
-    // a Dec31/Jan1 boundary (not reachable for Apr/Oct in practice, kept for safety).
+    // Centred on the 15th, not the 1st: WEO/Fiscal Monitor releases land
+    // mid-month (typically the 2nd/3rd week), so a window centred on the 1st
+    // (22 Mar–11 Apr) missed any release on or after the 12th entirely.
+    // 5th–25th covers the observed spread. Check adjacent years too so a
+    // window spanning a year boundary can't be missed (not reachable for
+    // Apr/Oct in practice, kept for safety).
     for (const y of [year, year - 1, year + 1]) {
-      if (Math.abs(now.getTime() - Date.UTC(y, month - 1, 1)) <= windowMs) return true;
+      if (Math.abs(now.getTime() - Date.UTC(y, month - 1, 15)) <= windowMs) return true;
     }
   }
   return false;
@@ -114,10 +118,24 @@ export function parseEditionLabel(label: string | undefined): { year: number; mo
  * to the calendar-expected edition year when the gap exceeds 1 (a truncated or
  * mid-load payload) — the edition *string* never drives the boundary, so cache
  * skew and Update-month labels can't corrupt the actual/projection flag. */
-export function computeBoundaryYear(horizonYear: number, now: Date = new Date()): { boundaryYear: number; clamped: boolean } {
+export function computeBoundaryYear(
+  horizonYear: number,
+  now: Date = new Date(),
+  editionYear?: number,
+): { boundaryYear: number; clamped: boolean } {
   const naive = horizonYear - 5;
   const calendarYear = parseInt(expectedWeoEdition(now).slice(0, 4), 10);
-  if (Math.abs(naive - calendarYear) > 1) return { boundaryYear: calendarYear, clamped: true };
+  if (Math.abs(naive - calendarYear) > 1) {
+    // When the payload's own edition label parsed cleanly, a big gap usually
+    // means the DataMapper is serving a genuinely STALE edition (e.g. Oct 2024
+    // still served mid-2026), not a garbled payload. Clamping forward to the
+    // calendar year would then mark that stale edition's projections as
+    // outturns — the unsafe direction for a fact-checking service — so clamp
+    // to the OLDER of the edition year and the calendar year. Pure degraded
+    // mode (no parseable edition) keeps the calendar clamp.
+    const target = editionYear != null && Number.isFinite(editionYear) ? Math.min(editionYear, calendarYear) : calendarYear;
+    return { boundaryYear: target, clamped: true };
+  }
   return { boundaryYear: naive, clamped: false };
 }
 

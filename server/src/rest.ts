@@ -226,7 +226,10 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
     if (e instanceof ParamError) return errJson(400, e.message);
     if (e instanceof ToolError) return errJson(422, e.message, e.details);
     if (e instanceof UpstreamError) return errJson(502, `Upstream data source problem: ${e.message}`, { upstream_url: e.url });
-    console.error("rest crash", path, e);
+    // Log the closed-set op name, not the raw path: /v1/snapshot/{country}
+    // carries arbitrary user text in the path segment, and privacy.html
+    // promises free-text input is never retained.
+    console.error("rest crash", restOp(path), e);
     return errJson(500, "Internal error. Please retry; if persistent, report an issue.");
   }
 }

@@ -44,12 +44,13 @@ He maintains several other data projects locally, in adjacent fiscal and investm
 |---|---|---|
 | `server/` | Cloudflare Worker: stateless MCP (hand-rolled JSON-RPC, zero runtime deps) + REST mirror + 42-indicator registry + 5 data adapters (World Bank, IMF DataMapper, DBnomics, Frankfurter, FRED) | **173/173 tests pass (v1.4.2); live smoke passes against real World Bank / DBnomics / Frankfurter APIs** |
 | `site/` | statcite.com: landing, docs, llms.txt/llms-full.txt, openapi.json, privacy, terms, 404 | Renders; screenshot verified |
-| `apify/` | Pay-per-event actor bundling the same core (`core.bundle.mjs`, committed) | Local core test passes; not pushed |
+| `apify/` | Pay-per-event actor bundling the same core (`core.bundle.mjs`, committed) | Live on Apify Store with differentiated PPE pricing |
 | `skill/` | Packaged Claude skill teaching verify-then-cite | Written; **never evaluated** (see §7) |
 | `distribution/` | `server.json` registry manifest, `submissions.md` (exact steps per channel), `social-copy.md` (launch posts) | Executed — see HANDOFF.md |
 | `docs/` | `RESEARCH.md` (the evidence base), `STRATEGY.md`, `MONETIZATION.md`, `LAUNCH.md` | Current as of 2026-07-25 |
 | `HANDOFF.md` | Deployment runbook | Executed — see its Launch status block |
 | `CLAUDE.md` | Working guide + invariants | — |
+| `bench/` | Pre-registered AI-accuracy benchmark (COVENANT, METHODOLOGY, frozen snapshots, R1 report + addenda) | R1 published 2026-07-28; repairs logged D-003..D-007 |
 
 **Deployment status: see HANDOFF.md's "Launch status" block — it is the single source of truth for what is live.** This section is historical: it described the pre-deploy state and is intentionally left as-is below for context, not as current status.
 

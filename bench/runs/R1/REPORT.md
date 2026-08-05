@@ -10,9 +10,11 @@ Agentic deployments with retrieval will outperform these scores. That is expecte
 
 **Disclosure:** This benchmark's harness, scoring code, and drafts were developed with the assistance of Claude (Anthropic). This run's roster spans 3 vendors (Anthropic plus OpenAI and Google), satisfying COVENANT §6's two-non-Anthropic-vendor threshold for a citable cross-model result. No model — any vendor's — plays any role in scoring: verdicts are deterministic numeric comparisons against pinned official values, and the scoring code, prompts, raw responses, and ground truth are published in full.
 
-Run `R1` · scored 2026-07-28T15:02:34.949Z · seed `9a173ab9f6e75866e0ca1f080f24ef0d1e2c91a1a9dbd699be6b796450840c3e` · bank: 100 headline / 12 recency / 10 null probes.
+Run `R1` · scored 2026-08-05T20:03:07.876Z · seed `9a173ab9f6e75866e0ca1f080f24ef0d1e2c91a1a9dbd699be6b796450840c3e` · bank: 100 headline / 12 recency / 10 null probes.
 
-**Protocol deviations logged for this run: 2** (see bench/DEVIATIONS.md).
+**Protocol deviations logged: 7** (see bench/DEVIATIONS.md).
+
+**Post-publication addenda for this run: see [ADDENDA.md](ADDENDA.md)** — sensitivity analyses and disclosures added after first publication.
 
 ## Headline (Within-Tolerance Rate, refusals count against)
 
@@ -31,16 +33,16 @@ Per the quotation covenant, WTR, CR, and Answer Rate are one unit and travel tog
 
 ## Revision-affected misses
 
-| model | revision_affected |
-|---|---|
-| claude-haiku-4-5 | 0 |
-| claude-sonnet-5 | 0 |
-| claude-opus-5 | 0 |
-| claude-fable-5 | 0 |
-| gpt-5.5 | 0 |
-| gemini-3-flash-preview | 0 |
+| model | vintage-eligible misses | revision_affected |
+|---|---|---|
+| claude-haiku-4-5 | 3 | 0 |
+| claude-sonnet-5 | 4 | 0 |
+| claude-opus-5 | 2 | 1 |
+| claude-fable-5 | 2 | 0 |
+| gpt-5.5 | 4 | 0 |
+| gemini-3-flash-preview | 4 | 0 |
 
-*Re-judged against the older dated WEO vintage (§3.3.4): still not within-tolerance in the headline (the figure is outdated today), and per the covenant never described as model errors.*
+*Re-judged against the older dated WEO vintage (§3.3.4): still not within-tolerance in the headline (the figure is outdated today), and per the covenant never described as model errors. The vintage-eligible column is the instrument's own coverage: all-zero there would mean the vintage instrument did not run (the D-003 failure mode), not that no miss was revision-driven.*
 
 ## Breakdowns
 
@@ -157,6 +159,8 @@ Per the quotation covenant, WTR, CR, and Answer Rate are one unit and travel tog
 
 ## Model-vs-model (exact McNemar, Holm-corrected — report-only)
 
+*Pairs involving a model whose §8 grid branch is invalid (Answer Rate < 70%) are shown for completeness only and must not be quoted as model-vs-model comparisons.*
+
 | pair | discordant (a-only / b-only) | p | p (Holm) |
 |---|---|---|---|
 | claude-haiku-4-5 vs claude-sonnet-5 | 1 / 25 | 0.000001 | 0.000011 |
@@ -179,7 +183,7 @@ Per the quotation covenant, WTR, CR, and Answer Rate are one unit and travel tog
 
 ## Permitted claims (filled templates, §5)
 
-- claude-haiku-4-5 answered 33.3% of questions within the published tolerance of the current official value (95% CI [24.0–44.1]; 27/81 scoreable), with a Confabulation Rate of 32.5% and an Answer Rate of 49.4%.
+- claude-haiku-4-5 answered 33.3% of questions within the published tolerance of the current official value (95% CI [24.0–44.1]; 27/81 scoreable), with a Confabulation Rate of 32.5% and an Answer Rate of 49.4%. **[§8 grid branch INVALID: Answer Rate below 70% — not quotable as a comparable accuracy figure]**
 - claude-sonnet-5 answered 64.8% of questions within the published tolerance of the current official value (95% CI [54.6–73.9]; 59/91 scoreable), with a Confabulation Rate of 31.4% and an Answer Rate of 94.5%.
 - claude-opus-5 answered 82.0% of questions within the published tolerance of the current official value (95% CI [73.3–88.3]; 82/100 scoreable), with a Confabulation Rate of 15.5% and an Answer Rate of 97.0%.
 - claude-fable-5 answered 81.0% of questions within the published tolerance of the current official value (95% CI [72.2–87.5]; 81/100 scoreable), with a Confabulation Rate of 15.6% and an Answer Rate of 96.0%.

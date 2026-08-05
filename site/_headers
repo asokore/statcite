@@ -1,0 +1,28 @@
+# Cloudflare Workers Static Assets headers.
+# CSP note: all CSS/JS is inline by design (zero external subresources), so
+# 'unsafe-inline' is required; connect-src 'self' covers the live verifier
+# form's same-origin /v1 calls.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+  X-Frame-Options: DENY
+
+# Machine-readable spec files: browser-side consumers (Swagger UI, client-side
+# importers, agent fetchers) need CORS on the static assets, not only on /v1.
+/openapi.json
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=3600
+
+/llms.txt
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=3600
+
+/llms-full.txt
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=3600
+
+/favicon.svg
+  Cache-Control: public, max-age=86400

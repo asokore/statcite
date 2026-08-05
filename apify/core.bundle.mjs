@@ -820,7 +820,7 @@ async function fetchJson(url, {
 } = {}) {
   const hit = mem.get(url);
   const now = Date.now();
-  if (hit && hit.exp > now) return hit.data;
+  if (hit && hit.exp > now && (!validate || validate(hit.data))) return hit.data;
   let lastErr;
   const maxAttempts = RETRY_DELAYS_MS.length + 1;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -1078,7 +1078,7 @@ function isWithinReleaseWindow(now) {
   const windowMs = 10 * 24 * 3600 * 1e3;
   for (const month of [4, 10]) {
     for (const y of [year, year - 1, year + 1]) {
-      if (Math.abs(now.getTime() - Date.UTC(y, month - 1, 1)) <= windowMs) return true;
+      if (Math.abs(now.getTime() - Date.UTC(y, month - 1, 15)) <= windowMs) return true;
     }
   }
   return false;
@@ -1106,10 +1106,13 @@ function parseEditionLabel(label) {
   if (!month || !Number.isFinite(year)) return void 0;
   return { year, month };
 }
-function computeBoundaryYear(horizonYear, now = /* @__PURE__ */ new Date()) {
+function computeBoundaryYear(horizonYear, now = /* @__PURE__ */ new Date(), editionYear) {
   const naive = horizonYear - 5;
   const calendarYear = parseInt(expectedWeoEdition(now).slice(0, 4), 10);
-  if (Math.abs(naive - calendarYear) > 1) return { boundaryYear: calendarYear, clamped: true };
+  if (Math.abs(naive - calendarYear) > 1) {
+    const target = editionYear != null && Number.isFinite(editionYear) ? Math.min(editionYear, calendarYear) : calendarYear;
+    return { boundaryYear: target, clamped: true };
+  }
   return { boundaryYear: naive, clamped: false };
 }
 function memo(ctx) {
@@ -1425,7 +1428,7 @@ async function indicatorFromDataMapper(ctx, def, country, opts) {
   const [code, dataset] = def.datamapper;
   const now = ctx.now ? ctx.now() : /* @__PURE__ */ new Date();
   const s = await fetchDataMapperSeries(ctx, code, dataset, country.iso3, now);
-  const { boundaryYear, clamped } = computeBoundaryYear(s.horizonYear, now);
+  const { boundaryYear, clamped } = computeBoundaryYear(s.horizonYear, now, s.edition?.year);
   const kind = dataset === "FM" ? "IMF Fiscal Monitor" : "IMF WEO";
   const notes = def.notes ? [def.notes] : [];
   let editionLabel;
@@ -1462,7 +1465,7 @@ async function indicatorFromDataMapper(ctx, def, country, opts) {
   }
   if (clamped) {
     notes.push(
-      `The data horizon implied a projection-boundary year that looked implausible against the IMF's release calendar, so the calendar year (${boundaryYear}) was used instead \u2014 possible if this payload is truncated or mid-load.`
+      s.edition?.year != null ? `The data horizon implied a projection-boundary year that looked implausible against the IMF's release calendar, so it was clamped to ${boundaryYear} (the older of the payload's own edition year and the calendar-expected edition year) \u2014 consistent with the DataMapper serving a stale edition, or a truncated/mid-load payload.` : `The data horizon implied a projection-boundary year that looked implausible against the IMF's release calendar, so the calendar year (${boundaryYear}) was used instead \u2014 possible if this payload is truncated or mid-load.`
     );
   }
   if (DB_PRIMARY.has(def.key)) {
@@ -1573,7 +1576,7 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
         const primaryLabel = tried[0].label;
         const servedLabel = tried[i].label;
         result.notes.push(
-          firstErrorWasTransient ? `${primaryLabel} was transiently unavailable for this request; served from ${servedLabel} instead, which may use a different statistical definition and can report a different value for the same nominal indicator. If exact consistency with ${primaryLabel} matters, retry this query \u2014 the primary source may have recovered. (${errors[0]})` : `${primaryLabel} does not have this indicator/country/period; served from ${servedLabel} instead. (${errors[0]})`
+          firstErrorWasTransient ? `${primaryLabel} was transiently unavailable for this request; served from ${servedLabel} instead, which may use a different statistical definition and can report a different value for the same nominal indicator. If exact consistency with ${primaryLabel} matters, retry this query \u2014 the primary source may have recovered. (${errors[0]})` : anyErrorWasTransient ? `${primaryLabel} does not have this indicator/country/period, and an intermediate fallback source was transiently unavailable; served from ${servedLabel} instead. A skipped source may recover, so the serving source for this query can change on retry. (${errors[0]})` : `${primaryLabel} does not have this indicator/country/period; served from ${servedLabel} instead. (${errors[0]})`
         );
       }
       return result;
@@ -1655,6 +1658,9 @@ async function getIndicatorAsOf(ctx, key, countryInput, asOfDate, opts = {}) {
   return { result, edition, sourceInfo };
 }
 var DB_PRIMARY = /* @__PURE__ */ new Set(["govt_debt_gdp", "fiscal_balance_gdp", "govt_revenue_gdp", "govt_expenditure_gdp"]);
+function wbIsPrimarySource(def) {
+  return Boolean(def.wb) && !(def.dbnomics && DB_PRIMARY.has(def.key));
+}
 var DM_CODE_INFO = /* @__PURE__ */ new Map();
 for (const d of INDICATORS) {
   if (d.datamapper) DM_CODE_INFO.set(d.datamapper[0], { dataset: d.datamapper[1], def: d });
@@ -1783,7 +1789,7 @@ async function searchIndicators(ctx, query, opts = {}) {
       id: m.def.key,
       title: m.def.label,
       description: disabled ? `DISABLED \u2014 ${m.def.unit}. ${FRED_DISABLED_REASON}` : `${m.def.unit}${m.def.notes ? ` \u2014 ${m.def.notes}` : ""}`,
-      url: m.def.wb ? `https://data.worldbank.org/indicator/${m.def.wb}` : void 0,
+      url: wbIsPrimarySource(m.def) ? `https://data.worldbank.org/indicator/${m.def.wb}` : void 0,
       usage: disabled ? "Do not call: this key always declines. Search again for an active alternative (e.g. unemployment_rate, inflation_cpi, gdp_growth)." : `get_indicator(indicator="${m.def.key}", country="<ISO3 or name>")`,
       active: !disabled
     };
@@ -2370,7 +2376,7 @@ async function verifyStat(ctx, p) {
   notes.push(
     asOfResolved ? `Historical-vintage verification: the official value reflects the IMF WEO ${asOfResolved.resolved_vintage} edition, which may differ from both earlier vintages and the source's currently published figure.` : "Macro data is revised: the official value reflects the source's current published figure, which may differ from what was published at the time of the claim."
   );
-  const percentKind = isRegistry ? isPercentKind(p.indicator) : /%|percent/i.test(result.unit ?? result.name);
+  const percentKind = isRegistry ? isPercentKind(p.indicator) : /%|percent|pcent/i.test([result.unit, result.series_id, result.name].filter(Boolean).join(" "));
   const imfHeuristicSeries = /^imf\//.test(result.series_id) || /^dbnomics\/IMF\/(WEO|FM):/i.test(result.series_id);
   const statusMethod = imfHeuristicSeries ? "horizon_heuristic" : "as_published";
   if (!matched) {

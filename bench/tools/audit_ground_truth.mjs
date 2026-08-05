@@ -32,7 +32,12 @@ const REL_TOL = 1e-9; // exact same figure modulo float serialization
 
 async function fetchWorldBankValue(iso3, wbCode, year) {
   const url = `https://api.worldbank.org/v2/country/${iso3}/indicator/${wbCode}?format=json&date=${year}`;
-  const r = await politeFetchJson(url, { tag: "audit-wb" });
+  // refresh: the audit's entire claim is INDEPENDENT re-fetching from the
+  // primary APIs — serving it day-old bytes from the bench's own disk cache
+  // silently weakens "0 divergences" to "0 divergences vs yesterday's bytes"
+  // (found in the 2026-08 audit: 99 of 117 R1 rows verified against cached
+  // bytes predating the audit run — logged as D-006).
+  const r = await politeFetchJson(url, { tag: "audit-wb", refresh: true });
   if (r.status !== 200 || !Array.isArray(r.body)) return { value: undefined, url, error: `http_${r.status}` };
   const rows = Array.isArray(r.body[1]) ? r.body[1] : [];
   const hit = rows.find((row) => row.date === String(year));
@@ -46,7 +51,7 @@ const IMF_COUNTRY_ALIASES = { PSE: "WBG", XKX: "UVK" };
 
 async function fetchImfDataMapperValue(iso3, code, year) {
   const url = `https://www.imf.org/external/datamapper/api/v1/${encodeURIComponent(code)}`;
-  const r = await politeFetchJson(url, { tag: "audit-imf" });
+  const r = await politeFetchJson(url, { tag: "audit-imf", refresh: true });
   if (r.status !== 200) return { value: undefined, url, error: `http_${r.status}` };
   const inner = r.body?.values?.[code];
   if (!inner || typeof inner !== "object") return { value: undefined, url, error: "no_values_envelope" };
@@ -63,7 +68,7 @@ async function fetchDbnomicsValue(seriesId, year) {
   const [, provider, dataset, ...rest] = parts;
   const code = rest.join("/");
   const url = `https://api.db.nomics.world/v22/series/${encodeURIComponent(provider)}/${encodeURIComponent(dataset)}/${encodeURIComponent(code)}?observations=1`;
-  const r = await politeFetchJson(url, { tag: "audit-dbn" });
+  const r = await politeFetchJson(url, { tag: "audit-dbn", refresh: true });
   if (r.status !== 200) return { value: undefined, url, error: `http_${r.status}` };
   const doc = (r.body?.series?.docs ?? []).find((d) => d.series_code === code) ?? (r.body?.series?.docs ?? [])[0];
   if (!doc) return { value: undefined, url, error: "series_not_found" };

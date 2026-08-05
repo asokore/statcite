@@ -1,7 +1,7 @@
 {
   "run": "R1",
   "model": "gpt-5.5",
-  "scored_at": "2026-07-28T15:02:34.949Z",
+  "scored_at": "2026-08-05T20:03:07.876Z",
   "bands": {
     "A": {
       "percent": {
@@ -107,6 +107,7 @@
         ]
       },
       "revision_affected": 0,
+      "vintage_eligible_misses": 4,
       "repaired": 0
     },
     "breakdowns": {
@@ -895,7 +896,10 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_value": 0.676,
+      "vintage_edition": "2024-10",
+      "vintage_status": "ok"
     },
     {
       "qid": "P0-010",
@@ -1073,7 +1077,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-017",
@@ -1129,7 +1134,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-019",
@@ -1228,7 +1234,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-023",
@@ -1517,7 +1524,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-035",
@@ -1576,7 +1584,8 @@
         "adjacent_year:prev:2019",
         "adjacent_year:next:2021"
       ],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-037",
@@ -1841,7 +1850,8 @@
       "diagnostics": [
         "adjacent_year:prev:2018"
       ],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-048",
@@ -1917,7 +1927,10 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_value": 34.54,
+      "vintage_edition": "2024-10",
+      "vintage_status": "ok"
     },
     {
       "qid": "P0-051",
@@ -2102,7 +2115,10 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_value": 25.942,
+      "vintage_edition": "2024-10",
+      "vintage_status": "ok"
     },
     {
       "qid": "P0-058",
@@ -2266,7 +2282,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-064",
@@ -2349,7 +2366,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-067",
@@ -2405,7 +2423,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-069",
@@ -2434,7 +2453,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-070",
@@ -2623,7 +2643,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-078",
@@ -2652,7 +2673,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-079",
@@ -3116,7 +3138,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-097",
@@ -3341,7 +3364,8 @@
       "diagnostics": [
         "adjacent_year:prev:2021"
       ],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-106",
@@ -3496,7 +3520,8 @@
       "diagnostics": [
         "adjacent_year:next:2022"
       ],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-112",
@@ -3527,7 +3552,8 @@
       "diagnostics": [
         "adjacent_year:prev:2020"
       ],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-113",
@@ -3556,7 +3582,8 @@
         "0.5": "mismatch"
       },
       "diagnostics": [],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-114",
@@ -3587,7 +3614,10 @@
       "diagnostics": [
         "adjacent_year:prev:2018"
       ],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_value": 69.129,
+      "vintage_edition": "2024-10",
+      "vintage_status": "ok"
     },
     {
       "qid": "P0-115",
@@ -3742,7 +3772,8 @@
       "diagnostics": [
         "adjacent_year:next:2021"
       ],
-      "revision_affected": false
+      "revision_affected": false,
+      "vintage_status": "not_targeted"
     },
     {
       "qid": "P0-121",

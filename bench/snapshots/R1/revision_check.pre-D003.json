@@ -1,0 +1,116 @@
+{
+  "run": "R1",
+  "snapshot_at": "2026-07-26T22:21:20.549Z",
+  "vintage_edition_used": "2024-10",
+  "edition_probe": {
+    "2024-10": true
+  },
+  "rule": "dated IMF WEO edition nearest to snapshot date minus 18 months (METHODOLOGY §3.3.4); vintage agreement is diagnostic, never scored credit",
+  "n": 4,
+  "rows": [
+    {
+      "qid": "P0-041",
+      "indicator": "gdp_growth",
+      "iso3": "LSO",
+      "year": 2024,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/LSO.NGDP_RPCH.pcent_change",
+      "status": "ok",
+      "vintage_value": 2.796,
+      "vintage_is_projection": true,
+      "retrieved_at": "2026-07-26T22:21:20.549Z",
+      "vintage_projections": {
+        "2023": {
+          "value": 2.194,
+          "is_projection": false
+        },
+        "2024": {
+          "value": 2.796,
+          "is_projection": true
+        },
+        "2025": {
+          "value": 2.304,
+          "is_projection": true
+        }
+      }
+    },
+    {
+      "qid": "P0-055",
+      "indicator": "govt_debt_gdp",
+      "iso3": "JOR",
+      "year": 2023,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/JOR.GGXWDG_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 92.81,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-07-26T22:21:20.549Z",
+      "vintage_projections": {
+        "2023": {
+          "value": 92.81,
+          "is_projection": false
+        },
+        "2024": {
+          "value": 91.652,
+          "is_projection": true
+        },
+        "2025": {
+          "value": 89.199,
+          "is_projection": true
+        }
+      }
+    },
+    {
+      "qid": "P0-079",
+      "indicator": "current_account_gdp",
+      "iso3": "VNM",
+      "year": 2023,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/VNM.BCA_NGDPD.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 5.785,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-07-26T22:21:20.549Z",
+      "vintage_projections": {
+        "2023": {
+          "value": 5.785,
+          "is_projection": false
+        },
+        "2024": {
+          "value": 2.995,
+          "is_projection": true
+        },
+        "2025": {
+          "value": 2.714,
+          "is_projection": true
+        }
+      }
+    },
+    {
+      "qid": "P0-106",
+      "indicator": "fiscal_balance_gdp",
+      "iso3": "CAF",
+      "year": 2025,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/CAF.GGXCNL_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": -1.83,
+      "vintage_is_projection": true,
+      "retrieved_at": "2026-07-26T22:21:20.549Z",
+      "vintage_projections": {
+        "2023": {
+          "value": -3.551,
+          "is_projection": false
+        },
+        "2024": {
+          "value": -3.076,
+          "is_projection": true
+        },
+        "2025": {
+          "value": -1.83,
+          "is_projection": true
+        }
+      }
+    }
+  ]
+}

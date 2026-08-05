@@ -7,7 +7,16 @@
       "title": "Operation",
       "type": "string",
       "description": "What to do: indicator (get values), verify (check a claimed figure), snapshot (country overview), inflation (adjust across years), fx (convert currencies), series (raw series id), search, registry (list indicators).",
-      "enum": ["indicator", "verify", "snapshot", "inflation", "fx", "series", "search", "registry"],
+      "enum": [
+        "indicator",
+        "verify",
+        "snapshot",
+        "inflation",
+        "fx",
+        "series",
+        "search",
+        "registry"
+      ],
       "default": "indicator"
     },
     "indicator": {
@@ -24,21 +33,110 @@
       "editor": "textfield",
       "prefill": "USA"
     },
-    "period": { "title": "Period (verify)", "type": "string", "description": "Year of the claim, e.g. 2024.", "editor": "textfield" },
-    "claimed_value": { "title": "Claimed value (verify)", "type": "string", "description": "The figure to check, in the series' own units.", "editor": "textfield" },
-    "as_of": { "title": "As of (verify)", "type": "string", "description": "Optional: historical IMF-vintage verification — judge against the dated IMF WEO edition resolved from this date (e.g. 2019-04) instead of today's data (conservative month-calendar resolution; WEO archive only — the result discloses both). Only for gdp_growth, current_account_gdp, govt_debt_gdp, fiscal_balance_gdp, govt_revenue_gdp, govt_expenditure_gdp.", "editor": "textfield" },
-    "start_year": { "title": "Start year", "type": "integer", "description": "Optional: only return observations from this year onward." },
-    "end_year": { "title": "End year", "type": "integer", "description": "Optional: only return observations up to this year." },
-    "latest_only": { "title": "Latest value only", "type": "boolean", "description": "Return just the most recent published observation.", "default": false },
-    "transform": { "title": "Transform", "type": "string", "enum": ["none", "yoy", "pct_change", "index"], "default": "none", "description": "Computed transform (with method note)." },
-    "series_id": { "title": "Series id (series)", "type": "string", "description": "worldbank/CODE, imf/CODE, or dbnomics/PROVIDER/DATASET/SERIES.", "editor": "textfield" },
-    "amount": { "title": "Amount (inflation / fx)", "type": "string", "description": "Numeric amount.", "editor": "textfield" },
-    "from_year": { "title": "From year (inflation)", "type": "integer", "description": "The year the amount is denominated in, e.g. 1995." },
-    "to_year": { "title": "To year (inflation)", "type": "integer", "description": "The year to convert the amount into, e.g. 2025." },
-    "from": { "title": "From currency (fx)", "type": "string", "description": "ISO 4217, e.g. USD.", "editor": "textfield" },
-    "to": { "title": "To currency (fx)", "type": "string", "description": "ISO 4217, e.g. BBD.", "editor": "textfield" },
-    "date": { "title": "Date (fx)", "type": "string", "description": "YYYY-MM-DD (daily) or YYYY (annual average).", "editor": "textfield" },
-    "query": { "title": "Query (search)", "type": "string", "description": "Free-text search over indicators and DBnomics datasets.", "editor": "textfield" },
+    "period": {
+      "title": "Period (verify)",
+      "type": "string",
+      "description": "Year of the claim, e.g. 2024.",
+      "editor": "textfield"
+    },
+    "claimed_value": {
+      "title": "Claimed value (verify)",
+      "type": "string",
+      "description": "The figure to check, in the series' own units.",
+      "editor": "textfield"
+    },
+    "tolerance_abs": {
+      "title": "Tolerance (absolute)",
+      "type": "string",
+      "description": "Optional verify override: absolute tolerance in the series' own units (e.g. percentage points).",
+      "editor": "textfield"
+    },
+    "tolerance_pct": {
+      "title": "Tolerance (relative %)",
+      "type": "string",
+      "description": "Optional verify override: relative tolerance in percent.",
+      "editor": "textfield"
+    },
+    "as_of": {
+      "title": "As of (verify)",
+      "type": "string",
+      "description": "Optional: historical IMF-vintage verification \u2014 judge against the dated IMF WEO edition resolved from this date (e.g. 2019-04) instead of today's data (conservative month-calendar resolution; WEO archive only \u2014 the result discloses both). Only for gdp_growth, current_account_gdp, govt_debt_gdp, fiscal_balance_gdp, govt_revenue_gdp, govt_expenditure_gdp.",
+      "editor": "textfield"
+    },
+    "start_year": {
+      "title": "Start year",
+      "type": "integer",
+      "description": "Optional: only return observations from this year onward."
+    },
+    "end_year": {
+      "title": "End year",
+      "type": "integer",
+      "description": "Optional: only return observations up to this year."
+    },
+    "latest_only": {
+      "title": "Latest value only",
+      "type": "boolean",
+      "description": "Return just the most recent published observation.",
+      "default": false
+    },
+    "transform": {
+      "title": "Transform",
+      "type": "string",
+      "enum": [
+        "none",
+        "yoy",
+        "pct_change",
+        "index"
+      ],
+      "default": "none",
+      "description": "Computed transform (with method note)."
+    },
+    "series_id": {
+      "title": "Series id (series)",
+      "type": "string",
+      "description": "worldbank/CODE, imf/CODE, or dbnomics/PROVIDER/DATASET/SERIES.",
+      "editor": "textfield"
+    },
+    "amount": {
+      "title": "Amount (inflation / fx)",
+      "type": "string",
+      "description": "Numeric amount.",
+      "editor": "textfield"
+    },
+    "from_year": {
+      "title": "From year (inflation)",
+      "type": "integer",
+      "description": "The year the amount is denominated in, e.g. 1995."
+    },
+    "to_year": {
+      "title": "To year (inflation)",
+      "type": "integer",
+      "description": "The year to convert the amount into, e.g. 2025."
+    },
+    "from": {
+      "title": "From currency (fx)",
+      "type": "string",
+      "description": "ISO 4217, e.g. USD.",
+      "editor": "textfield"
+    },
+    "to": {
+      "title": "To currency (fx)",
+      "type": "string",
+      "description": "ISO 4217, e.g. BBD.",
+      "editor": "textfield"
+    },
+    "date": {
+      "title": "Date (fx)",
+      "type": "string",
+      "description": "YYYY-MM-DD (daily) or YYYY (annual average).",
+      "editor": "textfield"
+    },
+    "query": {
+      "title": "Query (search)",
+      "type": "string",
+      "description": "Free-text search over indicators and DBnomics datasets.",
+      "editor": "textfield"
+    },
     "items": {
       "title": "Batch items",
       "type": "array",
@@ -46,5 +144,7 @@
       "editor": "json"
     }
   },
-  "required": ["operation"]
+  "required": [
+    "operation"
+  ]
 }

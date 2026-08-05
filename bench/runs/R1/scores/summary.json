@@ -1,6 +1,6 @@
 {
   "run": "R1",
-  "scored_at": "2026-07-28T15:02:34.949Z",
+  "scored_at": "2026-08-05T20:03:07.876Z",
   "seed": "9a173ab9f6e75866e0ca1f080f24ef0d1e2c91a1a9dbd699be6b796450840c3e",
   "bands": {
     "A": {
@@ -47,7 +47,7 @@
     2,
     4
   ],
-  "deviations_count": 2,
+  "deviations_count": 7,
   "counts": {
     "headline": 100,
     "recency": 12,
@@ -122,6 +122,7 @@
           ]
         },
         "revision_affected": 0,
+        "vintage_eligible_misses": 3,
         "repaired": 0
       },
       "breakdowns": {
@@ -634,6 +635,7 @@
           ]
         },
         "revision_affected": 0,
+        "vintage_eligible_misses": 4,
         "repaired": 7
       },
       "breakdowns": {
@@ -1145,7 +1147,8 @@
             0.037
           ]
         },
-        "revision_affected": 0,
+        "revision_affected": 1,
+        "vintage_eligible_misses": 2,
         "repaired": 9
       },
       "breakdowns": {
@@ -1658,6 +1661,7 @@
           ]
         },
         "revision_affected": 0,
+        "vintage_eligible_misses": 2,
         "repaired": 15
       },
       "breakdowns": {
@@ -2170,6 +2174,7 @@
           ]
         },
         "revision_affected": 0,
+        "vintage_eligible_misses": 4,
         "repaired": 0
       },
       "breakdowns": {
@@ -2682,6 +2687,7 @@
           ]
         },
         "revision_affected": 0,
+        "vintage_eligible_misses": 4,
         "repaired": 0
       },
       "breakdowns": {

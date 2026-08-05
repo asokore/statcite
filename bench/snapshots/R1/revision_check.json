@@ -1,13 +1,73 @@
 {
   "run": "R1",
-  "snapshot_at": "2026-07-26T22:21:20.549Z",
+  "snapshot_at": "2026-08-05T19:56:51.351Z",
   "vintage_edition_used": "2024-10",
   "edition_probe": {
     "2024-10": true
   },
   "rule": "dated IMF WEO edition nearest to snapshot date minus 18 months (METHODOLOGY §3.3.4); vintage agreement is diagnostic, never scored credit",
-  "n": 4,
+  "n": 20,
   "rows": [
+    {
+      "qid": "P0-006",
+      "indicator": "govt_debt_gdp",
+      "iso3": "EGY",
+      "year": 2021,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/EGY.GGXWDG_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 89.903,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T19:56:47.325Z"
+    },
+    {
+      "qid": "P0-007",
+      "indicator": "fiscal_balance_gdp",
+      "iso3": "BEL",
+      "year": 2022,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/BEL.GGXCNL_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": -3.569,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T19:56:47.300Z"
+    },
+    {
+      "qid": "P0-009",
+      "indicator": "fiscal_balance_gdp",
+      "iso3": "VNM",
+      "year": 2022,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/VNM.GGXCNL_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 0.676,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T19:56:47.693Z"
+    },
+    {
+      "qid": "P0-026",
+      "indicator": "fiscal_balance_gdp",
+      "iso3": "ALB",
+      "year": 2022,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/ALB.GGXCNL_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": -3.658,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T19:56:47.893Z"
+    },
+    {
+      "qid": "P0-037",
+      "indicator": "fiscal_balance_gdp",
+      "iso3": "CMR",
+      "year": 2018,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/CMR.GGXCNL_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": -2.408,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T19:56:48.039Z"
+    },
     {
       "qid": "P0-041",
       "indicator": "gdp_growth",
@@ -18,7 +78,7 @@
       "status": "ok",
       "vintage_value": 2.796,
       "vintage_is_projection": true,
-      "retrieved_at": "2026-07-26T22:21:20.549Z",
+      "retrieved_at": "2026-08-05T19:56:48.290Z",
       "vintage_projections": {
         "2023": {
           "value": 2.194,
@@ -35,6 +95,30 @@
       }
     },
     {
+      "qid": "P0-043",
+      "indicator": "fiscal_balance_gdp",
+      "iso3": "BGD",
+      "year": 2021,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/BGD.GGXCNL_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": -3.555,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T19:56:48.457Z"
+    },
+    {
+      "qid": "P0-050",
+      "indicator": "govt_debt_gdp",
+      "iso3": "TCD",
+      "year": 2022,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/TCD.GGXWDG_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 34.54,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T19:56:48.658Z"
+    },
+    {
       "qid": "P0-055",
       "indicator": "govt_debt_gdp",
       "iso3": "JOR",
@@ -44,7 +128,7 @@
       "status": "ok",
       "vintage_value": 92.81,
       "vintage_is_projection": false,
-      "retrieved_at": "2026-07-26T22:21:20.549Z",
+      "retrieved_at": "2026-08-05T19:56:49.031Z",
       "vintage_projections": {
         "2023": {
           "value": 92.81,
@@ -61,6 +145,42 @@
       }
     },
     {
+      "qid": "P0-056",
+      "indicator": "govt_debt_gdp",
+      "iso3": "MKD",
+      "year": 2019,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/MKD.GGXWDG_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 40.448,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T19:56:49.027Z"
+    },
+    {
+      "qid": "P0-057",
+      "indicator": "govt_debt_gdp",
+      "iso3": "KHM",
+      "year": 2021,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/KHM.GGXWDG_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 25.942,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T19:56:49.235Z"
+    },
+    {
+      "qid": "P0-073",
+      "indicator": "fiscal_balance_gdp",
+      "iso3": "KAZ",
+      "year": 2019,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/KAZ.GGXCNL_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": -0.57,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T19:56:49.624Z"
+    },
+    {
       "qid": "P0-079",
       "indicator": "current_account_gdp",
       "iso3": "VNM",
@@ -70,7 +190,7 @@
       "status": "ok",
       "vintage_value": 5.785,
       "vintage_is_projection": false,
-      "retrieved_at": "2026-07-26T22:21:20.549Z",
+      "retrieved_at": "2026-08-05T19:56:49.741Z",
       "vintage_projections": {
         "2023": {
           "value": 5.785,
@@ -87,6 +207,42 @@
       }
     },
     {
+      "qid": "P0-084",
+      "indicator": "govt_debt_gdp",
+      "iso3": "ESP",
+      "year": 2019,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/ESP.GGXWDG_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 97.579,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T19:56:49.857Z"
+    },
+    {
+      "qid": "P0-088",
+      "indicator": "govt_debt_gdp",
+      "iso3": "MEX",
+      "year": 2021,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/MEX.GGXWDG_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 56.895,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T19:56:50.220Z"
+    },
+    {
+      "qid": "P0-099",
+      "indicator": "govt_debt_gdp",
+      "iso3": "ARE",
+      "year": 2022,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/ARE.GGXWDG_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 32.057,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T19:56:50.281Z"
+    },
+    {
       "qid": "P0-106",
       "indicator": "fiscal_balance_gdp",
       "iso3": "CAF",
@@ -96,7 +252,7 @@
       "status": "ok",
       "vintage_value": -1.83,
       "vintage_is_projection": true,
-      "retrieved_at": "2026-07-26T22:21:20.549Z",
+      "retrieved_at": "2026-08-05T19:56:50.445Z",
       "vintage_projections": {
         "2023": {
           "value": -3.551,
@@ -111,6 +267,42 @@
           "is_projection": true
         }
       }
+    },
+    {
+      "qid": "P0-114",
+      "indicator": "govt_debt_gdp",
+      "iso3": "LAO",
+      "year": 2019,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/LAO.GGXWDG_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 69.129,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T19:56:50.892Z"
+    },
+    {
+      "qid": "P0-115",
+      "indicator": "fiscal_balance_gdp",
+      "iso3": "POL",
+      "year": 2019,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/POL.GGXCNL_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": -0.743,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T19:56:50.842Z"
+    },
+    {
+      "qid": "P0-117",
+      "indicator": "fiscal_balance_gdp",
+      "iso3": "SAU",
+      "year": 2018,
+      "vintage_edition": "2024-10",
+      "vintage_series_id": "dbnomics/IMF/WEO:2024-10/SAU.GGXCNL_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": -5.454,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T19:56:51.351Z"
     }
   ]
 }

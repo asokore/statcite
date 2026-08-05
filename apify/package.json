@@ -1,8 +1,8 @@
 {
   "name": "statcite-actor",
-  "version": "1.0.0",
+  "version": "1.4.2",
   "type": "module",
-  "description": "StatCite on Apify — official economic statistics with citations + stat verification, pay-per-event.",
+  "description": "StatCite on Apify \u2014 official economic statistics with citations + stat verification, pay-per-event.",
   "main": "main.js",
   "scripts": {
     "build:core": "esbuild ../server/src/core-entry.ts --bundle --format=esm --platform=node --target=node20 --outfile=core.bundle.mjs",
