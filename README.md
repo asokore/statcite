@@ -53,7 +53,7 @@ CLAUDE.md      Working guide: commands, architecture, invariants
 ```bash
 cd server
 npm install
-npm test          # 174 tests, fixture-backed, no network
+npm test          # 180 tests, fixture-backed, no network
 npm run smoke     # live end-to-end against real upstream APIs
 npm run dev       # wrangler dev (local Workers runtime + static site)
 npm run deploy    # wrangler deploy

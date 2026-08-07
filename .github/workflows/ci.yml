@@ -3,6 +3,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    # Twice-daily live smoke against production: visible proof the service is
+    # alive (52% of audited MCP servers are dead; evaluators score aliveness).
+    # The badge on README reflects this workflow's latest run.
+    - cron: "17 6,18 * * *"
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -30,9 +35,11 @@ jobs:
         working-directory: server
       - run: node bench/tools/equivalence.test.mjs
   smoke:
-    # Live upstream check — allowed to fail without blocking merges (upstreams are third parties).
+    # Live check against PRODUCTION (statcite.com), not localhost — on pushes
+    # it is advisory (continue-on-error); on the twice-daily schedule it is the
+    # aliveness signal itself, so a scheduled failure marks the run red.
     runs-on: ubuntu-latest
-    continue-on-error: true
+    continue-on-error: ${{ github.event_name != 'schedule' }}
     defaults:
       run:
         working-directory: server
@@ -42,4 +49,4 @@ jobs:
         with:
           node-version: 22
       - run: npm install
-      - run: npm run smoke
+      - run: BASE=https://statcite.com npm run smoke

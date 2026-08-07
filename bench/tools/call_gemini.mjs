@@ -25,14 +25,53 @@ Usage: node call_gemini.mjs --run R1 --model gemini-2.5-flash [--base DIR] [--li
   --limit N      Only call the first N batches (cost control / smoke test).
   --dry-run      Build requests and print what would be sent; make no API calls,
                  write no files, spend no money.
+  --skip-existing  Resume: skip batches whose raw output file already exists.
+  --gap-ms N     Pause between successful calls (default 250; raise to pace
+                 around free-tier per-minute quotas).
   --help         Show this help.
 
 Writes runs/{RUN}/raw/<model>/batch-NN.txt — the exact response text, unmodified,
 so parse_responses.mjs's strict-JSON-array parse applies identically to every
-model regardless of how its raw output was produced.`;
+model regardless of how its raw output was produced.
 
-const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
+On a free-tier DAILY quota error, the script stops immediately instead of
+retrying or moving to the next batch — every remaining call would fail
+identically, and retrying only spends more of the same exhausted quota.
+Re-invoke with --skip-existing once the quota resets.`;
+
+const RETRY_STATUSES = new Set([429, 500, 502, 503, 504, 599]);
 const MIN_GAP_MS = 250; // politeness, not a workaround — same posture as call_openai.mjs.
+
+// Free-tier 429s carry the server's own RetryInfo ("retryDelay": "9s") and/or a
+// "Please retry in 9.35s" message. Waiting less than that guarantees another 429,
+// which is exactly how the 2026-08-05 R2 uniform pass lost 9 of 14 batches with
+// the fixed [2s,5s,12s] backoff. Honor the server's number when it gives one.
+export function serverRetryDelayMs(r) {
+  const text = `${r?.raw ?? ""} ${r?.error ?? ""}`;
+  const m = text.match(/retry(?:Delay["\s:]+|\s+in\s+)(\d+(?:\.\d+)?)s/i);
+  return m ? Math.ceil(parseFloat(m[1]) * 1000) : undefined;
+}
+
+// Quota-exhaustion detection, learned the hard way across THREE failed sweeps
+// (2026-08-06). Google's free-tier daily-cap 429 comes in at least two body
+// shapes: one carries the metric name ("..._free_tier_requests, limit: 20") plus
+// a RetryInfo hint; the other — observed on the retrieval arm — is a bare
+// RESOURCE_EXHAUSTED with NO metric, NO RetryInfo, nothing but a Help link. A
+// metric-name regex therefore can never be a reliable detector (the first fix
+// attempted exactly that, tested green against the first shape, and silently
+// never fired against the second, burning ~70 requests of retry ladder). The
+// robust rule is behavioral:
+//   - quota 429 WITHOUT a server retry hint => the server itself offers no
+//     recovery time; treat as a dead daily bucket and stop immediately.
+//   - quota 429 WITH a retry hint => honor the hint once (rolling windows do
+//     clear), but do not ride the full ladder against a quota error.
+// The batch loop adds a second layer: two consecutive batches ending in quota
+// exhaustion abort the whole sweep.
+export function isQuotaError(r) {
+  if (r?.status !== 429) return false;
+  const text = `${r?.raw ?? ""} ${r?.error ?? ""}`;
+  return /RESOURCE_EXHAUSTED/i.test(text) || /exceeded your current quota/i.test(text);
+}
 
 function readEnvFileKey(varName) {
   try {
@@ -107,14 +146,33 @@ async function callOnce(apiKey, model, system, user, retrieval = false) {
 }
 
 async function callWithRetry(apiKey, model, system, user, retrieval = false) {
-  const backoff = [2000, 5000, 12000];
+  const backoff = [5000, 15000, 35000, 65000];
+  let quotaRetries = 0;
   let lastErr;
   for (let attempt = 0; attempt <= backoff.length; attempt++) {
-    const r = await callOnce(apiKey, model, system, user, retrieval);
+    let r;
+    try {
+      r = await callOnce(apiKey, model, system, user, retrieval);
+    } catch (e) {
+      r = { status: 599, ok: false, error: String(e?.message ?? e) };
+    }
     if (r.ok) return r;
+    if (isQuotaError(r)) {
+      const serverMs = serverRetryDelayMs(r);
+      // No recovery hint from the server => dead daily bucket. Stop now.
+      if (!serverMs) return { ...r, quotaExhausted: true };
+      // Hinted quota error: honor the hint once — a rolling window clears in
+      // tens of seconds; a daily cap that keeps 429ing after an honored hint
+      // is exhausted, and riding the rest of the ladder just burns budget.
+      if (quotaRetries >= 1) return { ...r, quotaExhausted: true };
+      quotaRetries++;
+      await new Promise((res) => setTimeout(res, serverMs + 1000));
+      continue;
+    }
     if (!RETRY_STATUSES.has(r.status) || attempt === backoff.length) return r;
     lastErr = r;
-    await new Promise((res) => setTimeout(res, backoff[attempt]));
+    const serverMs = serverRetryDelayMs(r);
+    await new Promise((res) => setTimeout(res, Math.max(backoff[attempt], serverMs ? serverMs + 1000 : 0)));
   }
   return lastErr;
 }
@@ -127,6 +185,8 @@ async function main() {
     limit: { type: "string" },
     "dry-run": { type: "boolean" },
     retrieval: { type: "boolean" },
+    "skip-existing": { type: "boolean" },
+    "gap-ms": { type: "string" },
     help: { type: "boolean" },
   });
   if (args.help) {
@@ -150,24 +210,47 @@ async function main() {
 
   let done = 0;
   let failed = 0;
+  let consecutiveQuotaFails = 0;
+  const gapMs = args["gap-ms"] ? parseInt(args["gap-ms"], 10) : MIN_GAP_MS;
   for (const file of batchFiles) {
     const prompt = readJson(path.join(promptsDir, file));
     const outPath = path.join(rawDir, file.replace(/\.json$/, ".txt"));
+    // Resume support: a raw file that already exists is a completed batch from a
+    // prior invocation of this same script — never re-call (and re-randomize) it.
+    if (args["skip-existing"] && fs.existsSync(outPath)) {
+      log(`  skip ${prompt.batch_id} — raw output already exists`);
+      continue;
+    }
     if (args["dry-run"]) {
       log(`  [dry-run] would POST batch ${prompt.batch_id} (${prompt.qids.length} qids, system ${prompt.system.length} chars, user ${prompt.user.length} chars) -> ${outPath}`);
       continue;
     }
     const r = await callWithRetry(apiKey, args.model, prompt.system, prompt.user, Boolean(args.retrieval));
+    if (r.quotaExhausted) {
+      failed++;
+      log(`  QUOTA EXHAUSTED on ${prompt.batch_id}: ${r.error ?? `http_${r.status}`}`);
+      log(`    body: ${String(r.raw ?? "").replace(/\s+/g, " ").slice(0, 300)}`);
+      log(`  stopping now — a quota 429 with no recovery hint (or persisting past an honored hint) is a dead daily bucket; every remaining batch would fail identically. Re-run with --skip-existing after the quota resets.`);
+      break;
+    }
     if (!r.ok) {
       failed++;
       log(`  FAILED ${prompt.batch_id}: ${r.error ?? `http_${r.status}`}`);
+      if (isQuotaError(r)) {
+        consecutiveQuotaFails++;
+        if (consecutiveQuotaFails >= 2) {
+          log(`  stopping — ${consecutiveQuotaFails} consecutive batches ended in quota errors; the bucket is not recovering within this sweep. Re-run with --skip-existing later.`);
+          break;
+        }
+      }
       continue;
     }
+    consecutiveQuotaFails = 0;
     writeText(outPath, r.content);
     done++;
     const tokens = r.usage ? `${r.usage.totalTokenCount} tokens` : "ok";
     log(`  ${prompt.batch_id} -> ${outPath} (${tokens}${r.finishReason && r.finishReason !== "STOP" ? `, finishReason=${r.finishReason}` : ""})`);
-    await new Promise((res) => setTimeout(res, MIN_GAP_MS));
+    await new Promise((res) => setTimeout(res, gapMs));
   }
   if (args["dry-run"]) {
     log(`dry run complete — no API calls made, no cost incurred, no files written`);
@@ -177,7 +260,10 @@ async function main() {
   if (failed) process.exitCode = 1;
 }
 
-main().catch((e) => {
-  console.error(`call_gemini FAILED: ${e.stack ?? e}`);
-  process.exit(1);
-});
+import { pathToFileURL } from "node:url";
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((e) => {
+    console.error(`call_gemini FAILED: ${e.stack ?? e}`);
+    process.exit(1);
+  });
+}

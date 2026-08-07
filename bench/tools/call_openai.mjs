@@ -34,7 +34,7 @@ Writes runs/{RUN}/raw/<model>/batch-NN.txt — the exact response text, unmodifi
 so parse_responses.mjs's strict-JSON-array parse applies identically to every
 model regardless of how its raw output was produced.`;
 
-const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
+const RETRY_STATUSES = new Set([429, 500, 502, 503, 504, 599]);
 const MIN_GAP_MS = 250; // OpenAI's own rate limits are generous; this is politeness, not a workaround.
 
 function readEnvFileKey(varName) {
@@ -170,11 +170,19 @@ async function callWithRetry(apiKey, model, system, user, { arm = "uniform", ret
   const backoff = [2000, 5000, 12000];
   let lastErr;
   for (let attempt = 0; attempt <= backoff.length; attempt++) {
-    const r = retrieval
-      ? await callOnceResponses(apiKey, model, system, user, { tools: [{ type: "web_search" }] })
-      : api === "responses"
-        ? await callOnceResponses(apiKey, model, system, user, { reasoningEffort: arm === "deployed" ? undefined : responsesMinEffort })
-        : await callOnce(apiKey, model, system, user, arm);
+    let r;
+    try {
+      r = retrieval
+        ? await callOnceResponses(apiKey, model, system, user, { tools: [{ type: "web_search" }] })
+        : api === "responses"
+          ? await callOnceResponses(apiKey, model, system, user, { reasoningEffort: arm === "deployed" ? undefined : responsesMinEffort })
+          : await callOnce(apiKey, model, system, user, arm);
+    } catch (e) {
+      // Network-level throw (ECONNRESET, fetch failed, local timeout): treat as
+      // a retryable transport error, never a batch-loop killer (SS2.4: transport
+      // errors are retried, not recorded).
+      r = { status: 599, ok: false, error: String(e?.message ?? e) };
+    }
     if (r.ok) return r;
     if (!RETRY_STATUSES.has(r.status) || attempt === backoff.length) return r;
     lastErr = r;
