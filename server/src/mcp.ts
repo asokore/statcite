@@ -13,8 +13,10 @@ import type { Ctx } from "./core/types.ts";
 import { ToolError } from "./core/types.ts";
 import { UpstreamError } from "./core/upstream.ts";
 import { TOOLS, toolByName, callTool } from "./tools.ts";
+import { listRegistry } from "./core/series.ts";
+import { SOURCES } from "./core/sources.ts";
 
-export const SERVER_VERSION = "1.4.2";
+export const SERVER_VERSION = "1.5.0";
 export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-03-26", "2025-06-18", "2025-11-25"];
 const LATEST_PROTOCOL = "2025-11-25";
 
@@ -27,6 +29,121 @@ const INSTRUCTIONS =
   "Free service; please keep request volumes reasonable.";
 
 type JsonRpcId = string | number | null;
+
+// ---------------------------------------------------------------------------
+// Prompts — reusable workflow templates (prompts/list + prompts/get).
+//
+// fact_check is deliberately the constraint-compliant form of a document-level
+// audit: the CLIENT model extracts the claims (it is a language model; that is
+// its job), and verify_claims adjudicates them — no NLP or free-text parsing
+// ever enters this Worker. All three prompts teach the same house rule: verify
+// before publishing, cite what the tool returns, and pass through cannot_verify
+// honestly instead of papering over it.
+// ---------------------------------------------------------------------------
+
+const PROMPTS = [
+  {
+    name: "fact_check",
+    title: "Fact-check the economic statistics in a text",
+    description:
+      "Extract every checkable macroeconomic claim from a draft/article (indicator + country + period + value), verify them all with verify_claims, and report verdicts with citations. Paste or reference the text after invoking.",
+    messages: (): Array<{ role: string; content: { type: string; text: string } }> => [
+      {
+        role: "user",
+        content: {
+          type: "text",
+          text:
+            "Fact-check the economic statistics in the text I provide.\n\n" +
+            "1. Extract every checkable macroeconomic claim: an indicator (inflation, GDP growth, GDP, unemployment, government debt, fiscal balance, current account, trade, FDI, population, …), a country, a period (usually a year), and the claimed value. Skip vague claims with no number.\n" +
+            "2. Map each claim to a StatCite registry key (use search_indicators if unsure) and call verify_claims with up to 15 claims per call, in the order they appear.\n" +
+            "3. Report a table: claim as written | verdict (match / close / mismatch / cannot_verify) | official value | citation. Quote citation.citation_text for corrected figures.\n" +
+            "4. Never soften a mismatch and never guess where the tool says cannot_verify — report the reason it gives. If a claim is a projection-year figure, say so (the result flags it).\n\n" +
+            "Here is the text:\n",
+        },
+      },
+    ],
+  },
+  {
+    name: "country_brief",
+    title: "One-country economic brief (fully cited)",
+    description:
+      "Build a compact, fully cited macroeconomic brief for one country from country_snapshot plus targeted get_indicator calls. Provide the country name after invoking.",
+    messages: () => [
+      {
+        role: "user",
+        content: {
+          type: "text",
+          text:
+            "Write a one-page economic brief for the country I name.\n\n" +
+            "1. Call country_snapshot for the headline picture (growth, inflation, unemployment, debt, current account).\n" +
+            "2. Deepen with get_indicator where the snapshot flags something notable (e.g. a debt spike: pull the 10-year series).\n" +
+            "3. Every figure cites its source using the citation object returned with it; keep projections labeled as projections, and note any value the tools could not provide rather than filling the gap from memory.\n" +
+            "4. Structure: one paragraph of narrative, then a figures table with citations, then caveats (data vintages, projections, gaps).\n\n" +
+            "Country:\n",
+        },
+      },
+    ],
+  },
+  {
+    name: "cite_this_stat",
+    title: "Get a citation-ready version of one statistic",
+    description:
+      "Turn a single economic figure into a verified, citation-ready sentence: verify it first, then format the official value with its full citation. Provide the claim after invoking.",
+    messages: () => [
+      {
+        role: "user",
+        content: {
+          type: "text",
+          text:
+            "I will give you one economic statistic I want to use in a document.\n\n" +
+            "1. Verify it with verify_stat (map to a registry key via search_indicators if needed).\n" +
+            "2. If it matches or is close: give me the exact sentence to use, with the official value (not my possibly-rounded one) and the citation from citation.citation_text.\n" +
+            "3. If it mismatches: say so plainly, give the correct figure and citation, and note the likely error class if the diagnostics identify one (wrong year, unit scaling, percent-vs-decimal).\n" +
+            "4. If it cannot be verified: report the tool's reason; do not substitute a number from memory.\n\n" +
+            "The statistic:\n",
+        },
+      },
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Resources — read-only reference documents (resources/list + resources/read).
+// Generated from the same registry/source constants the tools use, so they can
+// never drift from what the server actually serves.
+// ---------------------------------------------------------------------------
+
+function registryResourceText(): string {
+  const rows = listRegistry().map((r) => `- ${r.key}: ${r.label} [${r.unit}] — sources: ${r.sources.join(" -> ")}`);
+  return `StatCite indicator registry (${rows.length} indicators). Keys are stable API identifiers for get_indicator / verify_stat / verify_claims.\n\n${rows.join("\n")}`;
+}
+
+function sourcesResourceText(): string {
+  const rows = SOURCES.map(
+    (s) =>
+      `## ${s.name}\nid: ${s.id}\nlicense: ${s.license}\nattribution: ${s.attribution_required}\nterms: ${s.terms_url}\ncoverage: ${s.coverage}\naccess: ${s.access}`,
+  );
+  return `StatCite data sources, licenses, and required attributions. Reproduce the attribution string when republishing values.\n\n${rows.join("\n\n")}`;
+}
+
+const RESOURCES = [
+  {
+    uri: "statcite://registry/indicators",
+    name: "indicator-registry",
+    title: "Indicator registry (keys, labels, units, source chains)",
+    description: "Every indicator key this server accepts, with its label, unit, and source fallback chain. Generated from the live registry constant.",
+    mimeType: "text/plain",
+    text: registryResourceText,
+  },
+  {
+    uri: "statcite://registry/sources",
+    name: "sources-and-licenses",
+    title: "Data sources, licenses, and required attributions",
+    description: "License and required-attribution details for every upstream source, including access method and coverage. Generated from the live source table.",
+    mimeType: "text/plain",
+    text: sourcesResourceText,
+  },
+];
 
 interface JsonRpcMessage {
   jsonrpc?: string;
@@ -108,7 +225,11 @@ export async function dispatchMessage(
         httpStatus: 200,
         body: resultObj(id, {
           protocolVersion: negotiated,
-          capabilities: { tools: { listChanged: false } },
+          capabilities: {
+            tools: { listChanged: false },
+            prompts: { listChanged: false },
+            resources: { listChanged: false, subscribe: false },
+          },
           serverInfo: {
             name: "statcite",
             title: "StatCite — Verified Economic Statistics",
@@ -170,9 +291,38 @@ export async function dispatchMessage(
       }
     }
     case "resources/list":
-      return { httpStatus: 200, body: resultObj(id, { resources: [] }) };
+      return {
+        httpStatus: 200,
+        body: resultObj(id, {
+          resources: RESOURCES.map((r) => ({ uri: r.uri, name: r.name, title: r.title, description: r.description, mimeType: r.mimeType })),
+        }),
+      };
+    case "resources/read": {
+      const uri = typeof params.uri === "string" ? params.uri : "";
+      const res = RESOURCES.find((r) => r.uri === uri);
+      if (!res) {
+        return { httpStatus: 200, body: errorObj(id, -32002, `Unknown resource '${uri}'. Available: ${RESOURCES.map((r) => r.uri).join(", ")}.`) };
+      }
+      return {
+        httpStatus: 200,
+        body: resultObj(id, { contents: [{ uri: res.uri, mimeType: res.mimeType, text: res.text() }] }),
+      };
+    }
     case "prompts/list":
-      return { httpStatus: 200, body: resultObj(id, { prompts: [] }) };
+      return {
+        httpStatus: 200,
+        body: resultObj(id, {
+          prompts: PROMPTS.map((p) => ({ name: p.name, title: p.title, description: p.description })),
+        }),
+      };
+    case "prompts/get": {
+      const name = typeof params.name === "string" ? params.name : "";
+      const prompt = PROMPTS.find((p) => p.name === name);
+      if (!prompt) {
+        return { httpStatus: 200, body: errorObj(id, -32602, `Unknown prompt '${name}'. Available: ${PROMPTS.map((p) => p.name).join(", ")}.`) };
+      }
+      return { httpStatus: 200, body: resultObj(id, { description: prompt.description, messages: prompt.messages() }) };
+    }
     default:
       return { httpStatus: 200, body: errorObj(id, -32601, `Method '${msg.method}' not found.`) };
   }

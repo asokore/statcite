@@ -83,6 +83,19 @@ async function main() {
   const outDir = path.join(paths.runDir, "responses");
 
   for (const model of MODELS) {
+    // A model that was never called (no raw dir, or a dir with zero raw files —
+    // e.g. an access-gap or billing-blocked roster entry, D-009/D-011) must NOT
+    // get a responses file: score.mjs skips on the responses file's absence, and
+    // an all-format_failure file would render "not called" as "tested and
+    // failed 100%". Absence is reported as an access gap, never as a score.
+    const modelRawDir = path.join(rawDir, model);
+    const hasAnyRaw = fs.existsSync(modelRawDir) && fs.readdirSync(modelRawDir).some((f) => f.endsWith(".txt"));
+    if (!hasAnyRaw) {
+      const stale = path.join(outDir, `${model}.json`);
+      if (fs.existsSync(stale)) fs.rmSync(stale);
+      log(`SKIP ${model}: no raw outputs (not called in this run) — no responses file written`);
+      continue;
+    }
     const items = {};
     const formatFailures = [];
     const batchStats = [];

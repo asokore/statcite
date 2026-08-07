@@ -24,6 +24,7 @@ async function main() {
     run: { type: "string" },
     base: { type: "string" },
     "system-template": { type: "string" },
+    retrieval: { type: "boolean" },
     help: { type: "boolean" },
   });
   if (args.help) {
@@ -55,8 +56,14 @@ async function main() {
         if (!q) throw new Error(`qid ${qid} in batches file but not in question bank`);
         return `${i + 1}. [${qid}] ${q.text}`;
       });
+      // The user message's mode phrase must match the system template's mode:
+      // sending "from memory only" alongside the retrieval-arm system prompt
+      // (which grants search tools) would contradict the arm's own instruction.
+      const opening = args.retrieval
+        ? `Answer the following ${qids.length} questions. You may use your platform's permitted search and retrieval tools (never StatCite). `
+        : `Answer the following ${qids.length} questions from memory only. `;
       const user =
-        `Answer the following ${qids.length} questions from memory only. ` +
+        opening +
         `Output a single JSON array with exactly ${qids.length} objects, one per question, each echoing the question's qid exactly.\n\n` +
         lines.join("\n");
       const out = { model, batch_id: batch.batch_id, system, user, qids };

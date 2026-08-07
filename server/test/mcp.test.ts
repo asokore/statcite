@@ -1,6 +1,6 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { installFetchStub, call, mcpCall, testEnv } from "./helpers.ts";
+import { installFetchStub, call, mcpCall, mcpTool, testEnv } from "./helpers.ts";
 
 beforeEach(() => installFetchStub());
 
@@ -105,4 +105,93 @@ test("parse error -> -32700", async () => {
   assert.equal(res.status, 400);
   const body = await res.json() as any;
   assert.equal(body.error.code, -32700);
+});
+
+// --- v1.5.0: prompts, resources, structured output, status (GROWTH-PLAN Phase 1) ---
+
+test("initialize declares prompts + resources capabilities", async () => {
+  const res = await mcpCall({ jsonrpc: "2.0", id: 20, method: "initialize", params: { protocolVersion: "2025-06-18" } });
+  const body = await res.json() as any;
+  assert.ok(body.result.capabilities.prompts, "prompts capability missing");
+  assert.ok(body.result.capabilities.resources, "resources capability missing");
+});
+
+test("prompts/list + prompts/get round-trip; unknown prompt errors with the available list", async () => {
+  const list = await mcpCall({ jsonrpc: "2.0", id: 21, method: "prompts/list" });
+  const names = ((await list.json()) as any).result.prompts.map((p: any) => p.name);
+  assert.deepEqual(names.sort(), ["cite_this_stat", "country_brief", "fact_check"]);
+
+  const get = await mcpCall({ jsonrpc: "2.0", id: 22, method: "prompts/get", params: { name: "fact_check" } });
+  const gb = (await get.json()) as any;
+  assert.ok(gb.result.messages.length >= 1);
+  assert.match(gb.result.messages[0].content.text, /verify_claims/);
+  assert.match(gb.result.messages[0].content.text, /cannot_verify/);
+
+  const bad = await mcpCall({ jsonrpc: "2.0", id: 23, method: "prompts/get", params: { name: "nope" } });
+  const bb = (await bad.json()) as any;
+  assert.equal(bb.error.code, -32602);
+  assert.match(bb.error.message, /fact_check/);
+});
+
+test("resources/list + resources/read: registry and sources generated from live constants", async () => {
+  const list = await mcpCall({ jsonrpc: "2.0", id: 24, method: "resources/list" });
+  const uris = ((await list.json()) as any).result.resources.map((r: any) => r.uri);
+  assert.deepEqual(uris.sort(), ["statcite://registry/indicators", "statcite://registry/sources"]);
+
+  const reg = await mcpCall({ jsonrpc: "2.0", id: 25, method: "resources/read", params: { uri: "statcite://registry/indicators" } });
+  const regText = ((await reg.json()) as any).result.contents[0].text as string;
+  assert.match(regText, /inflation_cpi/);
+  assert.match(regText, /govt_debt_gdp/);
+
+  const src = await mcpCall({ jsonrpc: "2.0", id: 26, method: "resources/read", params: { uri: "statcite://registry/sources" } });
+  const srcText = ((await src.json()) as any).result.contents[0].text as string;
+  assert.match(srcText, /CC BY 4\.0/);
+  assert.match(srcText, /attribution/i);
+
+  const bad = await mcpCall({ jsonrpc: "2.0", id: 27, method: "resources/read", params: { uri: "statcite://nope" } });
+  assert.equal(((await bad.json()) as any).error.code, -32002);
+});
+
+test("GUARD THE LAST HOP: every tool advertising outputSchema returns structuredContent on a real call", async () => {
+  // The list of advertised tools comes from the live tools/list response, not
+  // a hardcoded set — a future tool that adds outputSchema is covered the day
+  // it ships or this test fails.
+  const list = await mcpCall({ jsonrpc: "2.0", id: 28, method: "tools/list" });
+  const withSchema = ((await list.json()) as any).result.tools.filter((t: any) => t.outputSchema).map((t: any) => t.name);
+  assert.ok(withSchema.includes("verify_stat"), "verify_stat should advertise outputSchema");
+  assert.ok(withSchema.includes("verify_claims"), "verify_claims should advertise outputSchema");
+
+  const argsFor: Record<string, Record<string, unknown>> = {
+    search: { query: "inflation barbados" },
+    fetch: { id: "help/indicators" },
+    verify_stat: { indicator: "inflation_cpi", country: "BRB", period: "2023", claimed_value: 1.4 },
+    verify_claims: { claims: [{ indicator: "inflation_cpi", country: "BRB", period: "2023", claimed_value: 1.4 }] },
+  };
+  for (const name of withSchema) {
+    assert.ok(argsFor[name], `no test args for tool '${name}' — add them here when adding outputSchema`);
+    const { rpc, isError } = await mcpTool(name, argsFor[name]);
+    assert.equal(isError, false, `${name} errored: ${JSON.stringify(rpc.result)}`);
+    assert.ok(rpc.result.structuredContent, `${name} advertised outputSchema but returned no structuredContent`);
+  }
+});
+
+test("verify_stat structuredContent carries the verdict fields the schema promises", async () => {
+  const { rpc } = await mcpTool("verify_stat", { indicator: "inflation_cpi", country: "BRB", period: "2023", claimed_value: 1.4 });
+  const sc = rpc.result.structuredContent;
+  for (const k of ["verdict", "official_value", "citation", "diagnostics", "notes", "observation_status"]) {
+    assert.ok(k in sc, `structuredContent missing '${k}'`);
+  }
+});
+
+test("REST /v1/status reports version and per-upstream probes (stubbed upstreams -> ok)", async () => {
+  const res = await call("/v1/status");
+  assert.equal(res.status, 200);
+  const body = await res.json() as any;
+  assert.equal(body.service, "StatCite");
+  assert.ok(body.version.length >= 5);
+  assert.ok(["ok", "degraded"].includes(body.status));
+  for (const up of ["worldbank", "imf_datamapper", "dbnomics"]) {
+    assert.ok(body.upstreams[up], `missing upstream probe ${up}`);
+    assert.equal(typeof body.upstreams[up].ok, "boolean");
+  }
 });

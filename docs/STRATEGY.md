@@ -21,6 +21,22 @@ The builder is part of the product: an economist curates the registry (WEO gener
 
 ## Competitive posture
 
+- **vs StatGPT (IMF/StatCan/Eurostat-backed, launched June 2026):** an LLM-to-SDMX
+  retrieval platform for official statistics, backed by IMF, World Bank, OECD,
+  Eurostat, BIS, ECB and the UN statistical system (IMF Departmental Paper
+  2026/004; statgpt.dialx.ai). It retrieves rather than generates — validating
+  StatCite's thesis with institutional weight (the paper itself concedes
+  generative models "perform poorly at delivering official statistics").
+  Consequences, per docs/VENTURE-CONTEXT.md finding 1: breadth of global
+  official statistics is now UNWINNABLE — never compete there. StatCite's
+  three defensible positions against it: (a) **verification, not retrieval** —
+  StatGPT answers "what is X?"; verify_stat answers "this document claims Y,
+  is that right?" — different products, and auditing is the scarcer job;
+  (b) **agent-native MCP delivery** — StatGPT is a platform for humans; whether
+  it ships a good MCP surface is monitored, not assumed; (c) **coverage where
+  SDMX does not reach** — its mechanism requires an SDMX endpoint, which most
+  small-island and many developing economies do not publish. Every new piece of
+  marketing copy must be written against this row, not the pre-StatGPT frame.
 - **vs Google Data Commons:** it already attaches `source_metadata` (source_id, import_name, provenance_url) per datapoint and mandates attribution in its instructions — don't claim "no citations there." Win on completeness (license, required-attribution string, retrieval date, projection labeling — all absent from Data Commons) and on verify_stat, which Data Commons does not have. Don't fight on breadth. If Data Commons ships verification, pivot emphasis to fiscal/WEO depth and the benchmark — and note DataGemma (Google Research, arXiv:2409.13741) already proves the verify mechanic works against Data Commons, so this is a live risk, not a hypothetical.
 - **vs Statista MCP:** enterprise-gated, paid, "every response comes with source links" — but aggregated secondary stats, not official series, and no license/attribution-string/retrieval-date completeness, no verification. StatCite is free and official-source.
 - **vs FXMacroData:** paid, `mcp_metadata` provenance block (source_type/source_name/data_lag_days), free tier US-only — same completeness and verification gaps.

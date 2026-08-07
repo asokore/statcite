@@ -239,7 +239,7 @@ export const TOOLS: ToolDef[] = [
     name: "verify_stat",
     title: "Verify a claimed statistic against the official source",
     description:
-      "Check a claimed economic figure (from a draft, article, or memory) against the official statistical series and get a verdict: match, close, mismatch, or cannot_verify — with the official value, the difference, diagnostics for classic errors (wrong year, percent-vs-decimal, unit scaling), and a full citation for the correct number. Use this before publishing any economic statistic in a report, brief, or article.",
+      "Check a claimed economic figure (from a draft, article, or memory) against the official statistical series and get a verdict: match, close, mismatch, or cannot_verify — with the official value, the difference, diagnostics for classic errors (wrong year, percent-vs-decimal, unit scaling), and a full citation for the correct number. Honesty contract: when the official source cannot support a judgment (source down, no published value, fallback vintage risk), the verdict is cannot_verify with the reason — never a guess. Supports historical IMF-vintage checks via as_of. Use this before publishing any economic statistic in a report, brief, or article.",
     inputSchema: {
       type: "object",
       properties: {
@@ -266,6 +266,34 @@ export const TOOLS: ToolDef[] = [
       required: ["indicator", "period", "claimed_value"],
       additionalProperties: false,
     },
+    // Structured output: the always-present core of VerifyResult. Optional
+    // fields (country, fallback_used, as_of, note additions) are allowed via
+    // additionalProperties — over-strict schemas break clients that validate.
+    outputSchema: {
+      type: "object",
+      properties: {
+        verdict: { type: "string", enum: ["match", "close", "mismatch", "cannot_verify"] },
+        claimed_value: { type: "number" },
+        official_value: { type: ["number", "null"] },
+        is_projection: { type: "boolean" },
+        observation_status: { type: "string" },
+        status_method: { type: "string" },
+        period: { type: "string" },
+        difference: { type: ["number", "null"] },
+        relative_difference_pct: { type: ["number", "null"] },
+        explanation: { type: "string" },
+        diagnostics: { type: "array", items: { type: "string" } },
+        series: { type: "object", additionalProperties: true },
+        citation: { type: "object", additionalProperties: true },
+        notes: { type: "array", items: { type: "string" } },
+      },
+      required: [
+        "verdict", "claimed_value", "official_value", "is_projection", "observation_status",
+        "status_method", "period", "difference", "relative_difference_pct", "explanation",
+        "diagnostics", "series", "citation", "notes",
+      ],
+      additionalProperties: true,
+    },
     handler: async (ctx, args) =>
       verifyStat(ctx, {
         indicator: str(args, "indicator"),
@@ -282,7 +310,7 @@ export const TOOLS: ToolDef[] = [
     name: "verify_claims",
     title: "Verify a batch of claimed statistics (fact-check a whole draft)",
     description:
-      "Fact-check a whole draft or report in one call instead of calling verify_stat once per figure: extract every checkable macro claim from the text — indicator + country + period + claimed value — and submit them together. Each claim gets the same verdict engine as verify_stat (match, close, mismatch, cannot_verify, with diagnostics), and every verified result carries the full citation for the official number. Accepts 1–15 claims per call (free-tier subrequest budget) — split larger drafts into multiple calls of up to 15. Results come back in input order with a verdict-count summary; a claim that cannot be resolved (unknown indicator or country) reports its error in place without sinking the rest of the batch.",
+      "Fact-check a whole draft or report in one call instead of calling verify_stat once per figure: extract every checkable macro claim from the text — indicator + country + period + claimed value — and submit them together. Each claim gets the same verdict engine as verify_stat (match, close, mismatch, cannot_verify, with diagnostics), and every verified result carries the full citation for the official number. Same honesty contract as verify_stat: unverifiable claims come back cannot_verify with the reason, never a guessed verdict. Accepts 1–15 claims per call (free-tier subrequest budget) — split larger drafts into multiple calls of up to 15. Results come back in input order with a verdict-count summary; a claim that cannot be resolved (unknown indicator or country) reports its error in place without sinking the rest of the batch.",
     inputSchema: {
       type: "object",
       properties: {
@@ -321,6 +349,30 @@ export const TOOLS: ToolDef[] = [
       },
       required: ["claims"],
       additionalProperties: false,
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        summary: {
+          type: "object",
+          properties: {
+            total: { type: "number" },
+            match: { type: "number" },
+            close: { type: "number" },
+            mismatch: { type: "number" },
+            cannot_verify: { type: "number" },
+            error: { type: "number" },
+          },
+          required: ["total", "match", "close", "mismatch", "cannot_verify", "error"],
+          additionalProperties: false,
+        },
+        results: {
+          type: "array",
+          items: { type: "object", additionalProperties: true },
+        },
+      },
+      required: ["summary", "results"],
+      additionalProperties: true,
     },
     handler: async (ctx, args) => runVerifyClaims(ctx, args.claims, args.strict_source === true),
   },

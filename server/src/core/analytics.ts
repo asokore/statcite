@@ -68,6 +68,7 @@ const REST_OPS = new Map<string, string>([
   ["/v1/inflation", "inflation"],
   ["/v1/fx", "fx"],
   ["/v1/sources", "sources"],
+  ["/v1/status", "status"],
 ]);
 
 /** Map a REST path to a stable op name. Unknown paths collapse to "unknown". */

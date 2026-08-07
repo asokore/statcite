@@ -42,7 +42,7 @@ He maintains several other data projects locally, in adjacent fiscal and investm
 
 | Path | What it is | State |
 |---|---|---|
-| `server/` | Cloudflare Worker: stateless MCP (hand-rolled JSON-RPC, zero runtime deps) + REST mirror + 42-indicator registry + 5 data adapters (World Bank, IMF DataMapper, DBnomics, Frankfurter, FRED) | **174/174 tests pass (v1.4.2); live smoke passes against real World Bank / DBnomics / Frankfurter APIs** |
+| `server/` | Cloudflare Worker: stateless MCP (hand-rolled JSON-RPC, zero runtime deps) + REST mirror + 42-indicator registry + 5 data adapters (World Bank, IMF DataMapper, DBnomics, Frankfurter, FRED) | **180/180 tests pass (v1.5.0); live smoke passes against real World Bank / DBnomics / Frankfurter APIs** |
 | `site/` | statcite.com: landing, docs, llms.txt/llms-full.txt, openapi.json, privacy, terms, 404 | Renders; screenshot verified |
 | `apify/` | Pay-per-event actor bundling the same core (`core.bundle.mjs`, committed) | Live on Apify Store with differentiated PPE pricing |
 | `skill/` | Packaged Claude skill teaching verify-then-cite | Written; **never evaluated** (see §7) |

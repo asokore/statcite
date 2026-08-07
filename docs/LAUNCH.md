@@ -4,8 +4,8 @@ Deployment runbook lives in ../HANDOFF.md. This file is the go-to-market sequenc
 
 ## T+0 (deploy day)
 
-- [ ] Smoke test against production: `cd server && BASE=https://statcite.com npm run smoke` (or run the curl checks in HANDOFF §6)
-- [ ] Add StatCite to your own Claude as a custom connector; use it for a real task; fix anything that annoys you
+- [x] Smoke test against production: `cd server && BASE=https://statcite.com npm run smoke` (done repeatedly; every release since 1.2.0 was live-smoke-verified — see HANDOFF)
+- [x] Add StatCite to your own Claude as a custom connector; use it for a real task; fix anything that annoys you (in continuous use by the operator's own agents since 2026-07-25)
 - [x] Register hello@statcite.com forwarding (Cloudflare Email Routing) (done 2026-07-25)
 - [x] Join the Cloudflare Monetization Gateway waitlist (done 2026-07-25)
 
@@ -24,15 +24,15 @@ Deployment runbook lives in ../HANDOFF.md. This file is the go-to-market sequenc
 - [ ] Show HN — post from distribution/social-copy.md, morning US time, mid-week; stay online 4–6 hours answering every comment
 - [ ] r/mcp same day (different copy, same demo)
 - [ ] LinkedIn post (your professional network is unusually right for this product)
-- [ ] Email PulseMCP the newsletter pitch
-- [ ] mcp.so + mcpmarket submissions
+- [ ] Email PulseMCP the newsletter pitch (listing itself auto-ingested from the official registry — done; the PITCH remains untried)
+- [x] mcp.so + mcpmarket submissions (done 2026-07-26: mcp.so queued review id ea8b3345, mcpmarket listed)
 
 ## T+2–8 weeks (authority wave)
 
-- [ ] Build and publish the **AI Economic-Stats Accuracy Benchmark** (docs/STRATEGY.md — Growth): 100 questions × major assistants, verified via StatCite, error rates by model/indicator/country. Publish as a page on statcite.com + GitHub repo with the data
-- [ ] Pitch the benchmark to one data journalist and 2–3 AI newsletters
+- [x] Build and publish the **AI Economic-Stats Accuracy Benchmark** — BUILT and pre-registered well beyond the original sketch (bench/: frozen methodology, NIST-beacon seeding, primary-source-audited ground truth, deviations log). Run 1 published; **Run 2 complete-in-parts and EMBARGOED until the vendor courtesy-preview window passes** (bench/DEVIATIONS.md D-008 item 9). The statcite.com results page remains to be built (GROWTH-PLAN Phase 2 launch prep)
+- [ ] Pitch the benchmark to one data journalist and 2–3 AI newsletters (scheduled for the post-embargo launch cluster — GROWTH-PLAN Phase 3)
 - [ ] Write one tutorial: "Fact-checking economic claims in Claude/ChatGPT with StatCite" (dev.to + repo docs)
-- [ ] Watch for the Claude directory approval; when live, announce again
+- [ ] Watch for the Claude directory approval; when live, announce again — **the trigger FIRED 2026-07-29 (approved + published) and the re-announcement never happened**; folded into the Phase 3 launch cluster so it lands with the benchmark story instead of alone
 
 ## Cadence after launch
 
@@ -73,13 +73,20 @@ every string written comes from a closed set, not from the request — and prove
 by `server/test/analytics.test.ts`. This keeps `site/privacy.html` true (no
 accounts, no profiling; only "aggregate infrastructure logs and metrics").
 
-### Sink 1 — Workers Analytics Engine (free plan)
+### Sink 1 — Workers Analytics Engine (**NOT ACTIVE — Workers Paid gate**)
+
+**Status 2026-08-07: the binding is commented out in `server/wrangler.jsonc`.**
+Despite the free-tier documentation below, deploying the binding on this
+account fails with API error 10089 (Analytics Engine requires Workers Paid).
+The section is retained as the design of record for if/when the account is
+upgraded; until then Sink 2 (the log line) is the only live sink, and the
+weekly query cadence below CANNOT run — use the monthly bookkeeping sheet
+(docs/GROWTH-PLAN-2026-08.md Phase 2) with `wrangler tail` sampling instead.
 
 Binding `STATCITE_USAGE` → dataset `statcite_usage` (`server/wrangler.jsonc`).
-Free-plan allocation: **100,000 data points written/day, 10,000 read
-queries/day, 3-month retention**; Cloudflare currently does not bill for
-Analytics Engine at all. Our ceiling is the Workers free plan itself
-(100k requests/day), so we cannot exceed the write allocation.
+Documented free-plan allocation: **100,000 data points written/day, 10,000 read
+queries/day, 3-month retention** — not honored for this account in practice
+(see status note above).
 
 Schema (positions are the contract — append, never reorder):
 

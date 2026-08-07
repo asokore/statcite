@@ -139,3 +139,52 @@ Full per-agent source lists are preserved in the research transcripts; the load-
 
 - **OpenAI MCP/ChatGPT connector state** (verified 2026-07-26 against the OpenAI Help Center article "Developer mode and MCP apps in ChatGPT", help.openai.com/en/articles/12584461, page last updated ~2026-07-15, read in a live browser session — the URL 403s automated fetchers): full MCP apps incl. write actions are in beta on **Business/Enterprise/Edu**; **Pro** can connect MCP servers with read/fetch permissions in developer mode; Free/Plus are not listed as having custom-connector access. The FAQ states verbatim that the `search`/`fetch` tool pair is **"No. They are no longer required."** for connected servers — with two carve-outs where the pair still matters: *company knowledge* only includes apps with search/fetch functionality, and *deep research* uses custom apps for read/fetch actions only. `site/docs.html` §1's ChatGPT bullet and `distribution/submissions.md` §8 are written against this state.
 - **"146,000+ AI-hallucinated citations" landing-page stat** (verified 2026-07-26): primary source is arXiv 2605.07723 — "LLM hallucinations in the wild: Large-scale evidence from non-existent citations" (Zhao, Wang, Stuart, De Vaan, Ginsparg, Yin; May 2026). The abstract states a "conservative estimate of 146,932 hallucinated citations in 2025 alone" from an audit of 111M references across 2.5M papers. `site/index.html` links the arXiv abstract directly (previously linked secondary press coverage).
+
+## Closed verdicts — 2026-08-07 growth research pass (do not re-research)
+
+From the 12-agent growth research pass (see docs/GROWTH-PLAN-2026-08.md for
+the resulting plan). Each verdict below was reached with the cited primary
+source; re-open only if the source itself changes.
+
+- **StatGPT** (statgpt.dialx.ai, IMF Departmental Paper 2026/004): live since
+  June 2026; LLM→SDMX retrieval for official statistics backed by IMF/WB/OECD/
+  Eurostat/BIS/ECB/UN. Breadth-first competition is dead; the verification/
+  agent-native/SDMX-gap positions stand. STRATEGY.md now carries the row.
+- **UN Comtrade: BLOCKED.** The re-dissemination policy's for-profit trigger is
+  the *applicant's* character, not the endpoint tier — StatCite has paid
+  surfaces (Apify), so even free-tier ingestion is not clean.
+  https://uncomtrade.org/docs/policy-on-use-and-re-dissemination/
+- **FRED: permanently dead** (unchanged; AI/ML-use and redistribution clauses
+  at fred.stlouisfed.org/legal). Recorded here so no growth pass re-proposes it.
+- **World Bank IDS debt series: CLEAN** — same api.worldbank.org endpoint
+  (source=6), same CC BY 4.0 summary terms as WDI. Cheapest possible source add.
+- **BIS statistics: CLEAN with a condition** — terms permit reproduction/
+  redistribution with attribution; a "no charge specifically for the data"
+  posture must be recorded in MONETIZATION.md before shipping (charge for the
+  audit, never the BIS data). https://www.bis.org/terms_statistics.htm
+- **ECB data: CLEAN** — reproduction permitted with attribution.
+  https://www.ecb.europa.eu/services/disclaimer/html/index.en.html
+- **WHO GHO: PER-INDICATOR check required** — data.who.int terms are CC BY
+  with NC-SA exceptions on some datasets; never add WHO wholesale.
+- **ILOSTAT: probe first** — licensing workable with attribution, but the SDMX
+  API's Worker-compatibility needs a 10-minute probe before any code.
+- **IDB Lab: CLOSED for this project** — current programs are loans (USD
+  500k–2M) to companies with 3 years of audited financials, not grants to
+  individuals. VENTURE-CONTEXT finding 4's IDB Lab line is superseded on this
+  point. Re-check only on incorporation with revenue.
+- **Cloudflare Project Galileo: SKIP** — eligibility fit is weak and the
+  payoff on an already-free tier is null.
+- **NLnet NGI Zero Commons: OPEN** — window 2026-09-03 → 2026-11-03, funds
+  individuals, no EU-residency requirement. The one live grant path this
+  quarter. https://nlnet.nl/propose/
+- **OpenAI Researcher Access: DRAFTED** — quarterly review (next September),
+  4-6 weeks to credit after decision; application draft exists in the bench
+  run directory. Cannot unblock near-term costs.
+- **llms.txt: STOP INVESTING** — production crawler data shows ~408 fetches
+  across 500M+ AI-bot requests; keep the files (zero cost) but build nothing
+  more on them. https://ariashaw.com/does-llms-txt-actually-work
+- **Custom GPT (GPT Store): FAILS ZERO-COST** — publishing requires a paid
+  ChatGPT plan.
+- **Workers Analytics Engine: PAID-GATED** (API error 10089 on this account
+  despite free-tier docs); binding stays commented out; the monthly
+  bookkeeping sheet is the stand-in.

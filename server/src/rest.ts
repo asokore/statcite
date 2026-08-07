@@ -3,7 +3,7 @@
 
 import type { Ctx } from "./core/types.ts";
 import { ToolError } from "./core/types.ts";
-import { UpstreamError } from "./core/upstream.ts";
+import { UpstreamError, fetchJson } from "./core/upstream.ts";
 import { getIndicator, getSeries, searchIndicators, listRegistry } from "./core/series.ts";
 import { countrySnapshot } from "./core/snapshot.ts";
 import { inflationAdjust } from "./core/inflation.ts";
@@ -130,12 +130,54 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
           "/v1/inflation?amount=100&from_year=1995&to_year=2025&country=USA",
           "/v1/fx?amount=100&from=USD&to=BBD&date=2024",
           "/v1/sources",
+          "/v1/status",
         ],
       }, 86400);
     }
 
     if (path === "/v1/indicators") {
       return json(200, { indicators: listRegistry() }, 86400);
+    }
+
+    if (path === "/v1/status") {
+      // Merged status+health surface (GROWTH-PLAN Phase 1): version + live
+      // upstream probes. Cached at the edge for 120s so a poller or badge can
+      // never relay load to the upstream APIs; probes are the cheapest known
+      // endpoint per source and share the Worker's normal fetch path (so a
+      // probe result reflects what real requests would experience). Probe
+      // failures report as degraded — never a thrown error; the status page
+      // must not be the least reliable part of the system.
+      const probes: Record<string, { ok: boolean; ms: number }> = {};
+      const probe = async (name: string, fn: () => Promise<boolean>) => {
+        const t0 = Date.now();
+        try {
+          probes[name] = { ok: await fn(), ms: Date.now() - t0 };
+        } catch {
+          probes[name] = { ok: false, ms: Date.now() - t0 };
+        }
+      };
+      await Promise.all([
+        probe("worldbank", async () => {
+          await fetchJson("https://api.worldbank.org/v2/country/USA?format=json", { ttlSeconds: 120, timeoutMs: 5000 });
+          return true;
+        }),
+        probe("imf_datamapper", async () => {
+          await fetchJson("https://www.imf.org/external/datamapper/api/v1/regions", { ttlSeconds: 120, timeoutMs: 5000 });
+          return true;
+        }),
+        probe("dbnomics", async () => {
+          await fetchJson("https://api.db.nomics.world/v22/datasets/IMF/WEO:latest?limit=1", { ttlSeconds: 120, timeoutMs: 5000 });
+          return true;
+        }),
+      ]);
+      const allOk = Object.values(probes).every((p) => p.ok);
+      return json(200, {
+        service: "StatCite",
+        version: SERVER_VERSION,
+        status: allOk ? "ok" : "degraded",
+        upstreams: probes,
+        note: "Upstream probes are cached ~120s; 'degraded' means at least one primary source is unreachable right now — fallback chains may still serve affected indicators, with fallback_used disclosed per response.",
+      }, 120);
     }
 
     const indMatch = path.match(/^\/v1\/indicator\/([a-z0-9_]+)$/);
