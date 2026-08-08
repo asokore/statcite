@@ -73,7 +73,7 @@ fetch({id}) → {id,title,text,url,metadata}; text contains recent observations 
 
 Errors: 400 missing params, 422 helpful failure (suggestions included), 502 upstream trouble. /v1/verify_claims: 405 on GET, 415 on non-JSON content-type, 422 on malformed body.
 
-## Indicator registry (42 keys — 36 active; the six FRED-reserved US keys always decline)
+## Indicator registry (46 keys — 40 active; the six FRED-reserved US keys always decline)
 
 - gdp_growth — GDP growth (annual %) [% (annual, real)] (sources: World Bank WDI; IMF DataMapper API (current WEO/Fiscal Monitor); IMF WEO (via DBnomics))
 - gdp_current_usd — GDP (current US$) [current US$] (sources: World Bank WDI)

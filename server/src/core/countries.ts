@@ -290,9 +290,59 @@ export function resolveCountry(input: string, opts: { strict?: boolean } = {}): 
     const hits = NORM_NAMES.filter(({ n: cn }) => cn.includes(n) || n.includes(cn));
     if (hits.length === 1) return hits[0].c;
   }
+  // Single-typo tolerance (edit distance 1, unique hit only): catches
+  // "Jamiaca"/"Barbadoss" without ever guessing between near-neighbours —
+  // an ambiguous fuzzy match returns null and the caller's error path
+  // surfaces suggestCountries instead. Only runs after every exact route
+  // failed, and only for inputs long enough that one edit is a typo rather
+  // than a different word (>= 5 chars).
+  if (n.length >= 5) {
+    const hits = NORM_NAMES.filter(({ n: cn }) => Math.abs(cn.length - n.length) <= 1 && editDistanceLeq1(n, cn));
+    const uniq = [...new Set(hits.map((h) => h.c.iso3))];
+    if (uniq.length === 1) return hits[0].c;
+  }
   // Pass through plausible ISO codes the map may not know — the upstream validates.
   if (!opts.strict && /^[A-Z]{3}$/.test(upper)) return { iso3: upper, iso2: upper.slice(0, 2), name: upper };
   return null;
+}
+
+/** True when a and b are within one insertion, deletion, substitution, or
+ * adjacent transposition of each other (Damerau-Levenshtein <= 1), without
+ * building a full DP matrix — O(n) for the only case we need. */
+function editDistanceLeq1(a: string, b: string): boolean {
+  if (a === b) return true;
+  const [s, t] = a.length <= b.length ? [a, b] : [b, a];
+  if (t.length - s.length > 1) return false;
+  if (s.length === t.length) {
+    // substitution or adjacent transposition
+    let i = 0;
+    while (i < s.length && s[i] === t[i]) i++;
+    if (i === s.length) return true;
+    if (s.slice(i + 1) === t.slice(i + 1)) return true; // one substitution
+    return s[i] === t[i + 1] && s[i + 1] === t[i] && s.slice(i + 2) === t.slice(i + 2); // transposition
+  }
+  // one insertion in t
+  let i = 0;
+  while (i < s.length && s[i] === t[i]) i++;
+  return s.slice(i) === t.slice(i + 1);
+}
+
+/** The UN OHRLLS Small Island Developing States list (39 states, as published
+ * at un.org/ohrlls/content/small-island-developing-states; verified 2026-08-08).
+ * StatCite groups these for the SIDS coverage surfaces — a data-availability
+ * grouping only, never a ranking. Note Cook Islands and Niue appear on the
+ * OHRLLS list; upstream data coverage varies by source. */
+export const SIDS_ISO3: ReadonlySet<string> = new Set([
+  "ATG", "BHS", "BRB", "BLZ", "CPV", "COM", "COK", "CUB", "DMA", "DOM",
+  "FJI", "GRD", "GNB", "GUY", "HTI", "JAM", "KIR", "MDV", "MHL", "FSM",
+  "MUS", "NRU", "NIU", "PLW", "PNG", "WSM", "STP", "SGP", "KNA", "LCA",
+  "VCT", "SYC", "SLB", "SUR", "TLS", "TON", "TTO", "TUV", "VUT",
+]);
+
+/** SIDS members that resolve in the country table, with names — powers the
+ * statcite://registry/sids resource and the site's coverage page build. */
+export function sidsCountries(): Country[] {
+  return [...SIDS_ISO3].map((iso3) => byCode.get(iso3)).filter((c): c is Country => Boolean(c));
 }
 
 /** Suggestions for error messages when a country string fails to resolve. */

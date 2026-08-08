@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StatCite API",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "description": "Official economic statistics with full citations, built for AI agents. Every numeric response includes a citation object (source, dataset, series_id, source_url, license, attribution, retrieved_at, citation_text). Free, no auth, read-only. MCP endpoint at https://statcite.com/mcp.",
     "contact": {
       "email": "hello@statcite.com",
@@ -40,7 +40,7 @@
     "/v1/indicators": {
       "get": {
         "operationId": "listIndicators",
-        "summary": "List the curated indicator registry (42 keys, 36 active)",
+        "summary": "List the curated indicator registry (46 keys, 40 active)",
         "responses": {
           "200": {
             "description": "Registry",
@@ -686,6 +686,21 @@
               }
             }
           }
+        }
+      }
+    },
+    "/v1/compare": {
+      "get": {
+        "operationId": "compareSources",
+        "summary": "Compare one indicator across every official source in its chain (per-source values, citations, spread)",
+        "parameters": [
+          { "name": "indicator", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Registry key, e.g. govt_debt_gdp" },
+          { "name": "country", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "period", "in": "query", "schema": { "type": "string" }, "description": "Optional year; default = latest period all responding sources share" }
+        ],
+        "responses": {
+          "200": { "description": "Per-source values with citations and a spread; differences are methodological, never a source error", "content": { "application/json": { "schema": { "type": "object" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" }
         }
       }
     },

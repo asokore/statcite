@@ -15,8 +15,9 @@ import { UpstreamError } from "./core/upstream.ts";
 import { TOOLS, toolByName, callTool } from "./tools.ts";
 import { listRegistry } from "./core/series.ts";
 import { SOURCES } from "./core/sources.ts";
+import { sidsCountries } from "./core/countries.ts";
 
-export const SERVER_VERSION = "1.5.0";
+export const SERVER_VERSION = "1.6.0";
 export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-03-26", "2025-06-18", "2025-11-25"];
 const LATEST_PROTOCOL = "2025-11-25";
 
@@ -126,6 +127,15 @@ function sourcesResourceText(): string {
   return `StatCite data sources, licenses, and required attributions. Reproduce the attribution string when republishing values.\n\n${rows.join("\n\n")}`;
 }
 
+function sidsResourceText(): string {
+  const rows = sidsCountries().map((c) => `- ${c.iso3}: ${c.name}`);
+  return (
+    `Small Island Developing States (UN OHRLLS list, 39 states; the ${rows.length} below resolve in StatCite's country table). ` +
+    `A data-availability grouping for small-economy statistics - never a ranking. Query them individually via get_indicator/country_snapshot.\n\n` +
+    rows.join("\n")
+  );
+}
+
 const RESOURCES = [
   {
     uri: "statcite://registry/indicators",
@@ -142,6 +152,14 @@ const RESOURCES = [
     description: "License and required-attribution details for every upstream source, including access method and coverage. Generated from the live source table.",
     mimeType: "text/plain",
     text: sourcesResourceText,
+  },
+  {
+    uri: "statcite://registry/sids",
+    name: "sids-states",
+    title: "Small Island Developing States (UN OHRLLS list)",
+    description: "The 39 states on the UN OHRLLS SIDS list with their ISO3 codes — a data-availability grouping for small-economy coverage, never a ranking. Upstream coverage varies by source and series.",
+    mimeType: "text/plain",
+    text: sidsResourceText,
   },
 ];
 
