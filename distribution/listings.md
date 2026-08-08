@@ -29,10 +29,12 @@ registry entry and stop.
 | Surface | Route | Blocker |
 |---|---|---|
 | ChatGPT apps directory | developers.openai.com submission | OpenAI identity verification must be confirmed available to the operator |
-| Cursor directory | see submissions runbook | account |
-| Cline marketplace | github.com/cline/mcp-marketplace issue | uses `llms-install.md` (now in repo root) |
-| Gemini CLI extensions | public repo + `gemini-extension.json` + `gemini-cli-extension` topic | none — buildable |
-| awesome-ai-for-economists | PR to README | none — buildable |
+| cursor.directory | web form at cursor.directory/plugins/new (GitHub sign-in; auto-reviewed by an agent) — NOT a PR; the old cursor/mcp-servers repo is deprecated | account sign-in |
+| Cursor official marketplace | cursor.com/marketplace/publish — publisher application, manual review, open source required | account sign-in |
+| Cline marketplace | GitHub issue, template `mcp-server-submission.yml` | needs a **400x400 PNG logo** + a checkbox asserting the submitter TESTED setup in Cline. `llms-install.md` is explicitly optional (their FAQ says a good README suffices) — do not tick the tested box without actually testing |
+| Gemini CLI extensions | ✅ DONE — `gemini-extension.json` at repo root + `gemini-cli-extension` topic. **No submission, no review**: the gallery crawls the topic | shipped 2026-08-08 |
+| awesome-ai-for-economists | ✅ PR #13 OPEN (2026-08-08) | awaiting maintainer |
+| VS Code | **No direct submission path.** Its built-in gallery reads the GitHub MCP Registry (github.com/mcp, ~210 curated servers), not registry.modelcontextprotocol.io. Route: publish to the official registry, then request onboarding via partnerships@github.com | manual curation |
 | Claude Code plugin marketplace | `.claude-plugin/marketplace.json` in this repo | none — buildable |
 
 ## Gotchas that have bitten this project
