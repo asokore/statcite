@@ -28,6 +28,32 @@ import type { Observation } from "../core/types.ts";
 
 export type SdmxProvider = "BIS" | "ECB";
 
+/**
+ * BIS WS_CBPOL reference areas, ENUMERATED from the dataflow itself
+ * (2026-08-08) and keyed by StatCite ISO3 — never by assuming the BIS code
+ * equals the country's ISO2.
+ *
+ * That assumption produced live wrong data: BIS uses `XM` for the EURO AREA,
+ * while StatCite's country table uses `XM` as the ISO2 of "Low income
+ * countries" (the euro area is `XC` there). Blind substitution therefore
+ * served the ECB's policy rate under the label "Low income countries", and
+ * made the real euro-area query 404. An explicit allowlist fixes both and
+ * doubles as the published coverage list: an economy absent here returns an
+ * honest no-published-data response instead of a 404 from upstream — or, far
+ * worse, a coincidental hit on a different entity.
+ */
+export const BIS_POLICY_RATE_AREAS: Readonly<Record<string, string>> = {
+  ARG: "AR", AUS: "AU", AUT: "AT", BEL: "BE", BRA: "BR", CAN: "CA", CHE: "CH",
+  CHL: "CL", CHN: "CN", COL: "CO", CZE: "CZ", DEU: "DE", DNK: "DK", ESP: "ES",
+  FRA: "FR", GBR: "GB", GRC: "GR", HKG: "HK", HRV: "HR", HUN: "HU", IDN: "ID",
+  IND: "IN", ISL: "IS", ISR: "IL", ITA: "IT", JPN: "JP", KOR: "KR", KWT: "KW",
+  MAR: "MA", MEX: "MX", MKD: "MK", MYS: "MY", NLD: "NL", NOR: "NO", NZL: "NZ",
+  PER: "PE", PHL: "PH", POL: "PL", PRT: "PT", ROU: "RO", RUS: "RU", SAU: "SA",
+  SRB: "RS", SWE: "SE", THA: "TH", TUR: "TR", USA: "US", ZAF: "ZA",
+  // The euro area: BIS "XM", StatCite ISO3 "EMU". This single line is the bug fix.
+  EMU: "XM",
+};
+
 export interface SdmxSeries {
   observations: Observation[];
   /** Human name of the flow, from the payload's own structure block. */

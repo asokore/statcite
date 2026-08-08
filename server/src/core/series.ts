@@ -11,7 +11,7 @@ import { fetchDbnomicsSeries, searchDbnomicsDatasets } from "../adapters/dbnomic
 import { fetchFredSeries, fredAvailable } from "../adapters/fred.ts";
 import { fetchDataMapperSeries, fetchDataMapperMetadata, computeBoundaryYear, parseEditionLabel } from "../adapters/datamapper.ts";
 import { worldBankCitation, dbnomicsCitation, fredCitation, imfDataMapperCitation, sdmxCitation } from "./citations.ts";
-import { fetchSdmxSeries } from "../adapters/sdmx.ts";
+import { fetchSdmxSeries, BIS_POLICY_RATE_AREAS } from "../adapters/sdmx.ts";
 import { isTransientUpstreamError } from "./upstream.ts";
 export { expectedWeoEdition } from "./weo-calendar.ts";
 import { expectedWeoEdition } from "./weo-calendar.ts";
@@ -367,7 +367,19 @@ async function indicatorFromSdmx(ctx: Ctx, def: IndicatorDef, country: Country, 
       { indicator: def.key, country: country.iso3 },
     );
   }
-  const key = cfg.key.replace("{ISO2}", country.iso2);
+  // Resolve the provider's own area code from an explicit allowlist — never
+  // by assuming it equals the country's ISO2 (see BIS_POLICY_RATE_AREAS).
+  let areaCode: string | undefined;
+  if (perCountry) {
+    areaCode = cfg.provider === "BIS" ? BIS_POLICY_RATE_AREAS[country.iso3] : country.iso2;
+    if (!areaCode) {
+      throw new ToolError(
+        `${cfg.provider} does not publish ${def.label} for ${country.name}. This is a coverage fact at the source, not a lookup failure — the BIS compiles policy rates for ${Object.keys(BIS_POLICY_RATE_AREAS).length} economies.`,
+        { indicator: def.key, country: country.iso3, no_published_data: true },
+      );
+    }
+  }
+  const key = cfg.key.replace("{ISO2}", areaCode ?? "");
   const s = await fetchSdmxSeries(cfg.provider, cfg.flow, key, { now: ctx.now ? ctx.now() : undefined });
   if (s.observations.length === 0) {
     throw new ToolError(

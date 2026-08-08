@@ -5,6 +5,24 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.8.1 — 2026-08-08
+
+- **Fixes wrong data served by 1.8.0.** `policy_rate` substituted a country's
+  ISO2 code into the BIS series key, assuming the two coincide. They do not:
+  BIS uses `XM` for the **euro area**, while StatCite's country table uses
+  `XM` as the ISO2 of "Low income countries". The result was the ECB's policy
+  rate returned under the label "Low income countries", while the genuinely
+  useful euro-area query failed with a 404. Provider area codes now come from
+  an **explicit allowlist enumerated from the dataflow itself** (49 economies),
+  so an uncovered economy gets an honest no-published-data response instead of
+  a coincidental hit on a different entity. Regression tests pin both
+  directions.
+- Coverage corrected in the docs: 49 economies, not "~38".
+- `/v1/status` now probes BIS and the ECB Data Portal too — 1.8.0 added two
+  serving upstreams without adding them to the health surface. The BIS probe
+  uses GET with the vendor Accept header, never HEAD (BIS returns 500 to HEAD
+  on URLs that serve 200 to GET).
+
 ## 1.8.0 — 2026-08-08
 
 - **Two new official sources, both licence-ledgered before shipping**:
