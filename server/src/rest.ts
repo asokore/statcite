@@ -179,6 +179,25 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
           await fetchJson("https://api.db.nomics.world/v22/datasets/IMF/WEO:latest?limit=1", { ttlSeconds: 120, timeoutMs: 5000 });
           return true;
         }),
+        probe("bis", async () => {
+          // NEVER probe BIS with HEAD: it returns 500 to HEAD on URLs that
+          // serve 200 to GET (verified 2026-08-08). And BIS content-negotiates
+          // JSON only via the vendor media type — a plain Accept yields XML,
+          // so a naive probe would report a false outage.
+          await fetchJson("https://stats.bis.org/api/v2/data/dataflow/BIS/WS_CBPOL/1.0/M.US?lastNObservations=1&format=sdmx-json", {
+            ttlSeconds: 120,
+            timeoutMs: 5000,
+            accept: "application/vnd.sdmx.data+json",
+          });
+          return true;
+        }),
+        probe("ecb_data", async () => {
+          await fetchJson("https://data-api.ecb.europa.eu/service/data/HICP/M.U2.N.000000.4D0.ANR?format=jsondata&lastNObservations=1", {
+            ttlSeconds: 120,
+            timeoutMs: 5000,
+          });
+          return true;
+        }),
       ]);
       const allOk = Object.values(probes).every((p) => p.ok);
       return json(200, {
@@ -186,7 +205,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
         version: SERVER_VERSION,
         status: allOk ? "ok" : "degraded",
         upstreams: probes,
-        note: "Upstream probes are cached ~120s; 'degraded' means at least one primary source is unreachable right now — fallback chains may still serve affected indicators, with fallback_used disclosed per response.",
+        note: "Upstream probes are cached ~120s; each hits the cheapest real endpoint for that source (never HEAD — BIS 500s on HEAD); 'degraded' means at least one primary source is unreachable right now — fallback chains may still serve affected indicators, with fallback_used disclosed per response.",
       }, 120);
     }
 

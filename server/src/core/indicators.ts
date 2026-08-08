@@ -224,7 +224,7 @@ export const INDICATORS: IndicatorDef[] = [
       sourceUrl: "https://data.bis.org/topics/CBPOL",
     },
     synonyms: ["policy rate", "interest rate", "central bank rate", "base rate", "fed funds", "bank rate", "monetary policy rate"],
-    notes: "BIS central bank policy rates — the rate that best captures each monetary authority's policy stance. Monthly. Coverage is the ~38 central banks the BIS compiles; economies outside that set return an honest no-published-data response.",
+    notes: "BIS central bank policy rates — the rate that best captures each monetary authority's policy stance. Monthly. Coverage is the 49 economies the BIS compiles (enumerated from the dataflow itself, including the euro area); economies outside that set return an honest no-published-data response rather than a substitute.",
   },
   {
     key: "euro_area_hicp",

@@ -145,3 +145,39 @@ test("an economy the BIS does not cover reports honest absence, not a guess", as
   assert.equal(isError, true);
   assert.match(JSON.stringify(payload), /no_published_data|coverage fact/i);
 });
+
+// --- Regression: the XM identity collision (found live 2026-08-08) ---
+// BIS uses "XM" for the EURO AREA; StatCite's country table uses "XM" as the
+// ISO2 of "Low income countries". Substituting ISO2 blindly served the ECB's
+// policy rate labelled "Low income countries" and 404'd the real euro-area
+// query. These tests pin BOTH directions so the collision cannot return.
+
+test("REGRESSION: euro area resolves to the BIS area code XM and returns data", async () => {
+  installStub();
+  const { payload, isError } = await tool("get_indicator", { indicator: "policy_rate", country: "euro area" });
+  assert.equal(isError, false, JSON.stringify(payload));
+  assert.match(lastUrl, /WS_CBPOL\/1\.0\/M\.XM/, "euro area must map to the BIS code XM, not the ISO2 XC");
+});
+
+test("REGRESSION: an aggregate the BIS does not cover is refused, never served another entity's rate", async () => {
+  installStub();
+  // "Low income countries" carries ISO2 "XM" in StatCite's table — the exact
+  // code BIS uses for the euro area. It must NOT resolve to a BIS series.
+  const { payload, isError } = await tool("get_indicator", { indicator: "policy_rate", country: "LIC" });
+  assert.equal(isError, true, "an uncovered aggregate must not return a policy rate");
+  assert.match(JSON.stringify(payload), /no_published_data|coverage fact/i);
+  assert.ok(!/WS_CBPOL/.test(lastUrl) || !/M\.XM/.test(lastUrl), "must not have called the euro-area series for a different entity");
+});
+
+test("the published coverage list is what the adapter actually enforces", async () => {
+  const { BIS_POLICY_RATE_AREAS } = await import("../src/adapters/sdmx.ts");
+  const { resolveCountry } = await import("../src/core/countries.ts");
+  assert.equal(BIS_POLICY_RATE_AREAS.EMU, "XM");
+  assert.equal(BIS_POLICY_RATE_AREAS.USA, "US");
+  assert.equal(BIS_POLICY_RATE_AREAS.LIC, undefined, "low-income aggregate must not be in the coverage map");
+  // Every key must be a real, resolvable ISO3 — a typo here would silently
+  // remove an economy from coverage.
+  for (const iso3 of Object.keys(BIS_POLICY_RATE_AREAS)) {
+    assert.ok(resolveCountry(iso3), `coverage map key '${iso3}' does not resolve to a country`);
+  }
+});
