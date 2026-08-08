@@ -11,7 +11,7 @@ Why this matters: economic numbers recalled from memory are frequently stale (da
 
 ## How to call it
 
-If the StatCite MCP connector is installed, prefer its tools (`get_indicator`, `verify_stat`, `verify_claims`, `country_snapshot`, `inflation_adjust`, `fx_convert`, `get_series`, `search_indicators`, `list_sources`; two further tools, `search` and `fetch`, exist for deep-research connectors and are not needed from this skill). Otherwise use the REST API — plain HTTPS GETs, no key, no auth (one exception: `/v1/verify_claims` is a POST):
+If the StatCite MCP connector is installed, prefer its tools (`get_indicator`, `verify_stat`, `verify_claims`, `compare_sources`, `country_snapshot`, `inflation_adjust`, `fx_convert`, `get_series`, `search_indicators`, `list_sources`; two further tools, `search` and `fetch`, exist for deep-research connectors and are not needed from this skill). Otherwise use the REST API — plain HTTPS GETs, no key, no auth (one exception: `/v1/verify_claims` is a POST):
 
 ```
 https://statcite.com/v1/indicator/{key}?country={ISO3}&latest_only=true
@@ -19,8 +19,9 @@ https://statcite.com/v1/verify?indicator={key}&country={ISO3}&period={YYYY}&valu
 https://statcite.com/v1/snapshot/{country}
 https://statcite.com/v1/inflation?amount=100&from_year=1995&to_year=2025&country=USA
 https://statcite.com/v1/fx?amount=100&from=USD&to=BBD&date=2024
+https://statcite.com/v1/compare?indicator={key}&country={ISO3}&period={YYYY}
 https://statcite.com/v1/search?q={topic}
-https://statcite.com/v1/indicators          ← full registry (42 keys, 36 active)
+https://statcite.com/v1/indicators          ← full registry (46 keys, 40 active)
 ```
 
 Common indicator keys: `inflation_cpi`, `gdp_growth`, `gdp_current_usd`, `gdp_per_capita_usd`, `unemployment_rate`, `population`, `govt_debt_gdp`, `fiscal_balance_gdp`, `current_account_gdp`, `trade_gdp`, `fdi_inflows_gdp`, `life_expectancy`. Countries: ISO3 codes or plain names ("Barbados", "euro area", "world").
@@ -33,7 +34,7 @@ When drafting anything containing macro figures:
 
 1. Fetch each figure with `get_indicator` (or `/v1/indicator/...&latest_only=true`).
 2. Use the returned value exactly — do not round beyond one decimal for rates without noting it.
-3. Carry the citation: use `citation.citation_text` for footnotes/references, or build an inline citation from the citation fields as a template, e.g. "(World Bank, WDI, series FP.CPI.TOTL.ZG, retrieved {citation.retrieved_at})" — substitute the actual field values, never hardcode a date. Also reproduce `citation.attribution` verbatim when present: it is the source-mandated attribution string.
+3. Carry the citation: use `citation.citation_text` for footnotes/references, or `citation.export_formats.bibtex` / `.apa` when the user keeps a bibliography, or build an inline citation from the citation fields as a template, e.g. "(World Bank, WDI, series FP.CPI.TOTL.ZG, retrieved {citation.retrieved_at})" — substitute the actual field values, never hardcode a date. Also reproduce `citation.attribution` verbatim when present: it is the source-mandated attribution string.
 4. Read the `notes` array — it flags fallback sources, ILO-modeled definitions, and IMF WEO/Fiscal Monitor projections. If a value is marked as a projection/estimate, say so in the text ("IMF projects…", not "was"). Verify responses also carry `observation_status`: treat `estimate_or_actual` (recent IMF values before the projection boundary) as possibly a staff estimate — write "IMF-reported", not "confirmed".
 
 ### 2. Fact-checking a draft (verify → correct)
@@ -45,11 +46,15 @@ Before finalizing any document with economic statistics (yours or the user's):
 3. Act on each verdict:
    - `match` — keep the number; attach the citation.
    - `close` — replace with the official value; attach the citation; if the draft's number came from a specific dated source, note the revision possibility.
-   - `mismatch` — replace, and read `diagnostics`: they identify wrong-year claims, percent-vs-decimal slips, and millions/billions confusion, which tells you how to fix surrounding text too.
+   - `mismatch` — replace, and read `diagnostics`: they identify wrong-year claims, percent-vs-decimal slips, and millions/billions confusion, which tells you how to fix surrounding text too. **Also check `revision_check`** (present on mismatches for the six IMF WEO-dated indicators): if `matches_previous_vintage` is true, the figure was accurate against the previous IMF edition and has since been revised — say "revised since publication" rather than implying the author erred, and cite the current value.
    - `cannot_verify` — two distinct causes, distinguishable in the response. (1) No observation for that period: the response lists the available range and nearby values — re-check the claim's period, or use `search_indicators` to find the right series. (2) `fallback_used: true`: the indicator's primary source failed transiently and StatCite refuses to judge the claim against the substitute (which can differ by definition or vintage); the explanation reports the fallback's value as indicative — retry later, pass `strict_source=true` to fail hard, or disclose the indicative value as such. Never leave the unverifiable number in the text unflagged.
 
 **Example.** Draft says "US inflation hit 4.5% in 2023."
 `GET /v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=4.5` → verdict `close`, official 4.116. Correct the text to 4.1% and cite: "World Bank, World Development Indicators, series FP.CPI.TOTL.ZG…".
+
+### 3. When two official sources disagree
+
+If a user challenges a number ("the IMF says something different"), or a verify verdict looks wrong for definitional reasons, call `compare_sources` (or `/v1/compare`) for that indicator and country. It returns each official source's value with its own citation plus the spread. Report the difference as what it is — a methodological or vintage difference (general vs central government coverage, calendar vs fiscal year, an older WEO edition) — never as one source being wrong, and cite the source whose definition matches the claim being made.
 
 ## Conversions
 
@@ -64,4 +69,5 @@ Before finalizing any document with economic statistics (yours or the user's):
 - Government debt defaults to the IMF's general government gross debt series, current vintage (better coverage than the World Bank's central-government-only series); the citation names the exact series and edition either way.
 - To check a claim against a *historical IMF WEO edition* rather than today's revised figure, pass `as_of` (e.g. "2019-04") on `verify_stat`/`verify_claims` — only for the 6 IMF-backed indicators (gdp_growth, current_account_gdp, govt_debt_gdp, fiscal_balance_gdp, govt_revenue_gdp, govt_expenditure_gdp). Read the response's `as_of` object and notes: the vintage is resolved with a conservative month calendar (not exact release days), and for some of these indicators the archive source differs from the live primary — say "matched the IMF WEO {vintage} edition", never "was true at the time".
 - All macro data is revised. The citation's `retrieved_at` date is part of the citation for exactly this reason — include it.
+- When a lookup returns no data, the error distinguishes two cases: `no_published_data: true` means the source publishes nothing for that country/series (say so plainly — it is a coverage fact, not a failure), while an `available_range` means the data exists outside the years you asked for (retry with that range). Never fill either gap from memory.
 - If StatCite is unreachable, say the number could not be verified against official sources rather than silently falling back to memory.
