@@ -5,6 +5,22 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.7.0 — 2026-08-08
+
+- **Revision probe on verify mismatches**: for the six indicators with dated
+  IMF WEO editions, a `mismatch` verdict now re-judges the claim against the
+  PREVIOUS WEO edition. `revision_check.matches_previous_vintage: true` means
+  the figure was likely right when written and has since been revised — a
+  revision event, not necessarily an author error, the same courtesy this
+  project's benchmark methodology extends to models. Degrades honestly to
+  `status: "unavailable"`; never guesses. One extra fetch, mismatch path only;
+  suppressed under `as_of` and `strict_source`.
+- `revision_check.next_edition_expected` carries the calendar-expected next
+  WEO release ("October 2026") — "expected" phrasing only.
+- Internals: `previousWeoEdition`/`nextExpectedWeoEditionLabel` in the WEO
+  calendar; `getIndicatorAtEdition` extracted so `as_of` and the probe share
+  one dated-fetch path.
+
 ## 1.6.0 — 2026-08-08
 
 - **`compare_sources` tool + `/v1/compare`**: one indicator, one country,
