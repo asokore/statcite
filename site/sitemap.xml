@@ -2,6 +2,8 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://statcite.com/</loc></url>
   <url><loc>https://statcite.com/docs.html</loc></url>
+  <url><loc>https://statcite.com/bench.html</loc></url>
+  <url><loc>https://statcite.com/sources.html</loc></url>
   <url><loc>https://statcite.com/privacy.html</loc></url>
   <url><loc>https://statcite.com/terms.html</loc></url>
   <url><loc>https://statcite.com/llms.txt</loc></url>
