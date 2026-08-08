@@ -3,8 +3,10 @@
 
 import type { Citation, Ctx } from "./types.ts";
 import { ToolError } from "./types.ts";
-import { getIndicator, getIndicatorAsOf, getSeries } from "./series.ts";
+import { getIndicator, getIndicatorAsOf, getIndicatorAtEdition, requireCountry } from "./series.ts";
+import { getSeries } from "./series.ts";
 import { getIndicatorDef } from "./indicators.ts";
+import { expectedWeoEdition, previousWeoEdition, nextExpectedWeoEditionLabel } from "./weo-calendar.ts";
 
 export type Verdict = "match" | "close" | "mismatch" | "cannot_verify";
 
@@ -55,6 +57,22 @@ export interface VerifyResult {
   country?: { iso3: string; name: string };
   citation: Citation;
   notes: string[];
+  /** Present on MISMATCH verdicts for indicators with a dated IMF WEO source:
+   * the claim is re-judged against the PREVIOUS WEO edition. A claim that
+   * matches the previous vintage was likely accurate when written and has
+   * since been revised — a revision event, not necessarily an author error
+   * (the same courtesy this project's own benchmark methodology extends to
+   * models). status "unavailable" means the probe could not retrieve the
+   * previous edition and no judgment is offered — never a guess. */
+  revision_check?: {
+    status: "checked" | "unavailable";
+    previous_edition?: string;
+    previous_value?: number | null;
+    matches_previous_vintage?: boolean;
+    /** "Expected" phrasing only — the calendar rule, not an announced date. */
+    next_edition_expected: string;
+    note?: string;
+  };
   /** Present and true when the official value came from a fallback source because
    * the primary failed. A TRANSIENT primary failure demotes the verdict to
    * cannot_verify (with the fallback value reported as indicative) — a substitute
@@ -357,6 +375,50 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
   }
 
   const { verdict, why } = judge(p.claimed_value, official, percentKind, p);
+
+  // Revision probe (GROWTH-PLAN Phase 1b): a mismatch against today's data may
+  // be a claim that was RIGHT against an earlier vintage. For the six
+  // WEO-dated indicators, re-judge the claim against the previous edition —
+  // one extra fetch, mismatch path only, advisory only, degrades honestly.
+  // Skipped under as_of (the caller already pinned a vintage) and under
+  // strict_source (the probe is by nature a different source path).
+  let revisionCheck: VerifyResult["revision_check"];
+  if (verdict === "mismatch" && isRegistry && !p.as_of && !p.strict_source) {
+    const def = getIndicatorDef(p.indicator);
+    if (def?.dbnomics && p.country) {
+      const nowDate = ctx.now ? ctx.now() : new Date();
+      const prevEdition = previousWeoEdition(expectedWeoEdition(nowDate));
+      const nextLabel = nextExpectedWeoEditionLabel(nowDate);
+      try {
+        const prev = await getIndicatorAtEdition(ctx, def, requireCountry(p.country), prevEdition, {
+          start: String(year - 1),
+          end: String(year + 1),
+        });
+        const prevObs = prev.observations.find((o) => o.period === period && o.value != null);
+        const prevValue = prevObs ? prevObs.value : null;
+        const matches = prevValue != null && judge(p.claimed_value, prevValue, percentKind, p).verdict !== "mismatch";
+        revisionCheck = {
+          status: "checked",
+          previous_edition: `WEO ${prevEdition}`,
+          previous_value: prevValue,
+          matches_previous_vintage: matches,
+          next_edition_expected: nextLabel,
+          note: matches
+            ? `The claimed value matches the previous IMF vintage (WEO ${prevEdition}: ${prevValue}). The figure was likely accurate when written and has since been revised — treat this as a revision event, not necessarily an author error. Cite the current official value going forward.`
+            : `The claim does not match the previous IMF vintage either (WEO ${prevEdition}: ${prevValue ?? "no value for this period"}).`,
+        };
+        if (matches) diagnostics.push(revisionCheck.note!);
+      } catch {
+        revisionCheck = {
+          status: "unavailable",
+          previous_edition: `WEO ${prevEdition}`,
+          next_edition_expected: nextLabel,
+          note: "The previous WEO edition could not be retrieved right now, so no revision judgment is offered.",
+        };
+      }
+    }
+  }
+
   const unitText = result.unit ? ` ${result.unit}` : "";
   const projKind = /Fiscal Monitor/i.test(matched.note ?? "") ? "IMF Fiscal Monitor" : "IMF WEO";
   const officialLabel = isProjection ? `official (${projKind} projection)` : "official";
@@ -384,6 +446,7 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
     country: result.country,
     citation: result.citation,
     notes,
+    ...(revisionCheck ? { revision_check: revisionCheck } : {}),
     ...(result.fallback_used ? { fallback_used: true } : {}),
     ...(asOfResolved ? { as_of: asOfResolved } : {}),
   };

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StatCite API",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "description": "Official economic statistics with full citations, built for AI agents. Every numeric response includes a citation object (source, dataset, series_id, source_url, license, attribution, retrieved_at, citation_text). Free, no auth, read-only. MCP endpoint at https://statcite.com/mcp.",
     "contact": {
       "email": "hello@statcite.com",
@@ -469,7 +469,19 @@
                           "type": "number",
                           "description": "Optional relative tolerance in percent"
                         },
-                        "as_of": {
+                        "revision_check": {
+          "type": "object",
+          "description": "Present on mismatch verdicts for indicators with a dated IMF WEO source: the claim re-judged against the PREVIOUS WEO edition. matches_previous_vintage=true means the figure was likely accurate when written and has since been revised - a revision event, not necessarily an author error. status 'unavailable' = the previous edition could not be retrieved; no judgment is offered.",
+          "properties": {
+            "status": { "type": "string", "enum": ["checked", "unavailable"] },
+            "previous_edition": { "type": "string" },
+            "previous_value": { "type": ["number", "null"] },
+            "matches_previous_vintage": { "type": "boolean" },
+            "next_edition_expected": { "type": "string", "description": "Calendar expectation ('October 2026'), not an announced date." },
+            "note": { "type": "string" }
+          }
+        },
+        "as_of": {
                           "type": "string",
                           "description": "Verify this claim against the IMF WEO/Fiscal Monitor edition current as of this date (e.g. '2019-04') instead of today's live data — only for the 6 registry indicators with a dated IMF DBnomics definition."
                         }

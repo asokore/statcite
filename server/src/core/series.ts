@@ -533,6 +533,35 @@ export interface AsOfSourceInfo {
  * no sensible fallback for "the archive as it stood", only the one dated
  * source that has it.
  */
+/** Fetch a registry indicator pinned to one dated IMF WEO edition via
+ * DBnomics. Shared by getIndicatorAsOf (edition resolved from a date) and the
+ * verify-time revision probe (edition = previous on the calendar). Throws a
+ * ToolError naming the edition when that vintage is not retrievable. */
+export async function getIndicatorAtEdition(
+  ctx: Ctx,
+  def: IndicatorDef,
+  country: Country,
+  edition: string,
+  opts: SeriesOpts = {},
+): Promise<SeriesResult> {
+  if (!def.dbnomics) {
+    throw new ToolError(`'${def.key}' has no dated IMF WEO source; editions cannot be pinned.`, { indicator: def.key });
+  }
+  const [provider, datasetTemplate, codeTemplate] = def.dbnomics;
+  const dataset = datasetTemplate.replace(/:latest$/, `:${edition}`);
+  const pinnedDef: IndicatorDef = { ...def, dbnomics: [provider, dataset, codeTemplate] };
+  try {
+    return await indicatorFromDbnomics(ctx, pinnedDef, country, opts);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new ToolError(
+      `Could not retrieve the ${dataset} vintage of '${def.key}' for ${country.name}: ${msg} ` +
+        `DBnomics's dated WEO editions have been confirmed to exist back to 2010-04; a date far outside that range, or a future date past the current edition, may not have a matching edition ingested.`,
+      { indicator: def.key, country: country.iso3, edition },
+    );
+  }
+}
+
 export async function getIndicatorAsOf(
   ctx: Ctx,
   key: string,
@@ -557,20 +586,7 @@ export async function getIndicatorAsOf(
   }
   const country = requireCountry(countryInput);
   const edition = expectedWeoEdition(asOfDate);
-  const [provider, datasetTemplate, codeTemplate] = def.dbnomics;
-  const dataset = datasetTemplate.replace(/:latest$/, `:${edition}`);
-  const asOfDef: IndicatorDef = { ...def, dbnomics: [provider, dataset, codeTemplate] };
-  let result: SeriesResult;
-  try {
-    result = await indicatorFromDbnomics(ctx, asOfDef, country, opts);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    throw new ToolError(
-      `Could not retrieve the ${dataset} vintage of '${key}' for ${country.name} (resolved conservatively from as_of via the IMF's April/October publication calendar): ${msg} ` +
-        `DBnomics's dated WEO editions have been confirmed to exist back to 2010-04; a date far outside that range, or a future date past the current edition, may not have a matching edition ingested.`,
-      { indicator: key, country: country.iso3, edition },
-    );
-  }
+  const result = await getIndicatorAtEdition(ctx, def, country, edition, opts);
 
   const isFmPrimary = key === "govt_revenue_gdp" || key === "govt_expenditure_gdp";
   const wbPrimary = Boolean(def.wb) && !DB_PRIMARY.has(key);
@@ -587,7 +603,7 @@ export async function getIndicatorAsOf(
 
   const dateStr = asOfDate.toISOString().slice(0, 10);
   result.notes.push(
-    `Pinned to the ${dataset} vintage, resolved conservatively from ${dateStr} using the IMF's April/October publication calendar (month precision — this is historical IMF-vintage verification, not exact release-date resolution). The value reflects that edition and may differ from both earlier vintages and the currently published figure.`,
+    `Pinned to the WEO:${edition} vintage, resolved conservatively from ${dateStr} using the IMF's April/October publication calendar (month precision — this is historical IMF-vintage verification, not exact release-date resolution). The value reflects that edition and may differ from both earlier vintages and the currently published figure.`,
   );
   const month = asOfDate.getUTCMonth() + 1;
   if (month === 4 || month === 10) {
