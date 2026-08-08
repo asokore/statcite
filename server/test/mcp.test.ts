@@ -136,7 +136,12 @@ test("prompts/list + prompts/get round-trip; unknown prompt errors with the avai
 test("resources/list + resources/read: registry and sources generated from live constants", async () => {
   const list = await mcpCall({ jsonrpc: "2.0", id: 24, method: "resources/list" });
   const uris = ((await list.json()) as any).result.resources.map((r: any) => r.uri);
-  assert.deepEqual(uris.sort(), ["statcite://registry/indicators", "statcite://registry/sources"]);
+  assert.deepEqual(uris.sort(), ["statcite://registry/indicators", "statcite://registry/sids", "statcite://registry/sources"]);
+
+  const sids = await mcpCall({ jsonrpc: "2.0", id: 30, method: "resources/read", params: { uri: "statcite://registry/sids" } });
+  const sidsText = ((await sids.json()) as any).result.contents[0].text as string;
+  assert.match(sidsText, /BRB: Barbados/);
+  assert.match(sidsText, /never a ranking/);
 
   const reg = await mcpCall({ jsonrpc: "2.0", id: 25, method: "resources/read", params: { uri: "statcite://registry/indicators" } });
   const regText = ((await reg.json()) as any).result.contents[0].text as string;

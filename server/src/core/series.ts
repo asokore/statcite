@@ -1,7 +1,7 @@
 // Series orchestration: friendly indicators with source fallback, raw series ids,
 // and cross-source search.
 
-import type { Ctx, IndicatorDef, Observation, SeriesResult } from "./types.ts";
+import type { Citation, Ctx, IndicatorDef, Observation, SeriesResult } from "./types.ts";
 import { ToolError } from "./types.ts";
 import { resolveCountry, suggestCountries, type Country } from "./countries.ts";
 import { getIndicatorDef, searchIndicatorDefs, INDICATORS } from "./indicators.ts";
@@ -78,11 +78,25 @@ function finishSeries(result: SeriesResult, opts: SeriesOpts): SeriesResult {
         { series_id: result.series_id, transform },
       );
     }
+    // Honest absence, machine-readably (GROWTH-PLAN Phase 1): distinguish
+    // "the source publishes nothing for this series/country at all" from
+    // "data exists but your window missed it" — and in the second case say
+    // exactly where the data lives so an agent can retry correctly instead
+    // of concluding the value does not exist.
+    const allValued = result.observations.filter((o) => o.value != null);
+    if (allValued.length === 0) {
+      throw new ToolError(
+        `${result.name ?? result.series_id} has no published values for ${result.country ? result.country.name : "this query"} at the source. This is a statement about what the source publishes, not a data error — some economies are not covered by this series.`,
+        { series_id: result.series_id, no_published_data: true },
+      );
+    }
+    const availStart = allValued[0].period;
+    const availEnd = allValued[allValued.length - 1].period;
     throw new ToolError(
       `No observations available for ${result.series_id}${result.country ? ` (${result.country.name})` : ""} in the requested window` +
         (opts.start || opts.end ? ` ${opts.start ?? "…"}–${opts.end ?? "…"}` : "") +
-        ". Try widening the period.",
-      { series_id: result.series_id },
+        `. Published data exists for ${availStart}–${availEnd} — adjust the year range.`,
+      { series_id: result.series_id, no_published_data: false, available_range: { start: availStart, end: availEnd } },
     );
   }
   result.observations = obs;
@@ -340,6 +354,42 @@ async function indicatorFromFred(ctx: Ctx, def: IndicatorDef, opts: SeriesOpts):
  * Get a registry indicator for a country, using the definition's source order
  * (wb → dbnomics fallback, or dbnomics-primary where defined that way).
  */
+/** Ordered per-source runners for a registry indicator — the ONE place source
+ * precedence is encoded (extracted from getIndicator so compare_sources shares
+ * it instead of re-deriving the chain). dbnomics-primary defs list dbnomics
+ * before wb; wherever "IMF WEO (via DBnomics)" sits, the IMF DataMapper API
+ * (current-vintage) is inserted immediately ahead of it (design D1) —
+ * DataMapper and DBnomics are both "the IMF path", just at different
+ * currency/reproducibility trade-offs. */
+function buildSourceAttempts(
+  ctx: Ctx,
+  def: IndicatorDef,
+  country: Country,
+  opts: SeriesOpts,
+): Array<{ label: string; run: () => Promise<SeriesResult> }> {
+  const preferDbnomics = def.dbnomics && (!def.wb || DB_PRIMARY.has(def.key));
+  const attempts: Array<{ label: string; run: () => Promise<SeriesResult> }> = [];
+  const pushImfChain = () => {
+    if (def.datamapper) {
+      attempts.push({ label: "IMF DataMapper API", run: () => indicatorFromDataMapper(ctx, def, country, opts) });
+    }
+    if (def.dbnomics) {
+      attempts.push({ label: "IMF WEO (via DBnomics)", run: () => indicatorFromDbnomics(ctx, def, country, opts) });
+    }
+  };
+  if (preferDbnomics) {
+    pushImfChain();
+    if (def.wb) attempts.push({ label: "World Bank WDI", run: () => indicatorFromWb(ctx, def, country, opts) });
+  } else {
+    if (def.wb) attempts.push({ label: "World Bank WDI", run: () => indicatorFromWb(ctx, def, country, opts) });
+    pushImfChain();
+  }
+  if (def.fred && country.iso3 === "USA" && fredAvailable(ctx) && attempts.length === 0) {
+    attempts.push({ label: "FRED", run: () => indicatorFromFred(ctx, def, opts) });
+  }
+  return attempts;
+}
+
 export async function getIndicator(ctx: Ctx, key: string, countryInput: string, opts: SeriesOpts = {}): Promise<SeriesResult> {
   const def = getIndicatorDef(key);
   if (!def) {
@@ -361,37 +411,13 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
     return indicatorFromFred(ctx, def, opts);
   }
 
-  // Determine source order: dbnomics-primary defs list dbnomics before wb in intent;
-  // we encode that as: if def.dbnomics exists and def.wb is the known-patchy fallback,
-  // the registry marks it by ordering — here: govt debt & fiscal series prefer WEO.
-  // Wherever "IMF WEO (via DBnomics)" sits, the IMF DataMapper API (current-vintage)
-  // is inserted immediately ahead of it (design D1) — DataMapper and DBnomics are
-  // both "the IMF path", just at different currency/reproducibility trade-offs.
-  const preferDbnomics = def.dbnomics && (!def.wb || DB_PRIMARY.has(def.key));
-  const attempts: Array<{ label: string; run: () => Promise<SeriesResult> }> = [];
-  const pushImfChain = () => {
-    if (def.datamapper) {
-      attempts.push({ label: "IMF DataMapper API", run: () => indicatorFromDataMapper(ctx, def, country, opts) });
-    }
-    if (def.dbnomics) {
-      attempts.push({ label: "IMF WEO (via DBnomics)", run: () => indicatorFromDbnomics(ctx, def, country, opts) });
-    }
-  };
-  if (preferDbnomics) {
-    pushImfChain();
-    if (def.wb) attempts.push({ label: "World Bank WDI", run: () => indicatorFromWb(ctx, def, country, opts) });
-  } else {
-    if (def.wb) attempts.push({ label: "World Bank WDI", run: () => indicatorFromWb(ctx, def, country, opts) });
-    pushImfChain();
-  }
-  if (def.fred && country.iso3 === "USA" && fredAvailable(ctx) && attempts.length === 0) {
-    attempts.push({ label: "FRED", run: () => indicatorFromFred(ctx, def, opts) });
-  }
+  const attempts = buildSourceAttempts(ctx, def, country, opts);
 
   // Reproducibility mode: only the primary source is ever consulted.
   const tried = opts.strictSource ? attempts.slice(0, 1) : attempts;
 
   const errors: string[] = [];
+  let absenceDetails: Record<string, unknown> | undefined;
   let firstErrorWasTransient = false;
   // A same-query-different-answer risk exists if ANY skipped source failed
   // transiently — e.g. primary permanently lacks the country but the secondary
@@ -432,6 +458,14 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
       if (i === 0) firstErrorWasTransient = transient;
       if (transient) anyErrorWasTransient = true;
       errors.push(e instanceof Error ? e.message : String(e));
+      // Preserve the structured honest-absence details through the fallback
+      // loop: when every source ends up failing, the combined error should
+      // still tell an agent machine-readably whether data exists elsewhere in
+      // time (available_range) or not at all (no_published_data) — the first
+      // attempt's verdict is the primary source's, which is the one to report.
+      if (e instanceof ToolError && e.details && typeof e.details === "object" && "no_published_data" in (e.details as Record<string, unknown>)) {
+        if (!absenceDetails) absenceDetails = e.details as Record<string, unknown>;
+      }
     }
   }
   if (opts.strictSource && attempts.length > tried.length) {
@@ -445,7 +479,7 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
   }
   throw new ToolError(
     `Could not retrieve '${def.key}' for ${country.name}: ${errors.join(" | ")}`,
-    { indicator: def.key, country: country.iso3 },
+    { indicator: def.key, country: country.iso3, ...(absenceDetails ?? {}) },
   );
 }
 
@@ -805,4 +839,139 @@ export function listRegistry(): Array<{
       notes: d.notes,
     };
   });
+}
+
+// ---------------------------------------------------------------------------
+// compare_sources (GROWTH-PLAN Phase 1): fetch one indicator for one country
+// from EVERY source in its chain independently and report the values side by
+// side. Divergence phrasing is fixed house style: differences are
+// methodological or vintage differences between official sources, never
+// "source X is wrong" — cross-source divergence is exactly the real-world
+// condition users hit (pandas-datareader #624) and no competitor surfaces it.
+// ---------------------------------------------------------------------------
+
+export interface CompareSourcesResult {
+  indicator: string;
+  label: string;
+  country: { iso3: string; name: string };
+  /** The period compared: the requested one, else the latest period every
+   * responding source has a value for (undefined when sources share none). */
+  period?: string;
+  results: Array<{
+    source: string;
+    ok: boolean;
+    period?: string;
+    value?: number | null;
+    unit?: string;
+    citation?: Citation;
+    note?: string;
+    error?: string;
+  }>;
+  comparison?: {
+    period: string;
+    n_sources: number;
+    min: number;
+    max: number;
+    spread_abs: number;
+    /** Spread as a percent of the mid-point (absolute values); null when the
+     * mid-point is ~0, where a relative spread is meaningless. */
+    spread_pct: number | null;
+  };
+  notes: string[];
+}
+
+export async function compareSources(ctx: Ctx, key: string, countryInput: string, period?: string): Promise<CompareSourcesResult> {
+  const def = getIndicatorDef(key);
+  if (!def) {
+    const near = searchIndicatorDefs(key, 5).map((m) => m.def.key);
+    throw new ToolError(
+      `Unknown indicator '${key}'.` + (near.length ? ` Closest matches: ${near.join(", ")}.` : ""),
+      { input: key, suggestions: near },
+    );
+  }
+  const country = requireCountry(countryInput);
+  const year = period ? parseInt(period.slice(0, 4), 10) : undefined;
+  // Window the fetch around the requested year (some cushion for latest-common
+  // resolution); default window pulls recent history only.
+  const opts: SeriesOpts = year
+    ? { start: String(year - 1), end: String(year + 1) }
+    : { limit: 12 };
+  const attempts = buildSourceAttempts(ctx, def, country, opts);
+  if (attempts.length === 0) {
+    throw new ToolError(`Indicator '${def.key}' has no comparable sources for ${country.name}.`, { indicator: def.key });
+  }
+
+  const settled = await Promise.allSettled(attempts.map((a) => a.run()));
+  const results: CompareSourcesResult["results"] = settled.map((s, i) => {
+    if (s.status === "rejected") {
+      const msg = s.reason instanceof Error ? s.reason.message : String(s.reason);
+      return { source: attempts[i].label, ok: false, error: msg };
+    }
+    const r = s.value;
+    const valued = r.observations.filter((o) => o.value != null);
+    const pick = year
+      ? valued.find((o) => o.period.startsWith(String(year)))
+      : valued[valued.length - 1];
+    return {
+      source: attempts[i].label,
+      ok: true,
+      period: pick?.period,
+      value: pick ? pick.value : null,
+      unit: r.unit,
+      citation: r.citation,
+      ...(pick?.note ? { note: pick.note } : {}),
+    };
+  });
+
+  const notes: string[] = [
+    "Differences between sources typically reflect methodological or vintage differences (e.g. central vs general government coverage, calendar vs fiscal years, an IMF WEO vintage vs a later World Bank revision) — they are not an error by either source. Cite the source whose definition matches your claim.",
+  ];
+
+  // Comparison period: requested year, else the latest period shared by every
+  // ok-source that returned any value at all.
+  let comparePeriod: string | undefined = year ? String(year) : undefined;
+  if (!comparePeriod) {
+    const okResults = settled
+      .map((s, i) => (s.status === "fulfilled" ? { i, r: s.value } : null))
+      .filter((x): x is { i: number; r: SeriesResult } => x !== null);
+    const periodSets = okResults.map(({ r }) => new Set(r.observations.filter((o) => o.value != null).map((o) => o.period)));
+    if (periodSets.length >= 2) {
+      const shared = [...periodSets[0]].filter((p) => periodSets.every((set) => set.has(p))).sort();
+      if (shared.length) {
+        comparePeriod = shared[shared.length - 1];
+        // Re-pick each ok result's value AT the shared period for a fair comparison.
+        for (const { i, r } of okResults) {
+          const at = r.observations.find((o) => o.period === comparePeriod && o.value != null);
+          if (at) {
+            results[i].period = at.period;
+            results[i].value = at.value;
+            if (at.note) results[i].note = at.note;
+          }
+        }
+      } else {
+        notes.push("The responding sources share no common period with published values — per-source latest values are shown and no numeric comparison is made.");
+      }
+    }
+  }
+
+  const comparable = results.filter((r) => r.ok && r.period === comparePeriod && typeof r.value === "number");
+  let comparison: CompareSourcesResult["comparison"];
+  if (comparePeriod && comparable.length >= 2) {
+    const vals = comparable.map((r) => r.value as number);
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    const mid = (Math.abs(min) + Math.abs(max)) / 2;
+    comparison = {
+      period: comparePeriod,
+      n_sources: comparable.length,
+      min,
+      max,
+      spread_abs: max - min,
+      spread_pct: mid > 1e-9 ? Math.round(((max - min) / mid) * 10000) / 100 : null,
+    };
+  } else if (results.filter((r) => r.ok).length < 2) {
+    notes.push("Only one source responded — no cross-source comparison is possible right now; the per-source error fields say why.");
+  }
+
+  return { indicator: def.key, label: def.label, country: { iso3: country.iso3, name: country.name }, period: comparePeriod, results, comparison, notes };
 }

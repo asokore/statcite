@@ -209,7 +209,7 @@ test("transform that empties a non-empty series explains the transform, not the 
   );
 });
 
-test("empty window without a transform keeps the widen-the-period advice", async () => {
+test("empty window without a transform reports where the published data actually lives (v1.6.0 honest-absence upgrade)", async () => {
   installLocalFetchStub({
     "TEST.WINDOW.EMPTY": wbEnvelope("TEST.WINDOW.EMPTY", [
       { date: "2010", value: 100 },
@@ -220,7 +220,10 @@ test("empty window without a transform keeps the widen-the-period advice", async
     getSeries(ctx, "worldbank/TEST.WINDOW.EMPTY", { country: "BRB", start: "2020", end: "2024" }),
     (e: Error) => {
       assert.match(e.message, /No observations available/);
-      assert.match(e.message, /Try widening the period/);
+      // The old generic "Try widening the period" is replaced by the actual
+      // available range, so an agent can retry with the right window instead
+      // of guessing (and never concludes the value does not exist).
+      assert.match(e.message, /Published data exists for 2010–2011/);
       return true;
     },
   );

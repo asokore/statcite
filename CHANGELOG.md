@@ -5,6 +5,34 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.6.0 — 2026-08-08
+
+- **`compare_sources` tool + `/v1/compare`**: one indicator, one country,
+  fetched from EVERY source in its chain independently — per-source values,
+  per-source citations, and the spread between them. Differences are framed as
+  methodological or vintage differences between official sources, never as an
+  error by a source. No other economic-data API surfaces this.
+- **Licence ledger**: every source in `list_sources`//v1/sources now carries a
+  licence verdict (served / flow-through / refused), the basis note, and the
+  date it was verified — including REFUSED sources (FRED, UN Comtrade, ECCB,
+  Central Bank of Barbados) with the reason each was declined.
+- **Citation export formats**: every citation object now includes
+  `export_formats.bibtex` and `export_formats.apa`, derived from the citation's
+  own fields.
+- **Honest absence, machine-readable**: an empty result now distinguishes
+  `no_published_data: true` (the source publishes nothing for that
+  series/country) from a wrong window (`available_range` says where the data
+  actually is), and the details survive the fallback chain.
+- **Typo-tolerant countries**: unique single-typo inputs resolve
+  ("Jamiaca" → JAM); ambiguous ones still refuse to guess.
+- **Registry +4**: external debt stocks, external debt service, debt
+  service-to-exports (World Bank International Debt Statistics, same CC BY 4.0
+  terms as WDI), and international tourism receipts (% of exports) — 46 keys,
+  40 active.
+- **SIDS resource**: `statcite://registry/sids` — the UN OHRLLS list of 39
+  Small Island Developing States, a data-availability grouping for the
+  small-economy coverage this service prioritizes.
+
 ## 1.5.0 — 2026-08-07
 
 - **MCP prompts**: `fact_check`, `country_brief`, `cite_this_stat` — reusable

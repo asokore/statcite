@@ -322,7 +322,7 @@ test("analytics: one usage event with op verify_claims on MCP and on REST", asyn
   assert.deepEqual(points.map((p) => p.blobs?.[5]), ["ok", "ok"]);
 });
 
-test("tools/list reports 11 tools and includes verify_claims with the workflow description", async () => {
+test("tools/list reports 12 tools and includes verify_claims with the workflow description", async () => {
   const res = await call("/mcp", {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
@@ -330,7 +330,7 @@ test("tools/list reports 11 tools and includes verify_claims with the workflow d
   });
   const body = (await res.json()) as any;
   const tools = body.result.tools;
-  assert.equal(tools.length, 11);
+  assert.equal(tools.length, 12); // 11 + compare_sources (v1.6.0)
   const vc = tools.find((t: any) => t.name === "verify_claims");
   assert.ok(vc, "verify_claims listed");
   assert.equal(vc.inputSchema.properties.claims.maxItems, 15);

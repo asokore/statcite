@@ -2,7 +2,7 @@
 
 import type { Ctx } from "./core/types.ts";
 import { ToolError } from "./core/types.ts";
-import { getIndicator, getSeries, searchIndicators, listRegistry, wbIsPrimarySource } from "./core/series.ts";
+import { getIndicator, getSeries, searchIndicators, listRegistry, wbIsPrimarySource, compareSources } from "./core/series.ts";
 import { countrySnapshot } from "./core/snapshot.ts";
 import { inflationAdjust } from "./core/inflation.ts";
 import { fxConvert } from "./core/fx.ts";
@@ -422,6 +422,23 @@ export const TOOLS: ToolDef[] = [
       query: str(args, "query"),
       results: await searchIndicators(ctx, str(args, "query")),
     }),
+  },
+  {
+    name: "compare_sources",
+    title: "Compare an indicator's value across its official sources",
+    description:
+      "Fetch one indicator for one country from EVERY official source in its chain independently (e.g. World Bank WDI and the IMF WEO/Fiscal Monitor) and see the values side by side, each with its own citation, plus the spread between them. Use when sources disagree, when you need to know WHICH official number to cite, or to check how large the methodological gap is (central vs general government, calendar vs fiscal year, vintage differences). Differences are methodological, never an error by a source — the result says which definition each value carries. Sources that are down report their error in place without sinking the comparison.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        indicator: { type: "string", description: "Registry key, e.g. 'govt_debt_gdp', 'gdp_growth'. See search_indicators." },
+        country: { type: "string", description: "ISO3/ISO2 code or English name." },
+        period: { type: "string", description: "Optional year to compare at, e.g. '2023'. Default: the latest period all responding sources share." },
+      },
+      required: ["indicator", "country"],
+      additionalProperties: false,
+    },
+    handler: async (ctx, args) => compareSources(ctx, str(args, "indicator"), str(args, "country"), str(args, "period", false) || undefined),
   },
   {
     name: "country_snapshot",

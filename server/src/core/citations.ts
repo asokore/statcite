@@ -13,6 +13,32 @@ export const FRED_NOTICE =
 export const IMF_LICENSE =
   "Use and redistribution are subject to the IMF's data-usage terms, including attribution and downstream-user conditions; commercial reuse may require IMF permission — consult the IMF terms directly";
 
+/** Escape the BibTeX-special characters that actually occur in series names
+ * (%, &, _, #, $). Braces are structural and never appear in our field data. */
+function bibtexEscape(s: string): string {
+  return s.replace(/([&%$#_])/g, "\\$1");
+}
+
+/** Derive reference-manager export formats from the citation's own fields —
+ * one derivation site so bibtex/apa can never disagree with citation_text.
+ * APA 7 treats continuously updated datasets as (n.d.) works cited with a
+ * retrieval date, which is exactly what these series are; BibTeX carries the
+ * retrieval year as `year` with the full date in `note`. */
+export function withExports(c: Citation): Citation {
+  const year = c.retrieved_at.slice(0, 4);
+  const key = `${c.source.split(/[^A-Za-z]/)[0].toLowerCase() || "statcite"}_${c.series_id.replace(/[^A-Za-z0-9]+/g, "_")}_${year}`;
+  const bibtex =
+    `@misc{${key},\n` +
+    `  author = {{${c.source}}},\n` +
+    `  title = {{${bibtexEscape(c.dataset)}: ${bibtexEscape(c.series_name)}}},\n` +
+    `  year = {${year}},\n` +
+    `  url = {${c.source_url}},\n` +
+    `  note = {Series ${bibtexEscape(c.series_id)}. Retrieved ${c.retrieved_at} via StatCite. ${bibtexEscape(c.attribution)}}\n` +
+    `}`;
+  const apa = `${c.source}. (n.d.). ${c.series_name} [Data set]. ${c.dataset}. Retrieved ${c.retrieved_at}, from ${c.source_url}`;
+  return { ...c, export_formats: { bibtex, apa } };
+}
+
 export function worldBankCitation(
   ctx: Ctx,
   opts: { indicatorId: string; indicatorName: string; iso3?: string; apiUrl?: string; lastUpdated?: string },
@@ -20,7 +46,7 @@ export function worldBankCitation(
   const loc = opts.iso3 ? `?locations=${opts.iso3}` : "";
   const sourceUrl = `https://data.worldbank.org/indicator/${opts.indicatorId}${loc}`;
   const date = today(ctx);
-  return {
+  return withExports({
     source: "World Bank",
     dataset: "World Development Indicators",
     series_id: opts.indicatorId,
@@ -33,7 +59,7 @@ export function worldBankCitation(
     citation_text: `World Bank, World Development Indicators, series ${opts.indicatorId} (${opts.indicatorName})${
       opts.lastUpdated ? `, data last updated ${opts.lastUpdated}` : ""
     }. Retrieved ${date} via StatCite. ${sourceUrl}`,
-  };
+  });
 }
 
 export function dbnomicsCitation(
@@ -51,7 +77,7 @@ export function dbnomicsCitation(
   const sourceUrl = `https://db.nomics.world/${opts.providerCode}/${encodeURIComponent(opts.datasetCode)}/${encodeURIComponent(opts.seriesCode)}`;
   const date = today(ctx);
   const isImf = opts.providerCode === "IMF";
-  return {
+  return withExports({
     source: opts.providerName,
     dataset: opts.datasetName,
     series_id: `${opts.providerCode}/${opts.datasetCode}/${opts.seriesCode}`,
@@ -62,7 +88,7 @@ export function dbnomicsCitation(
     attribution: isImf ? "Source: International Monetary Fund" : `Source: ${opts.providerName} (via DBnomics)`,
     retrieved_at: date,
     citation_text: `${opts.providerName}, ${opts.datasetName}, series ${opts.seriesCode} (${opts.seriesName}). Retrieved ${date} via DBnomics/StatCite. ${sourceUrl}`,
-  };
+  });
 }
 
 export function imfDataMapperCitation(
@@ -85,7 +111,7 @@ export function imfDataMapperCitation(
   // "20XX vintage (edition metadata unavailable...)" string that doesn't.
   const alreadyNamed = /world economic outlook|fiscal monitor/i.test(opts.editionLabel);
   const datasetSuffix = alreadyNamed ? "" : ` (${datasetName})`;
-  return {
+  return withExports({
     source: "International Monetary Fund",
     dataset: opts.editionLabel,
     series_id: `imf/${opts.code}`,
@@ -97,7 +123,7 @@ export function imfDataMapperCitation(
     retrieved_at: date,
     citation_text: `International Monetary Fund, ${opts.editionLabel}${datasetSuffix}, ${opts.seriesName}, series ${opts.code}. Retrieved ${date} via the IMF DataMapper API/StatCite. ${opts.sourceUrl}`,
     ...(opts.lastModified ? { notices: [`IMF data load timestamp: ${opts.lastModified} UTC.`] } : {}),
-  };
+  });
 }
 
 export function fredCitation(
@@ -106,7 +132,7 @@ export function fredCitation(
 ): Citation {
   const sourceUrl = `https://fred.stlouisfed.org/series/${opts.seriesId}`;
   const date = today(ctx);
-  return {
+  return withExports({
     source: "Federal Reserve Bank of St. Louis (FRED)",
     dataset: "FRED, Federal Reserve Economic Data",
     series_id: opts.seriesId,
@@ -118,13 +144,13 @@ export function fredCitation(
     retrieved_at: date,
     citation_text: `Federal Reserve Bank of St. Louis, FRED, series ${opts.seriesId} (${opts.seriesName}). Retrieved ${date} via StatCite. ${sourceUrl}`,
     notices: [FRED_NOTICE],
-  };
+  });
 }
 
 export function ecbFxCitation(ctx: Ctx, opts: { base: string; quote: string; rateDate: string; apiUrl?: string }): Citation {
   const date = today(ctx);
   const sourceUrl = "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html";
-  return {
+  return withExports({
     source: "European Central Bank",
     dataset: "Euro foreign exchange reference rates (via Frankfurter)",
     series_id: `ECB/${opts.base}${opts.quote}`,
@@ -138,5 +164,5 @@ export function ecbFxCitation(ctx: Ctx, opts: { base: string; quote: string; rat
     notices: [
       "ECB reference rates are indicative and 'for information purposes'; they are not transaction rates.",
     ],
-  };
+  });
 }

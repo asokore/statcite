@@ -55,6 +55,11 @@ export interface Citation {
   retrieved_at: string;
   /** Ready-to-paste citation sentence. */
   citation_text: string;
+  /** Ready-to-paste reference-manager formats, derived from the fields above
+   * (never independently authored, so they cannot disagree with them).
+   * APA follows the dataset pattern with (n.d.) + retrieval date because the
+   * underlying series are continuously updated works. Frozen API surface. */
+  export_formats?: { bibtex: string; apa: string };
   /** Extra source-mandated notices (e.g. the FRED endorsement disclaimer). */
   notices?: string[];
 }

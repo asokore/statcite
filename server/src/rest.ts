@@ -4,7 +4,7 @@
 import type { Ctx } from "./core/types.ts";
 import { ToolError } from "./core/types.ts";
 import { UpstreamError, fetchJson } from "./core/upstream.ts";
-import { getIndicator, getSeries, searchIndicators, listRegistry } from "./core/series.ts";
+import { getIndicator, getSeries, searchIndicators, listRegistry, compareSources } from "./core/series.ts";
 import { countrySnapshot } from "./core/snapshot.ts";
 import { inflationAdjust } from "./core/inflation.ts";
 import { fxConvert } from "./core/fx.ts";
@@ -131,12 +131,22 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
           "/v1/fx?amount=100&from=USD&to=BBD&date=2024",
           "/v1/sources",
           "/v1/status",
+          "/v1/compare?indicator=govt_debt_gdp&country=BRB&period=2023",
         ],
       }, 86400);
     }
 
     if (path === "/v1/indicators") {
       return json(200, { indicators: listRegistry() }, 86400);
+    }
+
+    if (path === "/v1/compare") {
+      const indicator = q.get("indicator");
+      const country = q.get("country");
+      if (!indicator || !country) return errJson(400, "Query parameters 'indicator' and 'country' are required, e.g. /v1/compare?indicator=govt_debt_gdp&country=BRB&period=2023.");
+      const result = await compareSources(ctx, indicator, country, q.get("period") ?? undefined);
+      // Divergence state can change as either source revises; keep the cache short.
+      return json(200, result, 3600);
     }
 
     if (path === "/v1/status") {

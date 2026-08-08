@@ -210,6 +210,47 @@ export const INDICATORS: IndicatorDef[] = [
     synonyms: ["fdi", "foreign direct investment", "fdi inflows"],
   },
   {
+    key: "tourism_receipts_exports",
+    label: "International tourism, receipts (% of total exports)",
+    unit: "% of total exports",
+    kind: "percent",
+    wb: "ST.INT.RCPT.XP.ZS",
+    synonyms: ["tourism receipts", "tourism exports", "tourism share of exports", "tourism dependence"],
+    notes: "A headline exposure measure for tourism-dependent economies (most small island developing states).",
+  },
+  // External debt (World Bank International Debt Statistics — same
+  // api.worldbank.org v2 endpoint and CC BY 4.0 summary terms as WDI; licence
+  // ledger verdict recorded in docs/RESEARCH.md closed verdicts, 2026-08-07).
+  // IDS covers low- and middle-income economies; high-income economies return
+  // an honest no-published-data response rather than a guess.
+  {
+    key: "external_debt_stock_usd",
+    label: "External debt stocks, total (DOD, current US$)",
+    unit: "current US$",
+    kind: "level",
+    wb: "DT.DOD.DECT.CD",
+    synonyms: ["external debt", "external debt stock", "total external debt", "foreign debt"],
+    notes: "World Bank International Debt Statistics; reported for low- and middle-income economies (high-income economies are not covered by IDS).",
+  },
+  {
+    key: "external_debt_service_usd",
+    label: "Total debt service on external debt (TDS, current US$)",
+    unit: "current US$",
+    kind: "level",
+    wb: "DT.TDS.DECT.CD",
+    synonyms: ["debt service", "external debt service", "debt repayments"],
+    notes: "World Bank International Debt Statistics; low- and middle-income economies only.",
+  },
+  {
+    key: "debt_service_exports_pct",
+    label: "Total debt service (% of exports of goods, services and primary income)",
+    unit: "% of exports",
+    kind: "percent",
+    wb: "DT.TDS.DECT.EX.ZS",
+    synonyms: ["debt service ratio", "debt service to exports", "debt burden"],
+    notes: "World Bank International Debt Statistics; the classic debt-burden ratio for low- and middle-income economies.",
+  },
+  {
     key: "remittances_gdp",
     label: "Personal remittances, received (% of GDP)",
     unit: "% of GDP",
