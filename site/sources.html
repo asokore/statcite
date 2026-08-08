@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data sources &amp; licence ledger — StatCite</title>
+<meta name="description" content="Every data source StatCite serves — and every source it evaluated and refused — with the licence verdict, the basis for it, and the date it was last verified against the source's own terms.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="canonical" href="https://statcite.com/sources.html">
+<meta property="og:title" content="StatCite — data sources and licence ledger">
+<meta property="og:description" content="Served, flow-through, and refused sources with licence verdicts, verbatim bases, and verification dates.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://statcite.com/sources.html">
+<style>
+:root{
+  --bg:#0b0f14;--bg2:#10161d;--card:#141c25;--line:#22303d;
+  --text:#dbe4ec;--dim:#8fa1b0;--faint:#6b7f8e;
+  --accent:#4cc38a;--accent2:#7cb8ff;--warn:#e5b567;--err:#e0716f;
+  --mono:ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6;font-size:16px}
+a{color:var(--accent2);text-decoration:none}
+a:hover{text-decoration:underline}
+p a,li a,td a{text-decoration:underline;text-underline-offset:2px}
+.wrap{max-width:1060px;margin:0 auto;padding:0 24px}
+nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0;border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px;color:var(--text)}
+nav .links{display:flex;gap:22px;font-size:14.5px;flex-wrap:wrap;row-gap:6px;justify-content:flex-end}
+nav .links a{color:var(--dim)}
+nav .links a:hover{color:var(--text);text-decoration:none}
+header{padding:56px 0 34px}
+h1{font-size:clamp(26px,4.5vw,38px);line-height:1.15;letter-spacing:-.02em;max-width:860px}
+.sub{margin-top:14px;font-size:17px;color:var(--dim);max-width:780px}
+section{padding:40px 0;border-top:1px solid var(--line)}
+h2{font-size:23px;letter-spacing:-.01em;margin-bottom:8px}
+.lead{color:var(--dim);margin-bottom:22px;max-width:780px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:14px}
+.card h3{font-size:16.5px;margin-bottom:2px}
+.card .meta{font-family:var(--mono);font-size:12.5px;color:var(--faint);margin-bottom:10px}
+.card p{font-size:14.5px;color:var(--dim);margin-bottom:8px}
+.card .attr{font-family:var(--mono);font-size:13px;color:var(--text);background:#0d1319;border:1px solid var(--line);border-radius:6px;padding:8px 12px;margin:8px 0}
+.pill{display:inline-block;font-size:12px;font-family:var(--mono);border-radius:20px;padding:2px 11px;margin-left:10px;vertical-align:2px}
+.pill.served{color:var(--accent);border:1px solid #2a4a3a;background:#12241c}
+.pill.flow_through{color:var(--accent2);border:1px solid #2a3a52;background:#131c28}
+.pill.refused{color:var(--err);border:1px solid #4a2a2a;background:#241212}
+.note{font-size:13.5px;color:var(--faint);max-width:780px}
+footer{border-top:1px solid var(--line);padding:32px 0 44px;color:var(--faint);font-size:13.5px}
+footer a{color:var(--dim)}
+.skip{position:absolute;left:-9999px;top:0;background:var(--accent);color:#08130d;padding:10px 18px;border-radius:0 0 8px 0;font-weight:600;z-index:10}
+.skip:focus{left:0;text-decoration:none}
+@media(max-width:640px){header{padding:40px 0 26px}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main-content">Skip to main content</a>
+<div class="wrap">
+  <nav>
+    <a class="logo" href="/">StatCite</a>
+    <div class="links">
+      <a href="/docs.html">Docs</a>
+      <a href="/bench.html">Benchmark</a>
+      <a href="/#tools">Tools</a>
+      <a href="/#try">Try it</a>
+      <a href="/#pricing">Pricing</a>
+    </div>
+  </nav>
+
+  <header id="main-content">
+    <h1>Data sources &amp; the licence ledger</h1>
+    <p class="sub">Every source StatCite serves — and every source it evaluated and <em>refused</em> — with the licence verdict, the basis for it, and the date it was last checked against the source's own terms. A source enters the indicator registry only after its ledger entry exists with a "served" verdict. This page renders live from <a href="/v1/sources">/v1/sources</a>, so it cannot drift from what the API actually reports.</p>
+  </header>
+
+  <section>
+    <h2>How to read the verdicts</h2>
+    <p class="lead">
+      <span class="pill served">served</span> StatCite serves this source's data under the stated licence, and every response carries the required attribution.&nbsp;
+      <span class="pill flow_through">flow_through</span> an aggregator — each served series inherits its underlying provider's licence, and the citation names that provider.&nbsp;
+      <span class="pill refused">refused</span> evaluated and deliberately not served; the entry says exactly why. Declining a source for licensing reasons is product information, not an internal detail.
+    </p>
+    <div id="ledger" aria-live="polite">
+      <noscript><p class="lead">This page renders the ledger with JavaScript. Without it, read the same data directly at <a href="/v1/sources">/v1/sources</a>.</p></noscript>
+      <p class="lead" id="ledger-loading">Loading the ledger from /v1/sources…</p>
+    </div>
+    <p class="note">Licence positions are re-verified when sources are added or terms change; each entry carries its own verified-on date. If you believe a verdict is wrong, or a refused source's terms have changed, email <a href="mailto:hello@statcite.com">hello@statcite.com</a> — corrections are welcome and acted on.</p>
+  </section>
+
+  <footer>
+    <p>StatCite — official economic statistics with full citations. <a href="/">Home</a> · <a href="/docs.html">Docs</a> · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a></p>
+  </footer>
+</div>
+<script>
+(function(){
+  var esc = function(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); };
+  fetch("/v1/sources").then(function(r){ return r.json(); }).then(function(data){
+    var order = { served: 0, flow_through: 1, refused: 2 };
+    var sources = (data.sources || []).slice().sort(function(a, b){
+      return (order[a.license_verdict] ?? 3) - (order[b.license_verdict] ?? 3);
+    });
+    var html = sources.map(function(s){
+      var attr = s.license_verdict === "refused" ? "" :
+        '<div class="attr">Attribution: ' + esc(s.attribution_required) + "</div>";
+      return '<div class="card">' +
+        "<h3>" + esc(s.name) + '<span class="pill ' + esc(s.license_verdict) + '">' + esc(s.license_verdict) + "</span></h3>" +
+        '<div class="meta">id: ' + esc(s.id) + " · licence verified " + esc(s.license_verified_on) + " · <a href=\"" + esc(s.terms_url) + "\">terms</a></div>" +
+        "<p><strong>Licence:</strong> " + esc(s.license) + "</p>" +
+        "<p>" + esc(s.license_note) + "</p>" +
+        attr +
+        "<p>" + esc(s.coverage) + "</p>" +
+        "</div>";
+    }).join("");
+    document.getElementById("ledger").innerHTML = html || '<p class="lead">No sources returned — read <a href="/v1/sources">/v1/sources</a> directly.</p>';
+  }).catch(function(){
+    document.getElementById("ledger").innerHTML = '<p class="lead">Could not load the ledger right now — read it directly at <a href="/v1/sources">/v1/sources</a>.</p>';
+  });
+})();
+</script>
+</body>
+</html>
