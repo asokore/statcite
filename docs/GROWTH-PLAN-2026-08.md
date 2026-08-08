@@ -110,8 +110,16 @@ fetch); LAUNCH.md checkboxes have drifted from reality.
   verification; create distribution/listings.md as the standing inventory;
   one batch pass over long-tail directories; nudge the pending PRs.
 - **awesome-ai-for-economists PR** (MCP section exists, StatCite absent).
-- **.well-known server card** (verify SEP-2127 status first) and the cheap
-  parts of the 2026-07-28 MCP spec only (ttlMs/cacheScope on tools/list).
+- ~~.well-known server card~~ — **DO NOT SHIP. Verified 2026-08-08:** SEP-2127
+  is an OPEN DRAFT with merge conflicts and a stalled sponsor, it defines no
+  `.well-known` MCP path at all (the recommended location is
+  `<streamable-http-url>/server-card`; the `.well-known/ai-catalog.json` in the
+  document belongs to a different, non-MCP spec), and it carries no schema to
+  implement — the normative schema sits in a repo still named "experimental".
+  Three competing paths are circulating. Shipping one would squat a path on a
+  guess.
+- **MCP 2026-07-28 migration** — see the new note below; this is no longer a
+  "cheap parts only" item.
 - **Credibility rails**: Zenodo DOI for the benchmark question set +
   methodology (nothing embargoed) + Hugging Face dataset mirror; finalize the
   OpenAI Researcher Access application citing the DOI (September window);
@@ -157,9 +165,23 @@ fetch); LAUNCH.md checkboxes have drifted from reality.
   annotated-claims syntax, no NLP) only if post-launch demand appears;
   citation-object JSON Schema published as documentation (not "spec" until a
   second implementer exists).
-- **Watch only**: Cloudflare Monetization Gateway admission; MCP 2026-07-28
-  ratification (then the ~30-line stateless mcp.ts change); Stage 1
-  monetization triggers via the bookkeeping sheet.
+- **MCP 2026-07-28 migration (RATIFIED — this is now real work, not a watch
+  item).** Verified 2026-08-08: the revision is GA, not a release candidate,
+  and it is BREAKING. `initialize` and `notifications/initialized` are gone,
+  replaced by a required `server/discover` RPC; `Mcp-Session-Id` is removed
+  entirely; `Mcp-Method` (all requests) and `Mcp-Name` (tools/call,
+  resources/read, prompts/get) headers are REQUIRED; `ttlMs` and `cacheScope`
+  are REQUIRED on complete list results; the MRTR `InputRequiredResult` pattern
+  replaces server-initiated requests; and Roots, Sampling and Logging are
+  formally deprecated on a twelve-month clock. StatCite currently negotiates
+  2025-03-26 / 2025-06-18 / 2025-11-25 and is unaffected until it opts in —
+  transport code is already isolated in `server/src/mcp.ts` for exactly this.
+  Plan it as a versioned dual-support release, not a swap: keep the old
+  revisions working while adding the new one, since client uptake will lag.
+  Do NOT start it in the same session as unrelated work.
+- **Watch only**: Cloudflare Monetization Gateway admission; Stage 1
+  monetization triggers via the bookkeeping sheet; whether GitHub's MCP
+  registry onboarding becomes self-serve (it was manual as of 2026-05).
 
 ## DO-NOT list (killed with evidence; do not re-propose)
 

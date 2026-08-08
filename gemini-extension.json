@@ -1,0 +1,11 @@
+{
+  "name": "statcite",
+  "version": "1.8.0",
+  "description": "Official economic statistics with full citations (World Bank, IMF, BIS, ECB), plus verification of claimed figures against the official series.",
+  "contextFileName": "GEMINI.md",
+  "mcpServers": {
+    "statcite": {
+      "httpUrl": "https://statcite.com/mcp"
+    }
+  }
+}
