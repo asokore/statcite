@@ -166,3 +166,31 @@ export function ecbFxCitation(ctx: Ctx, opts: { base: string; quote: string; rat
     ],
   });
 }
+
+/** BIS / ECB SDMX citation. Both licences permit reproduction with
+ * attribution (licence ledger entries in core/sources.ts carry the verbatim
+ * basis and verification dates). */
+export function sdmxCitation(
+  ctx: Ctx,
+  opts: { provider: "BIS" | "ECB"; flow: string; key: string; seriesName: string; sourceUrl: string; apiUrl: string },
+): Citation {
+  const date = today(ctx);
+  const source = opts.provider === "BIS" ? "Bank for International Settlements" : "European Central Bank";
+  const dataset =
+    opts.provider === "BIS" ? `BIS ${opts.flow}` : `ECB Data Portal ${opts.flow}`;
+  return withExports({
+    source,
+    dataset,
+    series_id: `${opts.provider.toLowerCase()}/${opts.flow}/${opts.key}`,
+    series_name: opts.seriesName,
+    source_url: opts.sourceUrl,
+    api_url: opts.apiUrl,
+    license:
+      opts.provider === "BIS"
+        ? "BIS statistics may be reproduced and redistributed with attribution; see the BIS terms and conditions for statistics"
+        : "ECB content may be reproduced with attribution; see the ECB disclaimer and copyright notice",
+    attribution: opts.provider === "BIS" ? "Source: Bank for International Settlements" : "Source: European Central Bank",
+    retrieved_at: date,
+    citation_text: `${source}, ${dataset}, series ${opts.key} (${opts.seriesName}). Retrieved ${date} via StatCite. ${opts.sourceUrl}`,
+  });
+}

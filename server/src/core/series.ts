@@ -10,7 +10,8 @@ import { fetchWbSeries } from "../adapters/worldbank.ts";
 import { fetchDbnomicsSeries, searchDbnomicsDatasets } from "../adapters/dbnomics.ts";
 import { fetchFredSeries, fredAvailable } from "../adapters/fred.ts";
 import { fetchDataMapperSeries, fetchDataMapperMetadata, computeBoundaryYear, parseEditionLabel } from "../adapters/datamapper.ts";
-import { worldBankCitation, dbnomicsCitation, fredCitation, imfDataMapperCitation } from "./citations.ts";
+import { worldBankCitation, dbnomicsCitation, fredCitation, imfDataMapperCitation, sdmxCitation } from "./citations.ts";
+import { fetchSdmxSeries } from "../adapters/sdmx.ts";
 import { isTransientUpstreamError } from "./upstream.ts";
 export { expectedWeoEdition } from "./weo-calendar.ts";
 import { expectedWeoEdition } from "./weo-calendar.ts";
@@ -354,6 +355,50 @@ async function indicatorFromFred(ctx: Ctx, def: IndicatorDef, opts: SeriesOpts):
  * Get a registry indicator for a country, using the definition's source order
  * (wb → dbnomics fallback, or dbnomics-primary where defined that way).
  */
+async function indicatorFromSdmx(ctx: Ctx, def: IndicatorDef, country: Country, opts: SeriesOpts): Promise<SeriesResult> {
+  const cfg = def.sdmx!;
+  // {ISO2} keys are per-country; a key without the placeholder is a fixed
+  // single-series flow (euro-area aggregates), which only answers for the
+  // economy it actually covers rather than silently serving it for any input.
+  const perCountry = cfg.key.includes("{ISO2}");
+  if (!perCountry && country.iso3 !== "EMU" && country.iso3 !== "XM") {
+    throw new ToolError(
+      `'${def.key}' is a euro-area aggregate series and is only published for the euro area — request it with country="euro area".`,
+      { indicator: def.key, country: country.iso3 },
+    );
+  }
+  const key = cfg.key.replace("{ISO2}", country.iso2);
+  const s = await fetchSdmxSeries(cfg.provider, cfg.flow, key, { now: ctx.now ? ctx.now() : undefined });
+  if (s.observations.length === 0) {
+    throw new ToolError(
+      `${cfg.provider} publishes no ${def.label} series for ${country.name}. This is a coverage fact at the source, not a lookup failure.`,
+      { indicator: def.key, country: country.iso3, no_published_data: true },
+    );
+  }
+  const notes: string[] = [];
+  if (s.stalenessNote) notes.push(s.stalenessNote);
+  return finishSeries(
+    {
+      series_id: `${cfg.provider.toLowerCase()}/${cfg.flow}/${key}`,
+      name: def.label,
+      country: { iso3: country.iso3, name: country.name },
+      unit: def.unit,
+      frequency: key.startsWith("D.") ? "daily" : key.startsWith("M.") ? "monthly" : undefined,
+      observations: s.observations,
+      citation: sdmxCitation(ctx, {
+        provider: cfg.provider,
+        flow: cfg.flow,
+        key,
+        seriesName: s.name ? `${s.name} — ${country.name}` : `${def.label} — ${country.name}`,
+        sourceUrl: cfg.sourceUrl,
+        apiUrl: s.apiUrl,
+      }),
+      notes,
+    },
+    opts,
+  );
+}
+
 /** Ordered per-source runners for a registry indicator — the ONE place source
  * precedence is encoded (extracted from getIndicator so compare_sources shares
  * it instead of re-deriving the chain). dbnomics-primary defs list dbnomics
@@ -369,6 +414,15 @@ function buildSourceAttempts(
 ): Array<{ label: string; run: () => Promise<SeriesResult> }> {
   const preferDbnomics = def.dbnomics && (!def.wb || DB_PRIMARY.has(def.key));
   const attempts: Array<{ label: string; run: () => Promise<SeriesResult> }> = [];
+  // SDMX-sourced indicators (BIS policy rates, ECB monetary series) have no
+  // World Bank/IMF equivalent — they are single-source by construction.
+  if (def.sdmx) {
+    attempts.push({
+      label: def.sdmx.provider === "BIS" ? "BIS statistics" : "ECB Data Portal",
+      run: () => indicatorFromSdmx(ctx, def, country, opts),
+    });
+    return attempts;
+  }
   const pushImfChain = () => {
     if (def.datamapper) {
       attempts.push({ label: "IMF DataMapper API", run: () => indicatorFromDataMapper(ctx, def, country, opts) });
@@ -775,7 +829,10 @@ export interface SearchResultItem {
 
 /** A registry key with no servable source def (FRED-only) is permanently disabled — it always declines. */
 function isDisabledDef(d: IndicatorDef): boolean {
-  return !d.wb && !d.dbnomics && !d.datamapper;
+  // "Disabled" means the def has NO servable source left — in practice the six
+  // FRED-reserved keys. An sdmx-backed def is servable and must never be
+  // reported inactive.
+  return !d.wb && !d.dbnomics && !d.datamapper && !d.sdmx;
 }
 
 const FRED_DISABLED_REASON =
@@ -837,6 +894,7 @@ export function listRegistry(): Array<{
     const dmLabel = d.datamapper ? "IMF DataMapper API (current WEO/Fiscal Monitor)" : undefined;
     const dbLabel = d.dbnomics ? `${d.dbnomics[0]} ${d.dbnomics[1].replace(":latest", "")} (via DBnomics)` : undefined;
     const wbLabel = d.wb ? "World Bank WDI" : undefined;
+    const sdmxLabel = d.sdmx ? (d.sdmx.provider === "BIS" ? "BIS statistics" : "ECB Data Portal") : undefined;
     const dbFirst = d.dbnomics && (!d.wb || DB_PRIMARY.has(d.key));
     const imfChain = [...(dmLabel ? [dmLabel] : []), ...(dbLabel ? [dbLabel] : [])];
     const disabled = isDisabledDef(d);
@@ -845,6 +903,7 @@ export function listRegistry(): Array<{
       label: d.label,
       unit: d.unit,
       sources: [
+        ...(sdmxLabel ? [sdmxLabel] : []),
         ...(dbFirst ? [...imfChain, ...(wbLabel ? [wbLabel] : [])] : [...(wbLabel ? [wbLabel] : []), ...imfChain]),
         // For active keys a fred field is INERT (never served); only surface the
         // FRED label on the disabled keys, where it explains why they decline.

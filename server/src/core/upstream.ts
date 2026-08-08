@@ -28,12 +28,16 @@ export class UpstreamError extends Error {
   }
 }
 
-async function doFetch(url: string, timeoutMs: number, ttlSeconds: number): Promise<Response> {
+async function doFetch(url: string, timeoutMs: number, ttlSeconds: number, accept?: string): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, {
-      headers: { "user-agent": USER_AGENT, accept: "application/json" },
+      // `accept` is overridable because some official APIs content-negotiate
+      // JSON only via a vendor media type: BIS returns SDMX **XML** for a plain
+      // `application/json` Accept, and 200-with-XML is a silent-corruption
+      // class, not an error class.
+      headers: { "user-agent": USER_AGENT, accept: accept ?? "application/json" },
       redirect: "follow",
       signal: controller.signal,
       // Cloudflare edge cache for upstream GETs (effective on custom domains; ignored elsewhere).
@@ -86,7 +90,8 @@ export async function fetchJson(
     ttlSeconds = 21600,
     timeoutMs = 8000,
     validate,
-  }: { ttlSeconds?: number; timeoutMs?: number; validate?: (data: unknown) => boolean } = {},
+    accept,
+  }: { ttlSeconds?: number; timeoutMs?: number; validate?: (data: unknown) => boolean; accept?: string } = {},
 ): Promise<unknown> {
   const hit = mem.get(url);
   const now = Date.now();
@@ -102,7 +107,7 @@ export async function fetchJson(
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const isLastAttempt = attempt === maxAttempts - 1;
     try {
-      const res = await doFetch(url, timeoutMs, ttlSeconds);
+      const res = await doFetch(url, timeoutMs, ttlSeconds, accept);
       if (res.status === 429 || res.status >= 500) {
         lastErr = new UpstreamError(`Upstream returned HTTP ${res.status}`, url, res.status);
         await res.body?.cancel();

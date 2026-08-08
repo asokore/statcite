@@ -338,7 +338,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
     <div class="grid">
       <div class="card"><h3>verify_stat</h3><p>Check a claimed figure against the official series → match / close / mismatch / cannot_verify, with diagnostics and the correct citation.</p></div>
       <div class="card"><h3>verify_claims</h3><p>Fact-check a whole draft in one call: extract every macro claim, submit up to 15 together (also <code>POST /v1/verify_claims</code>). Verdict summary + per-claim results; one bad claim never sinks the batch.</p></div>
-      <div class="card"><h3>get_indicator</h3><p>40 active curated indicators — inflation, GDP growth, unemployment, government debt, current account, FDI… — for 200+ economies, with source fallback (World Bank → IMF DataMapper, current vintage → IMF WEO via DBnomics).</p></div>
+      <div class="card"><h3>get_indicator</h3><p>42 active curated indicators — inflation, GDP growth, unemployment, government debt, current account, FDI… — for 200+ economies, with source fallback (World Bank → IMF DataMapper, current vintage → IMF WEO via DBnomics).</p></div>
       <div class="card"><h3>country_snapshot</h3><p>Headline economic picture of any country in one call: 11 indicators, each with its own citation. Built for country briefs.</p></div>
       <div class="card"><h3>inflation_adjust</h3><p>“What is $100 (1995) worth in 2025 money?” CPI-ratio method with the exact index values and formula disclosed. Any country with CPI data.</p></div>
       <div class="card"><h3>fx_convert</h3><p>ECB daily reference rates for ~30 majors since 1999, plus official annual-average rates for ~90 more currencies (BBD, XCD, JMD, KES…). Method always stated.</p></div>

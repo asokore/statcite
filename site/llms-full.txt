@@ -5,9 +5,10 @@ StatCite serves official economic statistics with full citations. Free, no auth,
 - MCP endpoint (Streamable HTTP, stateless, protocol 2025-03-26/2025-06-18/2025-11-25): https://statcite.com/mcp
 - REST base: https://statcite.com/v1  (OpenAPI: https://statcite.com/openapi.json)
 - Every numeric response includes a citation object: {source, dataset, series_id, series_name, source_url, api_url, license, attribution, retrieved_at, citation_text, notices?}. Reproduce citation_text when presenting numbers to users. Citations also carry export_formats.bibtex and export_formats.apa, derived from the citation's own fields — paste-ready for reference managers.
-- Data sources: World Bank WDI (CC BY 4.0), IMF WEO/Fiscal Monitor via the IMF DataMapper API — current vintage, DBnomics as a vintage-pinned fallback (attribution: "Source: International Monetary Fund"), ECB euro reference rates via Frankfurter. FRED is permanently disabled — its terms of use prohibit AI/ML use and caching/redistribution of its content, which conflicts with this service's architecture; the fred/… series id and six US-only registry keys are recognized but always decline.
+- Data sources: BIS central bank policy rates (policy_rate; ~38 central banks, monthly, SDMX), ECB Data Portal euro-area HICP (euro_area_hicp; euro-area aggregate only), World Bank WDI (CC BY 4.0), IMF WEO/Fiscal Monitor via the IMF DataMapper API — current vintage, DBnomics as a vintage-pinned fallback (attribution: "Source: International Monetary Fund"), ECB euro reference rates via Frankfurter. FRED is permanently disabled — its terms of use prohibit AI/ML use and caching/redistribution of its content, which conflicts with this service's architecture; the fred/… series id and six US-only registry keys are recognized but always decline.
 - IMF forward-year values are labeled as estimates/projections per-observation; "latest" prefers the latest value not marked as a projection (which may itself be a staff estimate — the IMF's true latest-actual year varies by country). The projection boundary is a heuristic derived from each response's own data horizon, not a per-country authoritative cutoff (some earlier observations may also be staff estimates — notes say so; a series ending before the boundary year gets an explicit note). Citations pass through the IMF's own verbatim edition label; any fallback carries an explicit disclosure, and verify_stat/verify_claims return cannot_verify rather than a match/mismatch verdict whenever the served value came from a transient-failure fallback, since substitutes can differ by definition (World Bank vs IMF) or vintage by far more than rounding for identical historical years; a fallback for a series the primary permanently lacks is judged normally with disclosure.
 - Statistics get revised: values reflect the source's currently published figure.
+- SDMX-sourced series (BIS, ECB) carry an upstream freshness check: if the newest published observation is older than the expectation for its frequency, a disclosure note says so — a stalled dataflow returns 200 with stale data, not an error, so freshness is asserted rather than assumed.
 
 ## MCP tools
 
@@ -84,7 +85,7 @@ Resources (resources/list, resources/read): statcite://registry/indicators (all 
 
 Errors: 400 missing params, 422 helpful failure (suggestions included), 502 upstream trouble. /v1/verify_claims: 405 on GET, 415 on non-JSON content-type, 422 on malformed body.
 
-## Indicator registry (46 keys — 40 active; the six FRED-reserved US keys always decline)
+## Indicator registry (46 keys — 42 active; the six FRED-reserved US keys always decline)
 
 - gdp_growth — GDP growth (annual %) [% (annual, real)] (sources: World Bank WDI; IMF DataMapper API (current WEO/Fiscal Monitor); IMF WEO (via DBnomics))
 - gdp_current_usd — GDP (current US$) [current US$] (sources: World Bank WDI)
