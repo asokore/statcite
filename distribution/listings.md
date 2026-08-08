@@ -11,7 +11,7 @@ registry entry and stop.
 
 | # | Surface | URL | Route to update | Auto-syncs? | Last updated |
 |---|---|---|---|---|---|
-| 1 | Official MCP Registry | `io.github.asokore/statcite` | `cd distribution && ../.tools/mcp-publisher.exe publish` (GitHub device-flow login first) | No — push per release | 2026-07-27 (v1.4.2) — **stale, live server is ahead** |
+| 1 | Official MCP Registry | `io.github.asokore/statcite` | `cd distribution && ../.tools/mcp-publisher.exe login github` then `../.tools/mcp-publisher.exe publish` | No — push per release | 2026-08-08 (v1.8.1, isLatest confirmed via API) |
 | 2 | GitHub repo | github.com/asokore/statcite | Push to main | n/a | continuous |
 | 3 | Claude Connectors Directory | claude.ai directory (community) | Admin portal → edit listing (editing an unpublished listing sends it back to review) | No | 2026-07-29 (published) |
 | 4 | Smithery | smithery.ai/server/asokore-beckles/statcite | Re-scan from repo | Partly | 2026-07-25 |
