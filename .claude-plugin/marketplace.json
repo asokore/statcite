@@ -1,0 +1,18 @@
+{
+  "name": "statcite",
+  "owner": {
+    "name": "StatCite",
+    "url": "https://statcite.com"
+  },
+  "plugins": [
+    {
+      "name": "statcite",
+      "source": "./",
+      "description": "Connects the StatCite MCP server (official economic statistics with license-grade citations, plus verify_stat claim checking) and installs the verify-then-cite skill.",
+      "version": "1.7.0"
+    }
+  ],
+  "metadata": {
+    "description": "StatCite \u2014 official economic statistics with full citations, plus verification of claimed figures against the official series."
+  }
+}

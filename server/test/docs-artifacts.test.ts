@@ -136,3 +136,62 @@ test("statcite.skill zip contains statcite/SKILL.md matching the source file", (
   const source = readFileSync(path.join(repoRoot, "skill/statcite/SKILL.md"), "utf8");
   assert.equal(extracted.replace(/\r\n/g, "\n"), source.replace(/\r\n/g, "\n"));
 });
+
+// --- Phase 2 distribution artifacts: keep them honest in CI ---
+
+test("plugin manifests stay in sync with the served server version and the real skill path", async () => {
+  const marketplace = readJson(".claude-plugin/marketplace.json");
+  const plugin = readJson(".claude-plugin/plugin.json");
+  const { SERVER_VERSION } = await import("../src/mcp.ts");
+
+  // A stale plugin version pins users to an old description of the server.
+  assert.equal(plugin.version, SERVER_VERSION, ".claude-plugin/plugin.json version must match SERVER_VERSION");
+  assert.equal(marketplace.plugins[0].version, SERVER_VERSION, "marketplace plugin entry version must match SERVER_VERSION");
+
+  // The plugin must point at the live remote endpoint, not a stdio command.
+  assert.equal(plugin.mcpServers.statcite.type, "http");
+  assert.equal(plugin.mcpServers.statcite.url, "https://statcite.com/mcp");
+
+  // The skills path must resolve to a real SKILL.md — a broken path installs
+  // a plugin whose skill silently never loads.
+  const skillDir = plugin.skills.replace(/^\.\//, "");
+  const skillFile = path.join(repoRoot, skillDir, "statcite", "SKILL.md");
+  assert.ok(readFileSync(skillFile, "utf8").includes("name: statcite"), `plugin skills path must reach a real SKILL.md (looked at ${skillFile})`);
+});
+
+test("the skill documents the current tool surface (drift guard)", async () => {
+  const skill = readFileSync(path.join(repoRoot, "skill/statcite/SKILL.md"), "utf8");
+  const { TOOLS } = await import("../src/tools.ts");
+  // Every differentiating tool must be named in the skill; search/fetch are
+  // deep-research plumbing the skill deliberately excludes.
+  const mustMention = TOOLS.map((t: any) => t.name).filter((n: string) => n !== "search" && n !== "fetch");
+  for (const name of mustMention) {
+    assert.ok(skill.includes(name), `skill/statcite/SKILL.md does not mention the '${name}' tool`);
+  }
+  const { INDICATORS } = await import("../src/core/indicators.ts");
+  const total = INDICATORS.length;
+  const active = INDICATORS.filter((d: any) => d.wb || d.dbnomics || d.datamapper).length;
+  assert.ok(skill.includes(`${total} keys, ${active} active`), `skill registry count is stale — expected "${total} keys, ${active} active"`);
+});
+
+test("deep-research contract: search/fetch shapes stay pinned to the connector schema", async () => {
+  // OpenAI's deep-research connectors require this exact pair and shape.
+  // Pinning it here means a refactor that renames a field fails CI instead of
+  // silently delisting StatCite from ChatGPT's research surface.
+  const { TOOLS } = await import("../src/tools.ts");
+  const search = TOOLS.find((t: any) => t.name === "search");
+  const fetchTool = TOOLS.find((t: any) => t.name === "fetch");
+  assert.ok(search && fetchTool, "search and fetch must both exist");
+
+  assert.deepEqual(Object.keys(search!.inputSchema.properties), ["query"]);
+  assert.deepEqual(search!.inputSchema.required, ["query"]);
+  const sr = (search!.outputSchema as any).properties.results.items.properties;
+  assert.deepEqual(Object.keys(sr).sort(), ["id", "title", "url"]);
+
+  assert.deepEqual(Object.keys(fetchTool!.inputSchema.properties), ["id"]);
+  assert.deepEqual(fetchTool!.inputSchema.required, ["id"]);
+  const fr = (fetchTool!.outputSchema as any).properties;
+  for (const k of ["id", "title", "text", "url"]) {
+    assert.ok(k in fr, `fetch outputSchema must keep the '${k}' field required by the connector schema`);
+  }
+});

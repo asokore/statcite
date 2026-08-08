@@ -29,21 +29,21 @@ The README is the listing that Glama/PulseMCP/mcp.so crawl, and "statcite mcp" G
 - README top: one-line description, MCP URL, quick-connect snippets per client (copy from site/index.html tabs), demo GIF (record a Claude session using verify_stat)
 - Add the VS Code one-click install link and Cursor deeplink (current formats: https://code.visualstudio.com/api/extension-guides/ai/mcp and https://cursor.com/docs/context/mcp)
 
-## 3. Anthropic Claude Connectors Directory — DEFERRED (gate: requires a paid Team/Enterprise org)
+## 3. Anthropic Claude Connectors Directory — ✅ PUBLISHED 2026-07-29
 
-**Gate first:** as of 2026-07-24 the submission form redirects to `claude.ai/admin-settings/directory/submissions`, which is only reachable from a **paid Team or Enterprise Claude.ai organization** with Directory-management access. Solo/individual accounts cannot submit. Submission itself is a 10-step wizard including 7 compliance acknowledgments and a requirement that tools have been tested with MCP Inspector.
+Submitted via a Team org and **approved as a community connector** (auto-approval
+email, `[auto:approved]`), then published from
+`claude.ai/admin-settings/directory/submissions/statcite`. Admin state verified
+by screenshot: Published / health "Collecting…".
 
-**Status: deferred** until the owner has or joins a Team/Enterprise org. Revisit this step at that point.
+CAVEAT retained from the original verification: the public page
+`claude.ai/directory/connectors/statcite` redirected to the Claude home rather
+than rendering a listing at publish time. A bare `curl` returns 200 on that URL
+even when nothing renders (SPA shell), so status code is NOT evidence the
+listing is publicly visible — re-check in a real browser before claiming it is.
 
-Requirements checklist (already satisfied by this repo, ready whenever the org gate clears):
-- [x] Remote MCP over Streamable HTTP (no-auth is acceptable for read-only public data)
-- [x] HTTPS; Origin handling; tools carry `readOnlyHint` annotations and titles
-- [x] Privacy policy (https://statcite.com/privacy.html) — required
-- [x] Public docs page (https://statcite.com/docs.html)
-- [x] Logo (site/favicon.svg — export a 512px PNG)
-- [ ] Test every tool with MCP Inspector before submitting (new requirement)
-- [ ] Fill the 10-step wizard: contact email, the 7 compliance acknowledgments, test instructions ("no auth — just add the URL and call get_indicator with country=USA")
-Review criteria: https://claude.com/docs/connectors/building/review-criteria
+Note for future edits: the portal warns that editing a listing before publishing
+sends it back to review. Publish first, edit after.
 
 ## 4. Smithery — ~30 min
 
