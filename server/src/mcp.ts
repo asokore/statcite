@@ -17,7 +17,7 @@ import { listRegistry } from "./core/series.ts";
 import { SOURCES } from "./core/sources.ts";
 import { sidsCountries } from "./core/countries.ts";
 
-export const SERVER_VERSION = "1.7.0";
+export const SERVER_VERSION = "1.8.0";
 export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-03-26", "2025-06-18", "2025-11-25"];
 const LATEST_PROTOCOL = "2025-11-25";
 

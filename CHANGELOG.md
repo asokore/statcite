@@ -5,6 +5,25 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.8.0 — 2026-08-08
+
+- **Two new official sources, both licence-ledgered before shipping**:
+  **BIS** central bank policy rates (`policy_rate` — ~38 central banks in one
+  flow, monthly) and the **ECB Data Portal** (`euro_area_hicp` — monthly
+  euro-area harmonised inflation). Policy rates fill the gap FRED's permanent
+  disablement left, with no key and a clean licence.
+- **Upstream freshness is asserted, not assumed.** SDMX responses carry a
+  disclosure note when the newest observation is older than the expectation for
+  its frequency. This exists because the ECB's legacy `ICP` dataflow was found
+  serving December-2025 inflation, with HTTP 200 and valid JSON, in August 2026
+  — the registry uses the current `HICP` flow, and any future silent stall now
+  announces itself instead of passing as current data.
+- The adapter normalises the two SDMX-JSON generations these providers speak
+  (BIS wraps in `data` and sends values as strings; the ECB does neither), and
+  rejects a 200-with-XML body rather than parsing it — the ECB returns XML with
+  a 200 when the format parameter is wrong.
+- Registry now 48 keys / 42 active.
+
 ## 1.7.0 — 2026-08-08
 
 - **Revision probe on verify mismatches**: for the six indicators with dated

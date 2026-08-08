@@ -103,6 +103,10 @@ export interface IndicatorDef {
   dbnomics?: [string, string, string];
   /** IMF DataMapper primary (current-vintage WEO/Fiscal Monitor): [code, dataset]. */
   datamapper?: [string, "WEO" | "FM"];
+  /** SDMX source (BIS policy rates, ECB monetary statistics). `key` may carry
+   * an {ISO2} placeholder substituted with the resolved country's ISO2 code;
+   * a key without it is a fixed single-series flow (e.g. euro-area HICP). */
+  sdmx?: { provider: "BIS" | "ECB"; flow: string; key: string; sourceUrl: string };
   /** FRED series id for a US high-frequency variant — INERT: FRED is permanently
    * disabled (its terms prohibit AI/ML use and caching/redistribution, v1.3.2).
    * Kept so the six US-only keys stay recognized and decline with an explanation

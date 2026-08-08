@@ -39,7 +39,7 @@ curl -X POST "https://statcite.com/v1/verify_claims" -H "content-type: applicati
 
 ## Tools
 
-`get_indicator` · `verify_stat` · `verify_claims` · `compare_sources` · `get_series` · `search_indicators` · `country_snapshot` · `inflation_adjust` · `fx_convert` · `list_sources` · `search` · `fetch` — plus 3 MCP prompts (`fact_check`, `country_brief`, `cite_this_stat`) and 3 resources (registry, licence ledger, SIDS list). 40 active curated indicators, 200+ economies, ~120 currencies. All read-only. Details: [docs](https://statcite.com/docs.html).
+`get_indicator` · `verify_stat` · `verify_claims` · `compare_sources` · `get_series` · `search_indicators` · `country_snapshot` · `inflation_adjust` · `fx_convert` · `list_sources` · `search` · `fetch` — plus 3 MCP prompts (`fact_check`, `country_brief`, `cite_this_stat`) and 3 resources (registry, licence ledger, SIDS list). 42 active curated indicators, 200+ economies, ~120 currencies. All read-only. Details: [docs](https://statcite.com/docs.html).
 
 ## Repo layout
 

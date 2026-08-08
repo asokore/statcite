@@ -168,9 +168,13 @@ test("the skill documents the current tool surface (drift guard)", async () => {
   for (const name of mustMention) {
     assert.ok(skill.includes(name), `skill/statcite/SKILL.md does not mention the '${name}' tool`);
   }
-  const { INDICATORS } = await import("../src/core/indicators.ts");
-  const total = INDICATORS.length;
-  const active = INDICATORS.filter((d: any) => d.wb || d.dbnomics || d.datamapper).length;
+  // Derive both counts from listRegistry(), the SAME function that answers
+  // /v1/indicators — a local re-implementation of "active" silently diverged
+  // the moment a new source type landed.
+  const { listRegistry } = await import("../src/core/series.ts");
+  const reg = listRegistry();
+  const total = reg.length;
+  const active = reg.filter((r) => r.active).length;
   assert.ok(skill.includes(`${total} keys, ${active} active`), `skill registry count is stale — expected "${total} keys, ${active} active"`);
 });
 

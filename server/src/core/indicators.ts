@@ -209,6 +209,37 @@ export const INDICATORS: IndicatorDef[] = [
     wb: "BX.KLT.DINV.WD.GD.ZS",
     synonyms: ["fdi", "foreign direct investment", "fdi inflows"],
   },
+  // SDMX sources (BIS, ECB). Policy rates fill the hole left by FRED's
+  // permanent disablement — BIS WS_CBPOL covers ~38 central banks in one
+  // flow, licence-clean, no key. Licence ledger entries live in core/sources.ts.
+  {
+    key: "policy_rate",
+    label: "Central bank policy rate",
+    unit: "% per annum",
+    kind: "percent",
+    sdmx: {
+      provider: "BIS",
+      flow: "WS_CBPOL",
+      key: "M.{ISO2}",
+      sourceUrl: "https://data.bis.org/topics/CBPOL",
+    },
+    synonyms: ["policy rate", "interest rate", "central bank rate", "base rate", "fed funds", "bank rate", "monetary policy rate"],
+    notes: "BIS central bank policy rates — the rate that best captures each monetary authority's policy stance. Monthly. Coverage is the ~38 central banks the BIS compiles; economies outside that set return an honest no-published-data response.",
+  },
+  {
+    key: "euro_area_hicp",
+    label: "Euro area HICP inflation (annual rate)",
+    unit: "%",
+    kind: "percent",
+    sdmx: {
+      provider: "ECB",
+      flow: "HICP",
+      key: "M.U2.N.000000.4D0.ANR",
+      sourceUrl: "https://data.ecb.europa.eu/data/datasets/ICP",
+    },
+    synonyms: ["hicp", "euro area inflation", "eurozone inflation", "harmonised inflation"],
+    notes: "Monthly euro-area harmonised inflation from the ECB's current HICP dataflow. Euro-area aggregate only (request with country=\"euro area\"); for national annual CPI use inflation_cpi.",
+  },
   {
     key: "tourism_receipts_exports",
     label: "International tourism, receipts (% of total exports)",

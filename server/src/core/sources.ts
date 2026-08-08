@@ -75,6 +75,34 @@ export const SOURCES = [
     url: "https://db.nomics.world",
     terms_url: "https://docs.db.nomics.world/",
   },
+  {
+    id: "bis",
+    name: "Bank for International Settlements — central bank policy rates",
+    coverage: "Policy rates for ~38 central banks (the rate that best captures each monetary authority's policy stance), monthly and daily, via the BIS SDMX API",
+    access: "No key; queried live from stats.bis.org/api/v2 (SDMX-JSON via Accept header)",
+    license: "BIS statistics may be reproduced and redistributed with attribution; see the BIS terms and conditions for statistics",
+    license_verdict: "served" as LicenseVerdict,
+    license_note:
+      "The BIS terms for statistics permit reproduction and redistribution with attribution to the BIS. StatCite charges for the audit/convenience layer, never for BIS data standalone, and attributes the BIS on every response.",
+    license_verified_on: "2026-08-08",
+    attribution_required: "Source: Bank for International Settlements",
+    url: "https://data.bis.org/topics/CBPOL",
+    terms_url: "https://www.bis.org/terms_statistics.htm",
+  },
+  {
+    id: "ecb_data",
+    name: "European Central Bank — Data Portal (euro-area monetary statistics)",
+    coverage: "Euro-area harmonised inflation (HICP) and related monetary series via the ECB Data Portal SDMX API",
+    access: "No key; queried live from data-api.ecb.europa.eu (SDMX-JSON)",
+    license: "ECB content may be reproduced with attribution; see the ECB disclaimer and copyright notice",
+    license_verdict: "served" as LicenseVerdict,
+    license_note:
+      "The ECB's copyright notice permits reproduction of its published content with attribution to the ECB as source. Distinct from the ecb_fx entry, which covers the euro reference exchange rates served via Frankfurter.",
+    license_verified_on: "2026-08-08",
+    attribution_required: "Source: European Central Bank",
+    url: "https://data.ecb.europa.eu",
+    terms_url: "https://www.ecb.europa.eu/services/disclaimer/html/index.en.html",
+  },
   // ------------------------------------------------------------------
   // REFUSED sources — evaluated, declined, and disclosed. These entries
   // exist so the refusal reasoning is public and machine-readable, and so

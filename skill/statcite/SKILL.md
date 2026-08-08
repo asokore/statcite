@@ -21,10 +21,10 @@ https://statcite.com/v1/inflation?amount=100&from_year=1995&to_year=2025&country
 https://statcite.com/v1/fx?amount=100&from=USD&to=BBD&date=2024
 https://statcite.com/v1/compare?indicator={key}&country={ISO3}&period={YYYY}
 https://statcite.com/v1/search?q={topic}
-https://statcite.com/v1/indicators          ← full registry (46 keys, 40 active)
+https://statcite.com/v1/indicators          ← full registry (48 keys, 42 active)
 ```
 
-Common indicator keys: `inflation_cpi`, `gdp_growth`, `gdp_current_usd`, `gdp_per_capita_usd`, `unemployment_rate`, `population`, `govt_debt_gdp`, `fiscal_balance_gdp`, `current_account_gdp`, `trade_gdp`, `fdi_inflows_gdp`, `life_expectancy`. Countries: ISO3 codes or plain names ("Barbados", "euro area", "world").
+Common indicator keys: `inflation_cpi`, `gdp_growth`, `policy_rate`, `gdp_current_usd`, `gdp_per_capita_usd`, `unemployment_rate`, `population`, `govt_debt_gdp`, `fiscal_balance_gdp`, `current_account_gdp`, `trade_gdp`, `fdi_inflows_gdp`, `life_expectancy`. Countries: ISO3 codes or plain names ("Barbados", "euro area", "world").
 
 ## The two core workflows
 
