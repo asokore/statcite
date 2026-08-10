@@ -90,6 +90,17 @@ await tool("get_indicator", { indicator: "euro_area_hicp", country: "euro area",
   if (!refused) failures++;
   console.log(`${refused ? "PASS" : "FAIL"} policy_rate(LIC) must-refuse (XM-collision guard) ${refused ? "" : "SERVED WRONG DATA"}`);
 }
+// The IMF's own dated WEO vintage (api.imf.org, SDMX 3.0). Assert the SOURCE,
+// not just a value: this path falls back to DBnomics on any failure, so a
+// value-only check would stay green while the IMF leg was silently dead — and
+// silently dead is exactly what its two guards exist to prevent.
+await tool("verify_stat", { indicator: "gdp_growth", country: "USA", period: "2023", claimed_value: 2.935, as_of: "2026-01-15" },
+  (p) => {
+    if (p.citation.source !== "International Monetary Fund") throw new Error(`wrong source ${p.citation.source}`);
+    if (!/vintage/i.test(p.citation.dataset)) throw new Error(`not the vintage dataflow: ${p.citation.dataset}`);
+    if (!/api\.imf\.org/.test(p.citation.api_url ?? "")) throw new Error(`fell back off api.imf.org: ${p.citation.api_url}`);
+    return `WEO 2025-10 vintage USA 2023=${p.official_value} verdict=${p.verdict}`;
+  });
 await tool("compare_sources", { indicator: "govt_debt_gdp", country: "Barbados", period: "2023" },
   (p) => `sources=${p.results.length} spread=${p.comparison ? p.comparison.spread_abs?.toFixed(1) : "n/a"}`);
 await tool("verify_stat", { indicator: "inflation_cpi", country: "USA", period: "2023", claimed_value: 4.1 },

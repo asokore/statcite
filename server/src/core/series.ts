@@ -615,6 +615,25 @@ export async function getIndicatorAtEdition(
   }
   const [provider, datasetTemplate, codeTemplate] = def.dbnomics;
   const dataset = datasetTemplate.replace(/:latest$/, `:${edition}`);
+
+  // FIRST-PARTY vintage before the aggregator. The IMF publishes a handful of
+  // dated WEO vintage dataflows on api.imf.org, and it publishes them as soon
+  // as the edition exists; DBnomics ingests the long archive but lags the
+  // newest edition. On 2026-08-10 that lag was live-visible: the revision
+  // probe reported status "unavailable" for WEO 2025-10 purely because
+  // DBnomics had not ingested it, while the IMF served it directly. So the
+  // order is IMF-first, DBnomics as the deep-archive fallback, and a failure
+  // at the IMF is never fatal — it falls through with the DBnomics error as
+  // the reported one, since DBnomics covers far more editions.
+  const imfVintage = IMF_VINTAGE_FLOWS[edition];
+  if (imfVintage) {
+    try {
+      return await indicatorFromImfVintage(ctx, def, country, edition, imfVintage, codeTemplate, opts);
+    } catch {
+      // fall through to DBnomics
+    }
+  }
+
   const pinnedDef: IndicatorDef = { ...def, dbnomics: [provider, dataset, codeTemplate] };
   try {
     return await indicatorFromDbnomics(ctx, pinnedDef, country, opts);
@@ -626,6 +645,73 @@ export async function getIndicatorAtEdition(
       { indicator: def.key, country: country.iso3, edition },
     );
   }
+}
+
+/**
+ * Dated WEO vintages the IMF itself publishes as SDMX 3.0 dataflows, keyed by
+ * StatCite's edition string. ENUMERATED from the live `/structure/dataflow`
+ * listing (2026-08-10), never derived by pattern — the same discipline as
+ * BIS_POLICY_RATE_AREAS. Only editions actually present here are attempted;
+ * everything else goes straight to DBnomics rather than guessing a flow id
+ * and taking a 404 (or worse, a 200-with-no-series) on the way past.
+ *
+ * The value is the agency/flow/version path segment: vintage flows are
+ * versioned 1.0.0, the live WEO flow is 9.0.0.
+ */
+export const IMF_VINTAGE_FLOWS: Readonly<Record<string, string>> = {
+  "2025-10": "IMF.RES/WEO_2025_OCT_VINTAGE/1.0.0",
+};
+
+/** Fetch one dated WEO vintage straight from api.imf.org (SDMX 3.0). */
+async function indicatorFromImfVintage(
+  ctx: Ctx,
+  def: IndicatorDef,
+  country: Country,
+  edition: string,
+  flow: string,
+  codeTemplate: string,
+  opts: SeriesOpts,
+): Promise<SeriesResult> {
+  // DBnomics codes are "{ISO3}.NGDP_RPCH.pcent_change"; the IMF's own code is
+  // the middle token, and its key order is COUNTRY.INDICATOR.FREQUENCY.
+  const imfCode = codeTemplate.split(".")[1];
+  if (!imfCode) throw new Error(`cannot derive an IMF indicator code from '${codeTemplate}'`);
+  const key = `${country.iso3}.${imfCode}.A`;
+  const s = await fetchSdmxSeries("IMF", flow, key, { now: ctx.now ? ctx.now() : undefined });
+  if (s.observations.length === 0) {
+    throw new Error(`IMF vintage ${flow} returned no observations for ${key}`);
+  }
+  const [, flowId] = flow.split("/");
+  const m = /^WEO_(\d{4})_([A-Z]{3})_VINTAGE$/.exec(flowId ?? "");
+  // No "IMF" prefix: the attribution string is built as "Source: International
+  // Monetary Fund, <dataset>, <link>", so a prefixed label reads "International
+  // Monetary Fund, IMF World Economic Outlook" (observed live 2026-08-10).
+  const label = m
+    ? `World Economic Outlook, ${m[2] === "APR" ? "April" : m[2] === "OCT" ? "October" : m[2]} ${m[1]} vintage`
+    : (flowId ?? flow);
+  const sourceUrl = `https://api.imf.org/external/sdmx/3.0/data/dataflow/${flow}/${key}?format=sdmx-json`;
+  return finishSeries(
+    {
+      series_id: `imf-sdmx/${flowId}/${key}`,
+      name: def.label,
+      country: { iso3: country.iso3, name: country.name },
+      unit: def.unit,
+      observations: s.observations,
+      citation: sdmxCitation(ctx, {
+        provider: "IMF",
+        flow: flowId ?? flow,
+        key,
+        seriesName: `${def.label} — ${country.name}`,
+        sourceUrl,
+        apiUrl: s.apiUrl,
+        datasetLabel: label,
+      }),
+      notes: [
+        `Served from the IMF's own dated vintage dataflow (${flowId}) rather than an aggregator, so it reflects the ${edition} edition exactly as the IMF published it.`,
+      ],
+    },
+    opts,
+  );
 }
 
 export async function getIndicatorAsOf(

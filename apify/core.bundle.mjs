@@ -272,8 +272,28 @@ function resolveCountry(input, opts = {}) {
     const hits = NORM_NAMES.filter(({ n: cn }) => cn.includes(n) || n.includes(cn));
     if (hits.length === 1) return hits[0].c;
   }
+  if (n.length >= 5) {
+    const hits = NORM_NAMES.filter(({ n: cn }) => Math.abs(cn.length - n.length) <= 1 && editDistanceLeq1(n, cn));
+    const uniq = [...new Set(hits.map((h) => h.c.iso3))];
+    if (uniq.length === 1) return hits[0].c;
+  }
   if (!opts.strict && /^[A-Z]{3}$/.test(upper)) return { iso3: upper, iso2: upper.slice(0, 2), name: upper };
   return null;
+}
+function editDistanceLeq1(a, b) {
+  if (a === b) return true;
+  const [s, t] = a.length <= b.length ? [a, b] : [b, a];
+  if (t.length - s.length > 1) return false;
+  if (s.length === t.length) {
+    let i2 = 0;
+    while (i2 < s.length && s[i2] === t[i2]) i2++;
+    if (i2 === s.length) return true;
+    if (s.slice(i2 + 1) === t.slice(i2 + 1)) return true;
+    return s[i2] === t[i2 + 1] && s[i2 + 1] === t[i2] && s.slice(i2 + 2) === t.slice(i2 + 2);
+  }
+  let i = 0;
+  while (i < s.length && s[i] === t[i]) i++;
+  return s.slice(i) === t.slice(i + 1);
 }
 function suggestCountries(input, limit = 5) {
   const n = norm(input);
@@ -488,6 +508,78 @@ var INDICATORS = [
     kind: "percent",
     wb: "BX.KLT.DINV.WD.GD.ZS",
     synonyms: ["fdi", "foreign direct investment", "fdi inflows"]
+  },
+  // SDMX sources (BIS, ECB). Policy rates fill the hole left by FRED's
+  // permanent disablement — BIS WS_CBPOL covers ~38 central banks in one
+  // flow, licence-clean, no key. Licence ledger entries live in core/sources.ts.
+  {
+    key: "policy_rate",
+    label: "Central bank policy rate",
+    unit: "% per annum",
+    kind: "percent",
+    sdmx: {
+      provider: "BIS",
+      flow: "WS_CBPOL",
+      key: "M.{ISO2}",
+      sourceUrl: "https://data.bis.org/topics/CBPOL"
+    },
+    synonyms: ["policy rate", "interest rate", "central bank rate", "base rate", "fed funds", "bank rate", "monetary policy rate"],
+    notes: "BIS central bank policy rates \u2014 the rate that best captures each monetary authority's policy stance. Monthly. Coverage is the 49 economies the BIS compiles (enumerated from the dataflow itself, including the euro area); economies outside that set return an honest no-published-data response rather than a substitute."
+  },
+  {
+    key: "euro_area_hicp",
+    label: "Euro area HICP inflation (annual rate)",
+    unit: "%",
+    kind: "percent",
+    sdmx: {
+      provider: "ECB",
+      flow: "HICP",
+      key: "M.U2.N.000000.4D0.ANR",
+      sourceUrl: "https://data.ecb.europa.eu/data/datasets/ICP"
+    },
+    synonyms: ["hicp", "euro area inflation", "eurozone inflation", "harmonised inflation"],
+    notes: `Monthly euro-area harmonised inflation from the ECB's current HICP dataflow. Euro-area aggregate only (request with country="euro area"); for national annual CPI use inflation_cpi.`
+  },
+  {
+    key: "tourism_receipts_exports",
+    label: "International tourism, receipts (% of total exports)",
+    unit: "% of total exports",
+    kind: "percent",
+    wb: "ST.INT.RCPT.XP.ZS",
+    synonyms: ["tourism receipts", "tourism exports", "tourism share of exports", "tourism dependence"],
+    notes: "A headline exposure measure for tourism-dependent economies (most small island developing states)."
+  },
+  // External debt (World Bank International Debt Statistics — same
+  // api.worldbank.org v2 endpoint and CC BY 4.0 summary terms as WDI; licence
+  // ledger verdict recorded in docs/RESEARCH.md closed verdicts, 2026-08-07).
+  // IDS covers low- and middle-income economies; high-income economies return
+  // an honest no-published-data response rather than a guess.
+  {
+    key: "external_debt_stock_usd",
+    label: "External debt stocks, total (DOD, current US$)",
+    unit: "current US$",
+    kind: "level",
+    wb: "DT.DOD.DECT.CD",
+    synonyms: ["external debt", "external debt stock", "total external debt", "foreign debt"],
+    notes: "World Bank International Debt Statistics; reported for low- and middle-income economies (high-income economies are not covered by IDS)."
+  },
+  {
+    key: "external_debt_service_usd",
+    label: "Total debt service on external debt (TDS, current US$)",
+    unit: "current US$",
+    kind: "level",
+    wb: "DT.TDS.DECT.CD",
+    synonyms: ["debt service", "external debt service", "debt repayments"],
+    notes: "World Bank International Debt Statistics; low- and middle-income economies only."
+  },
+  {
+    key: "debt_service_exports_pct",
+    label: "Total debt service (% of exports of goods, services and primary income)",
+    unit: "% of exports",
+    kind: "percent",
+    wb: "DT.TDS.DECT.EX.ZS",
+    synonyms: ["debt service ratio", "debt service to exports", "debt burden"],
+    notes: "World Bank International Debt Statistics; the classic debt-burden ratio for low- and middle-income economies."
   },
   {
     key: "remittances_gdp",
@@ -792,12 +884,16 @@ var UpstreamError = class extends Error {
     this.status = status;
   }
 };
-async function doFetch(url, timeoutMs, ttlSeconds) {
+async function doFetch(url, timeoutMs, ttlSeconds, accept) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, {
-      headers: { "user-agent": USER_AGENT, accept: "application/json" },
+      // `accept` is overridable because some official APIs content-negotiate
+      // JSON only via a vendor media type: BIS returns SDMX **XML** for a plain
+      // `application/json` Accept, and 200-with-XML is a silent-corruption
+      // class, not an error class.
+      headers: { "user-agent": USER_AGENT, accept: accept ?? "application/json" },
       redirect: "follow",
       signal: controller.signal,
       // Cloudflare edge cache for upstream GETs (effective on custom domains; ignored elsewhere).
@@ -819,7 +915,8 @@ var ShapeError = class extends Error {
 async function fetchJson(url, {
   ttlSeconds = 21600,
   timeoutMs = 8e3,
-  validate
+  validate,
+  accept
 } = {}) {
   const hit = mem.get(url);
   const now = Date.now();
@@ -829,7 +926,7 @@ async function fetchJson(url, {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const isLastAttempt = attempt === maxAttempts - 1;
     try {
-      const res = await doFetch(url, timeoutMs, ttlSeconds);
+      const res = await doFetch(url, timeoutMs, ttlSeconds, accept);
       if (res.status === 429 || res.status >= 500) {
         lastErr = new UpstreamError(`Upstream returned HTTP ${res.status}`, url, res.status);
         await res.body?.cancel();
@@ -1048,6 +1145,16 @@ function expectedWeoEdition(now = /* @__PURE__ */ new Date()) {
   if (m >= 5) return `${y}-04`;
   return `${y - 1}-10`;
 }
+function previousWeoEdition(edition) {
+  const m = edition.match(/^(\d{4})-(04|10)$/);
+  if (!m) throw new Error(`not a WEO edition: '${edition}'`);
+  return m[2] === "10" ? `${m[1]}-04` : `${parseInt(m[1], 10) - 1}-10`;
+}
+function nextExpectedWeoEditionLabel(now = /* @__PURE__ */ new Date()) {
+  const cur = expectedWeoEdition(now);
+  const m = cur.match(/^(\d{4})-(04|10)$/);
+  return m[2] === "10" ? `April ${parseInt(m[1], 10) + 1}` : `October ${m[1]}`;
+}
 
 // ../server/src/adapters/datamapper.ts
 var BASE4 = "https://www.imf.org/external/datamapper/api/v1";
@@ -1192,12 +1299,28 @@ async function fetchDataMapperSeries(ctx, code, dataset, countryIso3, now = /* @
 
 // ../server/src/core/citations.ts
 var FRED_NOTICE = "This product uses the FRED\xAE API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.";
-var IMF_LICENSE = "Use and redistribution are subject to the IMF's data-usage terms, including attribution and downstream-user conditions; commercial reuse may require IMF permission \u2014 consult the IMF terms directly";
+var IMF_LICENSE = 'Published IMF statistical data may be copied, redistributed, and used (including in derivative works) with attribution to the IMF as source. Conditions: attribute as "Source: International Monetary Fund, <database>, <link>"; do not alter the data in ways affecting its accuracy, and state explicitly if it is materially transformed; anyone redistributing it downstream must take reasonable efforts to communicate these terms to their own users; and if sold as a standalone product, purchasers must be told the data is available free of charge from the IMF. Some statistical products incorporate third-party information under separate terms';
+function bibtexEscape(s) {
+  return s.replace(/([&%$#_])/g, "\\$1");
+}
+function withExports(c) {
+  const year = c.retrieved_at.slice(0, 4);
+  const key = `${c.source.split(/[^A-Za-z]/)[0].toLowerCase() || "statcite"}_${c.series_id.replace(/[^A-Za-z0-9]+/g, "_")}_${year}`;
+  const bibtex = `@misc{${key},
+  author = {{${c.source}}},
+  title = {{${bibtexEscape(c.dataset)}: ${bibtexEscape(c.series_name)}}},
+  year = {${year}},
+  url = {${c.source_url}},
+  note = {Series ${bibtexEscape(c.series_id)}. Retrieved ${c.retrieved_at} via StatCite. ${bibtexEscape(c.attribution)}}
+}`;
+  const apa = `${c.source}. (n.d.). ${c.series_name} [Data set]. ${c.dataset}. Retrieved ${c.retrieved_at}, from ${c.source_url}`;
+  return { ...c, export_formats: { bibtex, apa } };
+}
 function worldBankCitation(ctx, opts) {
   const loc = opts.iso3 ? `?locations=${opts.iso3}` : "";
   const sourceUrl = `https://data.worldbank.org/indicator/${opts.indicatorId}${loc}`;
   const date = today(ctx);
-  return {
+  return withExports({
     source: "World Bank",
     dataset: "World Development Indicators",
     series_id: opts.indicatorId,
@@ -1208,13 +1331,13 @@ function worldBankCitation(ctx, opts) {
     attribution: `The World Bank: World Development Indicators: ${opts.indicatorName}`,
     retrieved_at: date,
     citation_text: `World Bank, World Development Indicators, series ${opts.indicatorId} (${opts.indicatorName})${opts.lastUpdated ? `, data last updated ${opts.lastUpdated}` : ""}. Retrieved ${date} via StatCite. ${sourceUrl}`
-  };
+  });
 }
 function dbnomicsCitation(ctx, opts) {
   const sourceUrl = `https://db.nomics.world/${opts.providerCode}/${encodeURIComponent(opts.datasetCode)}/${encodeURIComponent(opts.seriesCode)}`;
   const date = today(ctx);
   const isImf = opts.providerCode === "IMF";
-  return {
+  return withExports({
     source: opts.providerName,
     dataset: opts.datasetName,
     series_id: `${opts.providerCode}/${opts.datasetCode}/${opts.seriesCode}`,
@@ -1222,17 +1345,17 @@ function dbnomicsCitation(ctx, opts) {
     source_url: sourceUrl,
     api_url: opts.apiUrl,
     license: isImf ? IMF_LICENSE : `${opts.providerName} terms apply; retrieved via DBnomics (open aggregator)`,
-    attribution: isImf ? "Source: International Monetary Fund" : `Source: ${opts.providerName} (via DBnomics)`,
+    attribution: isImf ? `Source: International Monetary Fund, ${opts.datasetName}, ${sourceUrl}` : `Source: ${opts.providerName} (via DBnomics)`,
     retrieved_at: date,
     citation_text: `${opts.providerName}, ${opts.datasetName}, series ${opts.seriesCode} (${opts.seriesName}). Retrieved ${date} via DBnomics/StatCite. ${sourceUrl}`
-  };
+  });
 }
 function imfDataMapperCitation(ctx, opts) {
   const date = today(ctx);
   const datasetName = opts.dataset === "FM" ? "IMF Fiscal Monitor" : "IMF World Economic Outlook";
   const alreadyNamed = /world economic outlook|fiscal monitor/i.test(opts.editionLabel);
   const datasetSuffix = alreadyNamed ? "" : ` (${datasetName})`;
-  return {
+  return withExports({
     source: "International Monetary Fund",
     dataset: opts.editionLabel,
     series_id: `imf/${opts.code}`,
@@ -1240,16 +1363,19 @@ function imfDataMapperCitation(ctx, opts) {
     source_url: opts.sourceUrl,
     api_url: opts.apiUrl,
     license: IMF_LICENSE,
-    attribution: "Source: International Monetary Fund",
+    // The IMF's terms specify this exact attribution shape: "Source:
+    // International Monetary Fund, Database Name, <<link to the dataset>>."
+    // A bare "Source: IMF" omits the database and link the terms ask for.
+    attribution: `Source: International Monetary Fund, ${opts.editionLabel}, ${opts.sourceUrl}`,
     retrieved_at: date,
     citation_text: `International Monetary Fund, ${opts.editionLabel}${datasetSuffix}, ${opts.seriesName}, series ${opts.code}. Retrieved ${date} via the IMF DataMapper API/StatCite. ${opts.sourceUrl}`,
     ...opts.lastModified ? { notices: [`IMF data load timestamp: ${opts.lastModified} UTC.`] } : {}
-  };
+  });
 }
 function fredCitation(ctx, opts) {
   const sourceUrl = `https://fred.stlouisfed.org/series/${opts.seriesId}`;
   const date = today(ctx);
-  return {
+  return withExports({
     source: "Federal Reserve Bank of St. Louis (FRED)",
     dataset: "FRED, Federal Reserve Economic Data",
     series_id: opts.seriesId,
@@ -1261,12 +1387,12 @@ function fredCitation(ctx, opts) {
     retrieved_at: date,
     citation_text: `Federal Reserve Bank of St. Louis, FRED, series ${opts.seriesId} (${opts.seriesName}). Retrieved ${date} via StatCite. ${sourceUrl}`,
     notices: [FRED_NOTICE]
-  };
+  });
 }
 function ecbFxCitation(ctx, opts) {
   const date = today(ctx);
   const sourceUrl = "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html";
-  return {
+  return withExports({
     source: "European Central Bank",
     dataset: "Euro foreign exchange reference rates (via Frankfurter)",
     series_id: `ECB/${opts.base}${opts.quote}`,
@@ -1280,7 +1406,163 @@ function ecbFxCitation(ctx, opts) {
     notices: [
       "ECB reference rates are indicative and 'for information purposes'; they are not transaction rates."
     ]
+  });
+}
+function sdmxCitation(ctx, opts) {
+  const date = today(ctx);
+  const source = opts.provider === "BIS" ? "Bank for International Settlements" : opts.provider === "IMF" ? "International Monetary Fund" : "European Central Bank";
+  const dataset = opts.provider === "BIS" ? `BIS ${opts.flow}` : opts.provider === "IMF" ? opts.datasetLabel ?? opts.flow : `ECB Data Portal ${opts.flow}`;
+  return withExports({
+    source,
+    dataset,
+    series_id: `${opts.provider.toLowerCase()}/${opts.flow}/${opts.key}`,
+    series_name: opts.seriesName,
+    source_url: opts.sourceUrl,
+    api_url: opts.apiUrl,
+    license: opts.provider === "BIS" ? "BIS statistics may be reproduced and redistributed with attribution; see the BIS terms and conditions for statistics" : opts.provider === "IMF" ? IMF_LICENSE : "ECB content may be reproduced with attribution; see the ECB disclaimer and copyright notice",
+    attribution: opts.provider === "BIS" ? "Source: Bank for International Settlements" : opts.provider === "IMF" ? (
+      // Same shape the IMF's terms specify for every IMF citation here.
+      `Source: International Monetary Fund, ${dataset}, ${opts.sourceUrl}`
+    ) : "Source: European Central Bank",
+    retrieved_at: date,
+    citation_text: `${source}, ${dataset}, series ${opts.key} (${opts.seriesName}). Retrieved ${date} via StatCite. ${opts.sourceUrl}`
+  });
+}
+
+// ../server/src/adapters/sdmx.ts
+var BIS_POLICY_RATE_AREAS = {
+  ARG: "AR",
+  AUS: "AU",
+  AUT: "AT",
+  BEL: "BE",
+  BRA: "BR",
+  CAN: "CA",
+  CHE: "CH",
+  CHL: "CL",
+  CHN: "CN",
+  COL: "CO",
+  CZE: "CZ",
+  DEU: "DE",
+  DNK: "DK",
+  ESP: "ES",
+  FRA: "FR",
+  GBR: "GB",
+  GRC: "GR",
+  HKG: "HK",
+  HRV: "HR",
+  HUN: "HU",
+  IDN: "ID",
+  IND: "IN",
+  ISL: "IS",
+  ISR: "IL",
+  ITA: "IT",
+  JPN: "JP",
+  KOR: "KR",
+  KWT: "KW",
+  MAR: "MA",
+  MEX: "MX",
+  MKD: "MK",
+  MYS: "MY",
+  NLD: "NL",
+  NOR: "NO",
+  NZL: "NZ",
+  PER: "PE",
+  PHL: "PH",
+  POL: "PL",
+  PRT: "PT",
+  ROU: "RO",
+  RUS: "RU",
+  SAU: "SA",
+  SRB: "RS",
+  SWE: "SE",
+  THA: "TH",
+  TUR: "TR",
+  USA: "US",
+  ZAF: "ZA",
+  // The euro area: BIS "XM", StatCite ISO3 "EMU". This single line is the bug fix.
+  EMU: "XM"
+};
+function buildUrl(provider, flow, key, lastN) {
+  if (provider === "BIS") {
+    return `https://stats.bis.org/api/v2/data/dataflow/BIS/${flow}/1.0/${key}?lastNObservations=${lastN}&format=sdmx-json`;
+  }
+  if (provider === "IMF") {
+    return `https://api.imf.org/external/sdmx/3.0/data/dataflow/${flow}/${key}?format=sdmx-json`;
+  }
+  return `https://data-api.ecb.europa.eu/service/data/${flow}/${key}?format=jsondata&lastNObservations=${lastN}`;
+}
+function stalenessBudgetMonths(freq) {
+  return freq === "D" ? 2 : freq === "M" ? 4 : 18;
+}
+function monthsBetween(latestPeriod, now) {
+  const m = latestPeriod.match(/^(\d{4})-?(\d{2})?/);
+  if (!m) return 0;
+  const y = parseInt(m[1], 10);
+  const mo = m[2] ? parseInt(m[2], 10) : 12;
+  return (now.getUTCFullYear() - y) * 12 + (now.getUTCMonth() + 1 - mo);
+}
+async function fetchSdmxSeries(provider, flow, key, opts = {}) {
+  const lastN = opts.lastN ?? 60;
+  const apiUrl = buildUrl(provider, flow, key, lastN);
+  const body = await fetchJson(apiUrl, {
+    ttlSeconds: opts.ttlSeconds ?? 3600,
+    timeoutMs: 8e3,
+    // BIS content-negotiates SDMX-JSON ONLY via this vendor media type; with a
+    // plain application/json Accept it returns XML with a 200. The URL also
+    // carries ?format=sdmx-json, which works but is absent from the published
+    // OpenAPI spec — the header is the contractual path, the param the belt.
+    ...provider === "BIS" ? { accept: "application/vnd.sdmx.data+json" } : {},
+    // Shape validation doubles as the XML guard: an XML body never parses to
+    // an object carrying these keys, and a 200-with-XML would otherwise be
+    // cached and reparsed forever.
+    validate: (d) => {
+      const root2 = pickRoot(d);
+      return Boolean(root2 && root2.dataSets && structureOf(root2));
+    }
+  });
+  const root = pickRoot(body);
+  if (!root) throw new Error(`${provider} returned an unexpected SDMX payload shape for ${flow}/${key}`);
+  const structure = structureOf(root);
+  const periods = structure?.dimensions?.observation?.[0]?.values ?? [];
+  const seriesMap = root.dataSets?.[0]?.series ?? {};
+  if (Object.keys(seriesMap).length === 0) {
+    throw new Error(
+      `${provider} returned 200 but no series for ${flow}/${key} \u2014 the series key is not valid for this dataflow (usually a wrong dimension order or an unknown code). Treated as a request error, not as an absence of published data.`
+    );
+  }
+  const first = Object.values(seriesMap)[0];
+  const obsMap = first?.observations ?? {};
+  const observations = Object.entries(obsMap).map(([idx, tuple]) => {
+    const p = periods[Number(idx)];
+    const period = p?.value ?? p?.id;
+    const raw = Array.isArray(tuple) ? tuple[0] : void 0;
+    const value = raw == null || raw === "" ? null : Number(raw);
+    return { period: period ?? "", value: value != null && Number.isFinite(value) ? value : null };
+  }).filter((o) => o.period).sort((a, b) => a.period < b.period ? -1 : a.period > b.period ? 1 : 0);
+  const out = {
+    observations,
+    name: structure?.name,
+    apiUrl
   };
+  const latest = provider === "IMF" ? void 0 : observations.filter((o) => o.value != null).at(-1);
+  if (latest) {
+    const lag = monthsBetween(latest.period, opts.now ?? /* @__PURE__ */ new Date());
+    const budget = stalenessBudgetMonths(key.split(".")[0] ?? "M");
+    if (lag > budget) {
+      out.stalenessNote = `Upstream freshness warning: the newest published observation for this ${provider} series is ${latest.period}, about ${lag} months old, beyond the ${budget}-month expectation for its frequency. The source is returning data successfully but may have stopped updating this flow \u2014 treat the latest value as possibly superseded and check the provider directly.`;
+    }
+  }
+  return out;
+}
+function structureOf(root) {
+  return root?.structure ?? (Array.isArray(root?.structures) ? root.structures[0] : void 0);
+}
+function pickRoot(d) {
+  if (!d || typeof d !== "object") return void 0;
+  const any = d;
+  if (any.data && any.data.dataSets) return any.data;
+  if (any.dataSets) return any;
+  return void 0;
 }
 
 // ../server/src/core/series.ts
@@ -1326,9 +1608,18 @@ function finishSeries(result, opts) {
         { series_id: result.series_id, transform }
       );
     }
+    const allValued = result.observations.filter((o) => o.value != null);
+    if (allValued.length === 0) {
+      throw new ToolError(
+        `${result.name ?? result.series_id} has no published values for ${result.country ? result.country.name : "this query"} at the source. This is a statement about what the source publishes, not a data error \u2014 some economies are not covered by this series.`,
+        { series_id: result.series_id, no_published_data: true }
+      );
+    }
+    const availStart = allValued[0].period;
+    const availEnd = allValued[allValued.length - 1].period;
     throw new ToolError(
-      `No observations available for ${result.series_id}${result.country ? ` (${result.country.name})` : ""} in the requested window` + (opts.start || opts.end ? ` ${opts.start ?? "\u2026"}\u2013${opts.end ?? "\u2026"}` : "") + ". Try widening the period.",
-      { series_id: result.series_id }
+      `No observations available for ${result.series_id}${result.country ? ` (${result.country.name})` : ""} in the requested window` + (opts.start || opts.end ? ` ${opts.start ?? "\u2026"}\u2013${opts.end ?? "\u2026"}` : "") + `. Published data exists for ${availStart}\u2013${availEnd} \u2014 adjust the year range.`,
+      { series_id: result.series_id, no_published_data: false, available_range: { start: availStart, end: availEnd } }
     );
   }
   result.observations = obs;
@@ -1530,24 +1821,66 @@ async function indicatorFromFred(ctx, def, opts) {
   };
   return finishSeries(result, opts);
 }
-async function getIndicator(ctx, key, countryInput, opts = {}) {
-  const def = getIndicatorDef(key);
-  if (!def) {
-    const near = searchIndicatorDefs(key, 5).map((m) => m.def.key);
+async function indicatorFromSdmx(ctx, def, country, opts) {
+  const cfg = def.sdmx;
+  const perCountry = cfg.key.includes("{ISO2}");
+  if (!perCountry && country.iso3 !== "EMU" && country.iso3 !== "XM") {
     throw new ToolError(
-      `Unknown indicator '${key}'.` + (near.length ? ` Closest matches: ${near.join(", ")}.` : "") + " Use search_indicators to browse the registry, or pass an explicit series id like 'worldbank/NY.GDP.MKTP.KD.ZG'.",
-      { input: key, suggestions: near }
+      `'${def.key}' is a euro-area aggregate series and is only published for the euro area \u2014 request it with country="euro area".`,
+      { indicator: def.key, country: country.iso3 }
     );
   }
-  const country = requireCountry(countryInput);
-  if (!def.wb && !def.dbnomics && def.fred) {
-    if (country.iso3 !== "USA") {
-      throw new ToolError(`Indicator '${def.key}' is a US-specific series (FRED ${def.fred}).`, { indicator: def.key });
+  let areaCode;
+  if (perCountry) {
+    areaCode = cfg.provider === "BIS" ? BIS_POLICY_RATE_AREAS[country.iso3] : country.iso2;
+    if (!areaCode) {
+      throw new ToolError(
+        `${cfg.provider} does not publish ${def.label} for ${country.name}. This is a coverage fact at the source, not a lookup failure \u2014 the BIS compiles policy rates for ${Object.keys(BIS_POLICY_RATE_AREAS).length} economies.`,
+        { indicator: def.key, country: country.iso3, no_published_data: true }
+      );
     }
-    return indicatorFromFred(ctx, def, opts);
   }
+  const key = cfg.key.replace("{ISO2}", areaCode ?? "");
+  const s = await fetchSdmxSeries(cfg.provider, cfg.flow, key, { now: ctx.now ? ctx.now() : void 0 });
+  if (s.observations.length === 0) {
+    throw new ToolError(
+      `${cfg.provider} publishes no ${def.label} series for ${country.name}. This is a coverage fact at the source, not a lookup failure.`,
+      { indicator: def.key, country: country.iso3, no_published_data: true }
+    );
+  }
+  const notes = [];
+  if (s.stalenessNote) notes.push(s.stalenessNote);
+  return finishSeries(
+    {
+      series_id: `${cfg.provider.toLowerCase()}/${cfg.flow}/${key}`,
+      name: def.label,
+      country: { iso3: country.iso3, name: country.name },
+      unit: def.unit,
+      frequency: key.startsWith("D.") ? "daily" : key.startsWith("M.") ? "monthly" : void 0,
+      observations: s.observations,
+      citation: sdmxCitation(ctx, {
+        provider: cfg.provider,
+        flow: cfg.flow,
+        key,
+        seriesName: s.name ? `${s.name} \u2014 ${country.name}` : `${def.label} \u2014 ${country.name}`,
+        sourceUrl: cfg.sourceUrl,
+        apiUrl: s.apiUrl
+      }),
+      notes
+    },
+    opts
+  );
+}
+function buildSourceAttempts(ctx, def, country, opts) {
   const preferDbnomics = def.dbnomics && (!def.wb || DB_PRIMARY.has(def.key));
   const attempts = [];
+  if (def.sdmx) {
+    attempts.push({
+      label: def.sdmx.provider === "BIS" ? "BIS statistics" : "ECB Data Portal",
+      run: () => indicatorFromSdmx(ctx, def, country, opts)
+    });
+    return attempts;
+  }
   const pushImfChain = () => {
     if (def.datamapper) {
       attempts.push({ label: "IMF DataMapper API", run: () => indicatorFromDataMapper(ctx, def, country, opts) });
@@ -1566,8 +1899,28 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
   if (def.fred && country.iso3 === "USA" && fredAvailable(ctx) && attempts.length === 0) {
     attempts.push({ label: "FRED", run: () => indicatorFromFred(ctx, def, opts) });
   }
+  return attempts;
+}
+async function getIndicator(ctx, key, countryInput, opts = {}) {
+  const def = getIndicatorDef(key);
+  if (!def) {
+    const near = searchIndicatorDefs(key, 5).map((m) => m.def.key);
+    throw new ToolError(
+      `Unknown indicator '${key}'.` + (near.length ? ` Closest matches: ${near.join(", ")}.` : "") + " Use search_indicators to browse the registry, or pass an explicit series id like 'worldbank/NY.GDP.MKTP.KD.ZG'.",
+      { input: key, suggestions: near }
+    );
+  }
+  const country = requireCountry(countryInput);
+  if (!def.wb && !def.dbnomics && def.fred) {
+    if (country.iso3 !== "USA") {
+      throw new ToolError(`Indicator '${def.key}' is a US-specific series (FRED ${def.fred}).`, { indicator: def.key });
+    }
+    return indicatorFromFred(ctx, def, opts);
+  }
+  const attempts = buildSourceAttempts(ctx, def, country, opts);
   const tried = opts.strictSource ? attempts.slice(0, 1) : attempts;
   const errors = [];
+  let absenceDetails;
   let firstErrorWasTransient = false;
   let anyErrorWasTransient = false;
   for (let i = 0; i < tried.length; i++) {
@@ -1588,6 +1941,9 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
       if (i === 0) firstErrorWasTransient = transient;
       if (transient) anyErrorWasTransient = true;
       errors.push(e instanceof Error ? e.message : String(e));
+      if (e instanceof ToolError && e.details && typeof e.details === "object" && "no_published_data" in e.details) {
+        if (!absenceDetails) absenceDetails = e.details;
+      }
     }
   }
   if (opts.strictSource && attempts.length > tried.length) {
@@ -1598,11 +1954,73 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
   }
   throw new ToolError(
     `Could not retrieve '${def.key}' for ${country.name}: ${errors.join(" | ")}`,
-    { indicator: def.key, country: country.iso3 }
+    { indicator: def.key, country: country.iso3, ...absenceDetails ?? {} }
   );
 }
 function asOfCapableIndicators() {
   return INDICATORS.filter((d) => d.dbnomics).map((d) => d.key);
+}
+async function getIndicatorAtEdition(ctx, def, country, edition, opts = {}) {
+  if (!def.dbnomics) {
+    throw new ToolError(`'${def.key}' has no dated IMF WEO source; editions cannot be pinned.`, { indicator: def.key });
+  }
+  const [provider, datasetTemplate, codeTemplate] = def.dbnomics;
+  const dataset = datasetTemplate.replace(/:latest$/, `:${edition}`);
+  const imfVintage = IMF_VINTAGE_FLOWS[edition];
+  if (imfVintage) {
+    try {
+      return await indicatorFromImfVintage(ctx, def, country, edition, imfVintage, codeTemplate, opts);
+    } catch {
+    }
+  }
+  const pinnedDef = { ...def, dbnomics: [provider, dataset, codeTemplate] };
+  try {
+    return await indicatorFromDbnomics(ctx, pinnedDef, country, opts);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new ToolError(
+      `Could not retrieve the ${dataset} vintage of '${def.key}' for ${country.name}: ${msg} DBnomics's dated WEO editions have been confirmed to exist back to 2010-04; a date far outside that range, or a future date past the current edition, may not have a matching edition ingested.`,
+      { indicator: def.key, country: country.iso3, edition }
+    );
+  }
+}
+var IMF_VINTAGE_FLOWS = {
+  "2025-10": "IMF.RES/WEO_2025_OCT_VINTAGE/1.0.0"
+};
+async function indicatorFromImfVintage(ctx, def, country, edition, flow, codeTemplate, opts) {
+  const imfCode = codeTemplate.split(".")[1];
+  if (!imfCode) throw new Error(`cannot derive an IMF indicator code from '${codeTemplate}'`);
+  const key = `${country.iso3}.${imfCode}.A`;
+  const s = await fetchSdmxSeries("IMF", flow, key, { now: ctx.now ? ctx.now() : void 0 });
+  if (s.observations.length === 0) {
+    throw new Error(`IMF vintage ${flow} returned no observations for ${key}`);
+  }
+  const [, flowId] = flow.split("/");
+  const m = /^WEO_(\d{4})_([A-Z]{3})_VINTAGE$/.exec(flowId ?? "");
+  const label = m ? `World Economic Outlook, ${m[2] === "APR" ? "April" : m[2] === "OCT" ? "October" : m[2]} ${m[1]} vintage` : flowId ?? flow;
+  const sourceUrl = `https://api.imf.org/external/sdmx/3.0/data/dataflow/${flow}/${key}?format=sdmx-json`;
+  return finishSeries(
+    {
+      series_id: `imf-sdmx/${flowId}/${key}`,
+      name: def.label,
+      country: { iso3: country.iso3, name: country.name },
+      unit: def.unit,
+      observations: s.observations,
+      citation: sdmxCitation(ctx, {
+        provider: "IMF",
+        flow: flowId ?? flow,
+        key,
+        seriesName: `${def.label} \u2014 ${country.name}`,
+        sourceUrl,
+        apiUrl: s.apiUrl,
+        datasetLabel: label
+      }),
+      notes: [
+        `Served from the IMF's own dated vintage dataflow (${flowId}) rather than an aggregator, so it reflects the ${edition} edition exactly as the IMF published it.`
+      ]
+    },
+    opts
+  );
 }
 async function getIndicatorAsOf(ctx, key, countryInput, asOfDate, opts = {}) {
   const def = getIndicatorDef(key);
@@ -1621,19 +2039,7 @@ async function getIndicatorAsOf(ctx, key, countryInput, asOfDate, opts = {}) {
   }
   const country = requireCountry(countryInput);
   const edition = expectedWeoEdition(asOfDate);
-  const [provider, datasetTemplate, codeTemplate] = def.dbnomics;
-  const dataset = datasetTemplate.replace(/:latest$/, `:${edition}`);
-  const asOfDef = { ...def, dbnomics: [provider, dataset, codeTemplate] };
-  let result;
-  try {
-    result = await indicatorFromDbnomics(ctx, asOfDef, country, opts);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    throw new ToolError(
-      `Could not retrieve the ${dataset} vintage of '${key}' for ${country.name} (resolved conservatively from as_of via the IMF's April/October publication calendar): ${msg} DBnomics's dated WEO editions have been confirmed to exist back to 2010-04; a date far outside that range, or a future date past the current edition, may not have a matching edition ingested.`,
-      { indicator: key, country: country.iso3, edition }
-    );
-  }
+  const result = await getIndicatorAtEdition(ctx, def, country, edition, opts);
   const isFmPrimary = key === "govt_revenue_gdp" || key === "govt_expenditure_gdp";
   const wbPrimary = Boolean(def.wb) && !DB_PRIMARY.has(key);
   const sourceInfo = {
@@ -1644,7 +2050,7 @@ async function getIndicatorAsOf(ctx, key, countryInput, asOfDate, opts = {}) {
   };
   const dateStr = asOfDate.toISOString().slice(0, 10);
   result.notes.push(
-    `Pinned to the ${dataset} vintage, resolved conservatively from ${dateStr} using the IMF's April/October publication calendar (month precision \u2014 this is historical IMF-vintage verification, not exact release-date resolution). The value reflects that edition and may differ from both earlier vintages and the currently published figure.`
+    `Pinned to the WEO:${edition} vintage, resolved conservatively from ${dateStr} using the IMF's April/October publication calendar (month precision \u2014 this is historical IMF-vintage verification, not exact release-date resolution). The value reflects that edition and may differ from both earlier vintages and the currently published figure.`
   );
   const month = asOfDate.getUTCMonth() + 1;
   if (month === 4 || month === 10) {
@@ -1780,7 +2186,7 @@ async function getSeries(ctx, seriesId, opts = {}) {
   );
 }
 function isDisabledDef(d) {
-  return !d.wb && !d.dbnomics && !d.datamapper;
+  return !d.wb && !d.dbnomics && !d.datamapper && !d.sdmx;
 }
 var FRED_DISABLED_REASON = "FRED is permanently disabled on this service (FRED's terms of use prohibit AI/ML use and redistribution of its content). This key always declines; use an active World Bank/IMF-backed key instead.";
 async function searchIndicators(ctx, query, opts = {}) {
@@ -1819,6 +2225,7 @@ function listRegistry() {
     const dmLabel = d.datamapper ? "IMF DataMapper API (current WEO/Fiscal Monitor)" : void 0;
     const dbLabel = d.dbnomics ? `${d.dbnomics[0]} ${d.dbnomics[1].replace(":latest", "")} (via DBnomics)` : void 0;
     const wbLabel = d.wb ? "World Bank WDI" : void 0;
+    const sdmxLabel = d.sdmx ? d.sdmx.provider === "BIS" ? "BIS statistics" : "ECB Data Portal" : void 0;
     const dbFirst = d.dbnomics && (!d.wb || DB_PRIMARY.has(d.key));
     const imfChain = [...dmLabel ? [dmLabel] : [], ...dbLabel ? [dbLabel] : []];
     const disabled = isDisabledDef(d);
@@ -1827,6 +2234,7 @@ function listRegistry() {
       label: d.label,
       unit: d.unit,
       sources: [
+        ...sdmxLabel ? [sdmxLabel] : [],
         ...dbFirst ? [...imfChain, ...wbLabel ? [wbLabel] : []] : [...wbLabel ? [wbLabel] : [], ...imfChain],
         // For active keys a fred field is INERT (never served); only surface the
         // FRED label on the disabled keys, where it explains why they decline.
@@ -2461,6 +2869,40 @@ async function verifyStat(ctx, p) {
     };
   }
   const { verdict, why } = judge(p.claimed_value, official, percentKind, p);
+  let revisionCheck;
+  if (verdict === "mismatch" && isRegistry && !p.as_of && !p.strict_source) {
+    const def = getIndicatorDef(p.indicator);
+    if (def?.dbnomics && p.country) {
+      const nowDate = ctx.now ? ctx.now() : /* @__PURE__ */ new Date();
+      const prevEdition = previousWeoEdition(expectedWeoEdition(nowDate));
+      const nextLabel = nextExpectedWeoEditionLabel(nowDate);
+      try {
+        const prev = await getIndicatorAtEdition(ctx, def, requireCountry(p.country), prevEdition, {
+          start: String(year - 1),
+          end: String(year + 1)
+        });
+        const prevObs = prev.observations.find((o) => o.period === period && o.value != null);
+        const prevValue = prevObs ? prevObs.value : null;
+        const matches = prevValue != null && judge(p.claimed_value, prevValue, percentKind, p).verdict !== "mismatch";
+        revisionCheck = {
+          status: "checked",
+          previous_edition: `WEO ${prevEdition}`,
+          previous_value: prevValue,
+          matches_previous_vintage: matches,
+          next_edition_expected: nextLabel,
+          note: matches ? `The claimed value matches the previous IMF vintage (WEO ${prevEdition}: ${prevValue}). The figure was likely accurate when written and has since been revised \u2014 treat this as a revision event, not necessarily an author error. Cite the current official value going forward.` : `The claim does not match the previous IMF vintage either (WEO ${prevEdition}: ${prevValue ?? "no value for this period"}).`
+        };
+        if (matches) diagnostics.push(revisionCheck.note);
+      } catch {
+        revisionCheck = {
+          status: "unavailable",
+          previous_edition: `WEO ${prevEdition}`,
+          next_edition_expected: nextLabel,
+          note: "The previous WEO edition could not be retrieved right now, so no revision judgment is offered."
+        };
+      }
+    }
+  }
   const unitText = result.unit ? ` ${result.unit}` : "";
   const projKind = /Fiscal Monitor/i.test(matched.note ?? "") ? "IMF Fiscal Monitor" : "IMF WEO";
   const officialLabel = isProjection ? `official (${projKind} projection)` : "official";
@@ -2481,6 +2923,7 @@ async function verifyStat(ctx, p) {
     country: result.country,
     citation: result.citation,
     notes,
+    ...revisionCheck ? { revision_check: revisionCheck } : {},
     ...result.fallback_used ? { fallback_used: true } : {},
     ...asOfResolved ? { as_of: asOfResolved } : {}
   };
@@ -2547,6 +2990,9 @@ var SOURCES = [
     coverage: "~1,400 annual indicators, 200+ economies, many from 1960",
     access: "No key; queried live from api.worldbank.org v2",
     license: "CC BY 4.0",
+    license_verdict: "served",
+    license_note: "Summary Terms of Use license datasets under CC BY 4.0: free to copy, distribute, adapt and build upon, including commercially, with attribution.",
+    license_verified_on: "2026-08-07",
     attribution_required: "The World Bank: World Development Indicators: <series name>",
     url: "https://data.worldbank.org",
     terms_url: "https://data.worldbank.org/summary-terms-of-use"
@@ -2557,9 +3003,25 @@ var SOURCES = [
     coverage: "Growth, fiscal, external indicators for 190+ economies, incl. estimates/projections; twice-yearly vintages (April/October, plus interim Updates). The primary path is the IMF's own DataMapper API \u2014 the current edition, verbatim edition label passed through unrewritten. If that path is unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF's release calendar; every response cites the resolved vintage, and a fallback that crosses editions is disclosed (verify_stat demotes such cases to cannot_verify rather than judging a claim against a superseded vintage). The actual/projection boundary is a heuristic derived from each response's own data horizon, not a per-country authoritative cutoff",
     access: "No key; queried live from www.imf.org/external/datamapper (primary) and api.db.nomics.world v22 (fallback)",
     license: IMF_LICENSE,
-    attribution_required: "Source: International Monetary Fund",
+    license_verdict: "served",
+    license_note: `The IMF's SPECIAL TERMS for published statistical data (effective 2024-10-11) expressly permit copying, redistribution, derivative works and use with attribution \u2014 a separate, more permissive regime than the general IMF Content terms, opening "Notwithstanding the general prohibition on the commercial use of IMF Content...". Named datasets include the WEO database, IFS, BOP, DOT, GFS, Primary Commodity Prices and data on the iData Portal. Conditions StatCite must meet: attribute in the IMF's format (database + link); never alter data in ways affecting accuracy, and declare material transformation; communicate these terms downstream to StatCite's own users (met via this ledger, /v1/sources and the licence field on every citation); and, where data is sold as a standalone product, tell purchasers it is free from the IMF (met in the Apify actor listing). Corrected 2026-08-10: the previous note claimed commercial reuse 'may require IMF permission', which conflated the Content regime with the Data regime and both understated the permission and overstated the restriction.`,
+    license_verified_on: "2026-08-10",
+    attribution_required: "Source: International Monetary Fund, <database name>, <link to the dataset>",
     url: "https://www.imf.org/en/Publications/WEO",
-    terms_url: "https://www.imf.org/external/terms.htm"
+    terms_url: "https://www.imf.org/en/About/copyright-and-terms"
+  },
+  {
+    id: "imf_sdmx_vintage",
+    name: "IMF \u2014 dated World Economic Outlook vintages (api.imf.org, SDMX 3.0)",
+    coverage: "Frozen dated WEO editions published as first-party SDMX 3.0 dataflows. Used ONLY by the dated-vintage path (as_of verification and the revision probe), never by the live chain, and only for editions enumerated in IMF_VINTAGE_FLOWS from the live dataflow listing. The IMF exposes a small number of recent vintages, not an archive \u2014 DBnomics remains the deep historical fallback back to 2010-04, so this source narrows the newest-edition gap rather than replacing the aggregator",
+    access: "No key and no account; api.imf.org serves this data anonymously (verified 2026-08-10). The sign-in wall on portal.api.imf.org guards the developer console, not the data",
+    license: IMF_LICENSE,
+    license_verdict: "served",
+    license_note: "Governed by the same IMF special terms for statistical data as imf_weo \u2014 the WEO database is named in them explicitly, and the delivery endpoint does not change the licence on the data. The api.imf.org service itself imposes no additional terms on anonymous use: the API-management terms sit behind the portal sign-in and govern subscription keys, which StatCite does not hold and does not need. Verified by direct anonymous call, 2026-08-10.",
+    license_verified_on: "2026-08-10",
+    attribution_required: "Source: International Monetary Fund, <database name>, <link to the dataset>",
+    url: "https://data.imf.org/",
+    terms_url: "https://www.imf.org/en/About/copyright-and-terms"
   },
   {
     id: "ecb_fx",
@@ -2567,19 +3029,12 @@ var SOURCES = [
     coverage: "~30 major currencies, daily since 1999",
     access: "No key; queried live from api.frankfurter.dev",
     license: "Published for information purposes; reuse with attribution; not transaction rates",
+    license_verdict: "served",
+    license_note: "ECB disclaimer permits reproduction with source attribution; the reference rates are explicitly informational, and StatCite labels them as reference (not transaction) rates.",
+    license_verified_on: "2026-07-25",
     attribution_required: "Source: European Central Bank euro foreign exchange reference rates",
     url: "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html",
     terms_url: "https://www.ecb.europa.eu/services/disclaimer/html/index.en.html"
-  },
-  {
-    id: "fred",
-    name: "Federal Reserve Bank of St. Louis \u2014 FRED (permanently disabled)",
-    coverage: "Not served. The FRED Services Terms of Use, clauses (p) and (q), prohibit use in connection with training or running AI/ML/LLM systems and prohibit storing, caching or archiving FRED content, which conflicts with how this service serves data \u2014 there is no compliant way to offer it here.",
-    access: "Disabled \u2014 the six US-only registry keys and the fred/ series id are recognized but always decline",
-    license: "FRED Services Terms of Use, clauses (p) and (q) \u2014 see https://fred.stlouisfed.org/legal/",
-    attribution_required: "Not applicable \u2014 no FRED content is served.",
-    url: "https://fred.stlouisfed.org",
-    terms_url: "https://fred.stlouisfed.org/legal/"
   },
   {
     id: "dbnomics",
@@ -2587,9 +3042,95 @@ var SOURCES = [
     coverage: "Tens of millions of series from 90+ official providers (IMF, OECD, Eurostat, ECB, BIS, national statistical offices)",
     access: "No key; open aggregator \u2014 upstream provider licenses flow through",
     license: "Per underlying provider",
+    license_verdict: "flow_through",
+    license_note: "Aggregator: each served series inherits its underlying provider's licence, and the citation object names that provider. StatCite only routes providers through DBnomics whose own terms permit it (currently IMF).",
+    license_verified_on: "2026-07-25",
     attribution_required: "Cite the underlying provider (StatCite citations do this automatically)",
     url: "https://db.nomics.world",
     terms_url: "https://docs.db.nomics.world/"
+  },
+  {
+    id: "bis",
+    name: "Bank for International Settlements \u2014 central bank policy rates",
+    coverage: "Policy rates for ~38 central banks (the rate that best captures each monetary authority's policy stance), monthly and daily, via the BIS SDMX API",
+    access: "No key; queried live from stats.bis.org/api/v2 (SDMX-JSON via Accept header)",
+    license: "BIS statistics may be reproduced and redistributed with attribution; see the BIS terms and conditions for statistics",
+    license_verdict: "served",
+    license_note: "The BIS terms for statistics permit reproduction and redistribution with attribution to the BIS. StatCite charges for the audit/convenience layer, never for BIS data standalone, and attributes the BIS on every response.",
+    license_verified_on: "2026-08-08",
+    attribution_required: "Source: Bank for International Settlements",
+    url: "https://data.bis.org/topics/CBPOL",
+    terms_url: "https://www.bis.org/terms_statistics.htm"
+  },
+  {
+    id: "ecb_data",
+    name: "European Central Bank \u2014 Data Portal (euro-area monetary statistics)",
+    coverage: "Euro-area harmonised inflation (HICP) and related monetary series via the ECB Data Portal SDMX API",
+    access: "No key; queried live from data-api.ecb.europa.eu (SDMX-JSON)",
+    license: "ECB content may be reproduced with attribution; see the ECB disclaimer and copyright notice",
+    license_verdict: "served",
+    license_note: "The ECB's copyright notice permits reproduction of its published content with attribution to the ECB as source. Distinct from the ecb_fx entry, which covers the euro reference exchange rates served via Frankfurter.",
+    license_verified_on: "2026-08-08",
+    attribution_required: "Source: European Central Bank",
+    url: "https://data.ecb.europa.eu",
+    terms_url: "https://www.ecb.europa.eu/services/disclaimer/html/index.en.html"
+  },
+  // ------------------------------------------------------------------
+  // REFUSED sources — evaluated, declined, and disclosed. These entries
+  // exist so the refusal reasoning is public and machine-readable, and so
+  // no future session re-litigates them without new terms to point at.
+  // ------------------------------------------------------------------
+  {
+    id: "fred",
+    name: "Federal Reserve Bank of St. Louis \u2014 FRED (permanently disabled)",
+    coverage: "Not served. The FRED Services Terms of Use, clauses (p) and (q), prohibit use in connection with training or running AI/ML/LLM systems and prohibit storing, caching or archiving FRED content, which conflicts with how this service serves data \u2014 there is no compliant way to offer it here.",
+    access: "Disabled \u2014 the six US-only registry keys and the fred/ series id are recognized but always decline",
+    license: "FRED Services Terms of Use, clauses (p) and (q) \u2014 see https://fred.stlouisfed.org/legal/",
+    license_verdict: "refused",
+    license_note: "Clauses (p)/(q) prohibit AI/ML/LLM-connected use and prohibit storing/caching/archiving content. StatCite is an AI-agent-facing service that edge-caches responses, so serving FRED is not compliant even with an operator key.",
+    license_verified_on: "2026-07-26",
+    attribution_required: "Not applicable \u2014 no FRED content is served.",
+    url: "https://fred.stlouisfed.org",
+    terms_url: "https://fred.stlouisfed.org/legal/"
+  },
+  {
+    id: "un_comtrade",
+    name: "UN Comtrade (trade statistics) \u2014 not served",
+    coverage: "Not served. Detailed bilateral trade statistics exist here, but re-dissemination is licence-gated in a way StatCite cannot satisfy at zero cost.",
+    access: "Not integrated; evaluated and declined",
+    license: "UN Comtrade policy on use and re-dissemination",
+    license_verdict: "refused",
+    license_note: 'The policy states "To re-disseminate UN Comtrade data, a user must be an active premium subscriber" and prices "for-profit data extraction and/or streaming application[s]" under a licensing fee. StatCite has paid surfaces (the Apify actor), so even free-tier ingestion would sit on the for-profit side of that line.',
+    license_verified_on: "2026-08-08",
+    attribution_required: "Not applicable \u2014 no UN Comtrade content is served.",
+    url: "https://comtradeplus.un.org",
+    terms_url: "https://uncomtrade.org/docs/policy-on-use-and-re-dissemination/"
+  },
+  {
+    id: "eccb",
+    name: "Eastern Caribbean Central Bank statistics \u2014 not served",
+    coverage: "Not served. ECCU monetary and financial statistics are published by the ECCB, but its website terms do not permit the redistribution this service would perform.",
+    access: "Not integrated; evaluated and declined",
+    license: "ECCB website terms of use",
+    license_verdict: "refused",
+    license_note: "The ECCB's website terms (linked from its site footer; deep URLs on the site change) restrict reproduction/redistribution of site content without permission; serving its statistics through a caching public API is redistribution. Declined unless and until written permission exists.",
+    license_verified_on: "2026-07-31",
+    attribution_required: "Not applicable \u2014 no ECCB content is served.",
+    url: "https://www.eccb-centralbank.org",
+    terms_url: "https://www.eccb-centralbank.org"
+  },
+  {
+    id: "cbb",
+    name: "Central Bank of Barbados statistics \u2014 not served",
+    coverage: "Not served. The Central Bank of Barbados publishes monetary and financial statistics, but its website terms do not permit the redistribution this service would perform.",
+    access: "Not integrated; evaluated and declined",
+    license: "Central Bank of Barbados website terms of use",
+    license_verdict: "refused",
+    license_note: "The Bank's website terms (linked from its site footer; deep URLs on the site change) restrict reproduction/redistribution of site content without permission; serving its statistics through a caching public API is redistribution. Declined unless and until written permission exists.",
+    license_verified_on: "2026-07-31",
+    attribution_required: "Not applicable \u2014 no Central Bank of Barbados content is served.",
+    url: "https://www.centralbank.org.bb",
+    terms_url: "https://www.centralbank.org.bb"
   }
 ];
 export {

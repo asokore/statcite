@@ -5,6 +5,59 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.9.0 — 2026-08-10
+
+- **New source: the IMF's own dated WEO vintages** (`api.imf.org`, SDMX 3.0),
+  inserted AHEAD of DBnomics in the dated-vintage chain used by `as_of`
+  verification and the revision probe. No key and no account — the data is
+  served anonymously; the sign-in wall on portal.api.imf.org guards the
+  developer console, not the data.
+- **Fixes a live degradation.** The revision probe re-checks a mismatched claim
+  against the previous WEO edition. In production it was returning
+  `status: "unavailable"` for WEO 2025-10 purely because DBnomics had not
+  ingested that edition, while the IMF published it directly. It now returns
+  `status: "checked"` with the IMF's own vintage value.
+- This is an ADDITION, not a replacement: the IMF exposes only recent vintages,
+  DBnomics carries the archive back to 2010-04 and remains the fallback. Only
+  editions enumerated in `IMF_VINTAGE_FLOWS` from the live dataflow listing are
+  attempted — never a guessed flow id.
+- **Two silent-failure guards in the SDMX adapter**, both for behaviours
+  verified live on the real endpoint:
+  - IMF dimension values carry `value`, not `id`. Reading `id` yields undefined
+    for every period, the period filter drops them all, and a 200 carrying 51
+    real observations becomes a silently EMPTY series. Periods now read
+    `value ?? id`.
+  - A well-formed key in the WRONG dimension order returns HTTP 200 with no
+    `series` key at all — no 404, no error. That is now raised as a
+    malformed-key error and can never surface as `no_published_data`, which
+    would have turned one transposed dimension into a confident false claim
+    that the IMF publishes nothing for a country.
+  Both guards are covered by mutation-verified regression tests.
+- Licence ledger entry `imf_sdmx_vintage` added and verified 2026-08-10, per the
+  house rule that a source serves only after its ledger entry exists.
+
+## 1.8.2 — 2026-08-10
+
+- **IMF licence text corrected against the verbatim terms.** The citation
+  licence said commercial reuse "may require IMF permission". That is the rule
+  for IMF *Content* (publications) and was wrongly applied to statistical
+  *Data*, which the IMF governs under separate, far more permissive special
+  terms opening "Notwithstanding the general prohibition on the commercial use
+  of IMF Content...". The old wording both understated the permission and
+  overstated the restriction. It now states the actual conditions: attribution,
+  data integrity, the duty to communicate the terms downstream, and the
+  sold-as-standalone disclosure.
+- **IMF attribution now matches the format the terms specify** — "Source:
+  International Monetary Fund, <database>, <link to the dataset>" — instead of
+  a bare "Source: International Monetary Fund" that omitted both.
+- Ledger entry re-verified 2026-08-10 and pointed at the current canonical
+  terms URL (imf.org/en/About/copyright-and-terms; the old /external/terms.htm
+  now redirects).
+- **Apify actor**: added the disclosure the IMF terms require where data is
+  sold as part of a product — that the underlying data is free from its
+  publishers and from StatCite's own free API — and corrected a stale
+  indicator count.
+
 ## 1.8.1 — 2026-08-08
 
 - **Fixes wrong data served by 1.8.0.** `policy_rate` substituted a country's
