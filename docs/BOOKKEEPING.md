@@ -54,6 +54,11 @@ Also check:
 
 - [ ] Apify pricing revisit (was due 30 days after listing — still unrevisited)
 - [ ] Any listing in `distribution/listings.md` gone stale after a release
+- [ ] PulseMCP ingestion check: pulsemcp.com auto-ingests from the official
+      registry weekly, yet a 2026-08-10 audit found StatCite absent despite 9
+      registry versions. If still absent after the 1.9.1 publish has had two
+      weekly cycles (check from 2026-08-24), contact PulseMCP directly rather
+      than waiting further
 - [ ] Licence re-verification: any source whose `license_verified_on` is over a
       year old (see `/v1/sources`)
 - [ ] Upstream breakage: does `/v1/status` show any source degraded?
