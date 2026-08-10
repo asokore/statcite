@@ -47,8 +47,22 @@ endpoint. The data endpoint is:
   returns 502 from the Azure gateway. StatCite never used it, so no impact —
   but any documentation or third-party tool still pointing there is broken.
 - **No rate-limit headers** are returned on anonymous calls (no `RateLimit-*`,
-  no `Retry-After`). Responses carry `cache-control: no-store`. Actual limits
-  are UNVERIFIED — the portal documents them behind login.
+  no `Retry-After`). Responses carry
+  `cache-control: no-cache, no-store, max-age=0, must-revalidate`.
+- **Rate limits, MEASURED rather than documented (2026-08-10).** The portal's
+  own limit documentation sits behind the developer-console sign-in, which
+  StatCite does not hold an account for and does not need. Instead the limit
+  was probed empirically: **31 consecutive anonymous requests to the vintage
+  dataflow, issued back to back with no pacing, all returned HTTP 200** with no
+  throttling and no rate-limit headers on any response.
+  State this precisely — it establishes a FLOOR, not the limit. It shows at
+  least 31 requests in that window are accepted; it does not prove there is no
+  cap, and an empty 429 count is not evidence of an absent limit. The practical
+  conclusion is headroom, not licence: StatCite's vintage path issues one
+  upstream request per as_of verification or revision probe, cached one hour
+  (`fetchSdmxSeries` default `ttlSeconds: 3600`), so real load is orders of
+  magnitude below anything this probe touched. If a 429 ever does appear, the
+  existing transient-retry and the DBnomics fallback already cover it.
 
 ## Why this matters: it fixes a live degradation
 
