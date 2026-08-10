@@ -41,11 +41,26 @@ export const SOURCES = [
     license: IMF_LICENSE,
     license_verdict: "served" as LicenseVerdict,
     license_note:
-      "IMF site content may be quoted/reproduced with attribution for non-commercial-scale use; commercial-scale downstream reuse of IMF data may require IMF permission — StatCite discloses this caveat on every IMF citation rather than claiming blanket free reuse.",
-    license_verified_on: "2026-07-26",
-    attribution_required: "Source: International Monetary Fund",
+      "The IMF's SPECIAL TERMS for published statistical data (effective 2024-10-11) expressly permit copying, redistribution, derivative works and use with attribution — a separate, more permissive regime than the general IMF Content terms, opening \"Notwithstanding the general prohibition on the commercial use of IMF Content...\". Named datasets include the WEO database, IFS, BOP, DOT, GFS, Primary Commodity Prices and data on the iData Portal. Conditions StatCite must meet: attribute in the IMF's format (database + link); never alter data in ways affecting accuracy, and declare material transformation; communicate these terms downstream to StatCite's own users (met via this ledger, /v1/sources and the licence field on every citation); and, where data is sold as a standalone product, tell purchasers it is free from the IMF (met in the Apify actor listing). Corrected 2026-08-10: the previous note claimed commercial reuse 'may require IMF permission', which conflated the Content regime with the Data regime and both understated the permission and overstated the restriction.",
+    license_verified_on: "2026-08-10",
+    attribution_required: "Source: International Monetary Fund, <database name>, <link to the dataset>",
     url: "https://www.imf.org/en/Publications/WEO",
-    terms_url: "https://www.imf.org/external/terms.htm",
+    terms_url: "https://www.imf.org/en/About/copyright-and-terms",
+  },
+  {
+    id: "imf_sdmx_vintage",
+    name: "IMF — dated World Economic Outlook vintages (api.imf.org, SDMX 3.0)",
+    coverage:
+      "Frozen dated WEO editions published as first-party SDMX 3.0 dataflows. Used ONLY by the dated-vintage path (as_of verification and the revision probe), never by the live chain, and only for editions enumerated in IMF_VINTAGE_FLOWS from the live dataflow listing. The IMF exposes a small number of recent vintages, not an archive — DBnomics remains the deep historical fallback back to 2010-04, so this source narrows the newest-edition gap rather than replacing the aggregator",
+    access: "No key and no account; api.imf.org serves this data anonymously (verified 2026-08-10). The sign-in wall on portal.api.imf.org guards the developer console, not the data",
+    license: IMF_LICENSE,
+    license_verdict: "served" as LicenseVerdict,
+    license_note:
+      "Governed by the same IMF special terms for statistical data as imf_weo — the WEO database is named in them explicitly, and the delivery endpoint does not change the licence on the data. The api.imf.org service itself imposes no additional terms on anonymous use: the API-management terms sit behind the portal sign-in and govern subscription keys, which StatCite does not hold and does not need. Verified by direct anonymous call, 2026-08-10.",
+    license_verified_on: "2026-08-10",
+    attribution_required: "Source: International Monetary Fund, <database name>, <link to the dataset>",
+    url: "https://data.imf.org/",
+    terms_url: "https://www.imf.org/en/About/copyright-and-terms",
   },
   {
     id: "ecb_fx",

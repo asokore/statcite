@@ -8,7 +8,7 @@ AI agents and analysts constantly need macro numbers they can defend: GDP growth
 
 | Operation | What you get |
 |---|---|
-| `indicator` | Values for any of **36 active curated indicators** (inflation, GDP growth, debt/GDP, current account, FDI, …) for **200+ economies**, with citation |
+| `indicator` | Values for any of **42 active curated indicators** (inflation, GDP growth, debt/GDP, current account, FDI, …) for **200+ economies**, with citation |
 | `verify` | **Check a claimed figure** against the official series → `match / close / mismatch / cannot_verify`, with diagnostics (wrong year? percent-vs-decimal? millions-vs-billions?) and the correct citable value |
 | `snapshot` | 11 headline indicators for one country, each with its own citation — instant country brief |
 | `inflation` | "What is \$100 (1995) worth in 2025 money?" — CPI-ratio method, formula disclosed, any country |
@@ -18,7 +18,22 @@ AI agents and analysts constantly need macro numbers they can defend: GDP growth
 
 ## Sources
 
-World Bank World Development Indicators (CC BY 4.0) · IMF World Economic Outlook & Fiscal Monitor via the IMF's own DataMapper API (current vintage, DBnomics as fallback) · ECB euro reference rates. Data is fetched live from official APIs — this actor adds no numbers of its own, and labels IMF projections as projections.
+World Bank World Development Indicators (CC BY 4.0) · IMF World Economic Outlook & Fiscal Monitor via the IMF's own DataMapper API (current vintage, DBnomics as fallback) · BIS central bank policy rates · ECB euro reference rates and euro-area HICP. Data is fetched live from official APIs — this actor adds no numbers of its own, and labels IMF projections as projections.
+
+### Source data is free at the source
+
+**The underlying data is available free of charge from its publishers** — the
+IMF, the World Bank, the BIS and the ECB all publish it at no cost, and
+StatCite's own API at [statcite.com](https://statcite.com) is free and needs no
+key. What this actor charges for is the convenience layer: a managed,
+rate-limited, pay-per-event endpoint with the citation, verification and
+diagnostic work already done, billed per successful item.
+
+This notice is also a licence obligation: the IMF's terms for published
+statistical data require that where the data is sold as part of a product,
+purchasers are told it is available free of charge from the IMF. Every response
+additionally carries the source's own licence and required attribution string in
+its `citation` object, so those terms travel with the data.
 
 ## Example: verify a stat before publishing
 

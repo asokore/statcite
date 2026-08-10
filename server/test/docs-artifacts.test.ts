@@ -38,13 +38,20 @@ test("openapi.json version stays in sync with SERVER_VERSION (v1.3.1 drift regre
   assert.equal(spec.info.version, SERVER_VERSION, "site/openapi.json info.version must match server/src/mcp.ts SERVER_VERSION");
 });
 
-test("IMF citation license text carries the downstream-conditions caveat, never a categorical free-reuse claim", async () => {
+test("IMF citation license text states the real conditions and never overclaims", async () => {
   const { IMF_LICENSE } = await import("../src/core/citations.ts");
-  assert.match(IMF_LICENSE, /downstream/i);
-  assert.match(IMF_LICENSE, /may require IMF permission/i);
+  // Intent of this guard (unchanged since it was written): the licence line must
+  // never claim blanket free reuse, and must carry the conditions the IMF
+  // actually imposes. The specific wording changed 2026-08-10 when the terms
+  // were read verbatim — "commercial reuse may require IMF permission" was the
+  // IMF *Content* rule, wrongly applied to statistical *Data*, which has its
+  // own permissive regime. Assert the CONDITIONS, not the old sentence.
   assert.ok(!/free reuse/i.test(IMF_LICENSE), "the categorical 'free reuse' wording must not return");
+  assert.match(IMF_LICENSE, /attribution/i, "must state the attribution condition");
+  assert.match(IMF_LICENSE, /downstream/i, "must carry the downstream-communication duty");
+  assert.match(IMF_LICENSE, /free of charge/i, "must carry the sold-as-standalone disclosure duty");
+  assert.match(IMF_LICENSE, /third-party/i, "must flag that some products carry third-party terms");
 });
-
 test("apify core.bundle.mjs is rebuilt from current core (sentinel strings; guard-the-last-hop)", async () => {
   // The bundle is a committed build artifact serving a second production surface
   // (the Apify actor). This proved capable of silent drift: a core change once

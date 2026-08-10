@@ -7,11 +7,21 @@ export const FRED_NOTICE =
   "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.";
 
 /** The one IMF license line, shared by every IMF citation builder and the sources
- * registry so the wording cannot drift. Deliberately NOT "free reuse": the IMF's
- * terms carry downstream-user conditions and potential commercial reuse should be
- * referred to the IMF for permission. */
+ * registry so the wording cannot drift.
+ *
+ * Corrected 2026-08-10 against the IMF's actual special terms for statistical
+ * data (imf.org/en/About/copyright-and-terms, effective 2024-10-11). The
+ * previous wording said commercial reuse "may require IMF permission" — that
+ * is true of IMF *Content* (publications) but NOT of published statistical
+ * Data, which is governed by a separate, permissive regime opening
+ * "Notwithstanding the general prohibition on the commercial use of IMF
+ * Content...". Conflating the two understated the permission and overstated
+ * the restriction.
+ *
+ * Still deliberately NOT a categorical "free reuse" claim: the permission is
+ * conditional, and every condition below is in the terms verbatim. */
 export const IMF_LICENSE =
-  "Use and redistribution are subject to the IMF's data-usage terms, including attribution and downstream-user conditions; commercial reuse may require IMF permission — consult the IMF terms directly";
+  "Published IMF statistical data may be copied, redistributed, and used (including in derivative works) with attribution to the IMF as source. Conditions: attribute as \"Source: International Monetary Fund, <database>, <link>\"; do not alter the data in ways affecting its accuracy, and state explicitly if it is materially transformed; anyone redistributing it downstream must take reasonable efforts to communicate these terms to their own users; and if sold as a standalone product, purchasers must be told the data is available free of charge from the IMF. Some statistical products incorporate third-party information under separate terms";
 
 /** Escape the BibTeX-special characters that actually occur in series names
  * (%, &, _, #, $). Braces are structural and never appear in our field data. */
@@ -85,7 +95,9 @@ export function dbnomicsCitation(
     source_url: sourceUrl,
     api_url: opts.apiUrl,
     license: isImf ? IMF_LICENSE : `${opts.providerName} terms apply; retrieved via DBnomics (open aggregator)`,
-    attribution: isImf ? "Source: International Monetary Fund" : `Source: ${opts.providerName} (via DBnomics)`,
+    attribution: isImf
+      ? `Source: International Monetary Fund, ${opts.datasetName}, ${sourceUrl}`
+      : `Source: ${opts.providerName} (via DBnomics)`,
     retrieved_at: date,
     citation_text: `${opts.providerName}, ${opts.datasetName}, series ${opts.seriesCode} (${opts.seriesName}). Retrieved ${date} via DBnomics/StatCite. ${sourceUrl}`,
   });
@@ -119,7 +131,10 @@ export function imfDataMapperCitation(
     source_url: opts.sourceUrl,
     api_url: opts.apiUrl,
     license: IMF_LICENSE,
-    attribution: "Source: International Monetary Fund",
+    // The IMF's terms specify this exact attribution shape: "Source:
+    // International Monetary Fund, Database Name, <<link to the dataset>>."
+    // A bare "Source: IMF" omits the database and link the terms ask for.
+    attribution: `Source: International Monetary Fund, ${opts.editionLabel}, ${opts.sourceUrl}`,
     retrieved_at: date,
     citation_text: `International Monetary Fund, ${opts.editionLabel}${datasetSuffix}, ${opts.seriesName}, series ${opts.code}. Retrieved ${date} via the IMF DataMapper API/StatCite. ${opts.sourceUrl}`,
     ...(opts.lastModified ? { notices: [`IMF data load timestamp: ${opts.lastModified} UTC.`] } : {}),
@@ -172,12 +187,31 @@ export function ecbFxCitation(ctx: Ctx, opts: { base: string; quote: string; rat
  * basis and verification dates). */
 export function sdmxCitation(
   ctx: Ctx,
-  opts: { provider: "BIS" | "ECB"; flow: string; key: string; seriesName: string; sourceUrl: string; apiUrl: string },
+  opts: {
+    provider: "BIS" | "ECB" | "IMF";
+    flow: string;
+    key: string;
+    seriesName: string;
+    sourceUrl: string;
+    apiUrl: string;
+    /** IMF only: the human edition label ("World Economic Outlook, October 2025
+     * vintage") that belongs in the dataset field and the attribution. */
+    datasetLabel?: string;
+  },
 ): Citation {
   const date = today(ctx);
-  const source = opts.provider === "BIS" ? "Bank for International Settlements" : "European Central Bank";
+  const source =
+    opts.provider === "BIS"
+      ? "Bank for International Settlements"
+      : opts.provider === "IMF"
+        ? "International Monetary Fund"
+        : "European Central Bank";
   const dataset =
-    opts.provider === "BIS" ? `BIS ${opts.flow}` : `ECB Data Portal ${opts.flow}`;
+    opts.provider === "BIS"
+      ? `BIS ${opts.flow}`
+      : opts.provider === "IMF"
+        ? (opts.datasetLabel ?? opts.flow)
+        : `ECB Data Portal ${opts.flow}`;
   return withExports({
     source,
     dataset,
@@ -188,8 +222,16 @@ export function sdmxCitation(
     license:
       opts.provider === "BIS"
         ? "BIS statistics may be reproduced and redistributed with attribution; see the BIS terms and conditions for statistics"
-        : "ECB content may be reproduced with attribution; see the ECB disclaimer and copyright notice",
-    attribution: opts.provider === "BIS" ? "Source: Bank for International Settlements" : "Source: European Central Bank",
+        : opts.provider === "IMF"
+          ? IMF_LICENSE
+          : "ECB content may be reproduced with attribution; see the ECB disclaimer and copyright notice",
+    attribution:
+      opts.provider === "BIS"
+        ? "Source: Bank for International Settlements"
+        : opts.provider === "IMF"
+          ? // Same shape the IMF's terms specify for every IMF citation here.
+            `Source: International Monetary Fund, ${dataset}, ${opts.sourceUrl}`
+          : "Source: European Central Bank",
     retrieved_at: date,
     citation_text: `${source}, ${dataset}, series ${opts.key} (${opts.seriesName}). Retrieved ${date} via StatCite. ${opts.sourceUrl}`,
   });
