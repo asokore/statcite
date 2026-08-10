@@ -5,6 +5,52 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.10.0 — 2026-08-10
+
+**MCP protocol revision 2026-07-28 support, served dual-era.**
+
+The 2026-07-28 revision is breaking: it removes the `initialize` handshake,
+protocol-level sessions, `ping`, the GET stream and SSE resumability, and
+replaces them with per-request metadata. Rather than pick an era and strand
+the other, StatCite now speaks both on the same endpoint, choosing per request
+from the version the request itself declares.
+
+- **Legacy clients are provably unaffected.** Everything from 2025-03-26 to
+  2025-11-25 behaves exactly as it did in 1.9.1 — same handshake, same result
+  shapes, no new required headers, unknown methods still HTTP 200,
+  resource-not-found still -32002. This is asserted by its own regression
+  tests and confirmed by mutation: leaking modern result-shaping into a legacy
+  response fails the suite.
+- **New in the modern era**: `server/discover` (mandatory in 2026-07-28 —
+  advertises supported versions, capabilities and identity without a
+  handshake); `resultType: "complete"` on every result; `ttlMs` + `cacheScope`
+  on cacheable results (`server/discover`, `tools/list`, `prompts/list`,
+  `resources/list`, `resources/read`); `_meta` server identity; and HTTP 404
+  paired with -32601 for unknown methods.
+- **Header/body agreement is enforced.** 2026-07-28 requires
+  `MCP-Protocol-Version`, `Mcp-Method` and (for `tools/call`,
+  `resources/read`, `prompts/get`) `Mcp-Name` on every POST, so intermediaries
+  can route without parsing the body. StatCite validates that they match the
+  body and refuses disagreement with -32020 `HeaderMismatch` + HTTP 400,
+  including the Base64 sentinel (`=?base64?…?=`) form for non-ASCII names. A
+  request that declares modern in one place and legacy in the other is treated
+  as modern so it reaches this check, rather than being quietly served under
+  the older unvalidated rules.
+- **Version errors are now the spec's**: an unsupported version returns -32022
+  `UnsupportedProtocolVersion` with the supported list in `error.data`, in
+  place of the old implementation-defined -32000. Both codes moved into the
+  range 2026-07-28 reserves for the specification.
+- `server/discover` deliberately answers a bare probe with no headers: it is
+  the mechanism a dual-era client uses to discover what the server speaks, so
+  refusing it for a missing header would break the negotiation it exists for.
+- stdio transport is dual-era too, using the body `_meta` (and the
+  `server/discover` probe) since stdio carries no headers.
+- Not implemented, by design: `subscriptions/listen` (StatCite emits no change
+  notifications — its lists change only on deploy, which `ttlMs` now
+  communicates), and the MRTR input-request pattern (no tool ever needs
+  sampling, elicitation or roots). Both are advertised accordingly rather than
+  claimed.
+
 ## 1.9.1 — 2026-08-10
 
 Correction release from a nine-dimension health audit of the live service.

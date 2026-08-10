@@ -9,7 +9,7 @@
       "name": "statcite",
       "source": "./",
       "description": "Connects the StatCite MCP server (official economic statistics with license-grade citations, plus verify_stat claim checking) and installs the verify-then-cite skill.",
-      "version": "1.9.1"
+      "version": "1.10.0"
     }
   ],
   "metadata": {

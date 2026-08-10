@@ -11,7 +11,16 @@
 
 import * as readline from "node:readline";
 import type { Ctx } from "./core/types.ts";
-import { dispatchMessage } from "./mcp.ts";
+import { dispatchMessage, requestEra } from "./mcp.ts";
+
+/** Era per message. stdio carries no HTTP headers, so the only signal is the
+ * body: `params._meta` protocol version, or a `server/discover` call — which
+ * is exactly the probe the 2026-07-28 stdio backward-compatibility flow tells
+ * dual-era clients to send first. */
+function eraOf(msg: unknown): "legacy" | "modern" {
+  const m = (msg ?? {}) as { method?: string; params?: Record<string, unknown> };
+  return requestEra(m.method, (m.params ?? {}) as Record<string, unknown>, null);
+}
 
 // A fresh Ctx per line, not one shared for the process lifetime: _dmMemo
 // memoizes rejections too (see core/types.ts), which is correct within one
@@ -52,14 +61,14 @@ async function handleLine(line: string): Promise<void> {
     }
     const bodies: Record<string, unknown>[] = [];
     for (const m of parsed) {
-      const r = await dispatchMessage(m as Parameters<typeof dispatchMessage>[0], ctx);
+      const r = await dispatchMessage(m as Parameters<typeof dispatchMessage>[0], ctx, eraOf(m));
       if (r.body) bodies.push(r.body);
     }
     if (bodies.length > 0) process.stdout.write(JSON.stringify(bodies) + "\n");
     return;
   }
 
-  const r = await dispatchMessage(parsed as Parameters<typeof dispatchMessage>[0], ctx);
+  const r = await dispatchMessage(parsed as Parameters<typeof dispatchMessage>[0], ctx, eraOf(parsed));
   if (r.body !== null) process.stdout.write(JSON.stringify(r.body) + "\n");
 }
 
