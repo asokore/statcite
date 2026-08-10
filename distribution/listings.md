@@ -11,7 +11,7 @@ registry entry and stop.
 
 | # | Surface | URL | Route to update | Auto-syncs? | Last updated |
 |---|---|---|---|---|---|
-| 1 | Official MCP Registry | `io.github.asokore/statcite` | `cd distribution && ../.tools/mcp-publisher.exe login github` then `../.tools/mcp-publisher.exe publish` | No — push per release | 2026-08-08 (v1.8.1); 2026-08-10 (v1.9.1 published, isLatest confirmed via API) |
+| 1 | Official MCP Registry | `io.github.asokore/statcite` | `cd distribution && ../.tools/mcp-publisher.exe login github` then `../.tools/mcp-publisher.exe publish` | No — push per release | 2026-08-08 (v1.8.1); 2026-08-10 (v1.10.0 published, isLatest confirmed via API). NOTE: the registry JWT expires in well under an hour — run `login github` immediately before `publish`, never earlier in the session |
 | 2 | GitHub repo | github.com/asokore/statcite | Push to main | n/a | continuous |
 | 3 | Claude Connectors Directory | claude.ai directory (community) | Admin portal → edit listing (editing an unpublished listing sends it back to review) | No | 2026-07-29 (published) |
 | 4 | Smithery | smithery.ai/server/asokore-beckles/statcite | Re-scan from repo | Partly | 2026-07-25 |
