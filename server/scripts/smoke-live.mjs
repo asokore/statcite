@@ -18,19 +18,47 @@ const mcp = (body) =>
 
 let failures = 0;
 let id = 0;
-async function tool(name, args, check) {
-  const res = await mcp({ jsonrpc: "2.0", id: ++id, method: "tools/call", params: { name, arguments: args } });
-  const rpc = await res.json();
-  const isError = Boolean(rpc?.result?.isError);
-  let payload;
-  try { payload = JSON.parse(rpc?.result?.content?.[0]?.text ?? "null"); } catch { payload = rpc?.result?.content?.[0]?.text; }
-  let ok = !isError;
-  let detail = "";
-  if (ok && check) {
-    try { detail = check(payload) ?? ""; } catch (e) { ok = false; detail = e.message; }
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// This smoke test hits ~20 live third-party endpoints. On the scheduled run a
+// failure paints the badge red as the aliveness signal — so a single transient
+// upstream blip (a World Bank/IMF/Frankfurter timeout at the wrong minute) must
+// NOT be allowed to cry wolf, or the signal stops meaning "StatCite is broken".
+// A genuine StatCite defect fails deterministically and survives a retry; an
+// upstream hiccup passes on the next attempt. Same transient-retry posture the
+// bench and the fetch layer already use. Only failures that LOOK transient are
+// retried — a logic failure (wrong verdict, missing field) fails fast.
+function looksTransient(payloadOrText) {
+  const s = typeof payloadOrText === "string" ? payloadOrText : JSON.stringify(payloadOrText ?? "");
+  return /upstream|reach upstream|aborted|transient|timeout|timed out|\b50[234]\b|\b599\b|ECONNRESET|fetch failed/i.test(s);
+}
+async function withRetry(attempt) {
+  let last;
+  for (let i = 0; i < 3; i++) {
+    last = await attempt();
+    if (last.ok || !looksTransient(last.detail)) return last;
+    await sleep(4000);
   }
-  if (!ok) { failures++; detail = JSON.stringify(payload).slice(0, 240); }
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}(${JSON.stringify(args).slice(0, 90)}) ${detail}`);
+  return { ...last, retried: true };
+}
+
+async function tool(name, args, check) {
+  let payload;
+  const { ok, detail, retried } = await withRetry(async () => {
+    const res = await mcp({ jsonrpc: "2.0", id: ++id, method: "tools/call", params: { name, arguments: args } });
+    const rpc = await res.json();
+    const isError = Boolean(rpc?.result?.isError);
+    try { payload = JSON.parse(rpc?.result?.content?.[0]?.text ?? "null"); } catch { payload = rpc?.result?.content?.[0]?.text; }
+    let ok = !isError;
+    let detail = "";
+    if (ok && check) {
+      try { detail = check(payload) ?? ""; } catch (e) { ok = false; detail = e.message; }
+    }
+    if (!ok) detail = JSON.stringify(payload).slice(0, 240);
+    return { ok, detail };
+  });
+  if (!ok) failures++;
+  console.log(`${ok ? "PASS" : "FAIL"}${retried ? " (after retries)" : ""} ${name}(${JSON.stringify(args).slice(0, 90)}) ${detail}`);
   return payload;
 }
 
@@ -47,6 +75,23 @@ await tool("get_indicator", { indicator: "gdp_growth", country: "world", start_y
   (p) => `world growth obs=${p.observations.length}`);
 await tool("get_indicator", { indicator: "govt_debt_gdp", country: "Japan", latest_only: true },
   (p) => `JPN debt ${p.observations[0].period}=${p.observations[0].value?.toFixed(1)}% src=${p.citation.source}`);
+// SDMX sources (BIS/ECB) — the newest, least-proven code paths.
+await tool("get_indicator", { indicator: "policy_rate", country: "USA", latest_only: true },
+  (p) => { if (p.citation.source !== "Bank for International Settlements") throw new Error(`wrong source ${p.citation.source}`); return `US policy rate ${p.observations[0].period}=${p.observations[0].value}%`; });
+await tool("get_indicator", { indicator: "euro_area_hicp", country: "euro area", latest_only: true },
+  (p) => `euro HICP ${p.observations[0].period}=${p.observations[0].value}%`);
+// The XM-collision regression, live: "low income countries" must NOT return a
+// policy rate (it shares the BIS euro-area code) — here a REFUSAL is the pass,
+// so assert the negative inline rather than through tool() (which counts any
+// error as a failure).
+{
+  const rpc = await (await mcp({ jsonrpc: "2.0", id: ++id, method: "tools/call", params: { name: "get_indicator", arguments: { indicator: "policy_rate", country: "LIC" } } })).json();
+  const refused = Boolean(rpc?.result?.isError);
+  if (!refused) failures++;
+  console.log(`${refused ? "PASS" : "FAIL"} policy_rate(LIC) must-refuse (XM-collision guard) ${refused ? "" : "SERVED WRONG DATA"}`);
+}
+await tool("compare_sources", { indicator: "govt_debt_gdp", country: "Barbados", period: "2023" },
+  (p) => `sources=${p.results.length} spread=${p.comparison ? p.comparison.spread_abs?.toFixed(1) : "n/a"}`);
 await tool("verify_stat", { indicator: "inflation_cpi", country: "USA", period: "2023", claimed_value: 4.1 },
   (p) => `verdict=${p.verdict} official=${p.official_value?.toFixed(3)}`);
 await tool("verify_stat", { indicator: "gdp_growth", country: "Guyana", period: "2022", claimed_value: 62.3 },
@@ -81,11 +126,16 @@ for (const path of [
   "/v1/fx?amount=1&from=EUR&to=XCD",
   "/health",
 ]) {
-  const res = await call(path);
-  const ok = res.status === 200;
+  const { ok, status, body, retried } = await withRetry(async () => {
+    const res = await call(path);
+    const body = await res.text();
+    // A transient upstream failure surfaces as 502 (upstream_error) or 500
+    // (crash) with the transient hint in the body; retry those, not a 4xx.
+    const ok = res.status === 200;
+    return { ok, detail: ok ? "" : `${res.status} ${body}`, status: res.status, body };
+  });
   if (!ok) failures++;
-  const body = await res.text();
-  console.log(`${ok ? "PASS" : "FAIL"} GET ${path} -> ${res.status} ${body.slice(0, 110).replace(/\s+/g, " ")}`);
+  console.log(`${ok ? "PASS" : "FAIL"}${retried ? " (after retries)" : ""} GET ${path} -> ${status} ${body.slice(0, 110).replace(/\s+/g, " ")}`);
 }
 
 console.log(failures === 0 ? "\nSMOKE: ALL PASS" : `\nSMOKE: ${failures} FAILURES`);
