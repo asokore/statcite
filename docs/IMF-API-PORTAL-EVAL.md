@@ -127,9 +127,10 @@ Two obligations this creates that StatCite does not yet fully meet:
    **StatCite has a live paid surface** — the Apify actor charges per event and
    serves IMF-backed indicators. A free public API reads naturally as
    "publish/distribute", but the metered actor is closer to the line. This is
-   an operator decision, not a code decision. The existing citation already
-   discloses "commercial reuse may require IMF permission", which is the honest
-   posture; the clean resolution is a one-line email to copyright@imf.org.
+   an operator decision, not a code decision. [SUPERSEDED same day: the citation's disclosure was itself the Content/Data
+   conflation — the corrected licence (v1.8.2) states the Data regime's actual
+   conditions, and the "and sell" question is answered by the free-of-charge
+   disclosure condition rather than a permission request. Kept for the record.]
 
 ## BLOCKER before any implementation (CLEARED 2026-08-10 — see status note at top)
 

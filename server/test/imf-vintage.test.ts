@@ -192,6 +192,13 @@ test("dated vintage is served from the IMF first, and DBnomics is never called",
   assert.match(payload.citation.dataset, /World Economic Outlook, October 2025 vintage/);
   // The IMF's terms specify the attribution shape: database name AND link.
   assert.match(payload.citation.attribution, /^Source: International Monetary Fund, .+, https?:\/\//);
+  // Provenance note must name the source that ACTUALLY served. gdp_growth's
+  // live primary is World Bank, so the source-changed note fires — and it must
+  // say first-party api.imf.org here, not the hardcoded "(via DBnomics)" that
+  // misattributed provenance in production on 2026-08-10.
+  const notes = JSON.stringify(payload.notes ?? []);
+  assert.match(notes, /first-party, api\.imf\.org/);
+  assert.ok(!notes.includes("via DBnomics"), `note still misattributes to DBnomics: ${notes}`);
 });
 
 test("GUARD: `value`-keyed periods parse — an id-only reader would return a silently empty series", async () => {

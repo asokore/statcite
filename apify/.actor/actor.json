@@ -2,8 +2,8 @@
   "actorSpecification": 1,
   "name": "statcite-economic-data",
   "title": "StatCite \u2014 Economic Data & Stat Verification (with citations)",
-  "description": "Official economic statistics with full citations \u2014 World Bank, IMF WEO, ECB \u2014 plus verify_stat: check any claimed figure against the official series. 36 active indicators, 200+ economies, ~120 currencies, inflation adjustment, historical FX.",
-  "version": "1.4",
+  "description": "Official economic statistics with full citations \u2014 World Bank, IMF, BIS, ECB \u2014 plus verify_stat: check any claimed figure against the official series. 42 active indicators, 200+ economies, ~120 currencies, inflation adjustment, historical FX.",
+  "version": "1.9",
   "input": "./input_schema.json",
   "output": "./output_schema.json",
   "meta": {

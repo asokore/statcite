@@ -333,7 +333,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
   </section>
 
   <section id="tools">
-    <h2>Eleven tools, one contract: every number carries its receipt</h2>
+    <h2>Twelve tools, one contract: every number carries its receipt</h2>
     <p class="lead">Available over MCP and mirrored as a REST API. All read-only.</p>
     <div class="grid">
       <div class="card"><h3>verify_stat</h3><p>Check a claimed figure against the official series → match / close / mismatch / cannot_verify, with diagnostics and the correct citation.</p></div>
@@ -343,6 +343,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
       <div class="card"><h3>inflation_adjust</h3><p>“What is $100 (1995) worth in 2025 money?” CPI-ratio method with the exact index values and formula disclosed. Any country with CPI data.</p></div>
       <div class="card"><h3>fx_convert</h3><p>ECB daily reference rates for ~30 majors since 1999, plus official annual-average rates for ~90 more currencies (BBD, XCD, JMD, KES…). Method always stated.</p></div>
       <div class="card"><h3>get_series</h3><p>Raw access by explicit id: <code>worldbank/…</code>, <code>imf/…</code>, <code>dbnomics/IMF/WEO:latest/…</code>. Transforms: YoY, % change, index rebase.</p></div>
+      <div class="card"><h3>compare_sources</h3><p>The same indicator from every source that publishes it, side by side — spread, agreement, and one citation per source. For when "what does the official data say?" has more than one official answer.</p></div>
       <div class="card"><h3>search_indicators</h3><p>Free-text search over the curated registry plus DBnomics dataset discovery (IMF, OECD, Eurostat, BIS…).</p></div>
       <div class="card"><h3>list_sources</h3><p>Exactly which official sources power each answer, their licenses, and the attribution lines you're required to use.</p></div>
       <div class="card"><h3>search + fetch</h3><p>The deep-research compatibility pair, so StatCite plugs into ChatGPT connectors and similar research pipelines out of the box.</p></div>
@@ -355,11 +356,15 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
     <table>
       <tr><th>Source</th><th>Coverage</th><th>License</th></tr>
       <tr><td>World Bank — World Development Indicators</td><td>~1,400 annual indicators, 200+ economies, from 1960</td><td>CC BY 4.0</td></tr>
-      <tr><td>IMF — World Economic Outlook &amp; Fiscal Monitor (via the DataMapper API; DBnomics as fallback)</td><td>Growth, fiscal &amp; external indicators, 190+ economies, incl. projections. Primary path serves the IMF's current edition directly; if unavailable, falls back to the newest DBnomics has ingested (responses flag stale vintages and vintage-crossing fallbacks)</td><td>Per IMF terms: attribution + downstream conditions; commercial reuse may require IMF permission</td></tr>
+      <tr><td>IMF — World Economic Outlook &amp; Fiscal Monitor (via the DataMapper API; DBnomics as fallback)</td><td>Growth, fiscal &amp; external indicators, 190+ economies, incl. projections. Primary path serves the IMF's current edition directly; if unavailable, falls back to the newest DBnomics has ingested (responses flag stale vintages and vintage-crossing fallbacks)</td><td>Redistribution and derivative use permitted with attribution in the IMF's format ("Source: International Monetary Fund, &lt;database&gt;, &lt;link&gt;"); downstream users must be told these terms, and data sold as a standalone product must disclose it is free from the IMF</td></tr>
+      <tr><td>IMF — dated WEO vintages (api.imf.org, SDMX 3.0)</td><td>The IMF's own frozen dated editions, used by <code>as_of</code> historical verification and the automatic revision probe; DBnomics remains the deep archive back to 2010</td><td>Same IMF data terms as above</td></tr>
+      <tr><td>Bank for International Settlements</td><td>Central bank policy rates, 49 economies (daily/monthly)</td><td>Reproduction &amp; redistribution with attribution</td></tr>
+      <tr><td>European Central Bank — Data Portal</td><td>Euro-area HICP inflation and euro-area aggregates</td><td>Reproduction with attribution</td></tr>
       <tr><td>European Central Bank (via Frankfurter)</td><td>Daily euro reference FX rates, ~30 currencies, since 1999</td><td>Attribution; informational rates</td></tr>
       <tr><td>FRED — St. Louis Fed</td><td>Not served. Six US-only registry keys are reserved for it but always decline — FRED's terms of use prohibit AI/ML use and caching/redistribution of its content</td><td>—</td></tr>
-      <tr><td>DBnomics (aggregator)</td><td>90+ official providers (OECD, Eurostat, BIS, national offices)</td><td>Per provider</td></tr>
+      <tr><td>DBnomics (aggregator)</td><td>90+ official providers (OECD, Eurostat, BIS, national offices)</td><td>Per provider, named in each citation</td></tr>
     </table>
+    <p style="margin-top:10px;font-size:14px;color:var(--faint)">The complete licence ledger — every source, verbatim licence basis, verification date and required attribution — is served live at <a href="/sources.html">/sources</a> and <a href="/v1/sources"><code>GET /v1/sources</code></a>.</p>
   </section>
 
   <section id="pricing">
@@ -370,7 +375,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
         <h3>Free</h3>
         <div class="price">$0 <small>forever for fair use</small></div>
         <ul>
-          <li>All 11 tools, full citation payloads</li>
+          <li>All 12 tools, full citation payloads</li>
           <li>No key, no signup, no OAuth</li>
           <li>MCP + REST</li>
           <li>Fair-use: be reasonable; heavy automated loads may be throttled</li>
@@ -414,7 +419,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
     <h2>FAQ</h2>
     <details><summary>Is it really free? What's the catch?</summary><p>Yes — the service runs on near-zero-cost infrastructure and free official data APIs, so a generous free tier is sustainable. The long-term plan is boring and honest: keep the free tier, add paid convenience (keys, volume, bulk) for heavy users. No ads, no data resale.</p></details>
     <details><summary>How accurate is the data?</summary><p>StatCite does not originate the underlying statistical observations — it relays the official series and tells you exactly which one, fetched live from the source or its aggregator and cached briefly. Derived values (YoY, inflation adjustment, FX bridging) and verification verdicts are calculated transparently, with the method and inputs disclosed. Macro data gets revised, and aggregators can lag the source's newest release — every citation states the exact series and vintage served, and responses flag when a vintage trails the expected current release.</p></details>
-    <details><summary>Can I redistribute the numbers?</summary><p>It depends on the source, and every response tells you exactly which applies. World Bank data is CC BY 4.0 — reuse, including commercial, with attribution. IMF data is subject to the IMF's data-usage terms, including attribution and downstream-user conditions; commercial reuse may require IMF permission — consult the IMF terms directly. ECB reference rates are informational, reused with attribution. Every response includes the exact attribution line and license for that number, which is precisely the point of StatCite.</p></details>
+    <details><summary>Can I redistribute the numbers?</summary><p>It depends on the source, and every response tells you exactly which applies. World Bank data is CC BY 4.0 — reuse, including commercial, with attribution. Published IMF statistical data may be copied, redistributed and used in derivative works under the IMF's data terms: attribute in the IMF's format ("Source: International Monetary Fund, &lt;database&gt;, &lt;link&gt;" — every StatCite citation supplies this line ready-made), don't alter the data in ways affecting accuracy, tell your own downstream users these terms apply, and if you sell it as a standalone product, disclose that the data is free from the IMF. ECB reference rates are informational, reused with attribution. Every response includes the exact attribution line and license for that number, which is precisely the point of StatCite.</p></details>
     <details><summary>Who built this?</summary><p>A professional economist who got tired of AI drafts with unverifiable numbers. The indicator registry, source fallbacks, and verification thresholds are economist-curated — e.g. government debt defaults to the IMF's general government gross debt series (current vintage via the DataMapper API), not the patchier World Bank central-government series.</p></details>
     <details><summary>How should agents cite StatCite itself?</summary><p>Cite the original source (the citation object gives you everything). Mentioning “via StatCite” is appreciated but never required.</p></details>
     <details><summary>What about rate limits?</summary><p>Fair use, no hard published limit. Responses are cache-friendly; identical queries are served from edge cache. If your use case needs guarantees, email <a href="mailto:hello@statcite.com">hello@statcite.com</a>.</p></details>

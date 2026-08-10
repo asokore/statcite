@@ -5,6 +5,39 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.9.1 — 2026-08-10
+
+Correction release from a nine-dimension health audit of the live service.
+
+- **The retired IMF licence wording survived on the prose surfaces.** v1.8.2
+  corrected "commercial reuse may require IMF permission" in code, ledger and
+  the Apify README — but the same claim stayed live on the site homepage
+  (sources table + FAQ), the docs page's licensing section, and the repo
+  README. All rewritten to the actual IMF Data terms. A regression test now
+  sweeps every public prose surface (site HTML/txt/json, README, Apify README,
+  distribution copy) for the retired wording, so prose can no longer silently
+  contradict the served licence ledger.
+- **Homepage said "Eleven tools" for a 12-tool server** and omitted
+  compare_sources from the tools grid entirely; the static sources table
+  listed 5 of 11 ledger sources and omitted BIS, the ECB Data Portal and the
+  new IMF dated-vintage source. Fixed, with a pointer to the live ledger and a
+  test asserting the homepage tool count against the TOOLS array.
+- **as_of provenance is now truthful end-to-end**: the source-changed note
+  hardcoded "(via DBnomics)" even when the IMF's own vintage dataflow served
+  (observed live, contradicting the citation in the same response); it now
+  names the source that actually served. Tool/OpenAPI/docs descriptions of
+  as_of no longer describe the vintage path as DBnomics-only.
+- **DBnomics ledger note corrected**: the curated registry routes only IMF
+  through DBnomics, but the raw get_series dbnomics/PROVIDER/... escape hatch
+  passes any hosted provider through on flow-through terms — the note claimed
+  otherwise; it now describes the real behaviour and tells consumers of
+  non-IMF raw series to check the named provider's terms.
+- **docs page unstuck from v1.4.2**: changelog entries added for 1.5.0–1.9.0;
+  llms-full.txt registry corrected (48 keys, six missing indicators added,
+  current IMF attribution format, IMF-first vintage chain).
+- Apify actor metadata: description count corrected (36 → 42 active
+  indicators), actor versioning aligned.
+
 ## 1.9.0 — 2026-08-10
 
 - **New source: the IMF's own dated WEO vintages** (`api.imf.org`, SDMX 3.0),

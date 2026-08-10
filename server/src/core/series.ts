@@ -749,7 +749,13 @@ export async function getIndicatorAsOf(
       : isFmPrimary
         ? "IMF Fiscal Monitor (via the DataMapper API)"
         : "IMF WEO (via the DataMapper API)",
-    historical_source: `IMF WEO ${edition} dated edition (via DBnomics)`,
+    // Name the source that ACTUALLY served — the chain is IMF-first with a
+    // DBnomics fallback, and hardcoding "(via DBnomics)" here misattributed
+    // provenance whenever the IMF's own vintage dataflow served (observed live
+    // 2026-08-10, contradicting the citation in the same response).
+    historical_source: result.series_id.startsWith("imf-sdmx/")
+      ? `IMF WEO ${edition} dated edition (first-party, api.imf.org)`
+      : `IMF WEO ${edition} dated edition (via DBnomics)`,
     source_changed_for_as_of: wbPrimary || isFmPrimary,
   };
 
