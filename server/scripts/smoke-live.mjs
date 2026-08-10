@@ -68,6 +68,54 @@ console.log(`${init.status === 200 ? "PASS" : "FAIL"} initialize -> ${init.statu
 const toolsList = await (await mcp({ jsonrpc: "2.0", id: ++id, method: "tools/list" })).json();
 console.log(`PASS tools/list -> ${toolsList.result.tools.length} tools`);
 
+// 2026-07-28 dual-era, live. Two things must BOTH hold on production: the
+// modern era answers, and the legacy era is unchanged. Asserting only the
+// first would let a regression that broke every existing client ship green.
+{
+  const disc = await (await call("/mcp", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json, text/event-stream",
+      "mcp-protocol-version": "2026-07-28",
+      "mcp-method": "server/discover",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0", id: ++id, method: "server/discover",
+      params: { _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28" } },
+    }),
+  })).json();
+  const r = disc?.result;
+  const ok = r?.resultType === "complete" && Array.isArray(r?.supportedVersions) && r.supportedVersions.includes("2026-07-28");
+  if (!ok) failures++;
+  console.log(`${ok ? "PASS" : "FAIL"} server/discover (2026-07-28) -> versions=${r?.supportedVersions?.join(",")} serverInfo=${r?._meta?.["io.modelcontextprotocol/serverInfo"]?.version}`);
+
+  // Header/body disagreement must be refused, not served.
+  const bad = await call("/mcp", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json",
+      "mcp-protocol-version": "2026-07-28",
+      "mcp-method": "tools/call",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0", id: ++id, method: "tools/list",
+      params: { _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28" } },
+    }),
+  });
+  const badBody = await bad.json();
+  const refused = bad.status === 400 && badBody?.error?.code === -32020;
+  if (!refused) failures++;
+  console.log(`${refused ? "PASS" : "FAIL"} header-mismatch must-refuse -> ${bad.status} code=${badBody?.error?.code}`);
+
+  // And the legacy handshake still works, unshaped.
+  const legacy = await (await mcp({ jsonrpc: "2.0", id: ++id, method: "initialize", params: { protocolVersion: "2025-06-18" } })).json();
+  const legacyOk = legacy?.result?.protocolVersion === "2025-06-18" && legacy.result.resultType === undefined;
+  if (!legacyOk) failures++;
+  console.log(`${legacyOk ? "PASS" : "FAIL"} legacy initialize unchanged -> ${legacy?.result?.protocolVersion} (no modern shaping: ${legacy?.result?.resultType === undefined})`);
+}
+
 // Core tools against live data
 await tool("get_indicator", { indicator: "inflation_cpi", country: "Barbados", latest_only: true },
   (p) => `latest ${p.observations[0].period}=${p.observations[0].value?.toFixed(2)} | ${p.citation.source}`);

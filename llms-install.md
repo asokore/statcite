@@ -4,7 +4,7 @@ StatCite is a **remote** MCP server. There is nothing to build, clone, or run
 locally, and no API key or account exists anywhere in the flow.
 
 - Endpoint: `https://statcite.com/mcp` (Streamable HTTP, stateless, no auth)
-- Protocol revisions: 2025-03-26 / 2025-06-18 / 2025-11-25
+- Protocol revisions: 2026-07-28 (stateless era) and 2025-03-26 / 2025-06-18 / 2025-11-25 (session era), both served on the same endpoint
 - REST mirror: `https://statcite.com/v1` (OpenAPI at `https://statcite.com/openapi.json`)
 
 ## Clients with native remote-MCP support
