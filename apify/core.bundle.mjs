@@ -2045,7 +2045,11 @@ async function getIndicatorAsOf(ctx, key, countryInput, asOfDate, opts = {}) {
   const sourceInfo = {
     verification_scope: "imf_weo_historical_vintage",
     normal_primary_source: wbPrimary ? "World Bank WDI" : isFmPrimary ? "IMF Fiscal Monitor (via the DataMapper API)" : "IMF WEO (via the DataMapper API)",
-    historical_source: `IMF WEO ${edition} dated edition (via DBnomics)`,
+    // Name the source that ACTUALLY served — the chain is IMF-first with a
+    // DBnomics fallback, and hardcoding "(via DBnomics)" here misattributed
+    // provenance whenever the IMF's own vintage dataflow served (observed live
+    // 2026-08-10, contradicting the citation in the same response).
+    historical_source: result.series_id.startsWith("imf-sdmx/") ? `IMF WEO ${edition} dated edition (first-party, api.imf.org)` : `IMF WEO ${edition} dated edition (via DBnomics)`,
     source_changed_for_as_of: wbPrimary || isFmPrimary
   };
   const dateStr = asOfDate.toISOString().slice(0, 10);
@@ -3043,7 +3047,7 @@ var SOURCES = [
     access: "No key; open aggregator \u2014 upstream provider licenses flow through",
     license: "Per underlying provider",
     license_verdict: "flow_through",
-    license_note: "Aggregator: each served series inherits its underlying provider's licence, and the citation object names that provider. StatCite only routes providers through DBnomics whose own terms permit it (currently IMF).",
+    license_note: "Aggregator: each served series inherits its underlying provider's licence, and the citation object names that provider. The CURATED registry routes only IMF series through DBnomics. The raw get_series escape hatch (dbnomics/PROVIDER/... ids) passes any DBnomics-hosted provider through on flow-through terms: the citation names the provider and states that its terms apply, and StatCite has NOT individually verified every provider's licence \u2014 consumers of non-IMF dbnomics/ series must check the named provider's own terms before republishing. Corrected 2026-08-10: the previous note claimed only permitted providers were routed, which was true of the registry but overstated the raw-id path.",
     license_verified_on: "2026-07-25",
     attribution_required: "Cite the underlying provider (StatCite citations do this automatically)",
     url: "https://db.nomics.world",

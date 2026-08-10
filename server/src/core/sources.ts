@@ -84,7 +84,7 @@ export const SOURCES = [
     license: "Per underlying provider",
     license_verdict: "flow_through" as LicenseVerdict,
     license_note:
-      "Aggregator: each served series inherits its underlying provider's licence, and the citation object names that provider. StatCite only routes providers through DBnomics whose own terms permit it (currently IMF).",
+      "Aggregator: each served series inherits its underlying provider's licence, and the citation object names that provider. The CURATED registry routes only IMF series through DBnomics. The raw get_series escape hatch (dbnomics/PROVIDER/... ids) passes any DBnomics-hosted provider through on flow-through terms: the citation names the provider and states that its terms apply, and StatCite has NOT individually verified every provider's licence — consumers of non-IMF dbnomics/ series must check the named provider's own terms before republishing. Corrected 2026-08-10: the previous note claimed only permitted providers were routed, which was true of the registry but overstated the raw-id path.",
     license_verified_on: "2026-07-25",
     attribution_required: "Cite the underlying provider (StatCite citations do this automatically)",
     url: "https://db.nomics.world",

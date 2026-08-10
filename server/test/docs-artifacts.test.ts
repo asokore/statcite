@@ -3,7 +3,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { inflateRawSync } from "node:zlib";
@@ -205,4 +205,50 @@ test("deep-research contract: search/fetch shapes stay pinned to the connector s
   for (const k of ["id", "title", "text", "url"]) {
     assert.ok(k in fr, `fetch outputSchema must keep the '${k}' field required by the connector schema`);
   }
+});
+
+// ---------------------------------------------------------------------------
+// Licence-wording regression guard (added after the 2026-08-10 health audit).
+//
+// v1.8.2 corrected the IMF licence text in code, ledger and the Apify README —
+// but the audit found the RETIRED wording still live on the site HTML and the
+// repo README, published for two days after the correction. Prose surfaces
+// have no compiler, so this is their compiler: the retired claim must never
+// reappear on any public prose surface. CHANGELOG.md and internal docs/ may
+// reference it historically; these surfaces may not.
+// ---------------------------------------------------------------------------
+
+test("the retired IMF commercial-permission wording appears on no public surface", () => {
+  const surfaces = [
+    "README.md",
+    "apify/README.md",
+    ...readdirSync(path.join(repoRoot, "site")).filter((f) => /\.(html|txt|json)$/.test(f)).map((f) => `site/${f}`),
+    ...readdirSync(path.join(repoRoot, "distribution")).filter((f) => /\.md$/.test(f)).map((f) => `distribution/${f}`),
+  ];
+  assert.ok(surfaces.length >= 10, `surface sweep looks too small to be real: ${surfaces.length}`);
+  for (const rel of surfaces) {
+    const text = readFileSync(path.join(repoRoot, rel), "utf8");
+    assert.ok(
+      !/commercial (re)?use may require/i.test(text),
+      `${rel} carries the retired IMF commercial-permission wording — the current terms grant redistribution with conditions (see IMF_LICENSE in core/citations.ts)`,
+    );
+  }
+});
+
+test("the homepage tool count matches the TOOLS array", async () => {
+  const { TOOLS } = await import("../src/tools.ts");
+  const html = readFileSync(path.join(repoRoot, "site/index.html"), "utf8");
+  const words: Record<number, string> = { 10: "Ten", 11: "Eleven", 12: "Twelve", 13: "Thirteen", 14: "Fourteen", 15: "Fifteen" };
+  const expected = words[TOOLS.length];
+  assert.ok(expected, `add ${TOOLS.length} to the number-word table`);
+  assert.ok(
+    html.includes(`${expected} tools`),
+    `index.html does not say "${expected} tools" — the TOOLS array has ${TOOLS.length}, update the headline and the pricing bullet`,
+  );
+  const stale = Object.entries(words).filter(([n]) => Number(n) !== TOOLS.length).map(([, w]) => `${w} tools`);
+  for (const s of stale) assert.ok(!html.includes(s), `index.html still says "${s}" but the TOOLS array has ${TOOLS.length}`);
+  assert.ok(
+    html.includes(`All ${TOOLS.length} tools`),
+    `pricing bullet does not say "All ${TOOLS.length} tools"`,
+  );
 });
