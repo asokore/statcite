@@ -228,3 +228,46 @@ test("empty window without a transform reports where the published data actually
     },
   );
 });
+
+// --- a transform must relabel the unit ------------------------------------
+//
+// Found live on 2026-08-13. GDP for Barbados in current US$ is 7,597,571,450.
+// Asked for transform=yoy the server returned 5.18 while still declaring
+// unit: "current US$". An agent told to trust the declared unit publishes
+// "GDP was 5.18 current US$", wrong by nine orders of magnitude, in the one
+// field a consumer is meant to be able to rely on. The note said "% change",
+// but a note is prose and `unit` is a typed field clients read directly.
+
+test("yoy and pct_change relabel the unit as a percentage", () => {
+  const obs = [
+    { period: "2023", value: 7223248150 },
+    { period: "2024", value: 7597571450 },
+  ];
+  const yoy = applyTransform(obs, "yoy", { frequency: "annual" });
+  assert.equal(yoy.unit, "% change (year-over-year)", "the unit must stop saying dollars");
+  assert.ok(Math.abs(yoy.observations.at(-1)!.value! - 5.1822018602) < 1e-6);
+
+  const pct = applyTransform(obs, "pct_change", { frequency: "annual" });
+  assert.equal(pct.unit, "% change (period-over-period)");
+});
+
+test("INDEX REBASE NAMES THE REAL BASE PERIOD, not the source's", () => {
+  // cpi_index arrives from the source as "index, 2010 = 100". Rebased to 2018
+  // it kept that label while its own note said 2018, so a single response
+  // asserted two different base years for the same numbers.
+  const obs = [
+    { period: "2018", value: 120 },
+    { period: "2019", value: 126 },
+  ];
+  const r = applyTransform(obs, "index", { frequency: "annual" });
+  assert.equal(r.unit, "index, 2018 = 100");
+  assert.equal(r.observations[0].value, 100);
+  assert.equal(r.observations[1].value, 105);
+  assert.ok(r.note!.includes("2018 = 100"), "unit and note must agree on the base");
+});
+
+test("an untransformed series keeps the source unit", () => {
+  // The fix must not fire when no transform was requested.
+  const r = applyTransform([{ period: "2024", value: 1 }], "none", {});
+  assert.equal(r.unit, undefined, "no transform means no relabel");
+});

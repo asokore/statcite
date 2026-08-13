@@ -6,7 +6,7 @@
 <title>StatCite Docs — MCP tools, REST API, indicator registry</title>
 <meta name="description" content="Full reference for the StatCite MCP server and REST API: tools, parameters, indicator registry, citation object spec, sources and licensing.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="canonical" href="https://statcite.com/docs.html">
+<link rel="canonical" href="https://statcite.com/docs">
 <style>
 :root{--bg:#0b0f14;--card:#141c25;--line:#22303d;--text:#dbe4ec;--dim:#8fa1b0;--faint:#6b7f8e;--accent:#4cc38a;--accent2:#7cb8ff;--warn:#e5b567;
 --mono:ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,sans-serif}
@@ -42,7 +42,7 @@ li{margin:4px 0}
 <div class="wrap">
   <nav>
     <a class="logo" href="/">StatCite</a>
-    <div class="links"><a href="/">Home</a><a href="/bench.html">Benchmark</a><a href="/sources.html">Sources</a><a href="/openapi.json">OpenAPI</a><a href="/llms-full.txt">llms-full.txt</a></div>
+    <div class="links"><a href="/">Home</a><a href="/bench">Benchmark</a><a href="/sources">Sources</a><a href="/openapi.json">OpenAPI</a><a href="/llms-full.txt">llms-full.txt</a></div>
   </nav>
   <h1>Documentation</h1>
   <p>StatCite is a free remote MCP server and REST API serving official economic statistics where every number carries a full citation, plus verification and conversion utilities. Base URL: <code>https://statcite.com</code>.</p>
@@ -140,7 +140,7 @@ li{margin:4px 0}
   <p>Params: <code>amount</code>, <code>from</code>, <code>to</code> (ISO 4217), <code>date</code> (<code>YYYY-MM-DD</code> daily / <code>YYYY</code> annual / omit for latest). Rails: ECB daily reference rates (~30 currencies, since 1999) via Frankfurter; World Bank official annual-average rates (<code>PA.NUS.FCRF</code>) for ~90 more currencies via a USD bridge. <code>precision</code> field reports <code>daily</code>, <code>annual_average</code>, or <code>mixed</code>; the method string shows the arithmetic.</p>
 
   <h3>list_sources</h3>
-  <p>Sources, coverage, licenses, required attribution lines — now a full <strong>licence ledger</strong>: every source carries <code>license_verdict</code> (<code>served | flow_through | refused</code>), <code>license_note</code> (the basis for the verdict), and <code>license_verified_on</code>. Refused sources (FRED, UN Comtrade, ECCB, Central Bank of Barbados) are listed with the reason each was declined. Human-readable version: <a href="/sources.html">the sources page</a>.</p>
+  <p>Sources, coverage, licenses, required attribution lines — now a full <strong>licence ledger</strong>: every source carries <code>license_verdict</code> (<code>served | flow_through | refused</code>), <code>license_note</code> (the basis for the verdict), and <code>license_verified_on</code>. Refused sources (FRED, UN Comtrade, ECCB, Central Bank of Barbados) are listed with the reason each was declined. Human-readable version: <a href="/sources">the sources page</a>.</p>
 
   <h3>search / fetch</h3>
   <p>Deep-research compatibility pair (OpenAI connector schema). <code>search(query)</code> returns <code>{results:[{id,title,url}]}</code> with ids like <code>indicator/inflation_cpi/BRB</code>; <code>fetch(id)</code> returns <code>{id,title,text,url,metadata}</code> where <code>text</code> contains recent observations and the full citation.</p>
@@ -244,7 +244,7 @@ GET /health</pre>
     <li><strong>1.0.0</strong> — Initial release: 10 tools, 42-indicator registry, World Bank + IMF WEO + ECB + optional FRED, REST mirror, OpenAPI, llms.txt.</li>
   </ul>
 
-  <p style="margin-top:40px;color:var(--faint);font-size:13px">© 2026 StatCite · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · <a href="mailto:hello@statcite.com">hello@statcite.com</a></p>
+  <p style="margin-top:40px;color:var(--faint);font-size:13px">© 2026 StatCite · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="mailto:hello@statcite.com">hello@statcite.com</a></p>
 </div>
 </body>
 </html>

@@ -3,7 +3,15 @@
 # 'unsafe-inline' is required; connect-src 'self' covers the live verifier
 # form's same-origin /v1 calls.
 
+# TDM Reservation Protocol, declared on the PAGES only and deliberately not on
+# the /v1 data responses. The pages are original work. The figures in an API
+# response belong to the World Bank, IMF, ECB and BIS, and stamping our
+# reservation on their data would be exactly the conflation terms.html#reuse
+# exists to prevent. Reserved here means: do not mine this to train a model.
+# Reading, indexing and citing stay open, which robots.txt states explicitly.
 /*
+  TDM-Reservation: 1
+  TDM-Policy: https://statcite.com/terms#reuse
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Strict-Transport-Security: max-age=31536000; includeSubDomains
@@ -26,3 +34,10 @@
 
 /favicon.svg
   Cache-Control: public, max-age=86400
+
+# The TDM reservation document itself must be readable by any client that wants
+# to check it, including cross-origin fetchers.
+/.well-known/tdmrep.json
+  Content-Type: application/json
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=3600

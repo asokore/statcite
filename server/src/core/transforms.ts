@@ -64,7 +64,7 @@ export function applyTransform(
   observations: Observation[],
   transform: Transform,
   opts: { frequency?: string; indexBasePeriod?: string } = {},
-): { observations: Observation[]; note?: string } {
+): { observations: Observation[]; note?: string; unit?: string } {
   if (transform === "none") return { observations };
 
   const obs = observations;
@@ -94,6 +94,13 @@ export function applyTransform(
     }
     return {
       observations: out,
+      // The unit MUST change with the values. A yoy transform of GDP in current
+      // US$ returns 5.18, and leaving `unit` as "current US$" tells an agent to
+      // publish "GDP was 5.18 current US$" when the real figure is 7.6 billion:
+      // wrong by nine orders of magnitude, and wrong in the one field a
+      // consumer is meant to trust. The note alone cannot carry this, because
+      // notes are prose and `unit` is a typed field clients read directly.
+      unit: transform === "yoy" ? "% change (year-over-year)" : "% change (period-over-period)",
       note:
         transform === "yoy"
           ? `Computed by StatCite: year-over-year % change (lag ${lag} period${lag > 1 ? "s" : ""}).`
@@ -119,6 +126,11 @@ export function applyTransform(
   const b = base.value;
   return {
     observations: obs.map((o) => ({ ...o, value: o.value == null ? null : (o.value / b) * 100 })),
+    // Naming the rebase period here is what stops a response asserting two
+    // different base years at once. cpi_index arrives as "index, 2010 = 100";
+    // rebased to 2018 it kept that label while its own note said 2018, so the
+    // payload contradicted itself about what the numbers meant.
+    unit: `index, ${base.period} = 100`,
     note: `Computed by StatCite: rebased to index, ${base.period} = 100.`,
   };
 }

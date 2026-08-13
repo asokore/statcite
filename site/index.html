@@ -33,7 +33,7 @@
       "name": "StatCite REST API",
       "url": "https://statcite.com/v1",
       "documentation": "https://statcite.com/openapi.json",
-      "termsOfService": "https://statcite.com/terms.html",
+      "termsOfService": "https://statcite.com/terms",
       "description": "REST mirror of the StatCite MCP tools: indicator lookup, stat verification, FX conversion and inflation adjustment, each response carrying a full source citation."
     }
   ]
@@ -153,10 +153,10 @@ footer a{color:var(--dim)}
       StatCite
     </a>
     <div class="links">
-      <a href="/docs.html">Docs</a>
-      <a href="/bench.html">Benchmark</a>
+      <a href="/docs">Docs</a>
+      <a href="/bench">Benchmark</a>
       <a href="#tools">Tools</a>
-      <a href="/sources.html">Sources</a>
+      <a href="/sources">Sources</a>
       <a href="#pricing">Pricing</a>
       <a href="/llms.txt">llms.txt</a>
     </div>
@@ -170,7 +170,7 @@ footer a{color:var(--dim)}
     <div class="cta">
       <a class="btn primary" href="#connect">Connect your agent</a>
       <a class="btn ghost" href="#try">Try a live verification</a>
-      <a class="btn ghost" href="/docs.html">Read the docs</a>
+      <a class="btn ghost" href="/docs">Read the docs</a>
     </div>
   </header>
 
@@ -364,7 +364,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
       <tr><td>FRED — St. Louis Fed</td><td>Not served. Six US-only registry keys are reserved for it but always decline — FRED's terms of use prohibit AI/ML use and caching/redistribution of its content</td><td>—</td></tr>
       <tr><td>DBnomics (aggregator)</td><td>90+ official providers (OECD, Eurostat, BIS, national offices)</td><td>Per provider, named in each citation</td></tr>
     </table>
-    <p style="margin-top:10px;font-size:14px;color:var(--faint)">The complete licence ledger — every source, verbatim licence basis, verification date and required attribution — is served live at <a href="/sources.html">/sources</a> and <a href="/v1/sources"><code>GET /v1/sources</code></a>.</p>
+    <p style="margin-top:10px;font-size:14px;color:var(--faint)">The complete licence ledger — every source, verbatim licence basis, verification date and required attribution — is served live at <a href="/sources">/sources</a> and <a href="/v1/sources"><code>GET /v1/sources</code></a>.</p>
   </section>
 
   <section id="pricing">
@@ -433,17 +433,22 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
         Official economic statistics with citations,<br>built for AI agents and the people who check them.
       </div>
       <div>
-        <a href="/docs.html">Documentation</a><br>
+        <a href="/docs">Documentation</a><br>
         <a href="/openapi.json">OpenAPI</a><br>
         <a href="/llms.txt">llms.txt</a> · <a href="/llms-full.txt">llms-full.txt</a>
       </div>
       <div>
-        <a href="/privacy.html">Privacy</a><br>
-        <a href="/terms.html">Terms</a><br>
+        <a href="/privacy">Privacy</a><br>
+        <a href="/terms">Terms</a> · <a href="/terms#reuse">Reuse &amp; AI</a><br>
         <a href="#support">Support</a> · <a href="mailto:hello@statcite.com">hello@statcite.com</a>
       </div>
     </div>
     <p style="margin-top:26px">© 2026 StatCite. Data © respective sources (World Bank CC BY 4.0, IMF, ECB). Not affiliated with or endorsed by any data provider.</p>
+    <p style="margin-top:10px">
+      <strong>Agents and crawlers are welcome.</strong> Read it, index it, call it, and ground a cited answer on it. That is what it is for.
+      The data belongs to its publishers under the licences each response names. The service itself, its verification logic, citation format and indicator registry, is original work and is
+      <a href="/terms#reuse">not available as model training data</a>, declared in <a href="/robots.txt">robots.txt</a> and <a href="/.well-known/tdmrep.json">tdmrep.json</a>.
+    </p>
   </footer>
 </div>
 <span class="visually-hidden" role="status" aria-live="polite" id="copy-status"></span>
