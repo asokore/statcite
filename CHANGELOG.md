@@ -5,6 +5,24 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.10.1 — 2026-08-10
+
+- **One honest-absence contract for both World Bank coverage shapes.** The
+  World Bank signals "this economy is not one we report" two different ways:
+  an empty result set (Anguilla) or a parameter-validation message
+  ("Invalid value: The provided parameter value is not valid", Montserrat).
+  The second was passed through raw as "World Bank API error — …", which reads
+  as a StatCite fault rather than a coverage fact, and carried no
+  machine-readable flag. Both now return the same message shape and
+  `no_published_data: true`, so an agent deciding whether to look elsewhere
+  branches on a field instead of parsing prose.
+- A genuine upstream fault is still surfaced as an error — the guard matches
+  only the validation-refusal wording, and a test asserts that a transient
+  World Bank message is never disguised as absence. That distinction is the
+  point: reporting a broken query as "this economy publishes nothing" would be
+  a false claim about the world rather than about our request.
+- Found by a live Caribbean coverage sweep, and the fix is mutation-verified.
+
 ## 1.10.0 — 2026-08-10
 
 **MCP protocol revision 2026-07-28 support, served dual-era.**
