@@ -990,12 +990,18 @@ function isTransientUpstreamError(e) {
 
 // ../server/src/adapters/worldbank.ts
 var BASE = "https://api.worldbank.org/v2";
-function parseEnvelope(data, apiUrl) {
+function parseEnvelope(data, apiUrl, ctx = {}) {
   if (!Array.isArray(data)) throw new ToolError("World Bank API returned an unexpected payload", { api_url: apiUrl });
   const first = data[0];
   if (first && Array.isArray(first.message)) {
     const msgs = first.message;
     const text = msgs.map((m) => `${m.key ?? ""}: ${m.value ?? ""}`).join("; ");
+    if (/invalid value/i.test(text) || /not valid/i.test(text)) {
+      throw new ToolError(
+        `The World Bank does not publish indicator ${ctx.indicatorId ?? "(unknown)"} for '${ctx.countryCode ?? "(unknown)"}'. This is a coverage fact at the source, not a lookup failure \u2014 some economies (e.g. Anguilla, Montserrat) are not World Bank reporting economies at all.`,
+        { api_url: apiUrl, no_published_data: true, country: ctx.countryCode, indicator: ctx.indicatorId }
+      );
+    }
     throw new ToolError(`World Bank API error \u2014 ${text}`, { api_url: apiUrl });
   }
   const rows = data[1] ?? [];
@@ -1006,11 +1012,14 @@ async function fetchWbSeries(countryCode, indicatorId, opts = {}) {
   if (opts.mrv) params.set("mrv", String(opts.mrv));
   const apiUrl = `${BASE}/country/${encodeURIComponent(countryCode)}/indicator/${encodeURIComponent(indicatorId)}?${params}`;
   const data = await fetchJson(apiUrl, { ttlSeconds: 21600 });
-  const { meta, rows } = parseEnvelope(data, apiUrl);
+  const { meta, rows } = parseEnvelope(data, apiUrl, { countryCode, indicatorId });
   if (rows.length === 0) {
     throw new ToolError(
       `No World Bank data found for indicator ${indicatorId}, country ${countryCode}. The indicator code or country may be wrong, or the series may not be reported for this economy.`,
-      { indicator: indicatorId, country: countryCode }
+      // Same honest-absence contract as the parameter-validation path above:
+      // both mean "the source publishes nothing here", and a caller must not
+      // have to parse prose to tell them apart.
+      { indicator: indicatorId, country: countryCode, no_published_data: true }
     );
   }
   const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date));
@@ -1030,7 +1039,7 @@ async function fetchWbMulti(countryCode, indicatorIds, opts = {}) {
   const joined = indicatorIds.map(encodeURIComponent).join(";");
   const apiUrl = `${BASE}/country/${encodeURIComponent(countryCode)}/indicator/${joined}?${params}`;
   const data = await fetchJson(apiUrl, { ttlSeconds: 21600 });
-  const { meta, rows } = parseEnvelope(data, apiUrl);
+  const { meta, rows } = parseEnvelope(data, apiUrl, { countryCode, indicatorId: indicatorIds.join(";") });
   const out = /* @__PURE__ */ new Map();
   for (const r of rows) {
     const id = r.indicator.id;
