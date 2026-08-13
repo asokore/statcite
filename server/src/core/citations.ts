@@ -236,3 +236,54 @@ export function sdmxCitation(
     citation_text: `${source}, ${dataset}, series ${opts.key} (${opts.seriesName}). Retrieved ${date} via StatCite. ${opts.sourceUrl}`,
   });
 }
+
+/**
+ * CaribStat citation — regional central-bank data ingested on a schedule.
+ *
+ * The distinguishing field is `data_as_at`: these banks stamp every table with
+ * their own currency date, and those stamps differ per table and per country.
+ * It is carried separately from `retrieved_at` and stated in the citation text,
+ * because "when the bank says this data is current to" and "when we fetched it"
+ * are different claims and conflating them would misrepresent the source.
+ */
+export function caribstatCitation(
+  ctx: Ctx,
+  opts: {
+    source: string;
+    sourceUrl: string;
+    tableTitle: string;
+    rowLabel: string;
+    countryName: string;
+    frequency: string;
+    dataAsAt?: string;
+    dataAsAtRaw?: string;
+    apiUrl: string;
+    seriesId: string;
+  },
+): Citation {
+  const date = today(ctx);
+  const freqWord = opts.frequency === "m" ? "monthly" : opts.frequency === "q" ? "quarterly" : "annual";
+  const asAt = opts.dataAsAtRaw ?? opts.dataAsAt;
+  return withExports({
+    source: opts.source,
+    dataset: opts.tableTitle,
+    series_id: opts.seriesId,
+    series_name: `${opts.rowLabel} — ${opts.countryName} (${freqWord})`,
+    source_url: opts.sourceUrl,
+    api_url: opts.apiUrl,
+    license: "Reproduced with the publishing central bank's permission; see the source entry in /v1/sources for the scope of that grant",
+    attribution: `Source: ${opts.source}`,
+    retrieved_at: date,
+    citation_text:
+      `${opts.source}, ${opts.tableTitle}, ${opts.rowLabel} — ${opts.countryName} (${freqWord})` +
+      (asAt ? `, data as at ${asAt}` : "") +
+      `. Retrieved ${date} via StatCite. ${opts.sourceUrl}`,
+    ...(asAt
+      ? {
+          notices: [
+            `The publishing bank stamps this table "Data as at ${asAt}". That is the source's own currency claim and is not the same as the retrieval date above.`,
+          ],
+        }
+      : {}),
+  });
+}
