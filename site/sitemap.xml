@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://statcite.com/</loc></url>
-  <url><loc>https://statcite.com/docs.html</loc></url>
-  <url><loc>https://statcite.com/bench.html</loc></url>
-  <url><loc>https://statcite.com/sources.html</loc></url>
-  <url><loc>https://statcite.com/privacy.html</loc></url>
-  <url><loc>https://statcite.com/terms.html</loc></url>
+  <url><loc>https://statcite.com/docs</loc></url>
+  <url><loc>https://statcite.com/bench</loc></url>
+  <url><loc>https://statcite.com/sources</loc></url>
+  <url><loc>https://statcite.com/privacy</loc></url>
+  <url><loc>https://statcite.com/terms</loc></url>
   <url><loc>https://statcite.com/llms.txt</loc></url>
   <url><loc>https://statcite.com/llms-full.txt</loc></url>
   <url><loc>https://statcite.com/openapi.json</loc></url>

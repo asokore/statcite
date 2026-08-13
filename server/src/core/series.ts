@@ -50,6 +50,19 @@ function finishSeries(result: SeriesResult, opts: SeriesOpts): SeriesResult {
     const t = applyTransform(obs, transform, { frequency: result.frequency });
     obs = t.observations;
     if (t.note) result.notes.push(t.note);
+    // Carry the transformed unit onto the result. Without this the response
+    // declares the SOURCE series' unit beside values that are no longer in it.
+    if (t.unit) result.unit = t.unit;
+    // The citation still names the source series, which is correct: that IS
+    // where the inputs came from. But callers are told to reproduce
+    // citation_text verbatim, and reproduced next to computed values it reads
+    // as though the publisher published these numbers. Attach the derivation
+    // to the citation itself, so the disclosure travels with the sentence
+    // rather than sitting in a separate notes array the caller may drop.
+    if (result.citation) {
+      const derived = "Values shown are computed by StatCite from the cited series, not as published by the source.";
+      result.citation.notices = [...(result.citation.notices ?? []), derived];
+    }
   }
   // Drop leading/trailing all-null runs for readability, keep interior nulls.
   let a = 0;

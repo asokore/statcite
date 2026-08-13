@@ -17,3 +17,8 @@ docs/VENTURE-CONTEXT.md
 # Traffic snapshots. Public repo: publishing traffic figures is a business
 # decision, not a side effect of running a script.
 analytics/
+
+# Audit working files. Public repo: findings get triaged into commits and docs,
+# not dumped wholesale.
+audit-defects.json
+audit-plan.md

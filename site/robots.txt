@@ -1,4 +1,32 @@
+# StatCite — https://statcite.com
+#
+# Crawlers are WELCOME here. This file does not try to keep AI out, because
+# AI agents are what this service is built for. It states how the material may
+# be reused, which is a different thing from whether it may be read.
+#
+# The distinction that matters:
+#   the NUMBERS are not ours. They belong to the World Bank, the IMF, the ECB
+#   and the BIS, and they carry those publishers' own licences, which every
+#   response names. Use them under those terms, and cite them.
+#
+#   the SERVICE is ours. The tool design, the verification logic and its
+#   verdicts, the citation format, the indicator registry, the source-precedence
+#   rules, the licence ledger, the wording of these pages and the code behind
+#   them are original work. Reference them, link to them, quote them with
+#   attribution. Do not ingest them to train a model, and do not reproduce them
+#   wholesale as your own.
+#
+# Full terms: https://statcite.com/terms#reuse
+# Machine-readable reservation: https://statcite.com/.well-known/tdmrep.json
+
+# Content Signals Policy (Cloudflare, 2025). Plain meaning of each signal:
+#   search    = yes  index it and link to it
+#   ai-input  = yes  ground a live answer on it and cite it, which is the
+#                    entire point of this service
+#   ai-train  = no   do not use it to train or fine-tune a model
+#   use       = reference   reference it, do not republish it as your own
 User-agent: *
+Content-Signal: search=yes, ai-input=yes, ai-train=no, use=reference
 Allow: /
 
 Sitemap: https://statcite.com/sitemap.xml
