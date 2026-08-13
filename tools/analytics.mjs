@@ -103,15 +103,48 @@ export function classify(ua) {
 
 // --- queries ---------------------------------------------------------------
 
+// --- who is CRAWLING (as opposed to calling) -------------------------------
+//
+// The single most surprising number this tool produces. On 2026-08-12 the site
+// paths were crawled ~300 times by AI crawlers and FIVE times by conventional
+// search engines (Googlebot 3, bingbot 2). StatCite is an AI-native property
+// whose search presence is close to nil, and any growth plan that treats it as
+// a normal website optimising for Google is optimising for 1.6% of its crawl
+// budget. Tracked over time so that ratio stays honest.
+
+const SEARCH_CRAWLERS = /googlebot|bingbot|slurp|duckduckbot|yandex|baidu|applebot|petalbot|seznam/i;
+const AI_CRAWLERS = /gptbot|oai-searchbot|chatgpt-user|claudebot|claude-web|anthropic|perplexity|google-extended|amazonbot|amzn-searchbot|bytespider|meta-external|ccbot|cohere|diffbot|youbot/i;
+
+export function crawlerKind(ua) {
+  const s = ua || "";
+  if (SEARCH_CRAWLERS.test(s)) return "search";
+  if (AI_CRAWLERS.test(s)) return "ai";
+  return null;
+}
+
 const DAILY = `query($zone:String!,$since:Date!,$until:Date!){
   viewer{zones(filter:{zoneTag:$zone}){
     httpRequests1dGroups(limit:60,filter:{date_geq:$since,date_leq:$until},orderBy:[date_ASC]){
       dimensions{date} sum{requests pageViews bytes cachedRequests} uniq{uniques}}}}}`;
 
+// TWO queries, deliberately, and this is not a style choice.
+//
+// A single query over all paths ordered by count truncates: /mcp alone produces
+// thousands of requests across dozens of user-agents, so at limit 100 the entire
+// site-path population falls off the end. The first version of this file did
+// exactly that and reported 8 AI crawler hits on a day that actually saw ~300,
+// which would have inverted the one conclusion this tool exists to support.
+// Filtering each population server-side is the only way to sample both honestly.
+
 const CALLERS = `query($zone:String!,$from:Time!,$to:Time!){
   viewer{zones(filter:{zoneTag:$zone}){
-    httpRequestsAdaptiveGroups(limit:100,filter:{datetime_geq:$from,datetime_lt:$to},orderBy:[count_DESC]){
-      count dimensions{userAgent clientRequestPath edgeResponseStatus}}}}}`;
+    httpRequestsAdaptiveGroups(limit:100,filter:{datetime_geq:$from,datetime_lt:$to,clientRequestPath:"/mcp"},orderBy:[count_DESC]){
+      count dimensions{userAgent edgeResponseStatus}}}}}`;
+
+const SITE = `query($zone:String!,$from:Time!,$to:Time!){
+  viewer{zones(filter:{zoneTag:$zone}){
+    httpRequestsAdaptiveGroups(limit:100,filter:{datetime_geq:$from,datetime_lt:$to,clientRequestPath_neq:"/mcp"},orderBy:[count_DESC]){
+      count dimensions{userAgent}}}}}`;
 
 const iso = (d) => d.toISOString().slice(0, 10);
 const daysAgo = (n) => { const d = new Date(); d.setUTCDate(d.getUTCDate() - n); return iso(d); };
@@ -141,16 +174,18 @@ for (const r of daily) {
 // The caller mix is only available for ~7 days, which is exactly why it is
 // snapshotted rather than queried on demand.
 let callers = [];
+let siteRows = [];
 try {
-  callers = (await gql(CALLERS, { zone: ZONE, from: `${day}T00:00:00Z`, to: `${day}T23:59:59Z` }))
-    .viewer.zones[0].httpRequestsAdaptiveGroups;
+  const win = { zone: ZONE, from: `${day}T00:00:00Z`, to: `${day}T23:59:59Z` };
+  callers = (await gql(CALLERS, win)).viewer.zones[0].httpRequestsAdaptiveGroups;
+  siteRows = (await gql(SITE, win)).viewer.zones[0].httpRequestsAdaptiveGroups;
 } catch (e) {
   console.log(`\nCaller detail for ${day} unavailable: ${e.message}`);
   console.log("Cloudflare's free plan keeps request-level detail for about a week.");
 }
 
 if (callers.length) {
-  const mcp = callers.filter((r) => r.dimensions.clientRequestPath === "/mcp");
+  const mcp = callers;
   const buckets = {};
   for (const r of mcp) {
     const k = classify(r.dimensions.userAgent);
@@ -172,6 +207,24 @@ if (callers.length) {
     console.log(`  ${String(n).padStart(6)}  ${classify(ua).padEnd(10)} ${ua}`);
   }
 
+  // Crawl mix on the SITE paths, which is a different population from the /mcp
+  // callers above and answers a different question: not "who uses this" but
+  // "who can find it".
+  const site = siteRows;
+  const crawl = { search: 0, ai: 0 };
+  const crawlAgents = {};
+  for (const r of site) {
+    const k = crawlerKind(r.dimensions.userAgent);
+    if (!k) continue;
+    crawl[k] += r.count;
+    const ua = (r.dimensions.userAgent || "").slice(0, 44);
+    crawlAgents[ua] = (crawlAgents[ua] || 0) + r.count;
+  }
+  console.log(`\n  site crawl on ${day}`);
+  console.log(`  ${String(crawl.ai).padStart(6)}  AI crawlers`);
+  console.log(`  ${String(crawl.search).padStart(6)}  search engines` +
+    (crawl.search < 20 ? "   <- barely crawled: this is why the domain does not rank" : ""));
+
   mkdirSync(OUT, { recursive: true });
   const file = join(OUT, "daily.jsonl");
   const already = existsSync(file)
@@ -187,6 +240,8 @@ if (callers.length) {
       uniques: daily.find((r) => r.dimensions.date === day)?.uniq.uniques ?? null,
       mcp_total: total,
       mcp: buckets,
+      crawl,
+      crawl_agents: crawlAgents,
       top_agents: Object.fromEntries(Object.entries(named).sort((a, b) => b[1] - a[1]).slice(0, 20)),
     }) + "\n", "utf8");
     console.log(`\nRecorded ${day} in analytics/daily.jsonl`);
