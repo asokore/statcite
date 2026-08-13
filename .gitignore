@@ -13,3 +13,7 @@ package-lock.json
 # Carries personal/venture information that must not enter this public repo.
 # If absent after a fresh clone, the canonical copy lives in the owner's ace-wiki.
 docs/VENTURE-CONTEXT.md
+
+# Traffic snapshots. Public repo: publishing traffic figures is a business
+# decision, not a side effect of running a script.
+analytics/
