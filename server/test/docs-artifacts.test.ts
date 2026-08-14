@@ -252,3 +252,25 @@ test("the homepage tool count matches the TOOLS array", async () => {
     `pricing bullet does not say "All ${TOOLS.length} tools"`,
   );
 });
+
+// --- absolute counts rot, so stop shipping one ----------------------------
+//
+// README.md advertised "180 tests" while the suite had grown to 253. It had
+// been wrong through several releases because nothing could notice: a number
+// in prose has no relationship to the thing it describes. An earlier sweep in
+// this same session missed it too, having searched for the PREVIOUS wrong
+// number rather than for the shape of the claim.
+//
+// The count is now simply absent from the README. This guard keeps it absent,
+// because the failure mode is not "the number is wrong" but "a number is
+// there at all".
+
+test("README does not advertise an absolute test count", () => {
+  const readme = readFileSync(fileURLToPath(new URL("../../README.md", import.meta.url)), "utf8");
+  const claim = readme.match(/\b\d+\s+tests\b/i);
+  assert.equal(
+    claim,
+    null,
+    `README states "${claim?.[0]}". A hard-coded count drifts silently; describe the suite instead.`,
+  );
+});
