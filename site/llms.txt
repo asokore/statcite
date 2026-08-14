@@ -1,6 +1,6 @@
 # StatCite
 
-> Free remote MCP server + REST API serving official economic statistics — World Bank, IMF WEO, ECB reference rates — where every number ships with a full citation (source, dataset, series id, canonical URL, license, retrieval date). Includes verify_stat: check a claimed economic figure against the official series and get a verdict with diagnostics — and verify_claims: fact-check up to 15 claims from a draft in one batch call (MCP tool + POST /v1/verify_claims).
+> Free remote MCP server + REST API serving official economic statistics. World Bank, IMF WEO, ECB reference rates. Where every number ships with a full citation (source, dataset, series id, canonical URL, license, retrieval date). Includes verify_stat: check a claimed economic figure against the official series and get a verdict with diagnostics. And verify_claims: fact-check up to 15 claims from a draft in one batch call (MCP tool + POST /v1/verify_claims).
 
 Key facts: no API key, no auth, CORS open, read-only. MCP endpoint: https://statcite.com/mcp (Streamable HTTP, stateless). REST base: https://statcite.com/v1. 42 active curated indicators, 200+ economies, ~120 currencies.
 

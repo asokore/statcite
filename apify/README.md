@@ -1,8 +1,8 @@
-# StatCite — Economic Data & Stat Verification (with citations)
+# StatCite: Economic Data & Stat Verification (with citations)
 
-**Official economic statistics where every number ships with its citation — plus a verifier that checks any claimed figure against the official series.** Built and curated by a professional economist.
+**Official economic statistics where every number ships with its citation. Plus a verifier that checks any claimed figure against the official series.** Built and curated by a professional economist.
 
-AI agents and analysts constantly need macro numbers they can defend: GDP growth, inflation, unemployment, government debt, exchange rates. This actor returns the official value **and the receipt** — source, dataset, series ID, canonical URL, license, retrieval date, and a ready-to-paste citation sentence.
+AI agents and analysts constantly need macro numbers they can defend: GDP growth, inflation, unemployment, government debt, exchange rates. This actor returns the official value **and the receipt**. Source, dataset, series ID, canonical URL, license, retrieval date, and a ready-to-paste citation sentence.
 
 ## What it does
 
@@ -10,19 +10,19 @@ AI agents and analysts constantly need macro numbers they can defend: GDP growth
 |---|---|
 | `indicator` | Values for any of **42 active curated indicators** (inflation, GDP growth, debt/GDP, current account, FDI, …) for **200+ economies**, with citation |
 | `verify` | **Check a claimed figure** against the official series → `match / close / mismatch / cannot_verify`, with diagnostics (wrong year? percent-vs-decimal? millions-vs-billions?) and the correct citable value |
-| `snapshot` | 11 headline indicators for one country, each with its own citation — instant country brief |
-| `inflation` | "What is \$100 (1995) worth in 2025 money?" — CPI-ratio method, formula disclosed, any country |
+| `snapshot` | 11 headline indicators for one country, each with its own citation, instant country brief |
+| `inflation` | "What is \$100 (1995) worth in 2025 money?". CPI-ratio method, formula disclosed, any country |
 | `fx` | Currency conversion: ECB daily reference rates (~30 majors since 1999) + official annual rates for ~90 more currencies (BBD, XCD, JMD, KES…) |
 | `series` | Raw access: `worldbank/CODE`, `dbnomics/IMF/WEO:latest/...` |
 | `search` / `registry` | Discover indicators and datasets |
 
 ## Sources
 
-World Bank World Development Indicators (CC BY 4.0) · IMF World Economic Outlook & Fiscal Monitor via the IMF's own DataMapper API (current vintage, DBnomics as fallback) · BIS central bank policy rates · ECB euro reference rates and euro-area HICP. Data is fetched live from official APIs — this actor adds no numbers of its own, and labels IMF projections as projections.
+World Bank World Development Indicators (CC BY 4.0) · IMF World Economic Outlook & Fiscal Monitor via the IMF's own DataMapper API (current vintage, DBnomics as fallback) · BIS central bank policy rates · ECB euro reference rates and euro-area HICP. Data is fetched live from official APIs. This actor adds no numbers of its own, and labels IMF projections as projections.
 
 ### Source data is free at the source
 
-**The underlying data is available free of charge from its publishers** — the
+**The underlying data is available free of charge from its publishers**, the
 IMF, the World Bank, the BIS and the ECB all publish it at no cost, and
 StatCite's own API at [statcite.com](https://statcite.com) is free and needs no
 key. What this actor charges for is the convenience layer: a managed,
@@ -65,7 +65,7 @@ Output (dataset item):
 
 ## Batch mode
 
-Pass `items` (array of parameter objects, each may set its own `operation`) to run many queries in one call — one pay-per-event charge per **successful** item; failures are free and reported per item.
+Pass `items` (array of parameter objects, each may set its own `operation`) to run many queries in one call. One pay-per-event charge per **successful** item; failures are free and reported per item.
 
 ```json
 {
@@ -80,16 +80,16 @@ Pass `items` (array of parameter objects, each may set its own `operation`) to r
 
 ## Batch runs and upstream fetches
 
-Each batch item runs with a fresh internal context, so upstream fetches are not memoized across items. This is deliberate: the memo caches failures for its lifetime (by design, to protect the per-request budget), and a shared context would let one transient IMF failure serve degraded fallback data — while still charging lookups — for the remainder of a run. The cost is some repeated upstream fetches on large batches; correctness of paid results wins.
+Each batch item runs with a fresh internal context, so upstream fetches are not memoized across items. This is deliberate: the memo caches failures for its lifetime (by design, to protect the per-request budget), and a shared context would let one transient IMF failure serve degraded fallback data. While still charging lookups, for the remainder of a run. The cost is some repeated upstream fetches on large batches; correctness of paid results wins.
 
 ## Pricing
 
-Pay per successful query event — failures are never charged. Two event tiers:
+Pay per successful query event, failures are never charged. Two event tiers:
 
 | Event | Operations | Why |
 |---|---|---|
-| `statcite-lookup` | `indicator`, `series`, `snapshot`, `inflation`, `fx`, `search`, `registry` | A cited value lookup — cheap, high-volume |
-| `statcite-verify` | `verify` | Checks a claimed figure against the official series with diagnostics — the differentiated capability, priced higher |
+| `statcite-lookup` | `indicator`, `series`, `snapshot`, `inflation`, `fx`, `search`, `registry` | A cited value lookup, cheap, high-volume |
+| `statcite-verify` | `verify` | Checks a claimed figure against the official series with diagnostics. The differentiated capability, priced higher |
 
 A generous free web tier of the same engine exists at [statcite.com](https://statcite.com) (MCP + REST); this actor is for pipelines that want Apify-managed runs, storage, scheduling, and invoicing.
 

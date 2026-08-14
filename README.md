@@ -1,18 +1,18 @@
 # StatCite
 
-**Economic statistics your AI can actually cite — and a verifier that catches the ones it invents.**
+**Economic statistics your AI can actually cite, with a verifier that catches the ones it invents.**
 
 [![CI](https://github.com/asokore/statcite/actions/workflows/ci.yml/badge.svg)](https://github.com/asokore/statcite/actions/workflows/ci.yml) · [Live status](https://statcite.com/v1/status) · [AI accuracy benchmark](https://statcite.com/bench.html) · [Licence ledger](https://statcite.com/sources.html)
 
-Free remote MCP server + REST API serving official economic statistics — World Bank, IMF WEO/Fiscal Monitor (current vintage via the IMF DataMapper API, DBnomics fallback), ECB reference rates — where **every number ships with its full citation**: source, dataset, series ID, canonical URL, licence, retrieval date, a ready-to-paste citation sentence, and BibTeX/APA export formats.
+Free remote MCP server + REST API serving official economic statistics from the World Bank, IMF WEO and Fiscal Monitor (current vintage via the IMF DataMapper API, with a DBnomics fallback) and ECB reference rates, where **every number ships with its full citation**: source, dataset, series ID, canonical URL, licence, retrieval date, a ready-to-paste citation sentence, and BibTeX/APA export formats.
 
-The differentiator is **verification, not lookup**: `verify_stat` checks a claimed figure against the official series and returns `match / close / mismatch / cannot_verify` with diagnostics for the classic errors (wrong year, percent-vs-decimal, millions-vs-billions, sign flips) — and on a mismatch it re-judges the claim against the previous IMF vintage, so "was right when written, since revised" is never confused with "wrong". When the source cannot support a verdict, it says `cannot_verify` with the reason. It never guesses.
+The differentiator is **verification, not lookup**: `verify_stat` checks a claimed figure against the official series and returns `match / close / mismatch / cannot_verify` with diagnostics for the classic errors (wrong year, percent-vs-decimal, millions-vs-billions, sign flips). On a mismatch it re-judges the claim against the previous IMF vintage, so "was right when written, since revised" is never confused with "wrong". When the source cannot support a verdict, it says `cannot_verify` with the reason. It never guesses.
 
 **Three things people use it for**
 
-1. **Fact-check a draft** — the `fact_check` MCP prompt + `verify_claims` audit every macro figure in a document, in batches of 15, each verdict carrying the citation for the correct number.
-2. **Cited data for agent reports** — `get_indicator` / `country_snapshot` return official series with paste-ready citations, honest projection labelling, and machine-readable "no published value exists" instead of silent gaps.
-3. **Resolve source disagreements** — `compare_sources` fetches one indicator from every official source in its chain and shows the spread (e.g. general-vs-central government debt definitions), each value with its own citation.
+1. **Fact-check a draft.** The `fact_check` MCP prompt + `verify_claims` audit every macro figure in a document, in batches of 15, each verdict carrying the citation for the correct number.
+2. **Cited data for agent reports.** `get_indicator` and `country_snapshot` return official series with paste-ready citations, honest projection labelling, and machine-readable "no published value exists" instead of silent gaps.
+3. **Resolve source disagreements.** `compare_sources` fetches one indicator from every official source in its chain and shows the spread (e.g. general-vs-central government debt definitions), each value with its own citation.
 
 ## Install in one line
 
@@ -39,7 +39,7 @@ curl -X POST "https://statcite.com/v1/verify_claims" -H "content-type: applicati
 
 ## Tools
 
-`get_indicator` · `verify_stat` · `verify_claims` · `compare_sources` · `get_series` · `search_indicators` · `country_snapshot` · `inflation_adjust` · `fx_convert` · `list_sources` · `search` · `fetch` — plus 3 MCP prompts (`fact_check`, `country_brief`, `cite_this_stat`) and 3 resources (registry, licence ledger, SIDS list). 42 active curated indicators, 200+ economies, ~120 currencies. All read-only. Details: [docs](https://statcite.com/docs.html).
+`get_indicator` · `verify_stat` · `verify_claims` · `compare_sources` · `get_series` · `search_indicators` · `country_snapshot` · `inflation_adjust` · `fx_convert` · `list_sources` · `search` · `fetch`, plus 3 MCP prompts (`fact_check`, `country_brief`, `cite_this_stat`) and 3 resources (registry, licence ledger, SIDS list). 42 active curated indicators, 200+ economies, ~120 currencies. All read-only. Details: [docs](https://statcite.com/docs.html).
 
 ## Repo layout
 
@@ -69,6 +69,6 @@ npm run deploy    # wrangler deploy
 
 ## Data & licensing
 
-StatCite does not originate the underlying statistical observations; derived values and verification verdicts are calculated transparently from cited source data with the method disclosed. World Bank (CC BY 4.0); IMF (published IMF statistical data may be copied, redistributed and used in derivative works with attribution as "Source: International Monetary Fund, \<database\>, \<link\>" — plus data-integrity, downstream-communication and free-of-charge-disclosure conditions, all carried verbatim in every citation's `license` field); BIS (reproduction and redistribution with attribution); ECB (attribution; reference rates informational); Eurostat via DBnomics (CC BY 4.0); FRED is not served — its Services Terms of Use (clauses (p) and (q), https://fred.stlouisfed.org/legal/) reserve FRED content from AI/ML use and from caching or redistribution. IMF WEO/Fiscal Monitor projections are labeled as projections. The primary IMF path is the DataMapper API (current edition, verbatim edition label); if unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF's release calendar — responses cite the resolved vintage, flag stale ones, and every fallback is disclosed (verify_stat/verify_claims return cannot_verify with the fallback value as indicative when the primary failed transiently, rather than judging against a substitute that may differ by definition or vintage; a series the primary permanently lacks is judged against its stable fallback source with disclosure). Server code: MIT.
+StatCite does not originate the underlying statistical observations. Derived values and verification verdicts are calculated transparently from cited source data with the method disclosed. World Bank (CC BY 4.0); IMF (published IMF statistical data may be copied, redistributed and used in derivative works with attribution as "Source: International Monetary Fund, \<database\>, \<link\>", plus data-integrity, downstream-communication and free-of-charge-disclosure conditions, all carried verbatim in every citation's `license` field); BIS (reproduction and redistribution with attribution); ECB (attribution; reference rates informational); Eurostat via DBnomics (CC BY 4.0); FRED is not served. Its Services Terms of Use (clauses (p) and (q), https://fred.stlouisfed.org/legal/) reserve FRED content from AI/ML use and from caching or redistribution. IMF WEO/Fiscal Monitor projections are labeled as projections. The primary IMF path is the DataMapper API (current edition, verbatim edition label). If unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF's release calendar, so responses cite the resolved vintage, flag stale ones, and every fallback is disclosed (verify_stat/verify_claims return cannot_verify with the fallback value as indicative when the primary failed transiently, rather than judging against a substitute that may differ by definition or vintage. A series the primary permanently lacks is judged against its stable fallback source with disclosure). Server code: MIT.
 
 Built and curated by a professional economist. Contact: hello@statcite.com

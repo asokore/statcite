@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Data sources &amp; licence ledger — StatCite</title>
-<meta name="description" content="Every data source StatCite serves — and every source it evaluated and refused — with the licence verdict, the basis for it, and the date it was last verified against the source's own terms.">
+<title>Data sources and licence ledger: StatCite</title>
+<meta name="description" content="Every data source StatCite serves, and every source it evaluated and refused, with the licence verdict, the basis for it, and the date it was last verified against the source's own terms.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="canonical" href="https://statcite.com/sources">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="StatCite Sources — what backs every number">
+<meta name="twitter:title" content="StatCite Sources: what backs every number">
 <meta name="twitter:description" content="Every data source StatCite serves, with its licence, coverage, attribution requirement and the verdict recorded in the licence ledger.">
 <meta property="og:image" content="https://statcite.com/og.png">
 <meta property="og:image:width" content="1200">
@@ -16,7 +16,7 @@
 <meta property="og:image:alt" content="StatCite: economic statistics your AI can actually cite. Every number ships with its source, dataset, series id and licence.">
 <meta name="twitter:image" content="https://statcite.com/og.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta property="og:title" content="StatCite — data sources and licence ledger">
+<meta property="og:title" content="StatCite: data sources and licence ledger">
 <meta property="og:description" content="Served, flow-through, and refused sources with licence verdicts, verbatim bases, and verification dates.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://statcite.com/sources">
@@ -78,25 +78,25 @@ footer a{color:var(--dim)}
 
   <header id="main-content">
     <h1>Data sources &amp; the licence ledger</h1>
-    <p class="sub">Every source StatCite serves — and every source it evaluated and <em>refused</em> — with the licence verdict, the basis for it, and the date it was last checked against the source's own terms. A source enters the indicator registry only after its ledger entry exists with a "served" verdict. This page renders live from <a href="/v1/sources">/v1/sources</a>, so it cannot drift from what the API actually reports.</p>
+    <p class="sub">Every source StatCite serves, and every source it evaluated and <em>refused</em>, with the licence verdict, the basis for it, and the date it was last checked against the source's own terms. A source enters the indicator registry only after its ledger entry exists with a "served" verdict. This page renders live from <a href="/v1/sources">/v1/sources</a>, so it cannot drift from what the API actually reports.</p>
   </header>
 
   <section>
     <h2>How to read the verdicts</h2>
     <p class="lead">
       <span class="pill served">served</span> StatCite serves this source's data under the stated licence, and every response carries the required attribution.&nbsp;
-      <span class="pill flow_through">flow_through</span> an aggregator — each served series inherits its underlying provider's licence, and the citation names that provider.&nbsp;
-      <span class="pill refused">refused</span> evaluated and deliberately not served; the entry says exactly why. Declining a source for licensing reasons is product information, not an internal detail.
+      <span class="pill flow_through">flow_through</span> an aggregator, so each served series inherits its underlying provider's licence, and the citation names that provider.&nbsp;
+      <span class="pill refused">refused</span> evaluated and deliberately not served. The entry says exactly why. Declining a source for licensing reasons is product information, not an internal detail.
     </p>
     <div id="ledger" aria-live="polite">
       <noscript><p class="lead">This page renders the ledger with JavaScript. Without it, read the same data directly at <a href="/v1/sources">/v1/sources</a>.</p></noscript>
       <p class="lead" id="ledger-loading">Loading the ledger from /v1/sources…</p>
     </div>
-    <p class="note">Licence positions are re-verified when sources are added or terms change; each entry carries its own verified-on date. If you believe a verdict is wrong, or a refused source's terms have changed, email <a href="mailto:hello@statcite.com">hello@statcite.com</a> — corrections are welcome and acted on.</p>
+    <p class="note">Licence positions are re-verified when sources are added or terms change. Each entry carries its own verified-on date. If you believe a verdict is wrong, or a refused source's terms have changed, email <a href="mailto:hello@statcite.com">hello@statcite.com</a>. Corrections are welcome and acted on.</p>
   </section>
 
   <footer>
-    <p>StatCite — official economic statistics with full citations. <a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
+    <p>StatCite: official economic statistics with full citations. <a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
   </footer>
 </div>
 <script>
@@ -119,9 +119,9 @@ footer a{color:var(--dim)}
         "<p>" + esc(s.coverage) + "</p>" +
         "</div>";
     }).join("");
-    document.getElementById("ledger").innerHTML = html || '<p class="lead">No sources returned — read <a href="/v1/sources">/v1/sources</a> directly.</p>';
+    document.getElementById("ledger").innerHTML = html || '<p class="lead">No sources returned. Read <a href="/v1/sources">/v1/sources</a> directly.</p>';
   }).catch(function(){
-    document.getElementById("ledger").innerHTML = '<p class="lead">Could not load the ledger right now — read it directly at <a href="/v1/sources">/v1/sources</a>.</p>';
+    document.getElementById("ledger").innerHTML = '<p class="lead">Could not load the ledger right now. Read it directly at <a href="/v1/sources">/v1/sources</a>.</p>';
   });
 })();
 </script>

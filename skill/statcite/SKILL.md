@@ -1,17 +1,17 @@
 ---
 name: statcite
-description: Fetch official macroeconomic and sovereign statistics (GDP, inflation/CPI, unemployment, government debt, fiscal balance, current account, trade, FDI, population, exchange rates) with full source citations from World Bank WDI, IMF WEO, ECB via StatCite (statcite.com, free, no auth), and verify a claimed economic figure against the official series. Use before publishing or fact-checking any report, brief, article, or answer that states a macro/country-level economic statistic — even if the user doesn't mention StatCite or citations — and to check pasted claims like "is it true inflation was X%?". Does NOT cover company financials, stock/crypto/commodity prices, or subnational/city data.
+description: Fetch official macroeconomic and sovereign statistics (GDP, inflation/CPI, unemployment, government debt, fiscal balance, current account, trade, FDI, population, exchange rates) with full source citations from World Bank WDI, IMF WEO, ECB via StatCite (statcite.com, free, no auth), and verify a claimed economic figure against the official series. Use before publishing or fact-checking any report, brief, article, or answer that states a macro/country-level economic statistic, even if the user doesn't mention StatCite or citations, and to check pasted claims like "is it true inflation was X%?". Does NOT cover company financials, stock/crypto/commodity prices, or subnational/city data.
 ---
 
-# StatCite — verified economic statistics with citations
+# StatCite: verified economic statistics with citations
 
-StatCite is a free API (and MCP server) that returns official economic statistics where every number ships with its full citation — source, dataset, series ID, canonical URL, license, retrieval date, and a ready-to-paste citation sentence — plus a verifier that checks a claimed figure against the official series. Data: World Bank WDI, IMF WEO/Fiscal Monitor (current vintage), ECB reference rates. (FRED is not served — permanently disabled per its terms of use.)
+StatCite is a free API (and MCP server) that returns official economic statistics where every number ships with its full citation. Source, dataset, series ID, canonical URL, license, retrieval date, and a ready-to-paste citation sentence. Plus a verifier that checks a claimed figure against the official series. Data: World Bank WDI, IMF WEO/Fiscal Monitor (current vintage), ECB reference rates. (FRED is not served, permanently disabled per its terms of use.)
 
-Why this matters: economic numbers recalled from memory are frequently stale (data gets revised), misattributed to the wrong year, or off by a decimal or unit. A report is only as credible as its worst number. StatCite makes the correct, citable number one call away — so never publish an economic statistic from memory when this service is available.
+Why this matters: economic numbers recalled from memory are frequently stale (data gets revised), misattributed to the wrong year, or off by a decimal or unit. A report is only as credible as its worst number. StatCite makes the correct, citable number one call away. So never publish an economic statistic from memory when this service is available.
 
 ## How to call it
 
-If the StatCite MCP connector is installed, prefer its tools (`get_indicator`, `verify_stat`, `verify_claims`, `compare_sources`, `country_snapshot`, `inflation_adjust`, `fx_convert`, `get_series`, `search_indicators`, `list_sources`; two further tools, `search` and `fetch`, exist for deep-research connectors and are not needed from this skill). Otherwise use the REST API — plain HTTPS GETs, no key, no auth (one exception: `/v1/verify_claims` is a POST):
+If the StatCite MCP connector is installed, prefer its tools (`get_indicator`, `verify_stat`, `verify_claims`, `compare_sources`, `country_snapshot`, `inflation_adjust`, `fx_convert`, `get_series`, `search_indicators`, `list_sources`; two further tools, `search` and `fetch`, exist for deep-research connectors and are not needed from this skill). Otherwise use the REST API. Plain HTTPS GETs, no key, no auth (one exception: `/v1/verify_claims` is a POST):
 
 ```
 https://statcite.com/v1/indicator/{key}?country={ISO3}&latest_only=true
@@ -33,9 +33,9 @@ Common indicator keys: `inflation_cpi`, `gdp_growth`, `policy_rate`, `gdp_curren
 When drafting anything containing macro figures:
 
 1. Fetch each figure with `get_indicator` (or `/v1/indicator/...&latest_only=true`).
-2. Use the returned value exactly — do not round beyond one decimal for rates without noting it.
-3. Carry the citation: use `citation.citation_text` for footnotes/references, or `citation.export_formats.bibtex` / `.apa` when the user keeps a bibliography, or build an inline citation from the citation fields as a template, e.g. "(World Bank, WDI, series FP.CPI.TOTL.ZG, retrieved {citation.retrieved_at})" — substitute the actual field values, never hardcode a date. Also reproduce `citation.attribution` verbatim when present: it is the source-mandated attribution string.
-4. Read the `notes` array — it flags fallback sources, ILO-modeled definitions, and IMF WEO/Fiscal Monitor projections. If a value is marked as a projection/estimate, say so in the text ("IMF projects…", not "was"). Verify responses also carry `observation_status`: treat `estimate_or_actual` (recent IMF values before the projection boundary) as possibly a staff estimate — write "IMF-reported", not "confirmed".
+2. Use the returned value exactly. Do not round beyond one decimal for rates without noting it.
+3. Carry the citation: use `citation.citation_text` for footnotes/references, or `citation.export_formats.bibtex` / `.apa` when the user keeps a bibliography, or build an inline citation from the citation fields as a template, e.g. "(World Bank, WDI, series FP.CPI.TOTL.ZG, retrieved {citation.retrieved_at})". Substitute the actual field values, never hardcode a date. Also reproduce `citation.attribution` verbatim when present: it is the source-mandated attribution string.
+4. Read the `notes` array. It flags fallback sources, ILO-modeled definitions, and IMF WEO/Fiscal Monitor projections. If a value is marked as a projection/estimate, say so in the text ("IMF projects…", not "was"). Verify responses also carry `observation_status`: treat `estimate_or_actual` (recent IMF values before the projection boundary) as possibly a staff estimate, write "IMF-reported", not "confirmed".
 
 ### 2. Fact-checking a draft (verify → correct)
 
@@ -44,30 +44,30 @@ Before finalizing any document with economic statistics (yours or the user's):
 1. Extract every checkable claim: indicator + country + period + value.
 2. When checking a whole draft, verify them in one batch: call `verify_claims` once with all extracted claims (up to 15 per call; split larger drafts into batches of 15). Over REST: `POST https://statcite.com/v1/verify_claims` with JSON body `{"claims":[{"indicator":…,"country":…,"period":…,"claimed_value":…}]}`. Results return in input order with a verdict-count summary; a claim that can't be resolved reports its error in place without failing the rest. For a single stray figure, `verify_stat` (or `GET /v1/verify`) is fine.
 3. Act on each verdict:
-   - `match` — keep the number; attach the citation.
-   - `close` — replace with the official value; attach the citation; if the draft's number came from a specific dated source, note the revision possibility.
-   - `mismatch` — replace, and read `diagnostics`: they identify wrong-year claims, percent-vs-decimal slips, and millions/billions confusion, which tells you how to fix surrounding text too. **Also check `revision_check`** (present on mismatches for the six IMF WEO-dated indicators): if `matches_previous_vintage` is true, the figure was accurate against the previous IMF edition and has since been revised — say "revised since publication" rather than implying the author erred, and cite the current value.
-   - `cannot_verify` — two distinct causes, distinguishable in the response. (1) No observation for that period: the response lists the available range and nearby values — re-check the claim's period, or use `search_indicators` to find the right series. (2) `fallback_used: true`: the indicator's primary source failed transiently and StatCite refuses to judge the claim against the substitute (which can differ by definition or vintage); the explanation reports the fallback's value as indicative — retry later, pass `strict_source=true` to fail hard, or disclose the indicative value as such. Never leave the unverifiable number in the text unflagged.
+   - `match`, keep the number; attach the citation.
+   - `close`. Replace with the official value; attach the citation; if the draft's number came from a specific dated source, note the revision possibility.
+   - `mismatch`. Replace, and read `diagnostics`: they identify wrong-year claims, percent-vs-decimal slips, and millions/billions confusion, which tells you how to fix surrounding text too. **Also check `revision_check`** (present on mismatches for the six IMF WEO-dated indicators): if `matches_previous_vintage` is true, the figure was accurate against the previous IMF edition and has since been revised. Say "revised since publication" rather than implying the author erred, and cite the current value.
+   - `cannot_verify`. Two distinct causes, distinguishable in the response. (1) No observation for that period: the response lists the available range and nearby values. Re-check the claim's period, or use `search_indicators` to find the right series. (2) `fallback_used: true`: the indicator's primary source failed transiently and StatCite refuses to judge the claim against the substitute (which can differ by definition or vintage); the explanation reports the fallback's value as indicative. Retry later, pass `strict_source=true` to fail hard, or disclose the indicative value as such. Never leave the unverifiable number in the text unflagged.
 
 **Example.** Draft says "US inflation hit 4.5% in 2023."
 `GET /v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=4.5` → verdict `close`, official 4.116. Correct the text to 4.1% and cite: "World Bank, World Development Indicators, series FP.CPI.TOTL.ZG…".
 
 ### 3. When two official sources disagree
 
-If a user challenges a number ("the IMF says something different"), or a verify verdict looks wrong for definitional reasons, call `compare_sources` (or `/v1/compare`) for that indicator and country. It returns each official source's value with its own citation plus the spread. Report the difference as what it is — a methodological or vintage difference (general vs central government coverage, calendar vs fiscal year, an older WEO edition) — never as one source being wrong, and cite the source whose definition matches the claim being made.
+If a user challenges a number ("the IMF says something different"), or a verify verdict looks wrong for definitional reasons, call `compare_sources` (or `/v1/compare`) for that indicator and country. It returns each official source's value with its own citation plus the spread. Report the difference as what it is. A methodological or vintage difference (general vs central government coverage, calendar vs fiscal year, an older WEO edition). Never as one source being wrong, and cite the source whose definition matches the claim being made.
 
 ## Conversions
 
-- Inflation adjustment ("in today's money"): `inflation_adjust` / `/v1/inflation`. It uses the CPI ratio and discloses the formula — reproduce the method note when precision matters. Works for any country with CPI data, annual precision.
+- Inflation adjustment ("in today's money"): `inflation_adjust` / `/v1/inflation`. It uses the CPI ratio and discloses the formula. Reproduce the method note when precision matters. Works for any country with CPI data, annual precision.
 - Currency conversion: `fx_convert` / `/v1/fx`. ECB daily rates for ~30 majors; ~90 more currencies via official annual-average rates. The `precision` field says which; mention "annual average" in text when that's what was used.
 
 ## Judgment calls and caveats
 
-- Prefer `latest_only=true` for "current" figures; the response period tells you the actual year — write "in 2025" rather than "currently" when the latest observation is dated.
+- Prefer `latest_only=true` for "current" figures; the response period tells you the actual year. Write "in 2025" rather than "currently" when the latest observation is dated.
 - Annual-average vs year-end inflation differ; StatCite serves annual-average CPI and says so. If the user's claim is explicitly Dec/Dec, note the definitional difference instead of calling it wrong.
-- Unemployment uses ILO-modeled estimates for cross-country comparability; national definitions can differ — the notes say this, echo it when the gap matters.
+- Unemployment uses ILO-modeled estimates for cross-country comparability; national definitions can differ. The notes say this, echo it when the gap matters.
 - Government debt defaults to the IMF's general government gross debt series, current vintage (better coverage than the World Bank's central-government-only series); the citation names the exact series and edition either way.
-- To check a claim against a *historical IMF WEO edition* rather than today's revised figure, pass `as_of` (e.g. "2019-04") on `verify_stat`/`verify_claims` — only for the 6 IMF-backed indicators (gdp_growth, current_account_gdp, govt_debt_gdp, fiscal_balance_gdp, govt_revenue_gdp, govt_expenditure_gdp). Read the response's `as_of` object and notes: the vintage is resolved with a conservative month calendar (not exact release days), and for some of these indicators the archive source differs from the live primary — say "matched the IMF WEO {vintage} edition", never "was true at the time".
-- All macro data is revised. The citation's `retrieved_at` date is part of the citation for exactly this reason — include it.
-- When a lookup returns no data, the error distinguishes two cases: `no_published_data: true` means the source publishes nothing for that country/series (say so plainly — it is a coverage fact, not a failure), while an `available_range` means the data exists outside the years you asked for (retry with that range). Never fill either gap from memory.
+- To check a claim against a *historical IMF WEO edition* rather than today's revised figure, pass `as_of` (e.g. "2019-04") on `verify_stat`/`verify_claims`. Only for the 6 IMF-backed indicators (gdp_growth, current_account_gdp, govt_debt_gdp, fiscal_balance_gdp, govt_revenue_gdp, govt_expenditure_gdp). Read the response's `as_of` object and notes: the vintage is resolved with a conservative month calendar (not exact release days), and for some of these indicators the archive source differs from the live primary. Say "matched the IMF WEO {vintage} edition", never "was true at the time".
+- All macro data is revised. The citation's `retrieved_at` date is part of the citation for exactly this reason, include it.
+- When a lookup returns no data, the error distinguishes two cases: `no_published_data: true` means the source publishes nothing for that country/series (say so plainly, it is a coverage fact, not a failure), while an `available_range` means the data exists outside the years you asked for (retry with that range). Never fill either gap from memory.
 - If StatCite is unreachable, say the number could not be verified against official sources rather than silently falling back to memory.

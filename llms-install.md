@@ -29,7 +29,7 @@ claude mcp add --transport http statcite https://statcite.com/mcp
 
 ## stdio-only clients (incl. Cline)
 
-Bridge with mcp-remote — no installation beyond npx:
+Bridge with mcp-remote, no installation beyond npx:
 
 ```json
 {

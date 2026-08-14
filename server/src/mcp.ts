@@ -88,7 +88,7 @@ const INSTRUCTIONS =
   "Use get_indicator for common indicators (inflation_cpi, gdp_growth, unemployment_rate, govt_debt_gdp, …) with an ISO3 country code or name; " +
   "use verify_stat to check any economic figure before publishing it; " +
   "use inflation_adjust and fx_convert for value conversions. " +
-  "Every response includes a citation object — reproduce it (or citation.citation_text) when presenting the number to users. " +
+  "Every response includes a citation object. Reproduce it (or citation.citation_text) when presenting the number to users. " +
   "Free service; please keep request volumes reasonable.";
 
 type JsonRpcId = string | number | null;
@@ -120,7 +120,7 @@ const PROMPTS = [
             "1. Extract every checkable macroeconomic claim: an indicator (inflation, GDP growth, GDP, unemployment, government debt, fiscal balance, current account, trade, FDI, population, …), a country, a period (usually a year), and the claimed value. Skip vague claims with no number.\n" +
             "2. Map each claim to a StatCite registry key (use search_indicators if unsure) and call verify_claims with up to 15 claims per call, in the order they appear.\n" +
             "3. Report a table: claim as written | verdict (match / close / mismatch / cannot_verify) | official value | citation. Quote citation.citation_text for corrected figures.\n" +
-            "4. Never soften a mismatch and never guess where the tool says cannot_verify — report the reason it gives. If a claim is a projection-year figure, say so (the result flags it).\n\n" +
+            "4. Never soften a mismatch and never guess where the tool says cannot_verify, report the reason it gives. If a claim is a projection-year figure, say so (the result flags it).\n\n" +
             "Here is the text:\n",
         },
       },
@@ -177,7 +177,7 @@ const PROMPTS = [
 // ---------------------------------------------------------------------------
 
 function registryResourceText(): string {
-  const rows = listRegistry().map((r) => `- ${r.key}: ${r.label} [${r.unit}] — sources: ${r.sources.join(" -> ")}`);
+  const rows = listRegistry().map((r) => `- ${r.key}: ${r.label} [${r.unit}], sources: ${r.sources.join(" -> ")}`);
   return `StatCite indicator registry (${rows.length} indicators). Keys are stable API identifiers for get_indicator / verify_stat / verify_claims.\n\n${rows.join("\n")}`;
 }
 
@@ -219,7 +219,7 @@ const RESOURCES = [
     uri: "statcite://registry/sids",
     name: "sids-states",
     title: "Small Island Developing States (UN OHRLLS list)",
-    description: "The 39 states on the UN OHRLLS SIDS list with their ISO3 codes — a data-availability grouping for small-economy coverage, never a ranking. Upstream coverage varies by source and series.",
+    description: "The 39 states on the UN OHRLLS SIDS list with their ISO3 codes. A data-availability grouping for small-economy coverage, never a ranking. Upstream coverage varies by source and series.",
     mimeType: "text/plain",
     text: sidsResourceText,
   },
@@ -372,7 +372,7 @@ function toModernResult(method: string, result: unknown): unknown {
     ...(CACHEABLE_METHODS.has(method) ? { ttlMs: CACHE_TTL_MS, cacheScope: CACHE_SCOPE } : {}),
     _meta: {
       ...existingMeta,
-      [META_SERVER_INFO]: { name: "statcite", title: "StatCite — Verified Economic Statistics", version: SERVER_VERSION },
+      [META_SERVER_INFO]: { name: "statcite", title: "StatCite, Verified Economic Statistics", version: SERVER_VERSION },
     },
   };
 }
@@ -468,7 +468,7 @@ async function dispatchCore(
           },
           serverInfo: {
             name: "statcite",
-            title: "StatCite — Verified Economic Statistics",
+            title: "StatCite, Verified Economic Statistics",
             version: SERVER_VERSION,
           },
           instructions: INSTRUCTIONS,
@@ -514,7 +514,7 @@ async function dispatchCore(
             httpStatus: 200,
             body: toolTextObj(
               id,
-              { error: `Upstream data source problem: ${e.message}`, upstream_url: e.url, hint: "Usually transient — retry shortly." },
+              { error: `Upstream data source problem: ${e.message}`, upstream_url: e.url, hint: "Usually transient, retry shortly." },
               true,
             ),
           };

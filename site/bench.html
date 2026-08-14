@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The AI Economic-Statistics Accuracy Benchmark — StatCite</title>
-<meta name="description" content="A pre-registered benchmark measuring how accurately AI models state official economic statistics from memory — frozen question banks, primary-source-audited ground truth, public deviations log, and results that never quote accuracy apart from confabulation and answer rates.">
+<title>The AI Economic-Statistics Accuracy Benchmark: StatCite</title>
+<meta name="description" content="A pre-registered benchmark measuring how accurately AI models state official economic statistics from memory. Frozen question banks, primary-source-audited ground truth, public deviations log, and results that never quote accuracy apart from confabulation and answer rates.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="canonical" href="https://statcite.com/bench">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="StatCite Benchmark — can LLMs cite economic statistics?">
+<meta name="twitter:title" content="StatCite Benchmark: can LLMs cite economic statistics?">
 <meta name="twitter:description" content="A pre-registered benchmark measuring how accurately language models report and cite official economic statistics, with the full method and results.">
 <meta property="og:image" content="https://statcite.com/og.png">
 <meta property="og:image:width" content="1200">
@@ -88,23 +88,23 @@ footer a{color:var(--dim)}
   <header id="main-content">
     <span class="badge">pre-registered · primary-source-audited · deviations logged</span>
     <h1>The AI Economic-Statistics Accuracy Benchmark</h1>
-    <p class="sub">How often do AI models state official economic statistics correctly from memory — no tools, no retrieval? A pre-registered measurement with frozen question banks, ground truth audited against the primary statistical APIs, and every protocol deviation logged in public. Run quarterly.</p>
+    <p class="sub">How often do AI models state official economic statistics correctly from memory. No tools, no retrieval? A pre-registered measurement with frozen question banks, ground truth audited against the primary statistical APIs, and every protocol deviation logged in public. Run quarterly.</p>
   </header>
 
   <section>
     <h2>Why this needs measuring</h2>
-    <p>Language models answer statistical questions fluently whether or not they know the number. That failure mode is now institutionally documented: the IMF's own paper introducing StatGPT — a retrieval platform backed by the IMF, World Bank, OECD, Eurostat, BIS and the UN statistical system — justifies retrieval precisely because generative models <a href="https://www.imf.org/en/publications/departmental-papers-policy-papers/issues/2026/03/10/statgpt-ai-for-official-statistics-573514">"perform poorly at delivering official statistics"</a> (IMF Departmental Paper 2026/004). Independent studies point the same way: the EBU/BBC study of 3,000 AI news answers found significant issues in 45% of them, and the Tow Center found over 60% of AI search answers carried citation problems.</p>
-    <p>What none of that research isolates is the specific, checkable case this benchmark measures: a model asserting a precise official figure — an inflation rate, a debt ratio, a GDP level — for a specific country and year, from parametric memory alone. Those are the numbers that end up in reports, briefs, and articles. Each one is verifiable against the official series, so the error rate can be measured instead of argued about.</p>
+    <p>Language models answer statistical questions fluently whether or not they know the number. That failure mode is now institutionally documented: the IMF's own paper introducing StatGPT. A retrieval platform backed by the IMF, World Bank, OECD, Eurostat, BIS and the UN statistical system. Justifies retrieval precisely because generative models <a href="https://www.imf.org/en/publications/departmental-papers-policy-papers/issues/2026/03/10/statgpt-ai-for-official-statistics-573514">"perform poorly at delivering official statistics"</a> (IMF Departmental Paper 2026/004). Independent studies point the same way: the EBU/BBC study of 3,000 AI news answers found significant issues in 45% of them, and the Tow Center found over 60% of AI search answers carried citation problems.</p>
+    <p>What none of that research isolates is the specific, checkable case this benchmark measures: a model asserting a precise official figure. An inflation rate, a debt ratio, a GDP level. For a specific country and year, from parametric memory alone. Those are the numbers that end up in reports, briefs, and articles. Each one is verifiable against the official series, so the error rate can be measured instead of argued about.</p>
   </section>
 
   <section>
     <h2>What makes this benchmark hard to game</h2>
     <div class="grid">
-      <div class="card"><h3>Pre-registration first</h3><p>The methodology, scoring bands, and analysis plan are frozen and committed publicly before any model is called. Changes after the fact are logged as numbered deviations in a public file — never silently absorbed.</p></div>
-      <div class="card"><h3>Beacon-seeded draws</h3><p>Question banks are drawn with a seed derived from a pre-announced NIST Randomness Beacon pulse — the announcement is committed before the pulse exists, so the draw cannot be cherry-picked.</p></div>
+      <div class="card"><h3>Pre-registration first</h3><p>The methodology, scoring bands, and analysis plan are frozen and committed publicly before any model is called. Changes after the fact are logged as numbered deviations in a public file, never silently absorbed.</p></div>
+      <div class="card"><h3>Beacon-seeded draws</h3><p>Question banks are drawn with a seed derived from a pre-announced NIST Randomness Beacon pulse. The announcement is committed before the pulse exists, so the draw cannot be cherry-picked.</p></div>
       <div class="card"><h3>Audited ground truth</h3><p>Every answer key value is frozen, then independently re-fetched from the primary statistical APIs (World Bank, IMF) by audit code that shares nothing with the serving path. Divergences fail the audit.</p></div>
-      <div class="card"><h3>Indivisible results</h3><p>By publication covenant, accuracy (Within-Tolerance Rate) is never quoted apart from the Confabulation Rate and the Answer Rate. A model that answers everything confidently and one that declines when unsure are different animals; one number would hide that.</p></div>
-      <div class="card"><h3>Revisions are not errors</h3><p>Official statistics get revised. A model whose answer matches an earlier official vintage is never scored as confabulating — the same courtesy StatCite's own verify tool extends to human claims.</p></div>
+      <div class="card"><h3>Indivisible results</h3><p>By publication covenant, accuracy (Within-Tolerance Rate) is never quoted apart from the Confabulation Rate and the Answer Rate. A model that answers everything confidently and one that declines when unsure are different animals. One number would hide that.</p></div>
+      <div class="card"><h3>Revisions are not errors</h3><p>Official statistics get revised. A model whose answer matches an earlier official vintage is never scored as confabulating. The same courtesy StatCite's own verify tool extends to human claims.</p></div>
       <div class="card"><h3>Raw outputs published</h3><p>Every model's raw responses ship with each run, so every scored verdict can be re-derived from the artifacts. Disputes are checkable, not rhetorical.</p></div>
     </div>
     <p class="note">Full methodology, covenant, deviations log, question banks, and scoring code: <a href="https://github.com/asokore/statcite/tree/main/bench">github.com/asokore/statcite/bench</a>.</p>
@@ -112,7 +112,7 @@ footer a{color:var(--dim)}
 
   <section>
     <h2>Run 1 results (published)</h2>
-    <p class="lead">Six models across three vendors, 100 questions, answered from memory only. The three columns are a single unit — never quote one without the others.</p>
+    <p class="lead">Six models across three vendors, 100 questions, answered from memory only. The three columns are a single unit, never quote one without the others.</p>
     <table>
       <tr><th>Model</th><th>Within-Tolerance Rate</th><th>Confabulation Rate</th><th>Answer Rate</th></tr>
       <tr><td>claude-opus-5</td><td>82.0%</td><td>15.5%</td><td>97.0%</td></tr>
@@ -122,13 +122,13 @@ footer a{color:var(--dim)}
       <tr><td>claude-sonnet-5</td><td>64.8%</td><td>31.4%</td><td>94.5%</td></tr>
       <tr><td>claude-haiku-4-5</td><td>33.3%</td><td>32.5%</td><td>49.4%*</td></tr>
     </table>
-    <p class="note">*Below the pre-registered 70% Answer Rate threshold for interpretation — reported for completeness, per the methodology's own rule. At this sample size (Wilson 95% CIs; minimum detectable model-to-model difference roughly 12–15 percentage points) this is not a league table. Read the <a href="https://github.com/asokore/statcite/blob/main/bench/runs/R1/REPORT.md">full R1 report</a> and the <a href="https://github.com/asokore/statcite/blob/main/bench/runs/R1/ADDENDA.md">post-publication sensitivity analyses</a> — including a parse-policy sensitivity that affects one model's classification, published there rather than buried.</p>
-    <p>The plain reading: even the strongest models confabulate precise official statistics at meaningful rates when answering from memory — roughly one in six to one in three answered-wrongly-with-confidence, depending on the model. That is the baseline <a href="/#try">verify_stat</a> exists to fix.</p>
+    <p class="note">*Below the pre-registered 70% Answer Rate threshold for interpretation. Reported for completeness, per the methodology's own rule. At this sample size (Wilson 95% CIs, minimum detectable model-to-model difference roughly 12–15 percentage points) this is not a league table. Read the <a href="https://github.com/asokore/statcite/blob/main/bench/runs/R1/REPORT.md">full R1 report</a> and the <a href="https://github.com/asokore/statcite/blob/main/bench/runs/R1/ADDENDA.md">post-publication sensitivity analyses</a>. Including a parse-policy sensitivity that affects one model's classification, published there rather than buried.</p>
+    <p>The plain reading: even the strongest models confabulate precise official statistics at meaningful rates when answering from memory. Roughly one in six to one in three answered-wrongly-with-confidence, depending on the model. That is the baseline <a href="/#try">verify_stat</a> exists to fix.</p>
   </section>
 
   <section>
-    <h2>Run 2 — pre-registered, in progress</h2>
-    <p>Run 2 extends Run 1 with a mechanically applied model roster, a NIST-beacon-seeded fresh draw with a carried contamination-control panel, 25 null probes, an as-deployed settings arm, and a retrieval-delta arm — all pre-registered in the public deviations log before any model was called.</p>
+    <h2>Run 2, pre-registered, in progress</h2>
+    <p>Run 2 extends Run 1 with a mechanically applied model roster, a NIST-beacon-seeded fresh draw with a carried contamination-control panel, 25 null probes, an as-deployed settings arm, and a retrieval-delta arm. All pre-registered in the public deviations log before any model was called.</p>
     <p>Per the pre-registered publication sequencing, Run 2 results are shared with the covered vendors for a courtesy-preview window before they are published here. No results appear anywhere until that window closes. When they do, the per-question data will be downloadable so every verdict can be checked.</p>
     <div class="cta">
       <a class="btn primary" href="/#try">Try a live verification</a>
@@ -137,7 +137,7 @@ footer a{color:var(--dim)}
   </section>
 
   <footer>
-    <p>StatCite — official economic statistics with full citations. <a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/sources">Sources</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
+    <p>StatCite. Official economic statistics with full citations. <a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/sources">Sources</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
   </footer>
 </div>
 </body>

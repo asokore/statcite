@@ -268,14 +268,14 @@ export function caribstatCitation(
     source: opts.source,
     dataset: opts.tableTitle,
     series_id: opts.seriesId,
-    series_name: `${opts.rowLabel} — ${opts.countryName} (${freqWord})`,
+    series_name: `${opts.rowLabel}, ${opts.countryName} (${freqWord})`,
     source_url: opts.sourceUrl,
     api_url: opts.apiUrl,
     license: "Reproduced with the publishing central bank's permission; see the source entry in /v1/sources for the scope of that grant",
     attribution: `Source: ${opts.source}`,
     retrieved_at: date,
     citation_text:
-      `${opts.source}, ${opts.tableTitle}, ${opts.rowLabel} — ${opts.countryName} (${freqWord})` +
+      `${opts.source}, ${opts.tableTitle}, ${opts.rowLabel}, ${opts.countryName} (${freqWord})` +
       (asAt ? `, data as at ${asAt}` : "") +
       `. Retrieved ${date} via StatCite. ${opts.sourceUrl}`,
     ...(asAt
