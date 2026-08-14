@@ -126,12 +126,12 @@ export const SOURCES = [
   {
     id: "fred",
     name: "Federal Reserve Bank of St. Louis — FRED (permanently disabled)",
-    coverage: "Not served. The FRED Services Terms of Use, clauses (p) and (q), prohibit use in connection with training or running AI/ML/LLM systems and prohibit storing, caching or archiving FRED content, which conflicts with how this service serves data — there is no compliant way to offer it here.",
+    coverage: "Not served. The FRED Services Terms of Use, clauses (p) and (q), reserve FRED content from use in connection with training or running AI/ML/LLM systems, and from storing, caching or archiving it.",
     access: "Disabled — the six US-only registry keys and the fred/ series id are recognized but always decline",
     license: "FRED Services Terms of Use, clauses (p) and (q) — see https://fred.stlouisfed.org/legal/",
     license_verdict: "refused" as LicenseVerdict,
     license_note:
-      "Clauses (p)/(q) prohibit AI/ML/LLM-connected use and prohibit storing/caching/archiving content. StatCite is an AI-agent-facing service that edge-caches responses, so serving FRED is not compliant even with an operator key.",
+      "Clauses (p) and (q) of the FRED Services Terms of Use reserve FRED content from AI/ML/LLM-connected use and from storing, caching or archiving it. StatCite does not offer FRED, with or without an operator key: the six US-only registry keys and the fred/ series id are recognised and always decline, naming the reason.",
     license_verified_on: "2026-07-26",
     attribution_required: "Not applicable — no FRED content is served.",
     url: "https://fred.stlouisfed.org",
@@ -140,12 +140,12 @@ export const SOURCES = [
   {
     id: "un_comtrade",
     name: "UN Comtrade (trade statistics) — not served",
-    coverage: "Not served. Detailed bilateral trade statistics exist here, but re-dissemination is licence-gated in a way StatCite cannot satisfy at zero cost.",
+    coverage: "Not served. UN Comtrade's policy on use and re-dissemination requires an active premium subscription to re-disseminate its data, and licenses for-profit extraction or streaming applications for a fee.",
     access: "Not integrated; evaluated and declined",
     license: "UN Comtrade policy on use and re-dissemination",
     license_verdict: "refused" as LicenseVerdict,
     license_note:
-      'The policy states "To re-disseminate UN Comtrade data, a user must be an active premium subscriber" and prices "for-profit data extraction and/or streaming application[s]" under a licensing fee. StatCite has paid surfaces (the Apify actor), so even free-tier ingestion would sit on the for-profit side of that line.',
+      'The policy states "To re-disseminate UN Comtrade data, a user must be an active premium subscriber" and prices "for-profit data extraction and/or streaming application[s]" under a licensing fee. StatCite offers a metered surface on Apify, which places it within that fee-bearing category.',
     license_verified_on: "2026-08-08",
     attribution_required: "Not applicable — no UN Comtrade content is served.",
     url: "https://comtradeplus.un.org",
@@ -154,12 +154,12 @@ export const SOURCES = [
   {
     id: "eccb",
     name: "Eastern Caribbean Central Bank statistics — permission granted, not yet served",
-    coverage: "Not yet served. ECCU monetary and financial statistics are published by the ECCB. Its public website terms do not by themselves permit the redistribution this service performs, and the operator has obtained permission beyond those terms. Serving is gated on recording that grant's scope here, so that every served value can name the permission it relies on.",
+    coverage: "Not yet served. ECCU monetary and financial statistics are published by the ECCB. Its published website terms grant use of the site for personal, non-commercial purposes and reserve redistribution unless permission is given, and the operator requested and obtained that permission. Serving is gated on recording the grant's scope here, so that every served value can name the permission it relies on.",
     access: "Built and tested; not switched on pending the recorded grant",
     license: "ECCB website terms of use",
     license_verdict: "refused" as LicenseVerdict,
     license_note:
-      "The ECCB's website terms (linked from its site footer; deep URLs on the site change) restrict reproduction and redistribution of site content WITHOUT PERMISSION, and serving its statistics through a caching public API is redistribution. The operator requested and obtained that permission. This entry stays unserved only until the grant's own terms are recorded here verbatim — who granted it, when, and what it covers — because this ledger is the thing a user relies on to know what licenses each number, and a served value whose permission is not written down here cannot be checked by anyone but us.",
+      "The ECCB's website terms (linked from its site footer; deep URLs on the site change) reserve reproduction and redistribution of site content unless permission is given, and serving its statistics through a caching public API is redistribution. The operator requested and obtained that permission. This entry stays unserved only until the grant's own terms are recorded here verbatim — who granted it, when, and what it covers — because this ledger is the thing a user relies on to know what licenses each number, and a served value whose permission is not written down here cannot be checked by anyone but us.",
     license_verified_on: "2026-07-31",
     attribution_required: "To be set from the grant. The permission request offered to follow any attribution format the ECCB specified.",
     url: "https://www.eccb-centralbank.org",
@@ -168,12 +168,12 @@ export const SOURCES = [
   {
     id: "cbb",
     name: "Central Bank of Barbados statistics — permission granted, not yet served",
-    coverage: "Not yet served. The Central Bank of Barbados publishes monetary and financial statistics. Its public website terms do not by themselves permit the redistribution this service performs, and the operator has obtained permission beyond those terms. Serving is gated on recording that grant's scope here, so that every served value can name the permission it relies on.",
+    coverage: "Not yet served. The Central Bank of Barbados publishes monetary and financial statistics. Its published website terms grant use of the site for personal, non-commercial purposes and reserve redistribution unless permission is given, and the operator requested and obtained that permission. Serving is gated on recording the grant's scope here, so that every served value can name the permission it relies on.",
     access: "Built and tested; not switched on pending the recorded grant",
     license: "Central Bank of Barbados website terms of use",
     license_verdict: "refused" as LicenseVerdict,
     license_note:
-      "The Bank's website terms (linked from its site footer; deep URLs on the site change) restrict reproduction and redistribution of site content WITHOUT PERMISSION, and serving its statistics through a caching public API is redistribution. The operator requested and obtained that permission. This entry stays unserved only until the grant's own terms are recorded here verbatim — who granted it, when, and what it covers — because this ledger is the thing a user relies on to know what licenses each number, and a served value whose permission is not written down here cannot be checked by anyone but us.",
+      "The Bank's website terms (linked from its site footer; deep URLs on the site change) reserve reproduction and redistribution of site content unless permission is given, and serving its statistics through a caching public API is redistribution. The operator requested and obtained that permission. This entry stays unserved only until the grant's own terms are recorded here verbatim — who granted it, when, and what it covers — because this ledger is the thing a user relies on to know what licenses each number, and a served value whose permission is not written down here cannot be checked by anyone but us.",
     license_verified_on: "2026-07-31",
     attribution_required: "To be set from the grant. The permission request offered to follow any attribution format the Bank specified.",
     url: "https://www.centralbank.org.bb",

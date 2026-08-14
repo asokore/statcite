@@ -16,6 +16,33 @@ function today(ctx) {
 
 // ../server/src/core/countries.ts
 var ROWS = [
+  // Small territories and non-UN-member economies. Added 2026-08-13 after a
+  // check found 19 REAL places falling through the three-letter passthrough,
+  // including Montserrat and Anguilla, which are this service's own headline
+  // example of coverage the World Bank does not provide. While they were
+  // absent, the passthrough could not distinguish "a genuine economy the
+  // source does not cover" from "not a country at all", so the honest-absence
+  // contract rested on a table that did not know these places existed.
+  ["MSR", "MS", "Montserrat"],
+  ["AIA", "AI", "Anguilla"],
+  ["VGB", "VG", "British Virgin Islands", "bvi", "virgin islands british"],
+  ["TCA", "TC", "Turks and Caicos Islands", "turks and caicos"],
+  ["GIB", "GI", "Gibraltar"],
+  ["FLK", "FK", "Falkland Islands", "malvinas"],
+  ["SHN", "SH", "Saint Helena", "st helena"],
+  ["GRL", "GL", "Greenland"],
+  ["FRO", "FO", "Faroe Islands", "faroes"],
+  ["IMN", "IM", "Isle of Man"],
+  ["JEY", "JE", "Jersey"],
+  ["GGY", "GG", "Guernsey"],
+  ["NIU", "NU", "Niue"],
+  ["COK", "CK", "Cook Islands"],
+  ["REU", "RE", "Reunion", "r\xE9union"],
+  ["GLP", "GP", "Guadeloupe"],
+  ["MTQ", "MQ", "Martinique"],
+  ["GUF", "GF", "French Guiana", "guyane"],
+  ["ESH", "EH", "Western Sahara"],
+  ["TWN", "TW", "Taiwan", "chinese taipei", "taiwan province of china"],
   ["AFG", "AF", "Afghanistan"],
   ["ALB", "AL", "Albania"],
   ["DZA", "DZ", "Algeria"],
@@ -277,7 +304,9 @@ function resolveCountry(input, opts = {}) {
     const uniq = [...new Set(hits.map((h) => h.c.iso3))];
     if (uniq.length === 1) return hits[0].c;
   }
-  if (!opts.strict && /^[A-Z]{3}$/.test(upper)) return { iso3: upper, iso2: upper.slice(0, 2), name: upper };
+  if (!opts.strict && /^[A-Z]{3}$/.test(upper)) {
+    return { iso3: upper, iso2: upper.slice(0, 2), name: upper, unverified: true };
+  }
   return null;
 }
 function editDistanceLeq1(a, b) {
@@ -832,6 +861,13 @@ function applyTransform(observations, transform, opts = {}) {
     }
     return {
       observations: out,
+      // The unit MUST change with the values. A yoy transform of GDP in current
+      // US$ returns 5.18, and leaving `unit` as "current US$" tells an agent to
+      // publish "GDP was 5.18 current US$" when the real figure is 7.6 billion:
+      // wrong by nine orders of magnitude, and wrong in the one field a
+      // consumer is meant to trust. The note alone cannot carry this, because
+      // notes are prose and `unit` is a typed field clients read directly.
+      unit: transform === "yoy" ? "% change (year-over-year)" : "% change (period-over-period)",
       note: transform === "yoy" ? `Computed by StatCite: year-over-year % change (lag ${lag} period${lag > 1 ? "s" : ""}).` : "Computed by StatCite: period-over-period % change."
     };
   }
@@ -848,6 +884,11 @@ function applyTransform(observations, transform, opts = {}) {
   const b = base.value;
   return {
     observations: obs.map((o) => ({ ...o, value: o.value == null ? null : o.value / b * 100 })),
+    // Naming the rebase period here is what stops a response asserting two
+    // different base years at once. cpi_index arrives as "index, 2010 = 100";
+    // rebased to 2018 it kept that label while its own note said 2018, so the
+    // payload contradicted itself about what the numbers meant.
+    unit: `index, ${base.period} = 100`,
     note: `Computed by StatCite: rebased to index, ${base.period} = 100.`
   };
 }
@@ -997,6 +1038,12 @@ function parseEnvelope(data, apiUrl, ctx = {}) {
     const msgs = first.message;
     const text = msgs.map((m) => `${m.key ?? ""}: ${m.value ?? ""}`).join("; ");
     if (/invalid value/i.test(text) || /not valid/i.test(text)) {
+      if (ctx.countryUnverified) {
+        throw new ToolError(
+          `'${ctx.countryCode ?? "(unknown)"}' was not recognised as a country or economy, and the World Bank rejected it as an unknown code. Use an ISO3 code (e.g. USA, BRB, DEU) or a standard English name.`,
+          { api_url: apiUrl, country: ctx.countryCode, unknown_country: true }
+        );
+      }
       throw new ToolError(
         `The World Bank does not publish indicator ${ctx.indicatorId ?? "(unknown)"} for '${ctx.countryCode ?? "(unknown)"}'. This is a coverage fact at the source, not a lookup failure \u2014 some economies (e.g. Anguilla, Montserrat) are not World Bank reporting economies at all.`,
         { api_url: apiUrl, no_published_data: true, country: ctx.countryCode, indicator: ctx.indicatorId }
@@ -1012,7 +1059,7 @@ async function fetchWbSeries(countryCode, indicatorId, opts = {}) {
   if (opts.mrv) params.set("mrv", String(opts.mrv));
   const apiUrl = `${BASE}/country/${encodeURIComponent(countryCode)}/indicator/${encodeURIComponent(indicatorId)}?${params}`;
   const data = await fetchJson(apiUrl, { ttlSeconds: 21600 });
-  const { meta, rows } = parseEnvelope(data, apiUrl, { countryCode, indicatorId });
+  const { meta, rows } = parseEnvelope(data, apiUrl, { countryCode, indicatorId, countryUnverified: opts.countryUnverified });
   if (rows.length === 0) {
     throw new ToolError(
       `No World Bank data found for indicator ${indicatorId}, country ${countryCode}. The indicator code or country may be wrong, or the series may not be reported for this economy.`,
@@ -1594,6 +1641,11 @@ function finishSeries(result, opts) {
     const t = applyTransform(obs, transform, { frequency: result.frequency });
     obs = t.observations;
     if (t.note) result.notes.push(t.note);
+    if (t.unit) result.unit = t.unit;
+    if (result.citation) {
+      const derived = "Values shown are computed by StatCite from the cited series, not as published by the source.";
+      result.citation.notices = [...result.citation.notices ?? [], derived];
+    }
   }
   let a = 0;
   let b = obs.length;
@@ -1664,7 +1716,7 @@ function markWeoProjections(vintageTag, observations) {
   }
 }
 async function indicatorFromWb(ctx, def, country, opts) {
-  const wb = await fetchWbSeries(country.iso3, def.wb);
+  const wb = await fetchWbSeries(country.iso3, def.wb, { countryUnverified: country.unverified });
   const citation = worldBankCitation(ctx, {
     indicatorId: wb.indicatorId,
     indicatorName: wb.indicatorName,
@@ -1913,7 +1965,7 @@ function buildSourceAttempts(ctx, def, country, opts) {
 async function getIndicator(ctx, key, countryInput, opts = {}) {
   const def = getIndicatorDef(key);
   if (!def) {
-    const near = searchIndicatorDefs(key, 5).map((m) => m.def.key);
+    const near = searchIndicatorDefs(key, 8).filter((m) => !isDisabledDef(m.def)).slice(0, 5).map((m) => m.def.key);
     throw new ToolError(
       `Unknown indicator '${key}'.` + (near.length ? ` Closest matches: ${near.join(", ")}.` : "") + " Use search_indicators to browse the registry, or pass an explicit series id like 'worldbank/NY.GDP.MKTP.KD.ZG'.",
       { input: key, suggestions: near }
@@ -2034,7 +2086,7 @@ async function indicatorFromImfVintage(ctx, def, country, edition, flow, codeTem
 async function getIndicatorAsOf(ctx, key, countryInput, asOfDate, opts = {}) {
   const def = getIndicatorDef(key);
   if (!def) {
-    const near = searchIndicatorDefs(key, 5).map((m) => m.def.key);
+    const near = searchIndicatorDefs(key, 8).filter((m) => !isDisabledDef(m.def)).slice(0, 5).map((m) => m.def.key);
     throw new ToolError(
       `Unknown indicator '${key}'.` + (near.length ? ` Closest matches: ${near.join(", ")}.` : ""),
       { input: key, suggestions: near }
@@ -2096,7 +2148,7 @@ async function getSeries(ctx, seriesId, opts = {}) {
       throw new ToolError("World Bank series require a 'country' parameter (ISO3 code or name).", { series_id: id });
     }
     const country = requireCountry(opts.country);
-    const wb = await fetchWbSeries(country.iso3, code);
+    const wb = await fetchWbSeries(country.iso3, code, { countryUnverified: country.unverified });
     const citation = worldBankCitation(ctx, {
       indicatorId: wb.indicatorId,
       indicatorName: wb.indicatorName,
@@ -2104,11 +2156,13 @@ async function getSeries(ctx, seriesId, opts = {}) {
       apiUrl: wb.apiUrl,
       lastUpdated: wb.lastUpdated
     });
+    const wbDef = Object.values(INDICATORS).find((d) => d.wb === wb.indicatorId);
     return finishSeries(
       {
         series_id: `worldbank/${wb.indicatorId}`,
         name: wb.indicatorName,
         country: { iso3: wb.countryIso3, name: wb.countryName },
+        unit: wbDef?.unit ?? null,
         frequency: "annual",
         observations: wb.observations,
         citation,
@@ -2353,7 +2407,7 @@ async function inflationAdjust(ctx, amount, fromYear, toYear, countryInput = "US
     throw new ToolError("'from_year' and 'to_year' must be integer years, e.g. 1995 and 2025.");
   }
   const country = requireCountry(countryInput);
-  const wb = await fetchWbSeries(country.iso3, "FP.CPI.TOTL");
+  const wb = await fetchWbSeries(country.iso3, "FP.CPI.TOTL", { countryUnverified: country.unverified });
   const byYear = new Map(wb.observations.filter((o) => o.value != null).map((o) => [parseInt(o.period, 10), o.value]));
   const years = [...byYear.keys()].sort((a, b) => a - b);
   if (years.length === 0) {
@@ -2819,7 +2873,7 @@ async function verifyStat(ctx, p) {
       relative_difference_pct: null,
       explanation: `No official observation for ${period} in ${result.series_id}${result.country ? ` (${result.country.name})` : ""}. Available range: ${range}.` + (near.length ? ` Nearby values: ${near.map((o) => `${o.period}: ${fmt(o.value)}`).join(", ")}.` : "") + freqHint,
       diagnostics,
-      series: { id: result.series_id, name: result.name, unit: result.unit },
+      series: { id: result.series_id, name: result.name, unit: result.unit ?? void 0 },
       country: result.country,
       citation: result.citation,
       notes,
@@ -2873,7 +2927,7 @@ async function verifyStat(ctx, p) {
       relative_difference_pct: null,
       explanation: `This indicator's primary source was transiently unavailable; the fallback (${result.citation.source}, ${result.series_id}) shows ${fmt(official)}${result.unit ? ` ${result.unit}` : ""}${projFlag} for ${period} \u2014 indicative only, not a verification.${vintageFlavor} Retry when the primary source has recovered, or pass strict_source=true to fail hard instead.`,
       diagnostics,
-      series: { id: result.series_id, name: result.name, unit: result.unit },
+      series: { id: result.series_id, name: result.name, unit: result.unit ?? void 0 },
       country: result.country,
       citation: result.citation,
       notes,
@@ -2932,7 +2986,7 @@ async function verifyStat(ctx, p) {
     relative_difference_pct: relPct == null ? null : Number(relPct.toFixed(3)),
     explanation,
     diagnostics,
-    series: { id: result.series_id, name: result.name, unit: result.unit },
+    series: { id: result.series_id, name: result.name, unit: result.unit ?? void 0 },
     country: result.country,
     citation: result.citation,
     notes,
@@ -3096,11 +3150,11 @@ var SOURCES = [
   {
     id: "fred",
     name: "Federal Reserve Bank of St. Louis \u2014 FRED (permanently disabled)",
-    coverage: "Not served. The FRED Services Terms of Use, clauses (p) and (q), prohibit use in connection with training or running AI/ML/LLM systems and prohibit storing, caching or archiving FRED content, which conflicts with how this service serves data \u2014 there is no compliant way to offer it here.",
+    coverage: "Not served. The FRED Services Terms of Use, clauses (p) and (q), reserve FRED content from use in connection with training or running AI/ML/LLM systems, and from storing, caching or archiving it.",
     access: "Disabled \u2014 the six US-only registry keys and the fred/ series id are recognized but always decline",
     license: "FRED Services Terms of Use, clauses (p) and (q) \u2014 see https://fred.stlouisfed.org/legal/",
     license_verdict: "refused",
-    license_note: "Clauses (p)/(q) prohibit AI/ML/LLM-connected use and prohibit storing/caching/archiving content. StatCite is an AI-agent-facing service that edge-caches responses, so serving FRED is not compliant even with an operator key.",
+    license_note: "Clauses (p) and (q) of the FRED Services Terms of Use reserve FRED content from AI/ML/LLM-connected use and from storing, caching or archiving it. StatCite does not offer FRED, with or without an operator key: the six US-only registry keys and the fred/ series id are recognised and always decline, naming the reason.",
     license_verified_on: "2026-07-26",
     attribution_required: "Not applicable \u2014 no FRED content is served.",
     url: "https://fred.stlouisfed.org",
@@ -3109,11 +3163,11 @@ var SOURCES = [
   {
     id: "un_comtrade",
     name: "UN Comtrade (trade statistics) \u2014 not served",
-    coverage: "Not served. Detailed bilateral trade statistics exist here, but re-dissemination is licence-gated in a way StatCite cannot satisfy at zero cost.",
+    coverage: "Not served. UN Comtrade's policy on use and re-dissemination requires an active premium subscription to re-disseminate its data, and licenses for-profit extraction or streaming applications for a fee.",
     access: "Not integrated; evaluated and declined",
     license: "UN Comtrade policy on use and re-dissemination",
     license_verdict: "refused",
-    license_note: 'The policy states "To re-disseminate UN Comtrade data, a user must be an active premium subscriber" and prices "for-profit data extraction and/or streaming application[s]" under a licensing fee. StatCite has paid surfaces (the Apify actor), so even free-tier ingestion would sit on the for-profit side of that line.',
+    license_note: 'The policy states "To re-disseminate UN Comtrade data, a user must be an active premium subscriber" and prices "for-profit data extraction and/or streaming application[s]" under a licensing fee. StatCite offers a metered surface on Apify, which places it within that fee-bearing category.',
     license_verified_on: "2026-08-08",
     attribution_required: "Not applicable \u2014 no UN Comtrade content is served.",
     url: "https://comtradeplus.un.org",
@@ -3121,27 +3175,27 @@ var SOURCES = [
   },
   {
     id: "eccb",
-    name: "Eastern Caribbean Central Bank statistics \u2014 not served",
-    coverage: "Not served. ECCU monetary and financial statistics are published by the ECCB, but its website terms do not permit the redistribution this service would perform.",
-    access: "Not integrated; evaluated and declined",
+    name: "Eastern Caribbean Central Bank statistics \u2014 permission granted, not yet served",
+    coverage: "Not yet served. ECCU monetary and financial statistics are published by the ECCB. Its published website terms grant use of the site for personal, non-commercial purposes and reserve redistribution unless permission is given, and the operator requested and obtained that permission. Serving is gated on recording the grant's scope here, so that every served value can name the permission it relies on.",
+    access: "Built and tested; not switched on pending the recorded grant",
     license: "ECCB website terms of use",
     license_verdict: "refused",
-    license_note: "The ECCB's website terms (linked from its site footer; deep URLs on the site change) restrict reproduction/redistribution of site content without permission; serving its statistics through a caching public API is redistribution. Declined unless and until written permission exists.",
+    license_note: "The ECCB's website terms (linked from its site footer; deep URLs on the site change) reserve reproduction and redistribution of site content unless permission is given, and serving its statistics through a caching public API is redistribution. The operator requested and obtained that permission. This entry stays unserved only until the grant's own terms are recorded here verbatim \u2014 who granted it, when, and what it covers \u2014 because this ledger is the thing a user relies on to know what licenses each number, and a served value whose permission is not written down here cannot be checked by anyone but us.",
     license_verified_on: "2026-07-31",
-    attribution_required: "Not applicable \u2014 no ECCB content is served.",
+    attribution_required: "To be set from the grant. The permission request offered to follow any attribution format the ECCB specified.",
     url: "https://www.eccb-centralbank.org",
     terms_url: "https://www.eccb-centralbank.org"
   },
   {
     id: "cbb",
-    name: "Central Bank of Barbados statistics \u2014 not served",
-    coverage: "Not served. The Central Bank of Barbados publishes monetary and financial statistics, but its website terms do not permit the redistribution this service would perform.",
-    access: "Not integrated; evaluated and declined",
+    name: "Central Bank of Barbados statistics \u2014 permission granted, not yet served",
+    coverage: "Not yet served. The Central Bank of Barbados publishes monetary and financial statistics. Its published website terms grant use of the site for personal, non-commercial purposes and reserve redistribution unless permission is given, and the operator requested and obtained that permission. Serving is gated on recording the grant's scope here, so that every served value can name the permission it relies on.",
+    access: "Built and tested; not switched on pending the recorded grant",
     license: "Central Bank of Barbados website terms of use",
     license_verdict: "refused",
-    license_note: "The Bank's website terms (linked from its site footer; deep URLs on the site change) restrict reproduction/redistribution of site content without permission; serving its statistics through a caching public API is redistribution. Declined unless and until written permission exists.",
+    license_note: "The Bank's website terms (linked from its site footer; deep URLs on the site change) reserve reproduction and redistribution of site content unless permission is given, and serving its statistics through a caching public API is redistribution. The operator requested and obtained that permission. This entry stays unserved only until the grant's own terms are recorded here verbatim \u2014 who granted it, when, and what it covers \u2014 because this ledger is the thing a user relies on to know what licenses each number, and a served value whose permission is not written down here cannot be checked by anyone but us.",
     license_verified_on: "2026-07-31",
-    attribution_required: "Not applicable \u2014 no Central Bank of Barbados content is served.",
+    attribution_required: "To be set from the grant. The permission request offered to follow any attribution format the Bank specified.",
     url: "https://www.centralbank.org.bb",
     terms_url: "https://www.centralbank.org.bb"
   }
