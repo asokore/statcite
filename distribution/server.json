@@ -1,7 +1,8 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.asokore/statcite",
-  "description": "Official economic statistics with citations: World Bank, IMF WEO, ECB. Verify claimed figures.",
+  "title": "StatCite \u2014 Verified Economic Statistics",
+  "description": "Economic statistics with full citations for AI agents: World Bank, IMF, BIS and ECB data, plus verify_stat to check a claimed GDP, inflation, debt or unemployment figure against the official series.",
   "repository": {
     "url": "https://github.com/asokore/statcite",
     "source": "github"
@@ -12,6 +13,15 @@
     {
       "type": "streamable-http",
       "url": "https://statcite.com/mcp"
+    }
+  ],
+  "icons": [
+    {
+      "src": "https://statcite.com/apple-touch-icon.png",
+      "mimeType": "image/png",
+      "sizes": [
+        "180x180"
+      ]
     }
   ]
 }

@@ -5,6 +5,58 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.11.0 — 2026-08-13
+
+Found by auditing the LIVE service rather than the repo, and each item verified
+against the deployed site after the fix.
+
+**A transform did not relabel its unit.** `transform=yoy` on Barbados GDP in
+current US$ returned 5.18 while still declaring `unit: "current US$"`; the real
+2024 figure is 7,597,571,450. An agent trusting the declared unit publishes a
+number wrong by nine orders of magnitude, in the one field a consumer is meant
+to rely on. `transform=index` was worse: rebasing `cpi_index` to 2018 kept the
+source label "index, 2010 = 100" beside a note saying 2018, so one response
+asserted two base years at once. Transforms now return their own unit, the
+index rebase names the base period it actually used, and the citation carries a
+notice that values are computed rather than as-published.
+
+**A coverage fact is not the same as an unknown code.** `country=XYZ` returned
+"The World Bank does not publish NY.GDP.MKTP.KD.ZG for XYZ … some economies are
+not World Bank reporting economies", inventing a country and then reporting on
+it. The cause was not the wording: the country table was missing 19 REAL
+economies, including Montserrat and Anguilla, this service's own headline
+coverage example, so the three-letter passthrough could not tell an uncovered
+economy from a made-up code. Those economies are now in the table, and the
+passthrough is marked `unverified` so only genuinely unknown codes take the new
+branch.
+
+**Query booleans were compared to the literal string "true".** `strict_source=1`
+silently downgraded a reproducibility guarantee to permissive mode and returned
+200; `latest_only=1` returned the full series. Both now accept true/1/yes/on and
+reject anything unparseable with a 400.
+
+**The sitemap listed URLs that all redirected.** Every content page was
+submitted as `/docs.html`, which 307-redirects to `/docs`, and `/docs` declared
+its canonical as `/docs.html`: a canonical loop on a temporary redirect. A
+credible cause of the near-total absence of search crawling measured the same
+day, Googlebot 3 visits per day against ~300 from AI crawlers.
+
+Also: `compare_sources` widened from a 12-observation tail that could miss
+overlaps spanning decades; `/v1/compare` no longer says "only one source
+responded" when zero did; `/v1/fx` rejects future dates itself instead of
+returning 502 and blaming the ECB; `/v1/status` distinguishes a cached probe
+from a live one; HEAD is supported and every 405 carries `Allow`; deep-research
+`search` no longer emits ids that the paired `fetch` is guaranteed to refuse;
+the BIS coverage claim corrected from "~38 central banks" to the 49 economies
+actually served; the privacy policy now names all seven upstream hosts rather
+than three; and the site gained an og:image, favicon.ico and apple-touch-icon,
+all of which were missing or 404.
+
+Reuse terms are now declared machine-readably: robots.txt carries the Content
+Signals Policy (`search=yes, ai-input=yes, ai-train=no, use=reference`) and
+`/.well-known/tdmrep.json` carries a TDM reservation. Crawlers stay welcome;
+the reservation is against training and wholesale reproduction, not reading.
+
 ## 1.10.1 — 2026-08-10
 
 - **One honest-absence contract for both World Bank coverage shapes.** The
