@@ -271,7 +271,7 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
         (near.length ? ` Nearby values: ${near.map((o) => `${o.period}: ${fmt(o.value!)}`).join(", ")}.` : "") +
         freqHint,
       diagnostics,
-      series: { id: result.series_id, name: result.name, unit: result.unit },
+      series: { id: result.series_id, name: result.name, unit: result.unit ?? undefined },
       country: result.country,
       citation: result.citation,
       notes,
@@ -365,7 +365,7 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
       explanation:
         `This indicator's primary source was transiently unavailable; the fallback (${result.citation.source}, ${result.series_id}) shows ${fmt(official)}${result.unit ? ` ${result.unit}` : ""}${projFlag} for ${period} — indicative only, not a verification.${vintageFlavor} Retry when the primary source has recovered, or pass strict_source=true to fail hard instead.`,
       diagnostics,
-      series: { id: result.series_id, name: result.name, unit: result.unit },
+      series: { id: result.series_id, name: result.name, unit: result.unit ?? undefined },
       country: result.country,
       citation: result.citation,
       notes,
@@ -442,7 +442,7 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
     relative_difference_pct: relPct == null ? null : Number(relPct.toFixed(3)),
     explanation,
     diagnostics,
-    series: { id: result.series_id, name: result.name, unit: result.unit },
+    series: { id: result.series_id, name: result.name, unit: result.unit ?? undefined },
     country: result.country,
     citation: result.citation,
     notes,

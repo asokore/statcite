@@ -837,11 +837,18 @@ export async function getSeries(
       apiUrl: wb.apiUrl,
       lastUpdated: wb.lastUpdated,
     });
+    // /v1/indicator returns `unit` for this exact series while /v1/series
+    // omitted the key entirely, so the same numbers arrived labelled on one
+    // route and unlabelled on the other. Where the explicit id maps to a
+    // registry key, reuse the curated unit; otherwise emit null EXPLICITLY so a
+    // client can tell "no unit is known" from "the field was forgotten".
+    const wbDef = Object.values(INDICATORS).find((d) => d.wb === wb.indicatorId);
     return finishSeries(
       {
         series_id: `worldbank/${wb.indicatorId}`,
         name: wb.indicatorName,
         country: { iso3: wb.countryIso3, name: wb.countryName },
+        unit: wbDef?.unit ?? null,
         frequency: "annual",
         observations: wb.observations,
         citation,
@@ -1060,7 +1067,7 @@ export interface CompareSourcesResult {
     ok: boolean;
     period?: string;
     value?: number | null;
-    unit?: string;
+    unit?: string | null;
     citation?: Citation;
     note?: string;
     error?: string;

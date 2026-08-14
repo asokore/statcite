@@ -68,7 +68,8 @@ export interface SeriesResult {
   series_id: string;
   name: string;
   country?: { iso3: string; name: string };
-  unit?: string;
+  /** null means no unit could be determined; an ABSENT key would be ambiguous. */
+  unit?: string | null;
   frequency?: string;
   observations: Observation[];
   citation: Citation;
