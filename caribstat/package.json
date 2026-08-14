@@ -1,0 +1,12 @@
+{
+  "name": "caribstat",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Caribbean and small-states official statistics — scheduled ingestion to dated, citable JSON snapshots, served through StatCite.",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test \"tools/**/*.test.mjs\"",
+    "ingest:eccb": "node tools/eccb/run.mjs"
+  }
+}
