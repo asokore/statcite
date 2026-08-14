@@ -1,0 +1,81 @@
+name: Publish to the MCP Registry
+
+# WHY THIS EXISTS.
+#
+# Publishing used to require `mcp-publisher login github`, an interactive device
+# flow: a human reads a code off a terminal and types it into github.com. That
+# is fine once and corrosive as a habit. The registry drifted to 1.10.0 while
+# the deployed Worker served 1.11.0, because the only thing standing between
+# "released" and "published" was somebody remembering to do it by hand within
+# the JWT's sub-hour lifetime.
+#
+# GitHub Actions can authenticate to the registry with OIDC instead. The runner
+# proves it is this repository, the registry maps that to the
+# io.github.asokore/* namespace, and no long-lived secret exists to leak. So
+# publishing becomes a consequence of releasing rather than a separate chore.
+#
+# Triggered by publishing a GitHub Release, which is the moment the version
+# genuinely exists, and manually for backfills.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # required for OIDC; without it login silently has no identity
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Fail loudly BEFORE authenticating if the manifest and the code disagree
+      # about the version. Publishing a version the Worker does not serve is
+      # worse than not publishing: it makes the registry confidently wrong.
+      - name: Check the manifest matches the served version
+        run: |
+          set -euo pipefail
+          MANIFEST=$(node -p "require('./distribution/server.json').version")
+          CODE=$(grep -oP 'SERVER_VERSION = "\K[^"]+' server/src/mcp.ts)
+          echo "manifest=$MANIFEST code=$CODE"
+          if [ "$MANIFEST" != "$CODE" ]; then
+            echo "REFUSING: distribution/server.json says $MANIFEST but server/src/mcp.ts says $CODE." >&2
+            exit 1
+          fi
+
+      - name: Install mcp-publisher
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" \
+            | tar xz mcp-publisher
+          ./mcp-publisher --version
+
+      # mcp-publisher reads server.json from the working directory, so run it
+      # from distribution/ where the manifest lives rather than copying it and
+      # risking the copy drifting from the original.
+      - name: Publish
+        working-directory: distribution
+        run: |
+          set -euo pipefail
+          ../mcp-publisher login github-oidc
+          ../mcp-publisher publish
+
+      # Trust the registry, not the exit code. A publish that returns 0 while
+      # the registry still serves the old version is exactly the failure this
+      # workflow exists to prevent, so assert against what the registry says.
+      - name: Verify the registry actually serves the new version
+        run: |
+          set -euo pipefail
+          EXPECTED=$(node -p "require('./distribution/server.json').version")
+          sleep 10
+          LATEST=$(curl -fsSL "https://registry.modelcontextprotocol.io/v0/servers?search=statcite" \
+            | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
+                const j=JSON.parse(s);
+                const m=(j.servers||[]).filter(x=>(x.server||x).name==='io.github.asokore/statcite'&&(x._meta?.['io.modelcontextprotocol.registry/official']?.isLatest));
+                console.log(m.length?(m[0].server||m[0]).version:'none');
+              })")
+          echo "registry isLatest = $LATEST, expected $EXPECTED"
+          [ "$LATEST" = "$EXPECTED" ] || { echo "Registry did not update." >&2; exit 1; }
