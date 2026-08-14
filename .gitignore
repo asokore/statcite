@@ -39,3 +39,8 @@ audit-plan.md
 caribstat/data/
 caribstat/*.log
 caribstat/node_modules/
+
+# Raw source workbooks and scraped reference artefacts kept for debugging the
+# parsers. Same licence status as the harvested data: these ARE the banks'
+# published files, so they never go to the public remote either.
+caribstat/reference/
