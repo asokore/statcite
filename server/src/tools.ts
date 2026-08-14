@@ -2,7 +2,7 @@
 
 import type { Ctx } from "./core/types.ts";
 import { ToolError } from "./core/types.ts";
-import { getIndicator, getSeries, searchIndicators, listRegistry, wbIsPrimarySource, compareSources } from "./core/series.ts";
+import { getIndicator, getSeries, searchIndicators, listRegistry, wbIsPrimarySource, compareSources, isDisabledDef } from "./core/series.ts";
 import { countrySnapshot } from "./core/snapshot.ts";
 import { inflationAdjust } from "./core/inflation.ts";
 import { fxConvert } from "./core/fx.ts";
@@ -457,7 +457,10 @@ export const TOOLS: ToolDef[] = [
     name: "inflation_adjust",
     title: "Adjust an amount for inflation between two years",
     description:
-      "Convert a nominal amount between years using official CPI: 'what is 100 (1995) worth in 2025 money?' Works for any country with CPI data (default USA). Returns the adjusted amount, the exact index values and formula used, and the citation. Annual-average precision.",
+      // No hard-coded target year. 2025 was advertised here while the US CPI
+      // series ended in 2024, so the tool's own worked example returned an
+      // error when a caller followed it literally.
+      "Convert a nominal amount between years using official CPI: 'what is 100 in 1995 money worth in today's money?' Works for any country with CPI data (default USA). Returns the adjusted amount, the exact index values and formula used, and the citation. Annual-average precision.",
     inputSchema: {
       type: "object",
       properties: {
@@ -539,7 +542,12 @@ export const TOOLS: ToolDef[] = [
           if (cand.length >= 2) country = resolveCountry(cand, { strict: true });
         }
       }
-      const matches = searchIndicatorDefs(query, 6);
+      // Deep-research clients call search, then fetch every id it returns. An
+      // id for a permanently-disabled key, or for a geography-locked key
+      // outside its scope, is GUARANTEED to fail on that follow-up call: the
+      // pairing is the contract, so search must not emit ids fetch will refuse.
+      // Over-fetch and filter so the result count still holds.
+      const matches = searchIndicatorDefs(query, 14).filter((m) => !isDisabledDef(m.def)).slice(0, 6);
       const results: Array<{ id: string; title: string; url: string }> = [];
       for (const m of matches) {
         const iso = country?.iso3 ?? "WLD";
@@ -605,7 +613,11 @@ export const TOOLS: ToolDef[] = [
         throw new ToolError("Unrecognized id. Expected 'indicator/<key>/<ISO3>' from a prior search call.", { id });
       }
       const result = await getIndicator(ctx, m[1], m[2], { limit: 15 });
-      const obsLines = result.observations.map((o) => `${o.period}: ${o.value == null ? "·" : o.value}`);
+      // Honest absence is expressed everywhere else in this service as a typed
+      // field with an explanation. In this one text blob it was a bare middot
+      // with no legend, so a missing value was indistinguishable from a
+      // formatting artefact. Say it in words.
+      const obsLines = result.observations.map((o) => `${o.period}: ${o.value == null ? "no published value" : o.value}`);
       const text = [
         `${result.name} — ${result.country?.name ?? ""} (${result.unit ?? "units per source"})`,
         "",

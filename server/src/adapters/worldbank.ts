@@ -29,7 +29,7 @@ export interface WbSeries {
 function parseEnvelope(
   data: unknown,
   apiUrl: string,
-  ctx: { countryCode?: string; indicatorId?: string } = {},
+  ctx: { countryCode?: string; indicatorId?: string; countryUnverified?: boolean } = {},
 ): { meta: Record<string, unknown>; rows: WbRow[] } {
   if (!Array.isArray(data)) throw new ToolError("World Bank API returned an unexpected payload", { api_url: apiUrl });
   const first = data[0] as Record<string, unknown> | undefined;
@@ -46,6 +46,17 @@ function parseEnvelope(
     // must carry the same honest-absence contract, so a caller can distinguish
     // "the source does not publish this" from "our request was malformed".
     if (/invalid value/i.test(text) || /not valid/i.test(text)) {
+      // The SAME upstream string means two different things depending on
+      // whether the code names a real economy. For a known economy it is a
+      // coverage fact. For a code we never recognised it is simply not a
+      // country, and reporting it as coverage invents a country and then
+      // reports on it.
+      if (ctx.countryUnverified) {
+        throw new ToolError(
+          `'${ctx.countryCode ?? "(unknown)"}' was not recognised as a country or economy, and the World Bank rejected it as an unknown code. Use an ISO3 code (e.g. USA, BRB, DEU) or a standard English name.`,
+          { api_url: apiUrl, country: ctx.countryCode, unknown_country: true },
+        );
+      }
       throw new ToolError(
         `The World Bank does not publish indicator ${ctx.indicatorId ?? "(unknown)"} for '${ctx.countryCode ?? "(unknown)"}'. This is a coverage fact at the source, not a lookup failure — some economies (e.g. Anguilla, Montserrat) are not World Bank reporting economies at all.`,
         { api_url: apiUrl, no_published_data: true, country: ctx.countryCode, indicator: ctx.indicatorId },
@@ -61,13 +72,13 @@ function parseEnvelope(
 export async function fetchWbSeries(
   countryCode: string,
   indicatorId: string,
-  opts: { perPage?: number; mrv?: number } = {},
+  opts: { perPage?: number; mrv?: number; countryUnverified?: boolean } = {},
 ): Promise<WbSeries> {
   const params = new URLSearchParams({ format: "json", per_page: String(opts.perPage ?? 1000) });
   if (opts.mrv) params.set("mrv", String(opts.mrv));
   const apiUrl = `${BASE}/country/${encodeURIComponent(countryCode)}/indicator/${encodeURIComponent(indicatorId)}?${params}`;
   const data = await fetchJson(apiUrl, { ttlSeconds: 21600 });
-  const { meta, rows } = parseEnvelope(data, apiUrl, { countryCode, indicatorId });
+  const { meta, rows } = parseEnvelope(data, apiUrl, { countryCode, indicatorId, countryUnverified: opts.countryUnverified });
   if (rows.length === 0) {
     throw new ToolError(
       `No World Bank data found for indicator ${indicatorId}, country ${countryCode}. The indicator code or country may be wrong, or the series may not be reported for this economy.`,

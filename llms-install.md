@@ -63,6 +63,6 @@ curl "https://statcite.com/v1/status"
   comparison, FX/inflation utilities, deep-research `search`/`fetch`)
 - 3 prompts (`fact_check`, `country_brief`, `cite_this_stat`)
 - 3 resources (indicator registry, source licence ledger, SIDS country list)
-- 46 curated indicators (40 active), 200+ economies
+- 48 curated indicators (42 active), 200+ economies
 
 Full agent-facing reference: https://statcite.com/llms-full.txt

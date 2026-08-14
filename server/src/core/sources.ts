@@ -93,7 +93,7 @@ export const SOURCES = [
   {
     id: "bis",
     name: "Bank for International Settlements — central bank policy rates",
-    coverage: "Policy rates for ~38 central banks (the rate that best captures each monetary authority's policy stance), monthly and daily, via the BIS SDMX API",
+    coverage: "Policy rates for 49 economies (the rate that best captures each monetary authority's policy stance), monthly and daily, via the BIS SDMX API",
     access: "No key; queried live from stats.bis.org/api/v2 (SDMX-JSON via Accept header)",
     license: "BIS statistics may be reproduced and redistributed with attribution; see the BIS terms and conditions for statistics",
     license_verdict: "served" as LicenseVerdict,

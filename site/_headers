@@ -41,3 +41,13 @@
   Content-Type: application/json
   Access-Control-Allow-Origin: *
   Cache-Control: public, max-age=3600
+
+# Social card and icons. Long cache: these change only when the brand does, and
+# Slack/X/LinkedIn fetch og.png on every unfurl.
+/og.png
+  Cache-Control: public, max-age=604800
+  Access-Control-Allow-Origin: *
+/apple-touch-icon.png
+  Cache-Control: public, max-age=604800
+/favicon.ico
+  Cache-Control: public, max-age=604800

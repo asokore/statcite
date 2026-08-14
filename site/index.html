@@ -12,7 +12,13 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://statcite.com/">
 <meta property="og:site_name" content="StatCite">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="https://statcite.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="StatCite: economic statistics your AI can actually cite. Every number ships with its source, dataset, series id and licence.">
+<meta name="twitter:image" content="https://statcite.com/og.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="StatCite — Economic statistics your AI can actually cite">
 <meta name="twitter:description" content="Official macro data with full citations, built for AI agents. Free MCP server + REST API, plus stat verification.">
 <script type="application/ld+json">
@@ -215,7 +221,7 @@ footer a{color:var(--dim)}
       <button id="tab-rest" role="tab" aria-selected="false" tabindex="-1" aria-controls="t-rest" onclick="tab(event,'t-rest')">REST</button>
     </div>
     <div id="t-claude" class="tabpanel active" role="tabpanel" aria-labelledby="tab-claude" tabindex="0">
-      <p>Settings → Connectors → <strong>Add custom connector</strong> → paste the URL. Works on all plans (Free allows one custom connector).</p>
+      <p>Settings → Customize → Connectors → <strong>Add custom connector</strong> → paste the URL. Works on all plans (Free allows one custom connector).</p>
       <pre>Name:  StatCite
 URL:   https://statcite.com/mcp</pre>
       <p style="margin-top:10px">Then confirm it works with a test prompt: <em>“Using StatCite, verify that US inflation was 4.1% in 2023 and cite the official source.”</em></p>
@@ -340,7 +346,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
       <div class="card"><h3>verify_claims</h3><p>Fact-check a whole draft in one call: extract every macro claim, submit up to 15 together (also <code>POST /v1/verify_claims</code>). Verdict summary + per-claim results; one bad claim never sinks the batch.</p></div>
       <div class="card"><h3>get_indicator</h3><p>42 active curated indicators — inflation, GDP growth, unemployment, government debt, current account, FDI… — for 200+ economies, with source fallback (World Bank → IMF DataMapper, current vintage → IMF WEO via DBnomics).</p></div>
       <div class="card"><h3>country_snapshot</h3><p>Headline economic picture of any country in one call: 11 indicators, each with its own citation. Built for country briefs.</p></div>
-      <div class="card"><h3>inflation_adjust</h3><p>“What is $100 (1995) worth in 2025 money?” CPI-ratio method with the exact index values and formula disclosed. Any country with CPI data.</p></div>
+      <div class="card"><h3>inflation_adjust</h3><p>“What is $100 (1995) worth in 2024 money?” CPI-ratio method with the exact index values and formula disclosed. Any country with CPI data.</p></div>
       <div class="card"><h3>fx_convert</h3><p>ECB daily reference rates for ~30 majors since 1999, plus official annual-average rates for ~90 more currencies (BBD, XCD, JMD, KES…). Method always stated.</p></div>
       <div class="card"><h3>get_series</h3><p>Raw access by explicit id: <code>worldbank/…</code>, <code>imf/…</code>, <code>dbnomics/IMF/WEO:latest/…</code>. Transforms: YoY, % change, index rebase.</p></div>
       <div class="card"><h3>compare_sources</h3><p>The same indicator from every source that publishes it, side by side — spread, agreement, and one citation per source. For when "what does the official data say?" has more than one official answer.</p></div>

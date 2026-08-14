@@ -22,7 +22,7 @@
     "/v1": {
       "get": {
         "operationId": "apiIndex",
-        "summary": "Endpoint index — service info and list of available /v1 routes",
+        "summary": "Endpoint index \u2014 service info and list of available /v1 routes",
         "responses": {
           "200": {
             "description": "Service info and endpoint list",
@@ -33,6 +33,9 @@
                 }
               }
             }
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
           }
         }
       }
@@ -72,7 +75,7 @@
                           },
                           "active": {
                             "type": "boolean",
-                            "description": "False for the six permanently-disabled FRED-reserved keys — they are recognized but always decline (added 1.4.2)."
+                            "description": "False for the six permanently-disabled FRED-reserved keys \u2014 they are recognized but always decline (added 1.4.2)."
                           },
                           "disabled_reason": {
                             "type": "string",
@@ -95,6 +98,9 @@
                 }
               }
             }
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
           }
         }
       }
@@ -182,6 +188,9 @@
           },
           "422": {
             "$ref": "#/components/responses/Unprocessable"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
           }
         }
       }
@@ -189,7 +198,7 @@
     "/v1/series": {
       "get": {
         "operationId": "getSeries",
-        "summary": "Raw series by explicit id (worldbank/…, imf/…, dbnomics/…; fred/… is recognized but always declines — FRED is disabled)",
+        "summary": "Raw series by explicit id (worldbank/\u2026, imf/\u2026, dbnomics/\u2026; fred/\u2026 is recognized but always declines \u2014 FRED is disabled)",
         "parameters": [
           {
             "name": "id",
@@ -261,6 +270,9 @@
           },
           "422": {
             "$ref": "#/components/responses/Unprocessable"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
           }
         }
       }
@@ -289,6 +301,12 @@
                 }
               }
             }
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
           }
         }
       }
@@ -320,6 +338,9 @@
           },
           "422": {
             "$ref": "#/components/responses/Unprocessable"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
           }
         }
       }
@@ -385,7 +406,7 @@
             "schema": {
               "type": "boolean"
             },
-            "description": "Never verify against a fallback source — error instead. Without strict_source, a verify served from a transient-failure fallback returns cannot_verify (with the fallback value as indicative); a fallback for a series the primary permanently lacks is judged normally with disclosure."
+            "description": "Never verify against a fallback source \u2014 error instead. Without strict_source, a verify served from a transient-failure fallback returns cannot_verify (with the fallback value as indicative); a fallback for a series the primary permanently lacks is judged normally with disclosure."
           },
           {
             "name": "as_of",
@@ -394,7 +415,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Historical IMF-vintage verification: judge the claim against the dated IMF WEO edition resolved from this date (e.g. '2019-04', '2019') instead of today's live data. Resolution is a CONSERVATIVE month calendar (editions flip May 1 / Nov 1), not the IMF's exact release days — a date late in a release month resolves to the previous edition even if the new one already existed (the response says so, with an exact-pinning escape hatch via get_series dated ids). Always verifies against a dated WEO edition, even for indicators whose live primary is World Bank WDI or the IMF Fiscal Monitor — see as_of.source_changed_for_as_of. Recent editions serve from the IMF's own dated vintage dataflows (api.imf.org) first, with DBnomics's dated editions as the deep archive; the citation names which one served. Only supported for the six WEO-dated registry indicators (gdp_growth, current_account_gdp, govt_debt_gdp, fiscal_balance_gdp, govt_revenue_gdp, govt_expenditure_gdp); rejects with advice otherwise. Impossible calendar dates are rejected, never normalized."
+            "description": "Historical IMF-vintage verification: judge the claim against the dated IMF WEO edition resolved from this date (e.g. '2019-04', '2019') instead of today's live data. Resolution is a CONSERVATIVE month calendar (editions flip May 1 / Nov 1), not the IMF's exact release days \u2014 a date late in a release month resolves to the previous edition even if the new one already existed (the response says so, with an exact-pinning escape hatch via get_series dated ids). Always verifies against a dated WEO edition, even for indicators whose live primary is World Bank WDI or the IMF Fiscal Monitor \u2014 see as_of.source_changed_for_as_of. Recent editions serve from the IMF's own dated vintage dataflows (api.imf.org) first, with DBnomics's dated editions as the deep archive; the citation names which one served. Only supported for the six WEO-dated registry indicators (gdp_growth, current_account_gdp, govt_debt_gdp, fiscal_balance_gdp, govt_revenue_gdp, govt_expenditure_gdp); rejects with advice otherwise. Impossible calendar dates are rejected, never normalized."
           }
         ],
         "responses": {
@@ -413,6 +434,9 @@
           },
           "422": {
             "$ref": "#/components/responses/Unprocessable"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
           }
         }
       }
@@ -420,8 +444,8 @@
     "/v1/verify_claims": {
       "post": {
         "operationId": "verifyClaims",
-        "summary": "Verify a batch of claimed figures (fact-check a whole draft) — the API's only non-GET route",
-        "description": "Extract every checkable macro claim from a draft (indicator + country + period + claimed value) and submit up to 15 together. Each claim gets the same verdict engine as /v1/verify; results return in input order with a verdict-count summary. A claim that cannot be resolved reports its error in place without failing the batch. The 15-claim cap reflects the free-tier upstream subrequest budget — split larger drafts into batches.",
+        "summary": "Verify a batch of claimed figures (fact-check a whole draft) \u2014 the API's only non-GET route",
+        "description": "Extract every checkable macro claim from a draft (indicator + country + period + claimed value) and submit up to 15 together. Each claim gets the same verdict engine as /v1/verify; results return in input order with a verdict-count summary. A claim that cannot be resolved reports its error in place without failing the batch. The 15-claim cap reflects the free-tier upstream subrequest budget \u2014 split larger drafts into batches.",
         "requestBody": {
           "required": true,
           "content": {
@@ -447,7 +471,7 @@
                       "properties": {
                         "indicator": {
                           "type": "string",
-                          "description": "Registry key (inflation_cpi, gdp_growth, …) or explicit series id (worldbank/FP.CPI.TOTL.ZG, imf/NGDP_RPCH, dbnomics/…). fred/… ids are recognized but always decline — FRED is disabled."
+                          "description": "Registry key (inflation_cpi, gdp_growth, \u2026) or explicit series id (worldbank/FP.CPI.TOTL.ZG, imf/NGDP_RPCH, dbnomics/\u2026). fred/\u2026 ids are recognized but always decline \u2014 FRED is disabled."
                         },
                         "country": {
                           "type": "string",
@@ -470,27 +494,47 @@
                           "description": "Optional relative tolerance in percent"
                         },
                         "revision_check": {
-          "type": "object",
-          "description": "Present on mismatch verdicts for indicators with a dated IMF WEO source: the claim re-judged against the PREVIOUS WEO edition. matches_previous_vintage=true means the figure was likely accurate when written and has since been revised - a revision event, not necessarily an author error. status 'unavailable' = the previous edition could not be retrieved; no judgment is offered.",
-          "properties": {
-            "status": { "type": "string", "enum": ["checked", "unavailable"] },
-            "previous_edition": { "type": "string" },
-            "previous_value": { "type": ["number", "null"] },
-            "matches_previous_vintage": { "type": "boolean" },
-            "next_edition_expected": { "type": "string", "description": "Calendar expectation ('October 2026'), not an announced date." },
-            "note": { "type": "string" }
-          }
-        },
-        "as_of": {
+                          "type": "object",
+                          "description": "Present on mismatch verdicts for indicators with a dated IMF WEO source: the claim re-judged against the PREVIOUS WEO edition. matches_previous_vintage=true means the figure was likely accurate when written and has since been revised - a revision event, not necessarily an author error. status 'unavailable' = the previous edition could not be retrieved; no judgment is offered.",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "checked",
+                                "unavailable"
+                              ]
+                            },
+                            "previous_edition": {
+                              "type": "string"
+                            },
+                            "previous_value": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "matches_previous_vintage": {
+                              "type": "boolean"
+                            },
+                            "next_edition_expected": {
+                              "type": "string",
+                              "description": "Calendar expectation ('October 2026'), not an announced date."
+                            },
+                            "note": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "as_of": {
                           "type": "string",
-                          "description": "Verify this claim against the IMF WEO/Fiscal Monitor edition current as of this date (e.g. '2019-04') instead of today's live data — only for the 6 WEO-dated registry indicators (served from the IMF's own vintage dataflows first, DBnomics dated editions as the deep archive)."
+                          "description": "Verify this claim against the IMF WEO/Fiscal Monitor edition current as of this date (e.g. '2019-04') instead of today's live data \u2014 only for the 6 WEO-dated registry indicators (served from the IMF's own vintage dataflows first, DBnomics dated editions as the deep archive)."
                         }
                       }
                     }
                   },
                   "strict_source": {
                     "type": "boolean",
-                    "description": "Apply reproducibility mode to every claim in the batch: never verify against a fallback source — such claims error in place. Without it, a claim served from a transient-failure fallback returns cannot_verify with the fallback value as indicative."
+                    "description": "Apply reproducibility mode to every claim in the batch: never verify against a fallback source \u2014 such claims error in place. Without it, a claim served from a transient-failure fallback returns cannot_verify with the fallback value as indicative."
                   }
                 }
               }
@@ -559,10 +603,10 @@
             }
           },
           "405": {
-            "description": "Method not allowed — this endpoint accepts POST only; GET returns usage advice"
+            "description": "Method not allowed \u2014 this endpoint accepts POST only; GET returns usage advice"
           },
           "415": {
-            "description": "Unsupported media type — set content-type: application/json"
+            "description": "Unsupported media type \u2014 set content-type: application/json"
           },
           "422": {
             "$ref": "#/components/responses/Unprocessable"
@@ -621,6 +665,12 @@
           },
           "422": {
             "$ref": "#/components/responses/Unprocessable"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
           }
         }
       }
@@ -679,6 +729,12 @@
           },
           "422": {
             "$ref": "#/components/responses/Unprocessable"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
           }
         }
       }
@@ -697,6 +753,9 @@
                 }
               }
             }
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
           }
         }
       }
@@ -706,13 +765,52 @@
         "operationId": "compareSources",
         "summary": "Compare one indicator across every official source in its chain (per-source values, citations, spread)",
         "parameters": [
-          { "name": "indicator", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Registry key, e.g. govt_debt_gdp" },
-          { "name": "country", "in": "query", "required": true, "schema": { "type": "string" } },
-          { "name": "period", "in": "query", "schema": { "type": "string" }, "description": "Optional year; default = latest period all responding sources share" }
+          {
+            "name": "indicator",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Registry key, e.g. govt_debt_gdp"
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional year; default = latest period all responding sources share"
+          }
         ],
         "responses": {
-          "200": { "description": "Per-source values with citations and a spread; differences are methodological, never a source error", "content": { "application/json": { "schema": { "type": "object" } } } },
-          "400": { "$ref": "#/components/responses/BadRequest" }
+          "200": {
+            "description": "Per-source values with citations and a spread; differences are methodological, never a source error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          }
         }
       }
     },
@@ -728,22 +826,44 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "service": { "type": "string" },
-                    "version": { "type": "string" },
-                    "status": { "type": "string", "enum": ["ok", "degraded"] },
+                    "service": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "degraded"
+                      ]
+                    },
                     "upstreams": {
                       "type": "object",
                       "description": "Per-upstream probe results: ok flag and probe latency in ms.",
                       "additionalProperties": {
                         "type": "object",
-                        "properties": { "ok": { "type": "boolean" }, "ms": { "type": "number" } }
+                        "properties": {
+                          "ok": {
+                            "type": "boolean"
+                          },
+                          "ms": {
+                            "type": "number"
+                          }
+                        }
                       }
                     },
-                    "note": { "type": "string" }
+                    "note": {
+                      "type": "string"
+                    }
                   }
                 }
               }
             }
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
           }
         }
       }
@@ -755,6 +875,9 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
           }
         }
       }
@@ -800,6 +923,18 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "export_formats": {
+            "type": "object",
+            "description": "Ready-to-paste citation strings derived from this citation's own fields, so they can never disagree with citation_text.",
+            "properties": {
+              "bibtex": {
+                "type": "string"
+              },
+              "apa": {
+                "type": "string"
+              }
             }
           }
         }
@@ -861,7 +996,7 @@
           },
           "fallback_used": {
             "type": "boolean",
-            "description": "Present and true when the primary source failed and a fallback source served this result — the value may reflect a different statistical definition. Absent on primary-source responses."
+            "description": "Present and true when the primary source failed and a fallback source served this result \u2014 the value may reflect a different statistical definition. Absent on primary-source responses."
           },
           "fallback_reason": {
             "type": "string",
@@ -907,7 +1042,7 @@
               "projection",
               "unknown"
             ],
-            "description": "Honest status of the matched observation. 'actual': a series StatCite classifies as outturn data (registry World Bank indicators not flagged as modeled, explicit worldbank/ WDI ids), subject to routine revision. 'modeled_estimate' (added 1.4.1): the registry flags this indicator as a modeled series — e.g. the World Bank's ILO-modeled unemployment and labor-force-participation estimates — a published figure, but a model output, not a measured outturn. 'estimate_or_actual': IMF WEO/Fiscal Monitor observation before the projection boundary — the IMF's true latest-actual year varies by country and is not exposed by the data path, so recent values may be staff estimates; never read this as a confirmed actual. 'projection': at/after the heuristic boundary. 'unknown': no observation matched the period, or the series is an explicit id outside StatCite's classification (arbitrary DBnomics series can be forecast datasets — consult the source)."
+            "description": "Honest status of the matched observation. 'actual': a series StatCite classifies as outturn data (registry World Bank indicators not flagged as modeled, explicit worldbank/ WDI ids), subject to routine revision. 'modeled_estimate' (added 1.4.1): the registry flags this indicator as a modeled series \u2014 e.g. the World Bank's ILO-modeled unemployment and labor-force-participation estimates \u2014 a published figure, but a model output, not a measured outturn. 'estimate_or_actual': IMF WEO/Fiscal Monitor observation before the projection boundary \u2014 the IMF's true latest-actual year varies by country and is not exposed by the data path, so recent values may be staff estimates; never read this as a confirmed actual. 'projection': at/after the heuristic boundary. 'unknown': no observation matched the period, or the series is an explicit id outside StatCite's classification (arbitrary DBnomics series can be forecast datasets \u2014 consult the source)."
           },
           "status_method": {
             "type": "string",
@@ -915,7 +1050,7 @@
               "horizon_heuristic",
               "as_published"
             ],
-            "description": "How observation_status was determined: 'horizon_heuristic' for IMF WEO/Fiscal Monitor series (boundary derived from the response's own data — the payload's projection horizon on the DataMapper channel, the dataset-code vintage year on the DBnomics channel; a heuristic, not IMF per-country metadata); 'as_published' otherwise."
+            "description": "How observation_status was determined: 'horizon_heuristic' for IMF WEO/Fiscal Monitor series (boundary derived from the response's own data \u2014 the payload's projection horizon on the DataMapper channel, the dataset-code vintage year on the DBnomics channel; a heuristic, not IMF per-country metadata); 'as_published' otherwise."
           },
           "period": {
             "type": "string"
@@ -962,7 +1097,7 @@
           },
           "as_of": {
             "type": "object",
-            "description": "Present when the as_of parameter was used: historical IMF-VINTAGE verification — the verdict was checked against a dated IMF WEO edition, not today's live data. Absent otherwise.",
+            "description": "Present when the as_of parameter was used: historical IMF-VINTAGE verification \u2014 the verdict was checked against a dated IMF WEO edition, not today's live data. Absent otherwise.",
             "properties": {
               "requested": {
                 "type": "string",
@@ -977,7 +1112,7 @@
                 "enum": [
                   "conservative_month_calendar"
                 ],
-                "description": "How the vintage was resolved: a conservative month calendar (editions flip May 1 / Nov 1), NOT the IMF's exact release days — a date late in a release month resolves to the previous edition even if the new one had already been published; a note discloses this for dates inside release months."
+                "description": "How the vintage was resolved: a conservative month calendar (editions flip May 1 / Nov 1), NOT the IMF's exact release days \u2014 a date late in a release month resolves to the previous edition even if the new one had already been published; a note discloses this for dates inside release months."
               },
               "verification_scope": {
                 "type": "string",
@@ -992,7 +1127,7 @@
               },
               "source_changed_for_as_of": {
                 "type": "boolean",
-                "description": "True when the live primary differs from the WEO archive by source or IMF database — a claim originally made from the live primary can legitimately differ from the WEO edition for methodological reasons, not only because of revisions."
+                "description": "True when the live primary differs from the WEO archive by source or IMF database \u2014 a claim originally made from the live primary can legitimately differ from the WEO edition for methodological reasons, not only because of revisions."
               }
             }
           }
@@ -1001,10 +1136,44 @@
     },
     "responses": {
       "BadRequest": {
-        "description": "Missing or invalid parameters"
+        "description": "Malformed or missing query parameter. The message names the parameter.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
       },
       "Unprocessable": {
-        "description": "Request understood but not servable — the message includes suggestions (closest countries, available year ranges)"
+        "description": "The request was well formed but cannot be answered, e.g. the source does not publish this series for this economy.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "MethodNotAllowed": {
+        "description": "Method not supported on this endpoint. The Allow header lists what is.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Unknown endpoint. See /v1 for the endpoint list.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
       }
     }
   }
