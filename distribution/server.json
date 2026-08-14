@@ -1,8 +1,8 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.asokore/statcite",
-  "title": "StatCite \u2014 Verified Economic Statistics",
-  "description": "Economic statistics with full citations for AI agents: World Bank, IMF, BIS and ECB data, plus verify_stat to check a claimed GDP, inflation, debt or unemployment figure against the official series.",
+  "title": "StatCite — Verified Economic Statistics",
+  "description": "Economic statistics with citations: World Bank, IMF, BIS, ECB. Verify GDP, inflation, debt figures.",
   "repository": {
     "url": "https://github.com/asokore/statcite",
     "source": "github"
