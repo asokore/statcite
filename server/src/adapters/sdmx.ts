@@ -154,7 +154,7 @@ export async function fetchSdmxSeries(
   // still in scope, not downstream where both look identical.
   if (Object.keys(seriesMap).length === 0) {
     throw new Error(
-      `${provider} returned 200 but no series for ${flow}/${key} — the series key is not valid for this dataflow ` +
+      `${provider} returned 200 but no series for ${flow}/${key}. The series key is not valid for this dataflow ` +
         `(usually a wrong dimension order or an unknown code). Treated as a request error, not as an absence of published data.`,
     );
   }
@@ -190,7 +190,7 @@ export async function fetchSdmxSeries(
       out.stalenessNote =
         `Upstream freshness warning: the newest published observation for this ${provider} series is ${latest.period}, ` +
         `about ${lag} months old, beyond the ${budget}-month expectation for its frequency. The source is returning data ` +
-        `successfully but may have stopped updating this flow — treat the latest value as possibly superseded and check the provider directly.`;
+        `successfully but may have stopped updating this flow. Treat the latest value as possibly superseded and check the provider directly.`;
     }
   }
   return out;

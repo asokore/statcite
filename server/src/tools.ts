@@ -90,22 +90,22 @@ export interface VerifyClaimsResult {
 function claimStr(claim: Json, index: number, key: string, required: boolean, hint: string): string | undefined {
   const v = claim[key];
   if (v == null || v === "") {
-    if (required) throw new ToolError(`claims[${index}].${key} is required — ${hint}`);
+    if (required) throw new ToolError(`claims[${index}].${key} is required, ${hint}`);
     return undefined;
   }
-  if (typeof v !== "string") throw new ToolError(`claims[${index}].${key} must be a string — ${hint}`);
-  if (v.length > MAX_STR_LEN) throw new ToolError(`claims[${index}].${key} is too long (max ${MAX_STR_LEN} characters) — ${hint}`);
+  if (typeof v !== "string") throw new ToolError(`claims[${index}].${key} must be a string, ${hint}`);
+  if (v.length > MAX_STR_LEN) throw new ToolError(`claims[${index}].${key} is too long (max ${MAX_STR_LEN} characters), ${hint}`);
   return v;
 }
 
 function claimNum(claim: Json, index: number, key: string, required: boolean, hint: string): number | undefined {
   const v = claim[key];
   if (v == null) {
-    if (required) throw new ToolError(`claims[${index}].${key} is required — ${hint}`);
+    if (required) throw new ToolError(`claims[${index}].${key} is required, ${hint}`);
     return undefined;
   }
   const n = typeof v === "number" ? v : Number(v);
-  if (!Number.isFinite(n)) throw new ToolError(`claims[${index}].${key} must be a number — ${hint}`);
+  if (!Number.isFinite(n)) throw new ToolError(`claims[${index}].${key} must be a number, ${hint}`);
   return n;
 }
 
@@ -117,7 +117,7 @@ function parseClaims(raw: unknown): ClaimSpec[] {
   }
   if (raw.length === 0) {
     throw new ToolError(
-      "'claims' is empty. Extract every checkable macro claim from the draft — indicator + country + period + claimed value — and submit them together, " +
+      "'claims' is empty. Extract every checkable macro claim from the draft. Indicator + country + period + claimed value, and submit them together, " +
         'e.g. { "indicator": "inflation_cpi", "country": "BRB", "period": "2024", "claimed_value": 1.4 }.',
     );
   }
@@ -166,7 +166,7 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
 
 function claimErrorMessage(e: unknown): string {
   if (e instanceof ToolError) return e.message;
-  if (e instanceof UpstreamError) return `Upstream data source problem: ${e.message} Usually transient — retry shortly.`;
+  if (e instanceof UpstreamError) return `Upstream data source problem: ${e.message} Usually transient, retry shortly.`;
   return "Internal error verifying this claim. Please retry; if persistent, verify it individually with verify_stat.";
 }
 
@@ -201,7 +201,7 @@ export const TOOLS: ToolDef[] = [
     name: "get_indicator",
     title: "Get an economic indicator (with citation)",
     description:
-      "Get official values for a common economic indicator — inflation, GDP growth, GDP, GDP per capita, unemployment, population, government debt, fiscal balance, current account, trade, FDI, and more — for any country. Returns the observations plus a full citation (source, dataset, series id, canonical URL, license, retrieval date) ready to cite in a report. Use ISO3 codes or plain country names. Start here for most questions; use search_indicators if unsure of the indicator key.",
+      "Get official values for a common economic indicator. Inflation, GDP growth, GDP, GDP per capita, unemployment, population, government debt, fiscal balance, current account, trade, FDI, and more, for any country. Returns the observations plus a full citation (source, dataset, series id, canonical URL, license, retrieval date) ready to cite in a report. Use ISO3 codes or plain country names. Start here for most questions; use search_indicators if unsure of the indicator key.",
     inputSchema: {
       type: "object",
       properties: {
@@ -239,7 +239,7 @@ export const TOOLS: ToolDef[] = [
     name: "verify_stat",
     title: "Verify a claimed statistic against the official source",
     description:
-      "Check a claimed economic figure (from a draft, article, or memory) against the official statistical series and get a verdict: match, close, mismatch, or cannot_verify — with the official value, the difference, diagnostics for classic errors (wrong year, percent-vs-decimal, unit scaling), and a full citation for the correct number. Honesty contract: when the official source cannot support a judgment (source down, no published value, fallback vintage risk), the verdict is cannot_verify with the reason — never a guess. Supports historical IMF-vintage checks via as_of. Use this before publishing any economic statistic in a report, brief, or article.",
+      "Check a claimed economic figure (from a draft, article, or memory) against the official statistical series and get a verdict: match, close, mismatch, or cannot_verify. With the official value, the difference, diagnostics for classic errors (wrong year, percent-vs-decimal, unit scaling), and a full citation for the correct number. Honesty contract: when the official source cannot support a judgment (source down, no published value, fallback vintage risk), the verdict is cannot_verify with the reason, never a guess. Supports historical IMF-vintage checks via as_of. Use this before publishing any economic statistic in a report, brief, or article.",
     inputSchema: {
       type: "object",
       properties: {
@@ -255,12 +255,12 @@ export const TOOLS: ToolDef[] = [
         strict_source: {
           type: "boolean",
           description:
-            "Reproducibility mode: never verify against a fallback source — error instead if the primary source fails. Default false; without it, a verify served from a transient-failure fallback returns cannot_verify with the fallback value as indicative (fallback_used=true), while a fallback for a series the primary permanently lacks (e.g. Taiwan in WDI) is judged normally with disclosure.",
+            "Reproducibility mode: never verify against a fallback source, error instead if the primary source fails. Default false; without it, a verify served from a transient-failure fallback returns cannot_verify with the fallback value as indicative (fallback_used=true), while a fallback for a series the primary permanently lacks (e.g. Taiwan in WDI) is judged normally with disclosure.",
         },
         as_of: {
           type: "string",
           description:
-            "Historical IMF-vintage verification: judge the claim against the dated IMF WEO edition resolved from this date — e.g. '2019-04', '2019' — instead of today's live data. Resolution is a conservative month calendar (editions flip May 1 / Nov 1, not the IMF's exact release days) and always verifies against a dated WEO edition even when the indicator's live primary is World Bank WDI or the IMF Fiscal Monitor — the response's as_of object and notes disclose both, so present results as 'matched the IMF WEO {vintage} edition', never 'was true at the time'. Recent editions serve from the IMF's own dated vintage dataflows (api.imf.org) directly, with DBnomics's dated editions as the deep archive — the citation names which one served. Only supported for the six WEO-dated registry indicators (gdp_growth, current_account_gdp, govt_debt_gdp, fiscal_balance_gdp, govt_revenue_gdp, govt_expenditure_gdp); rejects with advice otherwise, and impossible calendar dates are rejected.",
+            "Historical IMF-vintage verification: judge the claim against the dated IMF WEO edition resolved from this date, e.g. '2019-04', '2019', instead of today's live data. Resolution is a conservative month calendar (editions flip May 1 / Nov 1, not the IMF's exact release days) and always verifies against a dated WEO edition even when the indicator's live primary is World Bank WDI or the IMF Fiscal Monitor. The response's as_of object and notes disclose both, so present results as 'matched the IMF WEO {vintage} edition', never 'was true at the time'. Recent editions serve from the IMF's own dated vintage dataflows (api.imf.org) directly, with DBnomics's dated editions as the deep archive, the citation names which one served. Only supported for the six WEO-dated registry indicators (gdp_growth, current_account_gdp, govt_debt_gdp, fiscal_balance_gdp, govt_revenue_gdp, govt_expenditure_gdp); rejects with advice otherwise, and impossible calendar dates are rejected.",
         },
       },
       required: ["indicator", "period", "claimed_value"],
@@ -310,7 +310,7 @@ export const TOOLS: ToolDef[] = [
     name: "verify_claims",
     title: "Verify a batch of claimed statistics (fact-check a whole draft)",
     description:
-      "Fact-check a whole draft or report in one call instead of calling verify_stat once per figure: extract every checkable macro claim from the text — indicator + country + period + claimed value — and submit them together. Each claim gets the same verdict engine as verify_stat (match, close, mismatch, cannot_verify, with diagnostics), and every verified result carries the full citation for the official number. Same honesty contract as verify_stat: unverifiable claims come back cannot_verify with the reason, never a guessed verdict. Accepts 1–15 claims per call (free-tier subrequest budget) — split larger drafts into multiple calls of up to 15. Results come back in input order with a verdict-count summary; a claim that cannot be resolved (unknown indicator or country) reports its error in place without sinking the rest of the batch.",
+      "Fact-check a whole draft or report in one call instead of calling verify_stat once per figure: extract every checkable macro claim from the text. Indicator + country + period + claimed value, and submit them together. Each claim gets the same verdict engine as verify_stat (match, close, mismatch, cannot_verify, with diagnostics), and every verified result carries the full citation for the official number. Same honesty contract as verify_stat: unverifiable claims come back cannot_verify with the reason, never a guessed verdict. Accepts 1–15 claims per call (free-tier subrequest budget). Split larger drafts into multiple calls of up to 15. Results come back in input order with a verdict-count summary; a claim that cannot be resolved (unknown indicator or country) reports its error in place without sinking the rest of the batch.",
     inputSchema: {
       type: "object",
       properties: {
@@ -334,7 +334,7 @@ export const TOOLS: ToolDef[] = [
               as_of: {
                 type: "string",
                 description:
-                  "Historical IMF-vintage verification for this claim: judge against the dated IMF WEO edition resolved from this date (e.g. '2019-04') instead of today's live data — conservative month-calendar resolution, dated WEO editions only (served from the IMF's own vintage dataflows first, DBnomics's dated editions as the deep archive); the result's as_of object discloses both. Only for the 6 WEO-dated registry indicators.",
+                  "Historical IMF-vintage verification for this claim: judge against the dated IMF WEO edition resolved from this date (e.g. '2019-04') instead of today's live data. Conservative month-calendar resolution, dated WEO editions only (served from the IMF's own vintage dataflows first, DBnomics's dated editions as the deep archive); the result's as_of object discloses both. Only for the 6 WEO-dated registry indicators.",
               },
             },
             required: ["indicator", "period", "claimed_value"],
@@ -344,7 +344,7 @@ export const TOOLS: ToolDef[] = [
         strict_source: {
           type: "boolean",
           description:
-            "Reproducibility mode for the whole batch: never verify any claim against a fallback source — such claims error in place instead. Default false; without it, a claim served from a transient-failure fallback returns cannot_verify with the fallback value as indicative rather than a match/mismatch verdict.",
+            "Reproducibility mode for the whole batch: never verify any claim against a fallback source, such claims error in place instead. Default false; without it, a claim served from a transient-failure fallback returns cannot_verify with the fallback value as indicative rather than a match/mismatch verdict.",
         },
       },
       required: ["claims"],
@@ -380,7 +380,7 @@ export const TOOLS: ToolDef[] = [
     name: "get_series",
     title: "Get a raw series by explicit id",
     description:
-      "Fetch any supported series by explicit id: 'worldbank/<WDI code>' (needs country), 'imf/<CODE>' (needs country; current-vintage IMF WEO/Fiscal Monitor via the DataMapper API), or 'dbnomics/<PROVIDER>/<DATASET>/<SERIES>' (IMF WEO, OECD, Eurostat and more via DBnomics — dated editions, e.g. 'WEO:2025-04', for vintage-pinned reproducibility). 'fred/<SERIES>' ids are recognized only so the service can return an explanatory disabled response — FRED is permanently disabled here and those ids are never retrievable. Supports year filters and transforms (yoy, pct_change, index). Every response carries a full citation. Prefer get_indicator for common indicators.",
+      "Fetch any supported series by explicit id: 'worldbank/<WDI code>' (needs country), 'imf/<CODE>' (needs country; current-vintage IMF WEO/Fiscal Monitor via the DataMapper API), or 'dbnomics/<PROVIDER>/<DATASET>/<SERIES>' (IMF WEO, OECD, Eurostat and more via DBnomics, dated editions, e.g. 'WEO:2025-04', for vintage-pinned reproducibility). 'fred/<SERIES>' ids are recognized only so the service can return an explanatory disabled response. FRED is permanently disabled here and those ids are never retrievable. Supports year filters and transforms (yoy, pct_change, index). Every response carries a full citation. Prefer get_indicator for common indicators.",
     inputSchema: {
       type: "object",
       properties: {
@@ -411,7 +411,7 @@ export const TOOLS: ToolDef[] = [
     name: "search_indicators",
     title: "Search available indicators and datasets",
     description:
-      "Search StatCite's curated indicator registry (World Bank WDI + IMF DataMapper/WEO/Fiscal Monitor) by topic — 'inflation', 'debt', 'unemployment', 'poverty' — and discover additional DBnomics datasets. Returns indicator keys usable with get_indicator/verify_stat, with units and source notes.",
+      "Search StatCite's curated indicator registry (World Bank WDI + IMF DataMapper/WEO/Fiscal Monitor) by topic, 'inflation', 'debt', 'unemployment', 'poverty', and discover additional DBnomics datasets. Returns indicator keys usable with get_indicator/verify_stat, with units and source notes.",
     inputSchema: {
       type: "object",
       properties: { query: { type: "string", description: "Free-text topic, e.g. 'government debt' or 'fx reserves'." } },
@@ -427,7 +427,7 @@ export const TOOLS: ToolDef[] = [
     name: "compare_sources",
     title: "Compare an indicator's value across its official sources",
     description:
-      "Fetch one indicator for one country from EVERY official source in its chain independently (e.g. World Bank WDI and the IMF WEO/Fiscal Monitor) and see the values side by side, each with its own citation, plus the spread between them. Use when sources disagree, when you need to know WHICH official number to cite, or to check how large the methodological gap is (central vs general government, calendar vs fiscal year, vintage differences). Differences are methodological, never an error by a source — the result says which definition each value carries. Sources that are down report their error in place without sinking the comparison.",
+      "Fetch one indicator for one country from EVERY official source in its chain independently (e.g. World Bank WDI and the IMF WEO/Fiscal Monitor) and see the values side by side, each with its own citation, plus the spread between them. Use when sources disagree, when you need to know WHICH official number to cite, or to check how large the methodological gap is (central vs general government, calendar vs fiscal year, vintage differences). Differences are methodological, never an error by a source. The result says which definition each value carries. Sources that are down report their error in place without sinking the comparison.",
     inputSchema: {
       type: "object",
       properties: {
@@ -442,7 +442,7 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: "country_snapshot",
-    title: "Country snapshot — headline indicators with citations",
+    title: "Country snapshot, headline indicators with citations",
     description:
       "One call for a country's headline economic picture: GDP, GDP growth, GDP per capita, inflation, unemployment, population, current account, trade openness, FDI, life expectancy (World Bank) plus general government debt (IMF DataMapper API, current vintage). Each value carries its own citation. Ideal for country briefs and report openers.",
     inputSchema: {
@@ -479,7 +479,7 @@ export const TOOLS: ToolDef[] = [
     name: "fx_convert",
     title: "Convert currencies with official reference rates",
     description:
-      "Convert an amount between currencies using ECB daily reference rates (~30 majors, any date since 1999) or, for ~90 other currencies (BBD, XCD, JMD, KES, …), official annual-average rates from the World Bank — with the method and citations stated explicitly. Pass date='YYYY-MM-DD' for daily or 'YYYY' for annual-average conversion.",
+      "Convert an amount between currencies using ECB daily reference rates (~30 majors, any date since 1999) or, for ~90 other currencies (BBD, XCD, JMD, KES, …), official annual-average rates from the World Bank. With the method and citations stated explicitly. Pass date='YYYY-MM-DD' for daily or 'YYYY' for annual-average conversion.",
     inputSchema: {
       type: "object",
       properties: {
@@ -498,7 +498,7 @@ export const TOOLS: ToolDef[] = [
     name: "list_sources",
     title: "List data sources, licenses, and attribution rules",
     description:
-      "The official sources behind StatCite (World Bank WDI, IMF WEO & Fiscal Monitor via the IMF DataMapper API — with DBnomics as a vintage-pinned fallback, ECB reference rates, FRED disabled), what each covers, its license, and the attribution line to use when citing.",
+      "The official sources behind StatCite (World Bank WDI, IMF WEO & Fiscal Monitor via the IMF DataMapper API, with DBnomics as a vintage-pinned fallback, ECB reference rates, FRED disabled), what each covers, its license, and the attribution line to use when citing.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     handler: async () => ({ sources: SOURCES, registry_size: INDICATORS.length }),
   },
@@ -554,7 +554,7 @@ export const TOOLS: ToolDef[] = [
         const cname = country?.name ?? "World";
         results.push({
           id: `indicator/${m.def.key}/${iso}`,
-          title: `${m.def.label} — ${cname}`,
+          title: `${m.def.label}, ${cname}`,
           // Only link data.worldbank.org when WB is actually the primary source;
           // for IMF-primary keys the WB page is a different statistical concept
           // (central vs general government) with different numbers.
@@ -619,7 +619,7 @@ export const TOOLS: ToolDef[] = [
       // formatting artefact. Say it in words.
       const obsLines = result.observations.map((o) => `${o.period}: ${o.value == null ? "no published value" : o.value}`);
       const text = [
-        `${result.name} — ${result.country?.name ?? ""} (${result.unit ?? "units per source"})`,
+        `${result.name}, ${result.country?.name ?? ""} (${result.unit ?? "units per source"})`,
         "",
         ...obsLines,
         "",
@@ -628,7 +628,7 @@ export const TOOLS: ToolDef[] = [
       ].join("\n");
       return {
         id,
-        title: `${result.name} — ${result.country?.name ?? ""}`,
+        title: `${result.name}, ${result.country?.name ?? ""}`,
         text,
         url: result.citation.source_url,
         metadata: { citation: result.citation, series_id: result.series_id },

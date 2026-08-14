@@ -83,7 +83,7 @@ async function wbUsdPerUnit(
     period: chosen.period,
     citation: worldBankCitation(ctx, {
       indicatorId: wb.indicatorId,
-      indicatorName: `${wb.indicatorName} — ${wb.countryName}`,
+      indicatorName: `${wb.indicatorName}, ${wb.countryName}`,
       iso3: wb.countryIso3,
       apiUrl: wb.apiUrl,
       lastUpdated: wb.lastUpdated,
@@ -168,7 +168,7 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
     if (wb.citation) citations.push(wb.citation);
     if (dayDate) {
       notes.push(
-        `Requested ${dayDate}; daily precision is unavailable for ${cur} — used the ${wb.period} annual-average official rate (World Bank PA.NUS.FCRF).`,
+        `Requested ${dayDate}; daily precision is unavailable for ${cur}. Used the ${wb.period} annual-average official rate (World Bank PA.NUS.FCRF).`,
       );
     }
     rateDate = rateDate || wb.period;
@@ -189,7 +189,7 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
       "One or both currencies are outside the ECB daily set; converted via USD using the latest annual-average official rate(s). For pegged currencies (e.g. BBD at 2.00/USD, XCD at 2.70/USD) this is exact.",
     );
   }
-  if (precision === "mixed") notes.push("Mixed precision: one leg is a daily ECB rate, the other an annual average — treat the result as approximate.");
+  if (precision === "mixed") notes.push("Mixed precision: one leg is a daily ECB rate, the other an annual average, treat the result as approximate.");
 
   return {
     amount, from, to,

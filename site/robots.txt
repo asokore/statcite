@@ -1,4 +1,4 @@
-# StatCite — https://statcite.com
+# StatCite, https://statcite.com
 #
 # Crawlers are WELCOME here. This file does not try to keep AI out, because
 # AI agents are what this service is built for. It states how the material may

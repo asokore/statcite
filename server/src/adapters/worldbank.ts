@@ -58,11 +58,11 @@ function parseEnvelope(
         );
       }
       throw new ToolError(
-        `The World Bank does not publish indicator ${ctx.indicatorId ?? "(unknown)"} for '${ctx.countryCode ?? "(unknown)"}'. This is a coverage fact at the source, not a lookup failure — some economies (e.g. Anguilla, Montserrat) are not World Bank reporting economies at all.`,
+        `The World Bank does not publish indicator ${ctx.indicatorId ?? "(unknown)"} for '${ctx.countryCode ?? "(unknown)"}'. This is a coverage fact at the source, not a lookup failure, some economies (e.g. Anguilla, Montserrat) are not World Bank reporting economies at all.`,
         { api_url: apiUrl, no_published_data: true, country: ctx.countryCode, indicator: ctx.indicatorId },
       );
     }
-    throw new ToolError(`World Bank API error — ${text}`, { api_url: apiUrl });
+    throw new ToolError(`World Bank API error, ${text}`, { api_url: apiUrl });
   }
   const rows = (data[1] ?? []) as WbRow[];
   return { meta: first ?? {}, rows: Array.isArray(rows) ? rows : [] };

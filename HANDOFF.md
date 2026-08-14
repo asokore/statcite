@@ -1,34 +1,34 @@
-# HANDOFF — Take StatCite live
+# HANDOFF: Take StatCite live
 
-> **STATUS: LIVE as of 2026-07-25.** Steps 1–6 below are DONE. See "Launch status" immediately below before following anything else here — most of this runbook is now historical record, not to-do.
+> **STATUS: LIVE as of 2026-07-25.** Steps 1–6 below are DONE. See "Launch status" immediately below before following anything else here. Most of this runbook is now historical record, not to-do.
 
 ## Launch status (2026-07-25)
 
-**v1.3.1 (2026-07-26):** verification honesty pass — transient-fallback verifies demote to `cannot_verify` (definitive-absence fallbacks are judged normally with disclosure), new `observation_status`/`status_method` fields, snapshot fallback propagation + no-store, IMF license text aligned with the IMF's actual terms, doc-drift sync. Full detail: `site/docs.html` changelog.
+**v1.3.1 (2026-07-26):** verification honesty pass. Transient-fallback verifies demote to `cannot_verify` (definitive-absence fallbacks are judged normally with disclosure), new `observation_status`/`status_method` fields, snapshot fallback propagation + no-store, IMF license text aligned with the IMF's actual terms, doc-drift sync. Full detail: `site/docs.html` changelog.
 
 **v1.3.0 (2026-07-25):** the six IMF-backed indicators now serve from the IMF's own DataMapper API (current WEO/Fiscal Monitor edition) as primary, closing the WEO-vintage-lag limitation documented in v1.2.0/the benchmark's `NOTES.md`; DBnomics remains the fallback and the vintage-pinning instrument for reproducible citations. See `docs/DESIGN-weo-datamapper.md` for the full design record (adversarially reviewed before implementation).
 
 **Done and verified:**
 - `statcite.com` registered (Cloudflare) · Worker + site deployed · apex and `www` both serving · `/v1`, `/mcp`, `/health` all 200
 - Public repo: https://github.com/asokore/statcite (topics + homepage set)
-- **Official MCP registry: published, status `active`** — `io.github.asokore/statcite`
+- **Official MCP registry: published, status `active`**, `io.github.asokore/statcite`
 - `hello@statcite.com` → Gmail via Cloudflare Email Routing (MX + SPF live, destination pre-verified)
-- Usage analytics live (`core/analytics.ts`) — verified in production via `wrangler tail --search STATCITE_USAGE`
+- Usage analytics live (`core/analytics.ts`), verified in production via `wrangler tail --search STATCITE_USAGE`
 - WAF rate limit: 200 req/10s per IP on `/v1*` + `/mcp*`, block for 10s (free plan allows exactly 1 rule)
 - Directory PRs open: [awesome-mcp-servers#10881](https://github.com/punkpeye/awesome-mcp-servers/pull/10881) · [awesome-remote-mcp-servers#527](https://github.com/jaw9c/awesome-remote-mcp-servers/pull/527)
 
 **Blocked on the owner (nothing else is):**
-1. **Apify** — needs a token from https://console.apify.com/settings/integrations, then `cd apify && npx apify login -t <token> && npx apify push`. The actor now charges two separate pay-per-event names — `statcite-lookup` (all read tools) and `statcite-verify` (the verify_stat wedge) — both need a price set in Console under Actor → Publication → Monetization (there's no in-repo pricing config; Apify's own docs confirm this is console-only). Suggested prices (see `docs/MONETIZATION.md`): `statcite-lookup` ~$1.50/1,000 (≈$0.0015/query, the existing baseline vs Ref's $9/1k searches) and `statcite-verify` ~$0.01–0.02/query (~7–13× the lookup price — verify_stat is the differentiated wedge nobody else offers). Revisit both after ~30 days of real usage. CLI is already installed and the actor passes locally.
-2. **Claude Connectors Directory** — requires a paid Team/Enterprise Claude.ai org (see §3).
-3. **Analytics Engine** (optional) — the dataset exists but deploys are rejected with API error 10089 on this account (gated behind Workers Paid). The console-log sink covers the need at zero cost; re-enable the binding in `wrangler.jsonc` only if the account ever moves to Workers Paid.
+1. **Apify**. Needs a token from https://console.apify.com/settings/integrations, then `cd apify && npx apify login -t <token> && npx apify push`. The actor now charges two separate pay-per-event names, `statcite-lookup` (all read tools) and `statcite-verify` (the verify_stat wedge). Both need a price set in Console under Actor → Publication → Monetization (there's no in-repo pricing config; Apify's own docs confirm this is console-only). Suggested prices (see `docs/MONETIZATION.md`): `statcite-lookup` ~$1.50/1,000 (≈$0.0015/query, the existing baseline vs Ref's $9/1k searches) and `statcite-verify` ~$0.01–0.02/query (~7–13× the lookup price, verify_stat is the differentiated wedge nobody else offers). Revisit both after ~30 days of real usage. CLI is already installed and the actor passes locally.
+2. **Claude Connectors Directory**. Requires a paid Team/Enterprise Claude.ai org (see §3).
+3. **Analytics Engine** (optional). The dataset exists but deploys are rejected with API error 10089 on this account (gated behind Workers Paid). The console-log sink covers the need at zero cost; re-enable the binding in `wrangler.jsonc` only if the account ever moves to Workers Paid.
 
 ---
 
-> **This is the mechanical runbook, not the mandate.** If you're an agent picking this project up, read `BRIEF.md` first — it explains what the owner actually wants, what's questionable about this build, and what else could be built instead. Deploying is one legitimate path among several. Come back here once you've decided it's the right one.
+> **This is the mechanical runbook, not the mandate.** If you're an agent picking this project up, read `BRIEF.md` first. It explains what the owner actually wants, what's questionable about this build, and what else could be built instead. Deploying is one legitimate path among several. Come back here once you've decided it's the right one.
 
 This runbook takes the repo from `C:\dev\statcite` to a running product. Total time: **~60–90 minutes** of guided steps. It is written for Claude Code to execute with you (open Claude Code in this folder and say *"execute HANDOFF.md"*), or for you to follow manually.
 
-**State of the build:** code complete and verified — 180 fixture-backed tests pass, a live smoke suite passed against the real World Bank / IMF-DBnomics / Frankfurter APIs from the build environment, and the site is ready. Nothing below writes code; it's accounts, wiring, and submissions.
+**State of the build:** code complete and verified, 180 fixture-backed tests pass, a live smoke suite passed against the real World Bank / IMF-DBnomics / Frankfurter APIs from the build environment, and the site is ready. Nothing below writes code; it's accounts, wiring, and submissions.
 
 **You already have:** GitHub (paid), Cloudflare, Apify accounts. ✔
 
@@ -64,7 +64,7 @@ npm run smoke   # expect: SMOKE: ALL PASS (live network calls)
 npm run dev     # wrangler dev → open http://localhost:8787 (site) and check /health
 ```
 
-First `npx wrangler` use will prompt to install wrangler — accept (or `npm i -D wrangler` to pin it).
+First `npx wrangler` use will prompt to install wrangler, accept (or `npm i -D wrangler` to pin it).
 
 ## 4. Deploy to Cloudflare (~10 min)
 
@@ -81,7 +81,7 @@ This deploys the Worker **and** the static site (assets binding) to `statcite.<y
 **Optional but recommended:**
 - Email: Cloudflare dashboard → Email → Email Routing → route `hello@statcite.com` → your Gmail.
 
-**Not offered by design:** a FRED key. FRED's Services Terms of Use (clauses (p) and (q)) prohibit AI/ML use and caching/redistribution of its content, which is exactly what this service does — the adapter declines permanently regardless of `FRED_API_KEY`. Don't wire the key back in without re-reading the current ToU.
+**Not offered by design:** a FRED key. FRED's Services Terms of Use (clauses (p) and (q)) prohibit AI/ML use and caching/redistribution of its content, which is exactly what this service does. The adapter declines permanently regardless of `FRED_API_KEY`. Don't wire the key back in without re-reading the current ToU.
 
 ## 5. Production smoke test (~3 min)
 
@@ -109,7 +109,7 @@ npm install
 node scripts/local-test.mjs   # expect: ACTOR CORE: PASS
 apify push
 ```
-Console: publish to Store (copy in `apify/README.md`), Monetization → Pay per event → two events, **`statcite-lookup`** (suggested $1.50/1,000) and **`statcite-verify`** (suggested $0.01–0.02/query) — see `docs/MONETIZATION.md`, set payout details.
+Console: publish to Store (copy in `apify/README.md`), Monetization → Pay per event → two events, **`statcite-lookup`** (suggested $1.50/1,000) and **`statcite-verify`** (suggested $0.01–0.02/query), see `docs/MONETIZATION.md`, set payout details.
 Note: `apify/core.bundle.mjs` is committed and current; regenerate with `npm run build:core` whenever `server/src/core/*` changes.
 
 ## 8. The Claude skill (optional, 2 min)
@@ -120,7 +120,7 @@ Note: `apify/core.bundle.mjs` is committed and current; regenerate with `npm run
 
 - **Weekly 15 min:** Cloudflare analytics, GitHub issues, hello@ inbox.
 - **Monthly 2–4 h:** `npm test && npm run smoke`, dependency bumps, one improvement; check that World Bank/IMF DataMapper/DBnomics/Frankfurter shapes still pass smoke.
-- **Watch (protocol):** MCP revision **2026-07-28** is a **release candidate**, not yet ratified — the current ratified revision remains **2025-11-25**. The RC removes initialize/sessions (fully stateless). Current code supports 2025-03-26/06-18/11-25 and all transport logic is isolated in `server/src/mcp.ts` — once 2026-07-28 (or whatever it's ratified as) actually lands and major clients adopt it, add support there (likely a ~30-line change). mcp-remote guidance in docs already pins ≥0.1.16 (CVE-2025-6514).
+- **Watch (protocol):** MCP revision **2026-07-28** is a **release candidate**, not yet ratified. The current ratified revision remains **2025-11-25**. The RC removes initialize/sessions (fully stateless). Current code supports 2025-03-26/06-18/11-25 and all transport logic is isolated in `server/src/mcp.ts`. Once 2026-07-28 (or whatever it's ratified as) actually lands and major clients adopt it, add support there (likely a ~30-line change). mcp-remote guidance in docs already pins ≥0.1.16 (CVE-2025-6514).
 - **Cost watch:** free tier = 100k req/day. If sustained traffic approaches it, that's a success problem: enable Cloudflare rate rules for anonymous heavy hitters and open the paid tier (docs/MONETIZATION.md Stage 1).
 
 ## Troubleshooting

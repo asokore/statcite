@@ -1,4 +1,4 @@
-# Growth Plan — August 2026
+# Growth Plan: August 2026
 
 Produced 2026-08-07 from a 12-agent research pass (2 repo-ground agents, 6 web
 research lanes, 3 adversarial judges, 1 synthesis; 301 web/file lookups; 67
@@ -19,7 +19,7 @@ IMF's own StatGPT paper concedes generative models "perform poorly at
 delivering official statistics"
 (https://www.imf.org/en/publications/departmental-papers-policy-papers/issues/2026/03/10/statgpt-ai-for-official-statistics-573514).
 Meanwhile the layer that decides whether agents ever call this server is
-text — tool descriptions, prompts, the skill. So: (1) make the server legibly
+text, tool descriptions, prompts, the skill. So: (1) make the server legibly
 alive, routable and hardened; (2) build launch assets and remaining
 distribution surfaces; (3) fire the launch cluster once, the day the
 benchmark embargo lifts. Launch the result, not the tool.
@@ -31,7 +31,7 @@ IP) is already deployed at the edge, which is what burst protection actually
 requires. Rate limiting is therefore NOT a blocker; cache headers on /v1
 remain worth adding for CPU headroom.
 
-## Phase 1 — this week (pure code/content, no external gates)
+## Phase 1: this week (pure code/content, no external gates)
 
 Priority order. Verified-true starting facts: `resources/list` and
 `prompts/list` return empty arrays in `server/src/mcp.ts`; `outputSchema` +
@@ -41,10 +41,9 @@ fetch); LAUNCH.md checkboxes have drifted from reality.
 1. **Doc reconciliation.** Fix LAUNCH.md checkbox drift; update
    distribution/submissions.md §3 (Connectors Directory approved 2026-07-29);
    add a StatGPT row to STRATEGY.md's competitive posture (VENTURE-CONTEXT
-   finding 1 instructed this before any new copy — still unexecuted); log
+   finding 1 instructed this before any new copy, still unexecuted); log
    closed licence/funding verdicts so no session re-researches them
-   (UN Comtrade blocked: for-profit trigger is the application —
-   https://uncomtrade.org/docs/policy-on-use-and-re-dissemination/; IDB Lab
+   (UN Comtrade blocked: for-profit trigger is the application,    https://uncomtrade.org/docs/policy-on-use-and-re-dissemination/; IDB Lab
    closed: loans to companies with audited financials, not individual grants;
    Project Galileo: null payoff on existing free tier).
 2. **Tool description rewrite** (`server/src/tools.ts`): verification verbs,
@@ -60,14 +59,14 @@ fetch); LAUNCH.md checkboxes have drifted from reality.
    and licence table as resources, generated from the same constants the
    tools use. The `fact_check` prompt is the constraint-compliant form of the
    deferred verify_report wedge: the CLIENT model extracts claims,
-   verify_claims adjudicates — no NLP enters the Worker.
+   verify_claims adjudicates, no NLP enters the Worker.
 5. **Aliveness pack**: /v1/status (upstream probes, ttl-cached), CHANGELOG.md
    with semver + tagged releases, SECURITY.md, scheduled CI cron running the
    existing live smoke script. Rationale: ~52% of audited MCP servers are
    dead; evaluators now score aliveness
    (https://rapidclaw.dev/blog/mcp-servers-dead-what-it-means-2026).
 6. **Licence ledger as product surface**: per-source licence name, verdict,
-   verbatim quote, terms URL, verified-on date — exposed via list_sources,
+   verbatim quote, terms URL, verified-on date, exposed via list_sources,
    /v1/sources and a public page, including refused sources (FRED, ECCB, CBB,
    UN Comtrade). Gates all later source additions; pre-answers DPG/grant
    diligence (https://www.digitalpublicgoods.net/standard).
@@ -85,17 +84,16 @@ fetch); LAUNCH.md checkboxes have drifted from reality.
    mechanism structurally misses these economies).
 9. **Content**: benchmark explainer page (embargo-safe: why LLMs fail
    official statistics, anchored on the IMF concession + the public
-   methodology — no Run 2 numbers); /try page (static, dropdowns baked from
-   the registry, client-side verify_stat call — no free text, no NLP); README
+   methodology. No Run 2 numbers); /try page (static, dropdowns baked from
+   the registry, client-side verify_stat call, no free text, no NLP); README
    overhaul with one-line install + editor deeplinks; repurpose llms-full.txt
    as agent onboarding (stop further llms.txt investment: production crawler
-   data shows ~408 fetches in 500M+ AI-bot requests —
-   https://ariashaw.com/does-llms-txt-actually-work).
+   data shows ~408 fetches in 500M+ AI-bot requests,    https://ariashaw.com/does-llms-txt-actually-work).
 
-## Phase 2 — this month (distribution + assets)
+## Phase 2: this month (distribution + assets)
 
 - **ChatGPT app directory** submission (identity-verification eligibility
-  must be confirmed first) — largest uncovered user pool at zero cost
+  must be confirmed first), largest uncovered user pool at zero cost
   (https://openai.com/index/developers-can-now-submit-apps-to-chatgpt/).
 - **Deep Research compatibility** page + CI contract test pinning
   search/fetch to OpenAI's schema.
@@ -110,15 +108,15 @@ fetch); LAUNCH.md checkboxes have drifted from reality.
   verification; create distribution/listings.md as the standing inventory;
   one batch pass over long-tail directories; nudge the pending PRs.
 - **awesome-ai-for-economists PR** (MCP section exists, StatCite absent).
-- ~~.well-known server card~~ — **DO NOT SHIP. Verified 2026-08-08:** SEP-2127
+- ~~.well-known server card~~, **DO NOT SHIP. Verified 2026-08-08:** SEP-2127
   is an OPEN DRAFT with merge conflicts and a stalled sponsor, it defines no
   `.well-known` MCP path at all (the recommended location is
   `<streamable-http-url>/server-card`; the `.well-known/ai-catalog.json` in the
   document belongs to a different, non-MCP spec), and it carries no schema to
-  implement — the normative schema sits in a repo still named "experimental".
+  implement. The normative schema sits in a repo still named "experimental".
   Three competing paths are circulating. Shipping one would squat a path on a
   guess.
-- **MCP 2026-07-28 migration** — see the new note below; this is no longer a
+- **MCP 2026-07-28 migration**, see the new note below; this is no longer a
   "cheap parts only" item.
 - **Credibility rails**: Zenodo DOI for the benchmark question set +
   methodology (nothing embargoed) + Hugging Face dataset mirror; finalize the
@@ -129,7 +127,7 @@ fetch); LAUNCH.md checkboxes have drifted from reality.
   + effective exchange rates (https://www.bis.org/terms_statistics.htm); ECB
   policy rates/HICP/EUR reference rates
   (https://www.ecb.europa.eu/services/disclaimer/html/index.en.html); BEA
-  (permanent key) — BLS only if the operator accepts annual key renewal.
+  (permanent key). BLS only if the operator accepts annual key renewal.
 - **Launch prep, all embargo-safe**: leaderboard repo skeleton + /bench page
   shell generated from the same per-run CSV; press-kit draft on the EBU
   model; journalist/newsletter target list; demo GIF (a REAL verification of
@@ -137,7 +135,7 @@ fetch); LAUNCH.md checkboxes have drifted from reality.
 - **Apify 30-day price revisit + monthly bookkeeping sheet** (the manual
   stand-in for the Workers-Paid-gated analytics loop).
 
-## Phase 3 — the quarter (compounding bets)
+## Phase 3: the quarter (compounding bets)
 
 - **The launch cluster, fired once, the day the embargo lifts**: leaderboard
   repo + /bench page with downloadable per-question data → Show HN (numeric
@@ -147,7 +145,7 @@ fetch); LAUNCH.md checkboxes have drifted from reality.
   + PulseMCP pitch + dev.to tutorial. Wording scores models, never
   governments.
 - **TMLR paper** with textually identical arXiv preprint (preserves TMLR
-  eligibility — http://jmlr.org/tmlr/).
+  eligibility, http://jmlr.org/tmlr/).
 - **DPG registration** (open-source software category) and **NLnet NGI Zero
   Commons** (application window 2026-09-03 → 2026-11-03; cite the DOI + DPG).
 - **Guarded source expansions** behind named gates, each entering the licence
@@ -165,7 +163,7 @@ fetch); LAUNCH.md checkboxes have drifted from reality.
   annotated-claims syntax, no NLP) only if post-launch demand appears;
   citation-object JSON Schema published as documentation (not "spec" until a
   second implementer exists).
-- **MCP 2026-07-28 migration (RATIFIED — this is now real work, not a watch
+- **MCP 2026-07-28 migration (RATIFIED, this is now real work, not a watch
   item).** Verified 2026-08-08: the revision is GA, not a release candidate,
   and it is BREAKING. `initialize` and `notifications/initialized` are gone,
   replaced by a required `server/discover` RPC; `Mcp-Session-Id` is removed
@@ -174,8 +172,7 @@ fetch); LAUNCH.md checkboxes have drifted from reality.
   are REQUIRED on complete list results; the MRTR `InputRequiredResult` pattern
   replaces server-initiated requests; and Roots, Sampling and Logging are
   formally deprecated on a twelve-month clock. StatCite currently negotiates
-  2025-03-26 / 2025-06-18 / 2025-11-25 and is unaffected until it opts in —
-  transport code is already isolated in `server/src/mcp.ts` for exactly this.
+  2025-03-26 / 2025-06-18 / 2025-11-25 and is unaffected until it opts in,   transport code is already isolated in `server/src/mcp.ts` for exactly this.
   Plan it as a versioned dual-support release, not a swap: keep the old
   revisions working while adding the new one, since client uptake will lag.
   Do NOT start it in the same session as unrelated work.
@@ -219,5 +216,5 @@ fetch); LAUNCH.md checkboxes have drifted from reality.
 - llms.txt gets no further investment beyond the onboarding repurpose.
 - /v1/status and /v1/health are ONE endpoint, not two.
 - The CSV-export free-vs-Pro contradiction (BRIEF 6.8 vs MONETIZATION
-  Stage 1) is an open operator decision — do not ship CSV until resolved.
+  Stage 1) is an open operator decision, do not ship CSV until resolved.
 - Every new source enters the licence ledger BEFORE its adapter is written.

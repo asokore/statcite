@@ -291,7 +291,7 @@ test("D6: verify_stat demotes to cannot_verify when the DataMapper primary fails
   assert.equal(r.fallback_used, true);
   assert.match(r.explanation, /primary source was transiently unavailable/);
   assert.match(r.explanation, /vintage revisions/, "the DataMapper->DBnomics case keeps its vintage-specific wording");
-  assert.match(r.explanation, /indicative only, not a verification/);
+  assert.match(r.explanation, /indicative only, not a verification/i);
 });
 
 // ——— 6b. Generalized fallback demotion: cross-PROVIDER substitution (WB primary
@@ -313,7 +313,7 @@ test("generalized demotion: WB-primary indicator served from IMF DataMapper fall
   assert.equal(r.fallback_used, true);
   assert.equal(r.official_value, -3.3, "the substitute's value is still reported as indicative");
   assert.match(r.explanation, /primary source was transiently unavailable/);
-  assert.match(r.explanation, /indicative only, not a verification/);
+  assert.match(r.explanation, /indicative only, not a verification/i);
   assert.match(r.explanation, /different statistical definitions/);
 });
 

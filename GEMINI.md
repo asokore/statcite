@@ -1,4 +1,4 @@
-# StatCite — verify economic statistics before you state them
+# StatCite: verify economic statistics before you state them
 
 StatCite is connected as a remote MCP server. It serves official economic
 statistics (World Bank WDI, IMF WEO/Fiscal Monitor, BIS policy rates, ECB)
@@ -28,13 +28,13 @@ attributed to the wrong year, or off by a unit. Fetch it, or verify it.
 Extract every claim (indicator + country + period + value) and send them to
 `verify_claims` in batches of up to 15. Then act on each verdict:
 
-- `match` — keep it, attach the citation.
-- `close` — replace with the official value and cite it.
-- `mismatch` — replace it, and read `diagnostics` (wrong year, percent-vs-
+- `match`, keep it, attach the citation.
+- `close`, replace with the official value and cite it.
+- `mismatch`. Replace it, and read `diagnostics` (wrong year, percent-vs-
   decimal, unit scaling, sign flips). Also check `revision_check`: if
   `matches_previous_vintage` is true, the figure was right when written and has
-  since been revised — say that, rather than implying an error.
-- `cannot_verify` — report the reason the tool gives. Do not substitute a
+  since been revised, say that, rather than implying an error.
+- `cannot_verify`, report the reason the tool gives. Do not substitute a
   number from memory.
 
 ## When sources disagree
@@ -42,7 +42,7 @@ Extract every claim (indicator + country + period + value) and send them to
 Call `compare_sources` for the indicator and country. It returns each official
 source's value with its own citation and the spread. Differences are
 methodological or vintage differences (general vs central government, calendar
-vs fiscal year), never one source being "wrong" — cite the source whose
+vs fiscal year), never one source being "wrong", cite the source whose
 definition matches the claim.
 
 ## Honest gaps

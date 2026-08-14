@@ -2,7 +2,7 @@
 
 The Workers Analytics Engine binding is paid-gated on this account (API error
 10089), so the automated KPI loop in `LAUNCH.md` cannot run. This 15-minute
-monthly pass is the stand-in — and it is the **only thing watching the
+monthly pass is the stand-in, and it is the **only thing watching the
 monetization triggers in `MONETIZATION.md`**. Without it, nobody notices when
 Stage 1 becomes worth doing.
 
@@ -39,11 +39,11 @@ Append one row per month. A spreadsheet is fine; so is this file.
 **`verify_stat` share is the thesis metric.** The strategy claims verification
 is the differentiator, not lookup. If verify calls stay a trivial fraction of
 traffic for several months, the positioning is wrong and `STRATEGY.md` should
-change — that is a finding, not a failure.
+change, that is a finding, not a failure.
 
 ## Triggers to check each month
 
-From `MONETIZATION.md` Stage 1 — any ONE of these firing means it is time to
+From `MONETIZATION.md` Stage 1, any ONE of these firing means it is time to
 consider paid keys:
 
 - [ ] Sustained >5,000 requests/day
@@ -52,7 +52,7 @@ consider paid keys:
 
 Also check:
 
-- [ ] Apify pricing revisit (was due 30 days after listing — still unrevisited)
+- [ ] Apify pricing revisit (was due 30 days after listing, still unrevisited)
 - [ ] Any listing in `distribution/listings.md` gone stale after a release
 - [ ] PulseMCP ingestion check: pulsemcp.com auto-ingests from the official
       registry weekly, yet a 2026-08-10 audit found StatCite absent despite 9

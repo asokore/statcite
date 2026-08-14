@@ -4,10 +4,10 @@ Caribbean and small-states official statistics: scheduled ingestion from
 regional central banks into dated, citable JSON snapshots, served through
 [StatCite](https://statcite.com).
 
-Read `SCOPING.md` first — it holds the source recon, the architecture decision
+Read `SCOPING.md` first. It holds the source recon, the architecture decision
 and the phasing. This file records current status only.
 
-## Status — 2026-08-10
+## Status: 2026-08-10
 
 **Phase 0 (licence gate): CLEARED.** The operator obtained permission from the
 source institution. Ingestion proceeds.
@@ -27,8 +27,7 @@ fallback correctly declines rather than adopting a data column. It fails loudly
 in the runner every run.
 
 Balance of payments now extracts 14 of 15 sheets (the 15th is the workbook's
-Table of Contents). Its merged year headers anchor at the LEFT of their span —
-1967 sits in column 0 while its values sit in column 1 — so the reader maps each
+Table of Contents). Its merged year headers anchor at the LEFT of their span, 1967 sits in column 0 while its values sit in column 1, so the reader maps each
 period to the last column of its merge span. That mapping was checked against
 the raw sheet before being trusted, because an off-by-one year on a
 balance-of-payments figure is exactly the wrong-but-plausible number this
@@ -71,7 +70,7 @@ government gross debt via StatCite (2025, percent of GDP):
 Two independent pipelines agreeing within a few points is evidence the parser
 extracts real values. The consistent direction (ECCB slightly lower) is the
 expected definitional difference between ECCB's *public sector debt* and the
-IMF's *general government gross debt* — not an error by either, and exactly
+IMF's *general government gross debt*, not an error by either, and exactly
 the kind of thing a citation has to name.
 
 ## What is NOT done, and must not be skipped
@@ -80,7 +79,7 @@ the kind of thing a citation has to name.
 records `eccb` with verdict `refused`. That ledger is a public legal claim and
 every entry in it carries a verbatim basis, a scope and a verification date.
 Flipping it needs the grant itself: **who granted it** (institution and role),
-**the date**, and **the scope** — redistribution, derivative works, commercial
+**the date**, and **the scope**, redistribution, derivative works, commercial
 use (the metered Apify surface makes that live), and any required attribution
 wording. Until those are recorded, output stays local.
 
@@ -119,8 +118,8 @@ currency stamps (ECCB prints `data_as_at`, CBB gives `published_at`):
 | | meaning |
 |---|---|
 | `NEW ` | nothing on disk yet |
-| `PUB ` | content moved AND the bank's stamp moved — **the source republished** |
-| `qry ` | content moved but the stamp did not — our window or parser changed |
+| `PUB ` | content moved AND the bank's stamp moved, **the source republished** |
+| `qry ` | content moved but the stamp did not, our window or parser changed |
 | `same` | identical once our own `retrieved_at` is set aside |
 
 Only `PUB` means a bank published something. Widening a window, fixing a parser
@@ -137,7 +136,7 @@ node tools/eccb/run.mjs --table consumer-price-index --freq q
 ```
 
 The runner exits non-zero if any series fails its sentinel. **Do not pipe it
-through `tee` without `set -o pipefail`** — a pipeline reports the last stage's
+through `tee` without `set -o pipefail`**, a pipeline reports the last stage's
 status, so failures vanish. That happened on the first annual sweep: exit 0
 with 18 failed series.
 
