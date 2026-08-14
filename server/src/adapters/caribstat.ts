@@ -42,14 +42,26 @@ export interface CaribstatDoc {
   source: string;
   source_id: string;
   source_url: string;
-  table_id: string;
-  table_title: string;
+  /** ECCB shape. CBB documents carry publication fields instead, below. */
+  table_id?: string;
+  table_title?: string;
   country: { iso3: string; name: string };
-  frequency: string;
+  /** Absent on CBB, where it is derived from the period format instead of
+   * being asserted. A wrong frequency label is a quiet way to misdescribe a
+   * series, so it is inferred from the data rather than defaulted. */
+  frequency?: string;
   /** The BANK's own currency claim, ISO date. */
   data_as_at?: string;
   /** The bank's stamp exactly as printed, e.g. "08 June 2026". */
   data_as_at_raw?: string;
+  /** CBB shape. It prints no currency stamp, so a document instead identifies
+   * the publication it came from: these three fields make a figure checkable
+   * against the exact workbook rather than against a date we invented. */
+  publication_title?: string;
+  published_at?: string;
+  attachment_url?: string;
+  category?: string;
+  sheet?: string;
   /** OUR fetch time. Never presented as the data's currency. */
   retrieved_at: string;
   periods: string[];
@@ -74,6 +86,8 @@ export interface ParsedId {
   table: string;
   iso3: string;
   freq: string;
+  /** CBB only: the workbook sheet, which is that provider's varying axis. */
+  sheet?: string;
   row?: string;
 }
 
@@ -81,6 +95,29 @@ export function parseCaribstatId(id: string): ParsedId {
   const rest = id.replace(/^caribstat\//i, "");
   const [pathPart, rowPart] = rest.split("#");
   const bits = pathPart.split("/");
+
+  // CBB: `caribstat/CBB/{category}/{sheet}`. Every CBB series is Barbados, so
+  // there is no country segment to carry and no frequency suffix: the axis
+  // that varies is which workbook a figure was published in. Handled before
+  // the ECCB parse rather than forced through it, because demanding an
+  // `{ISO3}.{freq}` tail here would mean inventing both.
+  if (bits[0]?.toLowerCase() === "cbb") {
+    if (bits.length < 3) {
+      throw new ToolError(
+        `Malformed caribstat series id '${id}'. Central Bank of Barbados ids have the form 'caribstat/CBB/{category}/{sheet}', e.g. 'caribstat/CBB/balance-of-payments-reports/analytical-summary'. Add '#Row Label' to select one row.`,
+        { series_id: id },
+      );
+    }
+    return {
+      provider: "CBB",
+      table: bits.slice(1, -1).join("/"),
+      sheet: bits[bits.length - 1],
+      iso3: "BRB",
+      freq: "a",
+      ...(rowPart ? { row: decodeURIComponent(rowPart) } : {}),
+    };
+  }
+
   if (bits.length < 3) {
     throw new ToolError(
       `Malformed caribstat series id '${id}'. Expected 'caribstat/{PROVIDER}/{table}/{ISO3}.{freq}', e.g. 'caribstat/ECCB/total-public-sector-debt/AIA.a'. Add '#Row Label' to select one row.`,
@@ -107,7 +144,26 @@ export function parseCaribstatId(id: string): ParsedId {
   return { provider: provider.toUpperCase(), table, iso3, freq, row: rowPart?.trim() || undefined };
 }
 
+/**
+ * Infer frequency from the period format. CBB does not state one, and guessing
+ * "annual" would mislabel its monthly monetary survey. `2024` is annual,
+ * `2024-Q1` quarterly, `2024-01` monthly.
+ */
+export function inferFrequency(periods: string[] | undefined): string {
+  const p = (periods ?? []).find((x) => typeof x === "string");
+  if (!p) return "a";
+  if (/^\d{4}-Q[1-4]$/i.test(p)) return "q";
+  if (/^\d{4}-\d{2}$/.test(p)) return "m";
+  return "a";
+}
+
 export function caribstatUrl(p: ParsedId, origin = CARIBSTAT_ORIGIN): string {
+  // CBB is one geography and its axis is the PUBLICATION, not the country, so
+  // its corpus is laid out per workbook sheet rather than per country and
+  // frequency. Two providers, two shapes, one adapter.
+  if (p.provider.toLowerCase() === "cbb") {
+    return `${origin}/data/cbb/${p.table}/${p.sheet}.json`;
+  }
   return `${origin}/data/${p.provider.toLowerCase()}/${p.table}/${p.freq}/${p.iso3}.json`;
 }
 

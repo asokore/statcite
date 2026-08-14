@@ -251,12 +251,25 @@ export function caribstatCitation(
   opts: {
     source: string;
     sourceUrl: string;
-    tableTitle: string;
+    /** Absent on CBB, whose documents identify a publication instead. */
+    tableTitle?: string;
     rowLabel: string;
     countryName: string;
     frequency: string;
     dataAsAt?: string;
     dataAsAtRaw?: string;
+    /**
+     * For sources that publish no currency stamp. The Central Bank of Barbados
+     * does not print one, so instead of inventing an equivalent we name the
+     * PUBLICATION a figure came from and the date that publication carries.
+     * That is a narrower claim and a checkable one: a reader can open the exact
+     * workbook. Never merged into dataAsAt, because "the bank says this is
+     * current to X" and "this appeared in a document dated X" are not the same
+     * statement.
+     */
+    publicationTitle?: string;
+    publishedAt?: string;
+    attachmentUrl?: string;
     apiUrl: string;
     seriesId: string;
   },
@@ -266,7 +279,7 @@ export function caribstatCitation(
   const asAt = opts.dataAsAtRaw ?? opts.dataAsAt;
   return withExports({
     source: opts.source,
-    dataset: opts.tableTitle,
+    dataset: opts.publicationTitle ?? opts.tableTitle ?? "",
     series_id: opts.seriesId,
     series_name: `${opts.rowLabel}, ${opts.countryName} (${freqWord})`,
     source_url: opts.sourceUrl,
@@ -275,15 +288,21 @@ export function caribstatCitation(
     attribution: `Source: ${opts.source}`,
     retrieved_at: date,
     citation_text:
-      `${opts.source}, ${opts.tableTitle}, ${opts.rowLabel}, ${opts.countryName} (${freqWord})` +
-      (asAt ? `, data as at ${asAt}` : "") +
-      `. Retrieved ${date} via StatCite. ${opts.sourceUrl}`,
+      `${opts.source}, ${opts.publicationTitle ?? opts.tableTitle}, ${opts.rowLabel}, ${opts.countryName} (${freqWord})` +
+      (asAt ? `, data as at ${asAt}` : opts.publishedAt ? `, published ${opts.publishedAt}` : "") +
+      `. Retrieved ${date} via StatCite. ${opts.attachmentUrl ?? opts.sourceUrl}`,
     ...(asAt
       ? {
           notices: [
             `The publishing bank stamps this table "Data as at ${asAt}". That is the source's own currency claim and is not the same as the retrieval date above.`,
           ],
         }
-      : {}),
+      : opts.publishedAt
+        ? {
+            notices: [
+              `This source publishes no "data as at" stamp. ${opts.publishedAt} is the date of the publication these figures were taken from, which is a weaker claim: it says when the document appeared, not how current the bank considers the figures. Neither is the retrieval date above.`,
+            ],
+          }
+        : {}),
   });
 }
