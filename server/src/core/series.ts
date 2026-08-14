@@ -10,8 +10,9 @@ import { fetchWbSeries } from "../adapters/worldbank.ts";
 import { fetchDbnomicsSeries, searchDbnomicsDatasets } from "../adapters/dbnomics.ts";
 import { fetchFredSeries, fredAvailable } from "../adapters/fred.ts";
 import { fetchDataMapperSeries, fetchDataMapperMetadata, computeBoundaryYear, parseEditionLabel } from "../adapters/datamapper.ts";
-import { worldBankCitation, dbnomicsCitation, fredCitation, imfDataMapperCitation, sdmxCitation } from "./citations.ts";
+import { worldBankCitation, dbnomicsCitation, fredCitation, imfDataMapperCitation, sdmxCitation, caribstatCitation } from "./citations.ts";
 import { fetchSdmxSeries, BIS_POLICY_RATE_AREAS } from "../adapters/sdmx.ts";
+import { fetchCaribstatSeries, CARIBSTAT_ENABLED } from "../adapters/caribstat.ts";
 import { isTransientUpstreamError } from "./upstream.ts";
 export { expectedWeoEdition } from "./weo-calendar.ts";
 import { expectedWeoEdition } from "./weo-calendar.ts";
@@ -886,6 +887,44 @@ export async function getSeries(
         unit: s.units,
         frequency: s.frequency?.toLowerCase(),
         observations: s.observations,
+        citation,
+        notes: [],
+      },
+      opts,
+    );
+  }
+
+  if (lower.startsWith("caribstat/")) {
+    if (!CARIBSTAT_ENABLED) {
+      throw new ToolError(
+        "caribstat series are not served on this deployment.",
+        { series_id: id },
+      );
+    }
+    const c = await fetchCaribstatSeries(id);
+    // The bank's own currency stamp travels separately from our retrieval
+    // time all the way into the citation. These two dates differ by weeks and
+    // presenting ours as the data's currency would misstate the source.
+    const citation = caribstatCitation(ctx, {
+      source: c.doc.source,
+      sourceUrl: c.doc.source_url,
+      tableTitle: c.doc.table_title,
+      rowLabel: c.label,
+      countryName: c.doc.country.name,
+      frequency: c.doc.frequency,
+      dataAsAt: c.doc.data_as_at,
+      dataAsAtRaw: c.doc.data_as_at_raw,
+      apiUrl: c.apiUrl,
+      seriesId: id,
+    });
+    return finishSeries(
+      {
+        series_id: id,
+        name: `${c.doc.table_title}: ${c.label}`,
+        country: { iso3: c.doc.country.iso3, name: c.doc.country.name },
+        unit: c.unit ?? null,
+        frequency: c.doc.frequency,
+        observations: c.observations,
         citation,
         notes: [],
       },
