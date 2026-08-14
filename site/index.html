@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>StatCite — Economic statistics your AI can actually cite</title>
-<meta name="description" content="Free remote MCP server + REST API serving official economic statistics — World Bank, IMF, ECB — where every number ships with a full citation. Includes verify_stat: check any claimed figure against the official series.">
+<title>StatCite: Economic statistics your AI can actually cite</title>
+<meta name="description" content="Free remote MCP server + REST API serving official economic statistics from the World Bank, IMF and ECB, where every number ships with a full citation. Includes verify_stat: check any claimed figure against the official series.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="canonical" href="https://statcite.com/">
-<meta property="og:title" content="StatCite — Economic statistics your AI can actually cite">
+<meta property="og:title" content="StatCite: Economic statistics your AI can actually cite">
 <meta property="og:description" content="Official macro data with full citations, built for AI agents. Free MCP server + REST API, plus stat verification.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://statcite.com/">
@@ -19,7 +19,7 @@
 <meta name="twitter:image" content="https://statcite.com/og.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="StatCite — Economic statistics your AI can actually cite">
+<meta name="twitter:title" content="StatCite: Economic statistics your AI can actually cite">
 <meta name="twitter:description" content="Official macro data with full citations, built for AI agents. Free MCP server + REST API, plus stat verification.">
 <script type="application/ld+json">
 {
@@ -63,7 +63,7 @@ a{color:var(--accent2);text-decoration:none}
 a:hover{text-decoration:underline}
 /* Links inline in prose must not rely on colour alone (WCAG 1.4.1): the
    link-vs-text colour contrast is only ~1.6:1. Nav, buttons and heading
-   links keep their unadorned style — they are identified by position. */
+   links keep their unadorned style, since they are identified by position. */
 p a,li a,td a,.stat a{text-decoration:underline;text-underline-offset:2px}
 .wrap{max-width:1060px;margin:0 auto;padding:0 24px}
 nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0;border-bottom:1px solid var(--line)}
@@ -172,7 +172,7 @@ footer a{color:var(--dim)}
   <header>
     <span class="badge">MCP server · REST API · free</span>
     <h1>Economic statistics your AI can <em>actually cite</em>.</h1>
-    <p class="sub">StatCite serves official macro data — World Bank, IMF, ECB, and more — where <strong>every number ships with its full citation</strong>: source, dataset, series ID, canonical URL, license, and retrieval date. Plus <code style="font-family:var(--mono);color:var(--accent)">verify_stat</code>: check any claimed figure against the official series before it goes in your report.</p>
+    <p class="sub">StatCite serves official macro data from the World Bank, IMF, ECB and others, and <strong>every number ships with its full citation</strong>: source, dataset, series ID, canonical URL, license, and retrieval date. Plus <code style="font-family:var(--mono);color:var(--accent)">verify_stat</code>: check any claimed figure against the official series before it goes in your report.</p>
     <div class="cta">
       <a class="btn primary" href="#connect">Connect your agent</a>
       <a class="btn ghost" href="#try">Try a live verification</a>
@@ -182,7 +182,7 @@ footer a{color:var(--dim)}
 
   <section id="why" style="border-top:none;padding-top:8px">
     <h2>Why citations, why now</h2>
-    <p class="lead">AI agents write a growing share of the world's reports, briefs, and analysis — and they miscite numbers at measurable rates. StatCite exists so the number in your draft is the number in the official series, with the receipt attached.</p>
+    <p class="lead">AI agents write a growing share of the world's reports, briefs and analysis, and they miscite numbers at measurable rates. StatCite exists so the number in your draft is the number in the official series, with the receipt attached.</p>
     <div class="stats">
       <div class="stat"><b>&gt;60%</b><span> of responses failed the Tow Center's source-identification test across its 1,600-query audit of AI search engines</span><br><a href="https://www.cjr.org/tow_center/we-compared-eight-ai-search-engines-theyre-all-bad-at-citing-news.php">CJR, 2025</a></div>
       <div class="stat"><b>45%</b><span> of AI news answers had at least one significant issue across 3,000 responses in 14 languages</span><br><a href="https://www.ebu.ch/news/2025/10/ai-s-systemic-distortion-of-news-is-consistent-across-languages-and-territories-international-study-by-public-service-broadcaste">EBU/BBC, 2025</a></div>
@@ -193,7 +193,7 @@ footer a{color:var(--dim)}
 
   <section id="benchmark">
     <h2>We measured it ourselves, on our own claim</h2>
-    <p class="lead">The stats above are general research on AI and citations. This is StatCite's own benchmark: 6 models across 3 vendors (4 Anthropic models, 1 OpenAI, 1 Google preview model) answering 100 real economic-statistics questions, instructed to answer from memory only — no tools, no retrieval, no StatCite. It's the honest baseline StatCite exists to fix.</p>
+    <p class="lead">The stats above are general research on AI and citations. This is StatCite's own benchmark: 6 models across 3 vendors (4 Anthropic models, 1 OpenAI, 1 Google preview model) answering 100 real economic-statistics questions, instructed to answer from memory only. No tools, no retrieval, no StatCite. It's the honest baseline StatCite exists to fix.</p>
     <table>
       <tr><th>Model</th><th>Within-Tolerance Rate</th><th>Confabulation Rate</th><th>Answer Rate</th></tr>
       <tr><td>claude-opus-5</td><td>82.0%</td><td>15.5%</td><td>97.0%</td></tr>
@@ -203,8 +203,8 @@ footer a{color:var(--dim)}
       <tr><td>claude-sonnet-5</td><td>64.8%</td><td>31.4%</td><td>94.5%</td></tr>
       <tr><td>claude-haiku-4-5</td><td>33.3%</td><td>32.5%</td><td>49.4%*</td></tr>
     </table>
-    <p style="color:var(--faint);font-size:12.5px;margin-top:10px">*claude-haiku-4-5's Answer Rate falls below the 70% threshold the pre-registered methodology requires for a model's result to be interpreted at all — reported for completeness, not as a headline finding, per the methodology's own pre-committed rule.</p>
-    <p style="color:var(--dim);font-size:14px;margin-top:14px">Within-Tolerance Rate, Confabulation Rate, and Answer Rate are a single unit by our own publication covenant — never quoted apart from one another. At this sample size (Wilson 95% CIs, minimum detectable model-to-model difference ~12–15pp) this is not a league table. Full methodology, pre-registration, raw model outputs, and scoring code: <a href="https://github.com/asokore/statcite/blob/main/bench/runs/R1/REPORT.md">the R1 report</a>. Post-publication sensitivity analyses and the logged protocol deviations for this run: <a href="https://github.com/asokore/statcite/blob/main/bench/runs/R1/ADDENDA.md">the R1 addenda</a>.</p>
+    <p style="color:var(--faint);font-size:12.5px;margin-top:10px">*claude-haiku-4-5's Answer Rate falls below the 70% threshold the pre-registered methodology requires for a model's result to be interpreted at all. It is reported for completeness, not as a headline finding, per the methodology's own pre-committed rule.</p>
+    <p style="color:var(--dim);font-size:14px;margin-top:14px">Within-Tolerance Rate, Confabulation Rate, and Answer Rate are a single unit by our own publication covenant, never quoted apart from one another. At this sample size (Wilson 95% CIs, minimum detectable model-to-model difference ~12–15pp) this is not a league table. Full methodology, pre-registration, raw model outputs, and scoring code: <a href="https://github.com/asokore/statcite/blob/main/bench/runs/R1/REPORT.md">the R1 report</a>. Post-publication sensitivity analyses and the logged protocol deviations for this run: <a href="https://github.com/asokore/statcite/blob/main/bench/runs/R1/ADDENDA.md">the R1 addenda</a>.</p>
   </section>
 
   <section id="connect">
@@ -227,7 +227,7 @@ URL:   https://statcite.com/mcp</pre>
       <p style="margin-top:10px">Then confirm it works with a test prompt: <em>“Using StatCite, verify that US inflation was 4.1% in 2023 and cite the official source.”</em></p>
     </div>
     <div id="t-chatgpt" class="tabpanel" role="tabpanel" aria-labelledby="tab-chatgpt" tabindex="0">
-      <p>Settings → Apps &amp; Connectors → enable <strong>Developer mode</strong> (availability varies by plan/tier — see OpenAI's current docs) → create app with No Authentication. The server also implements the <code>search</code>/<code>fetch</code> pair used by deep-research connectors.</p>
+      <p>Settings → Apps &amp; Connectors → enable <strong>Developer mode</strong> (availability varies by plan and tier, see OpenAI's current docs) → create app with No Authentication. The server also implements the <code>search</code>/<code>fetch</code> pair used by deep-research connectors.</p>
       <pre>MCP server URL:  https://statcite.com/mcp
 Authentication:  No authentication</pre>
       <p style="margin-top:10px">Then confirm it works with a test prompt: <em>“Using StatCite, verify that US inflation was 4.1% in 2023 and cite the official source.”</em></p>
@@ -265,7 +265,7 @@ Authentication:  No authentication</pre>
 }</pre>
     </div>
     <div id="t-rest" class="tabpanel" role="tabpanel" aria-labelledby="tab-rest" tabindex="0">
-      <p>Plain HTTP for scripts, notebooks, spreadsheets, and Custom GPT Actions — <a href="/openapi.json">OpenAPI spec</a>:</p>
+      <p>Plain HTTP for scripts, notebooks, spreadsheets and Custom GPT Actions. <a href="/openapi.json">OpenAPI spec</a>:</p>
       <pre>curl "https://statcite.com/v1/indicator/inflation_cpi?country=BRB&latest_only=true"
 curl "https://statcite.com/v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=4.1"
 curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
@@ -280,7 +280,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
   <span class="k">"verdict"</span>: <span class="s">"match"</span>,
   <span class="k">"claimed_value"</span>: <span class="n">4.1</span>,
   <span class="k">"official_value"</span>: <span class="n">4.116338383</span>,
-  <span class="k">"explanation"</span>: <span class="s">"Claimed 4.1 vs official 4.1163 % (annual average) for 2023 — consistent (difference of 0.016 pp is within normal rounding)."</span>,
+  <span class="k">"explanation"</span>: <span class="s">"Claimed 4.1 vs official 4.1163 % (annual average) for 2023, consistent (difference of 0.016 pp is within normal rounding)."</span>,
   <span class="k">"citation"</span>: {
     <span class="k">"source"</span>: <span class="s">"World Bank"</span>,
     <span class="k">"dataset"</span>: <span class="s">"World Development Indicators"</span>,
@@ -292,21 +292,21 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
     <span class="k">"citation_text"</span>: <span class="s">"World Bank, World Development Indicators, series FP.CPI.TOTL.ZG (Inflation, consumer prices, annual %), data last updated 2026-07-13. Retrieved 2026-07-25 via StatCite."</span>
   }
 }</pre>
-    <p style="color:var(--faint);font-size:12.5px;margin-top:8px">Illustrative response — live values, source-update dates, and retrieval dates change as sources publish revisions.</p>
+    <p style="color:var(--faint);font-size:12.5px;margin-top:8px">Illustrative response. Live values, source-update dates and retrieval dates change as sources publish revisions.</p>
     <p style="color:var(--dim);font-size:14px;margin-top:16px">And when the number is wrong, the diagnostics say <em>how</em> it went wrong. Claim <code style="font-family:var(--mono)">0.041</code> instead and:</p>
     <pre><span class="c">// tools/call → verify_stat {indicator:"inflation_cpi", country:"USA", period:"2023", claimed_value:0.041}</span>
 {
   <span class="k">"verdict"</span>: <span class="s" style="color:var(--err)">"mismatch"</span>,
   <span class="k">"claimed_value"</span>: <span class="n">0.041</span>,
   <span class="k">"official_value"</span>: <span class="n">4.116338383</span>,
-  <span class="k">"diagnostics"</span>: [<span class="s">"The claimed value is ~100× smaller than the official figure — possibly a percent-vs-decimal mix-up (e.g. 0.05 vs 5%)."</span>]
+  <span class="k">"diagnostics"</span>: [<span class="s">"The claimed value is ~100× smaller than the official figure, possibly a percent-vs-decimal mix-up (e.g. 0.05 vs 5%)."</span>]
 }</pre>
     <p style="color:var(--dim);font-size:14px;margin-top:12px">Wrong year? Percent-vs-decimal slip? Billions-vs-millions? Sign flipped on a fiscal balance? <code style="font-family:var(--mono)">verify_stat</code> diagnoses the classic errors and returns the correct, citable figure.</p>
   </section>
 
   <section id="try">
     <h2>Try a live verification</h2>
-    <p class="lead">No setup, no key — this form calls the same public <code style="font-family:var(--mono)">GET /v1/verify</code> endpoint your agent would. Pick an indicator, claim a number, get the verdict and the citation.</p>
+    <p class="lead">No setup, no key. This form calls the same public <code style="font-family:var(--mono)">GET /v1/verify</code> endpoint your agent would. Pick an indicator, claim a number, get the verdict and the citation.</p>
     <form class="try-form" id="try-form">
       <div>
         <label for="try-indicator">Indicator</label>
@@ -343,13 +343,13 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
     <p class="lead">Available over MCP and mirrored as a REST API. All read-only.</p>
     <div class="grid">
       <div class="card"><h3>verify_stat</h3><p>Check a claimed figure against the official series → match / close / mismatch / cannot_verify, with diagnostics and the correct citation.</p></div>
-      <div class="card"><h3>verify_claims</h3><p>Fact-check a whole draft in one call: extract every macro claim, submit up to 15 together (also <code>POST /v1/verify_claims</code>). Verdict summary + per-claim results; one bad claim never sinks the batch.</p></div>
-      <div class="card"><h3>get_indicator</h3><p>42 active curated indicators — inflation, GDP growth, unemployment, government debt, current account, FDI… — for 200+ economies, with source fallback (World Bank → IMF DataMapper, current vintage → IMF WEO via DBnomics).</p></div>
+      <div class="card"><h3>verify_claims</h3><p>Fact-check a whole draft in one call: extract every macro claim, submit up to 15 together (also <code>POST /v1/verify_claims</code>). Verdict summary + per-claim results. One bad claim never sinks the batch.</p></div>
+      <div class="card"><h3>get_indicator</h3><p>42 active curated indicators: inflation, GDP growth, unemployment, government debt, current account, FDI and more, for 200+ economies, with source fallback (World Bank → IMF DataMapper, current vintage → IMF WEO via DBnomics).</p></div>
       <div class="card"><h3>country_snapshot</h3><p>Headline economic picture of any country in one call: 11 indicators, each with its own citation. Built for country briefs.</p></div>
       <div class="card"><h3>inflation_adjust</h3><p>“What is $100 (1995) worth in 2024 money?” CPI-ratio method with the exact index values and formula disclosed. Any country with CPI data.</p></div>
       <div class="card"><h3>fx_convert</h3><p>ECB daily reference rates for ~30 majors since 1999, plus official annual-average rates for ~90 more currencies (BBD, XCD, JMD, KES…). Method always stated.</p></div>
       <div class="card"><h3>get_series</h3><p>Raw access by explicit id: <code>worldbank/…</code>, <code>imf/…</code>, <code>dbnomics/IMF/WEO:latest/…</code>. Transforms: YoY, % change, index rebase.</p></div>
-      <div class="card"><h3>compare_sources</h3><p>The same indicator from every source that publishes it, side by side — spread, agreement, and one citation per source. For when "what does the official data say?" has more than one official answer.</p></div>
+      <div class="card"><h3>compare_sources</h3><p>The same indicator from every source that publishes it, side by side, with the spread, the agreement and one citation per source. For when "what does the official data say?" has more than one official answer.</p></div>
       <div class="card"><h3>search_indicators</h3><p>Free-text search over the curated registry plus DBnomics dataset discovery (IMF, OECD, Eurostat, BIS…).</p></div>
       <div class="card"><h3>list_sources</h3><p>Exactly which official sources power each answer, their licenses, and the attribution lines you're required to use.</p></div>
       <div class="card"><h3>search + fetch</h3><p>The deep-research compatibility pair, so StatCite plugs into ChatGPT connectors and similar research pipelines out of the box.</p></div>
@@ -358,24 +358,24 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
 
   <section id="sources">
     <h2>Sources &amp; licenses</h2>
-    <p class="lead">StatCite is a citation layer over official statistics — never a black box. Data is fetched live from the sources and cached briefly for politeness.</p>
+    <p class="lead">StatCite is a citation layer over official statistics, never a black box. Data is fetched live from the sources and cached briefly for politeness.</p>
     <table>
       <tr><th>Source</th><th>Coverage</th><th>License</th></tr>
-      <tr><td>World Bank — World Development Indicators</td><td>~1,400 annual indicators, 200+ economies, from 1960</td><td>CC BY 4.0</td></tr>
-      <tr><td>IMF — World Economic Outlook &amp; Fiscal Monitor (via the DataMapper API; DBnomics as fallback)</td><td>Growth, fiscal &amp; external indicators, 190+ economies, incl. projections. Primary path serves the IMF's current edition directly; if unavailable, falls back to the newest DBnomics has ingested (responses flag stale vintages and vintage-crossing fallbacks)</td><td>Redistribution and derivative use permitted with attribution in the IMF's format ("Source: International Monetary Fund, &lt;database&gt;, &lt;link&gt;"); downstream users must be told these terms, and data sold as a standalone product must disclose it is free from the IMF</td></tr>
-      <tr><td>IMF — dated WEO vintages (api.imf.org, SDMX 3.0)</td><td>The IMF's own frozen dated editions, used by <code>as_of</code> historical verification and the automatic revision probe; DBnomics remains the deep archive back to 2010</td><td>Same IMF data terms as above</td></tr>
+      <tr><td>World Bank, World Development Indicators</td><td>~1,400 annual indicators, 200+ economies, from 1960</td><td>CC BY 4.0</td></tr>
+      <tr><td>IMF, World Economic Outlook &amp; Fiscal Monitor (via the DataMapper API, with DBnomics as fallback)</td><td>Growth, fiscal &amp; external indicators, 190+ economies, incl. projections. Primary path serves the IMF's current edition directly. If unavailable, it falls back to the newest DBnomics has ingested (responses flag stale vintages and vintage-crossing fallbacks)</td><td>Redistribution and derivative use permitted with attribution in the IMF's format ("Source: International Monetary Fund, &lt;database&gt;, &lt;link&gt;"). Downstream users must be told these terms, and data sold as a standalone product must disclose it is free from the IMF</td></tr>
+      <tr><td>IMF, dated WEO vintages (api.imf.org, SDMX 3.0)</td><td>The IMF's own frozen dated editions, used by <code>as_of</code> historical verification and the automatic revision probe. DBnomics remains the deep archive back to 2010</td><td>Same IMF data terms as above</td></tr>
       <tr><td>Bank for International Settlements</td><td>Central bank policy rates, 49 economies (daily/monthly)</td><td>Reproduction &amp; redistribution with attribution</td></tr>
-      <tr><td>European Central Bank — Data Portal</td><td>Euro-area HICP inflation and euro-area aggregates</td><td>Reproduction with attribution</td></tr>
-      <tr><td>European Central Bank (via Frankfurter)</td><td>Daily euro reference FX rates, ~30 currencies, since 1999</td><td>Attribution; informational rates</td></tr>
-      <tr><td>FRED — St. Louis Fed</td><td>Not served. Six US-only registry keys are reserved for it but always decline — FRED's terms of use prohibit AI/ML use and caching/redistribution of its content</td><td>—</td></tr>
+      <tr><td>European Central Bank, Data Portal</td><td>Euro-area HICP inflation and euro-area aggregates</td><td>Reproduction with attribution</td></tr>
+      <tr><td>European Central Bank (via Frankfurter)</td><td>Daily euro reference FX rates, ~30 currencies, since 1999</td><td>Attribution, informational rates</td></tr>
+      <tr><td>FRED, St. Louis Fed</td><td>Not served. Six US-only registry keys are reserved for it but always decline. FRED's terms of use reserve its content from AI/ML use and from caching or redistribution</td><td>n/a</td></tr>
       <tr><td>DBnomics (aggregator)</td><td>90+ official providers (OECD, Eurostat, BIS, national offices)</td><td>Per provider, named in each citation</td></tr>
     </table>
-    <p style="margin-top:10px;font-size:14px;color:var(--faint)">The complete licence ledger — every source, verbatim licence basis, verification date and required attribution — is served live at <a href="/sources">/sources</a> and <a href="/v1/sources"><code>GET /v1/sources</code></a>.</p>
+    <p style="margin-top:10px;font-size:14px;color:var(--faint)">The complete licence ledger, with every source, its verbatim licence basis, verification date and required attribution, is served live at <a href="/sources">/sources</a> and <a href="/v1/sources"><code>GET /v1/sources</code></a>.</p>
   </section>
 
   <section id="pricing">
     <h2>Pricing</h2>
-    <p class="lead">Free while the agent economy grows up. Infrastructure costs are near zero by design; when paid tiers arrive, the free tier stays.</p>
+    <p class="lead">Free while the agent economy grows up. Infrastructure costs are near zero by design. When paid tiers arrive, the free tier stays.</p>
     <div class="pricing">
       <div class="tier hi">
         <h3>Free</h3>
@@ -384,7 +384,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
           <li>All 12 tools, full citation payloads</li>
           <li>No key, no signup, no OAuth</li>
           <li>MCP + REST</li>
-          <li>Fair-use: be reasonable; heavy automated loads may be throttled</li>
+          <li>Fair-use: be reasonable, heavy automated loads may be throttled</li>
         </ul>
       </div>
       <div class="tier">
@@ -394,7 +394,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
           <li>Same engine as a managed Apify actor</li>
           <li>Per-result billing on Apify's managed platform (Apify's store terms govern the offering)</li>
           <li>For pipelines that want an invoice</li>
-          <li>Listing: <a href="https://apify.com/asokore/statcite-economic-data">StatCite — Economic Data &amp; Stat Verification</a></li>
+          <li>Listing: <a href="https://apify.com/asokore/statcite-economic-data">StatCite: Economic Data &amp; Stat Verification</a></li>
         </ul>
       </div>
       <div class="tier">
@@ -418,17 +418,17 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
       <a class="btn ghost" href="https://github.com/asokore/statcite">Star it on GitHub</a>
       <a class="btn ghost" href="mailto:hello@statcite.com">Tell me what to build next</a>
     </div>
-    <p class="support-note">Contributions go to the domain, the data-source costs and the time to keep the registry curated. They buy no priority support, no influence over which sources StatCite trusts, and no change to how <code style="font-family:var(--mono);color:var(--accent)">verify_stat</code> scores a claim. The verdict is not for sale — that is the whole point of the project.</p>
+    <p class="support-note">Contributions go to the domain, the data-source costs and the time to keep the registry curated. They buy no priority support, no influence over which sources StatCite trusts, and no change to how <code style="font-family:var(--mono);color:var(--accent)">verify_stat</code> scores a claim. The verdict is not for sale. That is the whole point of the project.</p>
   </section>
 
   <section id="faq">
     <h2>FAQ</h2>
-    <details><summary>Is it really free? What's the catch?</summary><p>Yes — the service runs on near-zero-cost infrastructure and free official data APIs, so a generous free tier is sustainable. The long-term plan is boring and honest: keep the free tier, add paid convenience (keys, volume, bulk) for heavy users. No ads, no data resale.</p></details>
-    <details><summary>How accurate is the data?</summary><p>StatCite does not originate the underlying statistical observations — it relays the official series and tells you exactly which one, fetched live from the source or its aggregator and cached briefly. Derived values (YoY, inflation adjustment, FX bridging) and verification verdicts are calculated transparently, with the method and inputs disclosed. Macro data gets revised, and aggregators can lag the source's newest release — every citation states the exact series and vintage served, and responses flag when a vintage trails the expected current release.</p></details>
-    <details><summary>Can I redistribute the numbers?</summary><p>It depends on the source, and every response tells you exactly which applies. World Bank data is CC BY 4.0 — reuse, including commercial, with attribution. Published IMF statistical data may be copied, redistributed and used in derivative works under the IMF's data terms: attribute in the IMF's format ("Source: International Monetary Fund, &lt;database&gt;, &lt;link&gt;" — every StatCite citation supplies this line ready-made), don't alter the data in ways affecting accuracy, tell your own downstream users these terms apply, and if you sell it as a standalone product, disclose that the data is free from the IMF. ECB reference rates are informational, reused with attribution. Every response includes the exact attribution line and license for that number, which is precisely the point of StatCite.</p></details>
-    <details><summary>Who built this?</summary><p>A professional economist who got tired of AI drafts with unverifiable numbers. The indicator registry, source fallbacks, and verification thresholds are economist-curated — e.g. government debt defaults to the IMF's general government gross debt series (current vintage via the DataMapper API), not the patchier World Bank central-government series.</p></details>
+    <details><summary>Is it really free? What's the catch?</summary><p>Yes. The service runs on near-zero-cost infrastructure and free official data APIs, so a generous free tier is sustainable. The long-term plan is boring and honest: keep the free tier, add paid convenience (keys, volume, bulk) for heavy users. No ads, no data resale.</p></details>
+    <details><summary>How accurate is the data?</summary><p>StatCite does not originate the underlying statistical observations. It relays the official series and tells you exactly which one, fetched live from the source or its aggregator and cached briefly. Derived values (YoY, inflation adjustment, FX bridging) and verification verdicts are calculated transparently, with the method and inputs disclosed. Macro data gets revised, and aggregators can lag the source's newest release. Every citation states the exact series and vintage served, and responses flag when a vintage trails the expected current release.</p></details>
+    <details><summary>Can I redistribute the numbers?</summary><p>It depends on the source, and every response tells you exactly which applies. World Bank data is CC BY 4.0, so reuse including commercial use is allowed with attribution. Published IMF statistical data may be copied, redistributed and used in derivative works under the IMF's data terms: attribute in the IMF's format ("Source: International Monetary Fund, &lt;database&gt;, &lt;link&gt;", and every StatCite citation supplies this line ready-made), don't alter the data in ways affecting accuracy, tell your own downstream users these terms apply, and if you sell it as a standalone product, disclose that the data is free from the IMF. ECB reference rates are informational, reused with attribution. Every response includes the exact attribution line and license for that number, which is precisely the point of StatCite.</p></details>
+    <details><summary>Who built this?</summary><p>A professional economist who got tired of AI drafts with unverifiable numbers. The indicator registry, source fallbacks, and verification thresholds are economist-curated. For example, government debt defaults to the IMF's general government gross debt series (current vintage via the DataMapper API), not the patchier World Bank central-government series.</p></details>
     <details><summary>How should agents cite StatCite itself?</summary><p>Cite the original source (the citation object gives you everything). Mentioning “via StatCite” is appreciated but never required.</p></details>
-    <details><summary>What about rate limits?</summary><p>Fair use, no hard published limit. Responses are cache-friendly; identical queries are served from edge cache. If your use case needs guarantees, email <a href="mailto:hello@statcite.com">hello@statcite.com</a>.</p></details>
+    <details><summary>What about rate limits?</summary><p>Fair use, no hard published limit. Responses are cache-friendly, so identical queries are served from edge cache. If your use case needs guarantees, email <a href="mailto:hello@statcite.com">hello@statcite.com</a>.</p></details>
   </section>
   </main>
 
@@ -489,7 +489,7 @@ function copyText(id, btn){
     setTimeout(function(){ btn.textContent='copy'; document.getElementById('copy-status').textContent=''; },1500);
   });
 }
-// Live verifier — same public endpoint an agent would call.
+// Live verifier. Same public endpoint an agent would call.
 (function(){
   var form=document.getElementById('try-form');
   if(!form) return;
@@ -519,7 +519,7 @@ function copyText(id, btn){
         var note='';
         if(b.is_projection) note='<p style="margin-top:8px;color:var(--warn)">Note: the official observation is an IMF estimate/projection, not a confirmed outturn.</p>';
         var cite=b.citation&&b.citation.citation_text?'<div class="cite">'+esc(b.citation.citation_text)+(b.citation.source_url?' <a href="'+esc(b.citation.source_url)+'" rel="noopener">source ↗</a>':'')+'</div>':'';
-        out.innerHTML='<div class="card"><span class="v-'+esc(b.verdict)+'">'+esc(b.verdict.replace('_',' '))+'</span> — '+esc(b.explanation||'')+extra+note+cite+'</div>';
+        out.innerHTML='<div class="card"><span class="v-'+esc(b.verdict)+'">'+esc(b.verdict.replace('_',' '))+'</span> '+esc(b.explanation||'')+extra+note+cite+'</div>';
       })
       .catch(function(){
         out.innerHTML='<div class="card"><span class="v-cannot_verify">Network error.</span> Please try again.</div>';

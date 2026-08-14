@@ -260,7 +260,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
         version: SERVER_VERSION,
         status: allOk ? "ok" : "degraded",
         upstreams: probes,
-        note: "Upstream probes are cached ~120s and a cached probe reports ms:null with cached:true, so a green row is never mistaken for a fresh measurement; each hits the cheapest real endpoint for that source (never HEAD — BIS 500s on HEAD); 'degraded' means at least one primary source is unreachable right now — fallback chains may still serve affected indicators, with fallback_used disclosed per response.",
+        note: "Upstream probes are cached ~120s and a cached probe reports ms:null with cached:true, so a green row is never mistaken for a fresh measurement; each hits the cheapest real endpoint for that source (never HEAD, BIS 500s on HEAD); 'degraded' means at least one primary source is unreachable right now. Fallback chains may still serve affected indicators, with fallback_used disclosed per response.",
       }, 120);
     }
 

@@ -1,4 +1,4 @@
-# Press kit — the AI Economic-Statistics Accuracy Benchmark
+# Press kit: the AI Economic-Statistics Accuracy Benchmark
 
 Draft, for use when the Run 2 embargo lifts. Structure follows the EBU/BBC
 playbook that earned NPR/CBC/Al Jazeera coverage: one headline number, a
@@ -14,7 +14,7 @@ Bracketed fields are filled from `bench/runs/R2/REPORT.md` after scoring.
 
 > An independent, pre-registered benchmark finds that leading AI models state
 > official economic statistics incorrectly [X]% of the time when answering from
-> memory — and state a wrong figure confidently, rather than declining, in
+> memory, and state a wrong figure confidently, rather than declining, in
 > [Y]% of cases.
 
 ## Why a journalist should care
@@ -31,13 +31,13 @@ Bracketed fields are filled from `bench/runs/R2/REPORT.md` after scoring.
    country and year? These are the numbers that end up in reports, briefings,
    and articles.
 4. **It is institutionally corroborated.** The IMF's own 2026 paper introducing
-   StatGPT — backed by the IMF, World Bank, OECD, Eurostat, BIS and the UN
-   statistical system — justifies retrieval because generative models "perform
+   StatGPT. Backed by the IMF, World Bank, OECD, Eurostat, BIS and the UN
+   statistical system. Justifies retrieval because generative models "perform
    poorly at delivering official statistics".
 5. **The measurement is honest about itself.** Accuracy is never quoted apart
    from the confabulation rate and the answer rate; a model that declines when
    unsure is scored differently from one that guesses confidently. Answers that
-   match an earlier official vintage are never scored as errors — statistics get
+   match an earlier official vintage are never scored as errors, statistics get
    revised, and the benchmark says so.
 
 ## Headline results (fill after scoring)
@@ -49,7 +49,7 @@ Bracketed fields are filled from `bench/runs/R2/REPORT.md` after scoring.
 Mandatory framing, per the project's own publication covenant: **these three
 numbers are a single unit and are never quoted apart from one another.** At this
 sample size, model-to-model differences below roughly 12–15 percentage points
-are not distinguishable — this is not a league table.
+are not distinguishable, this is not a league table.
 
 ## What is new in Run 2 versus Run 1
 
@@ -67,7 +67,7 @@ are not distinguishable — this is not a league table.
 > "The failure mode isn't that models don't know economic statistics. It's that
 > they answer anyway. A model that says 'I'm not sure' is far more useful to a
 > researcher than one that produces a plausible wrong number with a confident
-> tone — which is why this benchmark refuses to publish an accuracy figure
+> tone, which is why this benchmark refuses to publish an accuracy figure
 > without the confabulation rate beside it."
 
 > "Every number in this benchmark can be checked against the official source,
@@ -85,7 +85,7 @@ are not distinguishable — this is not a league table.
 
 ## What NOT to say
 
-- Do not describe this as ranking models overall — it measures one narrow,
+- Do not describe this as ranking models overall, it measures one narrow,
   specific capability.
 - Do not quote a within-tolerance rate alone.
 - Do not describe a revision-affected answer as a model error.
@@ -96,5 +96,5 @@ are not distinguishable — this is not a league table.
 
 Data-journalism desks and AI trade press. Prioritise reporters who have covered
 AI accuracy studies (the EBU/BBC and Tow Center stories are the precedent) or
-who write about official statistics. One tailored email each — a generic blast
+who write about official statistics. One tailored email each, a generic blast
 is worse than nothing.

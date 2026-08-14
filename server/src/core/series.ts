@@ -100,7 +100,7 @@ function finishSeries(result: SeriesResult, opts: SeriesOpts): SeriesResult {
     const allValued = result.observations.filter((o) => o.value != null);
     if (allValued.length === 0) {
       throw new ToolError(
-        `${result.name ?? result.series_id} has no published values for ${result.country ? result.country.name : "this query"} at the source. This is a statement about what the source publishes, not a data error — some economies are not covered by this series.`,
+        `${result.name ?? result.series_id} has no published values for ${result.country ? result.country.name : "this query"} at the source. This is a statement about what the source publishes, not a data error. Some economies are not covered by this series.`,
         { series_id: result.series_id, no_published_data: true },
       );
     }
@@ -109,7 +109,7 @@ function finishSeries(result: SeriesResult, opts: SeriesOpts): SeriesResult {
     throw new ToolError(
       `No observations available for ${result.series_id}${result.country ? ` (${result.country.name})` : ""} in the requested window` +
         (opts.start || opts.end ? ` ${opts.start ?? "…"}–${opts.end ?? "…"}` : "") +
-        `. Published data exists for ${availStart}–${availEnd} — adjust the year range.`,
+        `. Published data exists for ${availStart}–${availEnd}, adjust the year range.`,
       { series_id: result.series_id, no_published_data: false, available_range: { start: availStart, end: availEnd } },
     );
   }
@@ -240,7 +240,7 @@ function crossEditionMismatchNote(
   if (!other) return undefined;
   const otherEd = parseEditionLabel(other.source);
   if (!otherEd || (otherEd.year === thisEdition.year && otherEd.month === thisEdition.month)) return undefined;
-  return `The IMF's ${refKind} database is currently at a different edition (${other.source}) than this series' edition (${thisEdition.label}) — fiscal indicators drawn from the two databases (e.g. revenue/expenditure vs. debt/balance) may temporarily reflect different releases.`;
+  return `The IMF's ${refKind} database is currently at a different edition (${other.source}) than this series' edition (${thisEdition.label}). Fiscal indicators drawn from the two databases (e.g. revenue/expenditure vs. debt/balance) may temporarily reflect different releases.`;
 }
 
 async function indicatorFromDataMapper(ctx: Ctx, def: IndicatorDef, country: Country, opts: SeriesOpts): Promise<SeriesResult> {
@@ -256,7 +256,7 @@ async function indicatorFromDataMapper(ctx: Ctx, def: IndicatorDef, country: Cou
   if (s.edition?.year && s.edition?.month) {
     editionLabel = s.edition.label; // verbatim IMF string — never rephrase (design D2)
   } else {
-    editionLabel = `${boundaryYear} vintage (April or October edition — edition metadata unavailable; a newer edition may exist)`;
+    editionLabel = `${boundaryYear} vintage (April or October edition, edition metadata unavailable; a newer edition may exist)`;
     notes.push(
       "The IMF DataMapper edition-metadata endpoint was unavailable, or does not list this series; only the vintage year could be inferred from the data's own projection horizon, not the edition month.",
     );
@@ -270,7 +270,7 @@ async function indicatorFromDataMapper(ctx: Ctx, def: IndicatorDef, country: Cou
     const gap = s.horizonYear - s.edition.year;
     if (gap !== 5) {
       notes.push(
-        `This series' data horizon (through ${s.horizonYear}) is ${Math.abs(gap - 5)} year(s) off the usual edition-year-plus-5 pattern for the ${editionLabel} edition — the values and edition-label fetches may reflect slightly different load moments. The projection boundary used here (${boundaryYear}) is derived from the data's own horizon, not the label, so this does not affect which values are flagged as projections.`,
+        `This series' data horizon (through ${s.horizonYear}) is ${Math.abs(gap - 5)} year(s) off the usual edition-year-plus-5 pattern for the ${editionLabel} edition. The values and edition-label fetches may reflect slightly different load moments. The projection boundary used here (${boundaryYear}) is derived from the data's own horizon, not the label, so this does not affect which values are flagged as projections.`,
       );
     }
     if (s.edition.lastModified) {
@@ -280,7 +280,7 @@ async function indicatorFromDataMapper(ctx: Ctx, def: IndicatorDef, country: Cou
         const daysSince = (lm.getTime() - editionLoadMs) / (24 * 3600 * 1000);
         if (daysSince > 40) {
           notes.push(
-            `The IMF reloaded this series' data on ${s.edition.lastModified.slice(0, 10)}, ${Math.round(daysSince)} day(s) after the ${editionLabel} release — values may include a post-release revision (e.g. a WEO Update) not contained in the originally-published ${editionLabel} database.`,
+            `The IMF reloaded this series' data on ${s.edition.lastModified.slice(0, 10)}, ${Math.round(daysSince)} day(s) after the ${editionLabel} release. Values may include a post-release revision (e.g. a WEO Update) not contained in the originally-published ${editionLabel} database.`,
           );
         }
       }
@@ -289,8 +289,8 @@ async function indicatorFromDataMapper(ctx: Ctx, def: IndicatorDef, country: Cou
   if (clamped) {
     notes.push(
       s.edition?.year != null
-        ? `The data horizon implied a projection-boundary year that looked implausible against the IMF's release calendar, so it was clamped to ${boundaryYear} (the older of the payload's own edition year and the calendar-expected edition year) — consistent with the DataMapper serving a stale edition, or a truncated/mid-load payload.`
-        : `The data horizon implied a projection-boundary year that looked implausible against the IMF's release calendar, so the calendar year (${boundaryYear}) was used instead — possible if this payload is truncated or mid-load.`,
+        ? `The data horizon implied a projection-boundary year that looked implausible against the IMF's release calendar, so it was clamped to ${boundaryYear} (the older of the payload's own edition year and the calendar-expected edition year). Consistent with the DataMapper serving a stale edition, or a truncated/mid-load payload.`
+        : `The data horizon implied a projection-boundary year that looked implausible against the IMF's release calendar, so the calendar year (${boundaryYear}) was used instead. Possible if this payload is truncated or mid-load.`,
     );
   }
   if (DB_PRIMARY.has(def.key)) {
@@ -315,7 +315,7 @@ async function indicatorFromDataMapper(ctx: Ctx, def: IndicatorDef, country: Cou
   const base = `Values for ${boundaryYear} onward are ${kind} estimates/projections, not final outturns. This boundary is a vintage-year heuristic derived from the data's own projection horizon: the IMF's "latest actual" year varies by country and series, so some observations before ${boundaryYear} may also be IMF staff estimates rather than final outturns.`;
   notes.push(
     countryMaxYear > 0 && countryMaxYear < boundaryYear
-      ? `${base} The IMF publishes no current-edition projections for ${country.name} on this series; it ends at ${countryMaxYear} — treat recent values as unconfirmed estimates, not the IMF's current assessment.`
+      ? `${base} The IMF publishes no current-edition projections for ${country.name} on this series; it ends at ${countryMaxYear}. Treat recent values as unconfirmed estimates, not the IMF's current assessment.`
       : base,
   );
 
@@ -376,7 +376,7 @@ async function indicatorFromSdmx(ctx: Ctx, def: IndicatorDef, country: Country, 
   const perCountry = cfg.key.includes("{ISO2}");
   if (!perCountry && country.iso3 !== "EMU" && country.iso3 !== "XM") {
     throw new ToolError(
-      `'${def.key}' is a euro-area aggregate series and is only published for the euro area — request it with country="euro area".`,
+      `'${def.key}' is a euro-area aggregate series and is only published for the euro area, request it with country="euro area".`,
       { indicator: def.key, country: country.iso3 },
     );
   }
@@ -387,7 +387,7 @@ async function indicatorFromSdmx(ctx: Ctx, def: IndicatorDef, country: Country, 
     areaCode = cfg.provider === "BIS" ? BIS_POLICY_RATE_AREAS[country.iso3] : country.iso2;
     if (!areaCode) {
       throw new ToolError(
-        `${cfg.provider} does not publish ${def.label} for ${country.name}. This is a coverage fact at the source, not a lookup failure — the BIS compiles policy rates for ${Object.keys(BIS_POLICY_RATE_AREAS).length} economies.`,
+        `${cfg.provider} does not publish ${def.label} for ${country.name}. This is a coverage fact at the source, not a lookup failure. The BIS compiles policy rates for ${Object.keys(BIS_POLICY_RATE_AREAS).length} economies.`,
         { indicator: def.key, country: country.iso3, no_published_data: true },
       );
     }
@@ -414,7 +414,7 @@ async function indicatorFromSdmx(ctx: Ctx, def: IndicatorDef, country: Country, 
         provider: cfg.provider,
         flow: cfg.flow,
         key,
-        seriesName: s.name ? `${s.name} — ${country.name}` : `${def.label} — ${country.name}`,
+        seriesName: s.name ? `${s.name}, ${country.name}` : `${def.label}, ${country.name}`,
         sourceUrl: cfg.sourceUrl,
         apiUrl: s.apiUrl,
       }),
@@ -528,7 +528,7 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
         // note is self-contradictory. Three cases, one truth each.
         result.notes.push(
           firstErrorWasTransient
-            ? `${primaryLabel} was transiently unavailable for this request; served from ${servedLabel} instead, which may use a different statistical definition and can report a different value for the same nominal indicator. If exact consistency with ${primaryLabel} matters, retry this query — the primary source may have recovered. (${errors[0]})`
+            ? `${primaryLabel} was transiently unavailable for this request; served from ${servedLabel} instead, which may use a different statistical definition and can report a different value for the same nominal indicator. If exact consistency with ${primaryLabel} matters, retry this query, the primary source may have recovered. (${errors[0]})`
             : anyErrorWasTransient
               ? `${primaryLabel} does not have this indicator/country/period, and an intermediate fallback source was transiently unavailable; served from ${servedLabel} instead. A skipped source may recover, so the serving source for this query can change on retry. (${errors[0]})`
               : `${primaryLabel} does not have this indicator/country/period; served from ${servedLabel} instead. (${errors[0]})`,
@@ -554,7 +554,7 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
     throw new ToolError(
       `Could not retrieve '${def.key}' for ${country.name} from its primary source (${tried[0].label}): ${errors.join(" | ")}. ` +
         `strict_source=true prevented fallback to ${attempts[1].label}` +
-        (firstErrorWasTransient ? "; the failure looks transient — retrying this query may succeed, or drop strict_source to accept the fallback source" : "") +
+        (firstErrorWasTransient ? "; the failure looks transient. Retrying this query may succeed, or drop strict_source to accept the fallback source" : "") +
         ".",
       { indicator: def.key, country: country.iso3, strict_source: true },
     );
@@ -717,7 +717,7 @@ async function indicatorFromImfVintage(
         provider: "IMF",
         flow: flowId ?? flow,
         key,
-        seriesName: `${def.label} — ${country.name}`,
+        seriesName: `${def.label}, ${country.name}`,
         sourceUrl,
         apiUrl: s.apiUrl,
         datasetLabel: label,
@@ -780,7 +780,7 @@ export async function getIndicatorAsOf(
 
   const dateStr = asOfDate.toISOString().slice(0, 10);
   result.notes.push(
-    `Pinned to the WEO:${edition} vintage, resolved conservatively from ${dateStr} using the IMF's April/October publication calendar (month precision — this is historical IMF-vintage verification, not exact release-date resolution). The value reflects that edition and may differ from both earlier vintages and the currently published figure.`,
+    `Pinned to the WEO:${edition} vintage, resolved conservatively from ${dateStr} using the IMF's April/October publication calendar (month precision, this is historical IMF-vintage verification, not exact release-date resolution). The value reflects that edition and may differ from both earlier vintages and the currently published figure.`,
   );
   const month = asOfDate.getUTCMonth() + 1;
   if (month === 4 || month === 10) {
@@ -934,7 +934,7 @@ export async function getSeries(
   // Fall back to registry keys ("gdp_growth") when a country is provided.
   if (getIndicatorDef(id)) {
     if (!opts.country) {
-      throw new ToolError(`'${id}' is a registry indicator — pass a 'country' as well, or use the get_indicator tool.`);
+      throw new ToolError(`'${id}' is a registry indicator. Pass a 'country' as well, or use the get_indicator tool.`);
     }
     return getIndicator(ctx, id, opts.country, opts);
   }
@@ -978,7 +978,7 @@ export async function searchIndicators(ctx: Ctx, query: string, opts: { includeD
       id: m.def.key,
       title: m.def.label,
       description: disabled
-        ? `DISABLED — ${m.def.unit}. ${FRED_DISABLED_REASON}`
+        ? `DISABLED, ${m.def.unit}. ${FRED_DISABLED_REASON}`
         : `${m.def.unit}${m.def.notes ? ` — ${m.def.notes}` : ""}`,
       url: wbIsPrimarySource(m.def) ? `https://data.worldbank.org/indicator/${m.def.wb}` : undefined,
       usage: disabled
@@ -995,7 +995,7 @@ export async function searchIndicators(ctx: Ctx, query: string, opts: { includeD
           type: "dbnomics_dataset",
           id: `dbnomics/${d.providerCode}/${d.datasetCode}`,
           title: `${d.providerName}: ${d.datasetName}`,
-          description: `${d.nbSeries.toLocaleString("en-US")} series — browse then fetch with get_series('dbnomics/${d.providerCode}/${d.datasetCode}/SERIES_CODE')`,
+          description: `${d.nbSeries.toLocaleString("en-US")} series. Browse then fetch with get_series('dbnomics/${d.providerCode}/${d.datasetCode}/SERIES_CODE')`,
           url: d.url,
         });
       }
@@ -1037,7 +1037,7 @@ export function listRegistry(): Array<{
         ...(dbFirst ? [...imfChain, ...(wbLabel ? [wbLabel] : [])] : [...(wbLabel ? [wbLabel] : []), ...imfChain]),
         // For active keys a fred field is INERT (never served); only surface the
         // FRED label on the disabled keys, where it explains why they decline.
-        ...(disabled ? ["FRED (US) — disabled"] : []),
+        ...(disabled ? ["FRED (US), disabled"] : []),
       ],
       active: !disabled,
       ...(disabled ? { disabled_reason: FRED_DISABLED_REASON } : {}),
@@ -1138,7 +1138,7 @@ export async function compareSources(ctx: Ctx, key: string, countryInput: string
   });
 
   const notes: string[] = [
-    "Differences between sources typically reflect methodological or vintage differences (e.g. central vs general government coverage, calendar vs fiscal years, an IMF WEO vintage vs a later World Bank revision) — they are not an error by either source. Cite the source whose definition matches your claim.",
+    "Differences between sources typically reflect methodological or vintage differences (e.g. central vs general government coverage, calendar vs fiscal years, an IMF WEO vintage vs a later World Bank revision), they are not an error by either source. Cite the source whose definition matches your claim.",
   ];
 
   // Comparison period: requested year, else the latest period shared by every

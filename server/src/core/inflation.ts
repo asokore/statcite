@@ -54,10 +54,10 @@ export async function inflationAdjust(
   const adjusted = amount * factor;
   const notes = [
     "Annual-average CPI; sub-year precision is not represented.",
-    "CPI measures consumer prices — for comparing incomes or output across years, a GDP deflator may be more appropriate.",
+    "CPI measures consumer prices. For comparing incomes or output across years, a GDP deflator may be more appropriate.",
   ];
   if (country.iso3 === "USA") {
-    notes.push("This calculation uses World Bank annual-average CPI; US monthly-frequency CPI (FRED's CPIAUCSL) is not available — FRED is permanently disabled on this deployment per its terms of use.");
+    notes.push("This calculation uses World Bank annual-average CPI; US monthly-frequency CPI (FRED's CPIAUCSL) is not available. FRED is permanently disabled on this deployment per its terms of use.");
   }
   return {
     original_amount: amount,

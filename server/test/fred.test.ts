@@ -128,7 +128,7 @@ test("listRegistry marks exactly the six FRED-reserved keys inactive with a disa
   assert.equal(active.length, reg.length - 6);
   for (const r of inactive) {
     assert.match(r.disabled_reason ?? "", /permanently disabled/i);
-    assert.ok(r.sources.includes("FRED (US) — disabled"), `${r.key} should carry the disabled source label`);
+    assert.ok(r.sources.includes("FRED (US), disabled"), `${r.key} should carry the disabled source label`);
   }
   for (const r of active) {
     assert.equal(r.disabled_reason, undefined);

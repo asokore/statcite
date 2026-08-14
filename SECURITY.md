@@ -8,8 +8,7 @@ exploitable before it is fixed.
 
 ## Scope and posture
 
-StatCite is a stateless Cloudflare Worker with **zero runtime dependencies**
-— no npm packages execute in production, which removes the supply-chain
+StatCite is a stateless Cloudflare Worker with **zero runtime dependencies**. No npm packages execute in production, which removes the supply-chain
 surface entirely. There are no accounts, no sessions, no cookies, and no
 stored user data: every request is anonymous and the only telemetry is
 aggregate counters drawn from closed sets (see `site/privacy.html`; enforced
@@ -33,4 +32,4 @@ Relevant properties:
 
 The production deployment at statcite.com always runs the latest tagged
 release; there are no maintained older branches. If you pin the Apify actor,
-update to the newest build — data-integrity fixes are not backported.
+update to the newest build, data-integrity fixes are not backported.

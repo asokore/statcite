@@ -134,7 +134,7 @@ function parseAsOfDate(input: string): Date {
   const s = input.trim();
   const reject = (): never => {
     throw new ToolError(
-      `'as_of' should be a real calendar date like '2019-04', '2019-04-15', or a bare year '2019' — got '${input}'.`,
+      `'as_of' should be a real calendar date like '2019-04', '2019-04-15', or a bare year '2019', got '${input}'.`,
       { as_of: input },
     );
   };
@@ -253,7 +253,7 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
     const range = obs.length ? `${obs[0].period}–${obs[obs.length - 1].period}` : "none";
     const freqHint =
       obs.some((o) => o.period.length > 4) && period.length === 4
-        ? " This series is higher-frequency — specify the period as YYYY-MM."
+        ? " This series is higher-frequency, specify the period as YYYY-MM."
         : "";
     return {
       verdict: "cannot_verify",
@@ -314,20 +314,20 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
       [1e12, "a trillions scaling difference"],
     ] as Array<[number, string]>) {
       if (within(ratio, factor, 0.02) || within(ratio, 1 / factor, 0.02)) {
-        diagnostics.push(`The claimed value is ~${factor.toLocaleString("en-US")}× ${ratio > 1 ? "larger" : "smaller"} than the official figure — possibly ${label}.`);
+        diagnostics.push(`The claimed value is ~${factor.toLocaleString("en-US")}× ${ratio > 1 ? "larger" : "smaller"} than the official figure, possibly ${label}.`);
       }
     }
   }
   if (ratio != null && ratio < 0 && within(-ratio, 1, 0.02)) {
     diagnostics.push(
-      "The claimed value is approximately the official figure with the opposite sign — possibly a sign-convention mix-up (e.g. a fiscal deficit quoted as positive where the source reports net lending as negative).",
+      "The claimed value is approximately the official figure with the opposite sign, possibly a sign-convention mix-up (e.g. a fiscal deficit quoted as positive where the source reports net lending as negative).",
     );
   }
   // Adjacent-year check: does the claim match a neighboring year better?
   for (const offset of [-2, -1, 1, 2]) {
     const v = byPeriod.get(String(year + offset))?.value;
     if (v != null && closeEnough(p.claimed_value, v, percentKind, p)) {
-      diagnostics.push(`The claimed value matches the ${year + offset} figure (${fmt(v)}) — the year may be misattributed.`);
+      diagnostics.push(`The claimed value matches the ${year + offset} figure (${fmt(v)}), the year may be misattributed.`);
     }
   }
 
@@ -363,7 +363,7 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
       difference: null,
       relative_difference_pct: null,
       explanation:
-        `This indicator's primary source was transiently unavailable; the fallback (${result.citation.source}, ${result.series_id}) shows ${fmt(official)}${result.unit ? ` ${result.unit}` : ""}${projFlag} for ${period} — indicative only, not a verification.${vintageFlavor} Retry when the primary source has recovered, or pass strict_source=true to fail hard instead.`,
+        `This indicator's primary source was transiently unavailable; the fallback (${result.citation.source}, ${result.series_id}) shows ${fmt(official)}${result.unit ? ` ${result.unit}` : ""}${projFlag} for ${period}. Indicative only, not a verification.${vintageFlavor} Retry when the primary source has recovered, or pass strict_source=true to fail hard instead.`,
       diagnostics,
       series: { id: result.series_id, name: result.name, unit: result.unit ?? undefined },
       country: result.country,
@@ -404,7 +404,7 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
           matches_previous_vintage: matches,
           next_edition_expected: nextLabel,
           note: matches
-            ? `The claimed value matches the previous IMF vintage (WEO ${prevEdition}: ${prevValue}). The figure was likely accurate when written and has since been revised — treat this as a revision event, not necessarily an author error. Cite the current official value going forward.`
+            ? `The claimed value matches the previous IMF vintage (WEO ${prevEdition}: ${prevValue}). The figure was likely accurate when written and has since been revised. Treat this as a revision event, not necessarily an author error. Cite the current official value going forward.`
             : `The claim does not match the previous IMF vintage either (WEO ${prevEdition}: ${prevValue ?? "no value for this period"}).`,
         };
         if (matches) diagnostics.push(revisionCheck.note!);
@@ -424,10 +424,10 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
   const officialLabel = isProjection ? `official (${projKind} projection)` : "official";
   const explanation =
     verdict === "match"
-      ? `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period} — consistent (${why}).`
+      ? `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period}, consistent (${why}).`
       : verdict === "close"
-        ? `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period} — in the right neighborhood but not exact (${why}). Cite the official value.`
-        : `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period} — materially different (${why}).` +
+        ? `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period}. In the right neighborhood but not exact (${why}). Cite the official value.`
+        : `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period}, materially different (${why}).` +
           (diagnostics.length ? " See diagnostics for likely causes." : "");
 
   return {
