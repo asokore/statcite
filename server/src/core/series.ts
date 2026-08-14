@@ -12,7 +12,7 @@ import { fetchFredSeries, fredAvailable } from "../adapters/fred.ts";
 import { fetchDataMapperSeries, fetchDataMapperMetadata, computeBoundaryYear, parseEditionLabel } from "../adapters/datamapper.ts";
 import { worldBankCitation, dbnomicsCitation, fredCitation, imfDataMapperCitation, sdmxCitation, caribstatCitation } from "./citations.ts";
 import { fetchSdmxSeries, BIS_POLICY_RATE_AREAS } from "../adapters/sdmx.ts";
-import { fetchCaribstatSeries, CARIBSTAT_ENABLED } from "../adapters/caribstat.ts";
+import { fetchCaribstatSeries, inferFrequency, CARIBSTAT_ENABLED } from "../adapters/caribstat.ts";
 import { isTransientUpstreamError } from "./upstream.ts";
 export { expectedWeoEdition } from "./weo-calendar.ts";
 import { expectedWeoEdition } from "./weo-calendar.ts";
@@ -902,28 +902,34 @@ export async function getSeries(
       );
     }
     const c = await fetchCaribstatSeries(id);
+    const freq = c.doc.frequency ?? inferFrequency(c.doc.periods);
     // The bank's own currency stamp travels separately from our retrieval
     // time all the way into the citation. These two dates differ by weeks and
     // presenting ours as the data's currency would misstate the source.
     const citation = caribstatCitation(ctx, {
       source: c.doc.source,
       sourceUrl: c.doc.source_url,
-      tableTitle: c.doc.table_title,
+      tableTitle: c.doc.table_title ?? c.doc.sheet,
       rowLabel: c.label,
       countryName: c.doc.country.name,
-      frequency: c.doc.frequency,
+      frequency: freq,
       dataAsAt: c.doc.data_as_at,
       dataAsAtRaw: c.doc.data_as_at_raw,
+      // Only one of these pairs is ever present. ECCB stamps currency; CBB
+      // does not and names the publication instead.
+      publicationTitle: c.doc.publication_title,
+      publishedAt: c.doc.published_at,
+      attachmentUrl: c.doc.attachment_url,
       apiUrl: c.apiUrl,
       seriesId: id,
     });
     return finishSeries(
       {
         series_id: id,
-        name: `${c.doc.table_title}: ${c.label}`,
+        name: `${c.doc.table_title ?? c.doc.publication_title ?? c.doc.sheet ?? "CaribStat"}: ${c.label}`,
         country: { iso3: c.doc.country.iso3, name: c.doc.country.name },
         unit: c.unit ?? null,
-        frequency: c.doc.frequency,
+        frequency: freq,
         observations: c.observations,
         citation,
         notes: [],
