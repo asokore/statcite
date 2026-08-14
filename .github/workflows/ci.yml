@@ -22,6 +22,28 @@ jobs:
       - run: npm install
       - run: npm run typecheck
       - run: npm test
+  caribstat-parsers:
+    # CaribStat moved into this repository on 2026-08-13 and arrived with 52
+    # fixture-backed parser tests that nothing was running. Those tests are the
+    # only thing standing between a central bank quietly changing a spreadsheet
+    # layout and this pipeline writing plausible wrong numbers: they encode real
+    # defects found against live workbooks, including a bare year read as an
+    # Excel serial (2010 -> 1905-07-02) and merged year headers that shifted a
+    # balance-of-payments series by a year while looking healthy.
+    #
+    # No network: these run against fixtures, so they are safe in CI and say
+    # nothing about the harvested data, which is not in this repository.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: caribstat
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm test
+
   bench-equivalence:
     # METHODOLOGY §4: the benchmark scorer's Class-A bands must stay equivalent to
     # the server's judge() — this is the pre-registered CI check (D-007 item 8).
