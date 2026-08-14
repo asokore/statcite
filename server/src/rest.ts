@@ -172,6 +172,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
           "/v1/indicators",
           "/v1/indicator/{key}?country=BRB&start_year=2015&end_year=2025&transform=none|yoy|pct_change|index&latest_only=true",
           "/v1/series?id=worldbank/NY.GDP.MKTP.KD.ZG&country=USA",
+          "/v1/series?id=caribstat/ECCB/total-public-sector-debt/AIA.a (regional central bank series; ECCB geographies and Barbados)",
           "/v1/search?q=government+debt",
           "/v1/snapshot/{country}",
           "/v1/verify?indicator=inflation_cpi&country=BRB&period=2024&value=1.4",
