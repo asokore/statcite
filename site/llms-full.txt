@@ -137,6 +137,14 @@ Errors: 400 missing params, 422 helpful failure (suggestions included), 502 upst
 - external_debt_service_usd. Total debt service on external debt (TDS, current US$) [current US$] (sources: World Bank WDI)
 - debt_service_exports_pct. Total debt service (% of exports of goods, services and primary income) [% of exports] (sources: World Bank WDI)
 
+## Caribbean central bank series (CaribStat)
+Regional data no aggregator carries, addressed by explicit series id rather than by registry key, because these are the publishing bank's own definitions and currencies and are not interchangeable with the global registry.
+- ECCB: `caribstat/ECCB/{table}/{ISO3}.{a|q|m}`. Tables: total-public-sector-debt, debt-to-gdp, central-government-fiscal-accounts, consumer-price-index, summarized-monetary-survey, interest-rates-deposits-loans, selected-tourism-statistics. Geographies: AIA ATG DMA GRD KNA LCA MSR VCT and XCU (union aggregate).
+- CBB: `caribstat/CBB/{table}/{sheet}`. Barbados balance of payments back to 1967, GDP, inflation and retail prices, tourism, labour.
+- Add `#Row Label` to select one row, e.g. `caribstat/ECCB/total-public-sector-debt/AIA.a#Central Government Debt`.
+- ANGUILLA AND MONTSERRAT are not World Bank reporting economies. country_snapshot for them returns ECCB items and says so; every other source in the chain has nothing.
+- Dates: ECCB stamps "data as at" and that stamp is carried into the citation. CBB publishes no such stamp, so its citations name the publication a figure came from and its publication date, which is a weaker and clearly-labelled claim.
+
 ## Countries
 ISO3/ISO2 codes or English names; aliases resolve (UK, South Korea, Ivory Coast, Türkiye…). Aggregates: WLD, EUU, EMU, OED, HIC/LIC/LMC/UMC, regions (LCN, SSF, EAS, ECS, MEA, NAC, SAS).
 
