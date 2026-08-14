@@ -84,6 +84,19 @@ export class ShapeError extends Error {
  * schedule as a 5xx, then surfaced as ShapeError so the caller can classify
  * "parseable but wrong shape" separately from a transport failure.
  */
+/**
+ * Is this URL already in the in-memory cache and still fresh?
+ *
+ * Exists for /v1/status. A probe wrapped around a cached fetchJson measures
+ * ~0ms and reports ok:true without touching the upstream, so the status page
+ * was reporting five green upstreams with ms:0 as though it had just checked
+ * them. That is a health page asserting health it did not observe.
+ */
+export function isMemCached(url: string): boolean {
+  const hit = mem.get(url);
+  return !!hit && hit.exp > Date.now();
+}
+
 export async function fetchJson(
   url: string,
   {

@@ -168,7 +168,7 @@ function markWeoProjections(vintageTag: string, observations: Observation[]): vo
 }
 
 async function indicatorFromWb(ctx: Ctx, def: IndicatorDef, country: Country, opts: SeriesOpts): Promise<SeriesResult> {
-  const wb = await fetchWbSeries(country.iso3, def.wb!);
+  const wb = await fetchWbSeries(country.iso3, def.wb!, { countryUnverified: country.unverified });
   const citation = worldBankCitation(ctx, {
     indicatorId: wb.indicatorId,
     indicatorName: wb.indicatorName,
@@ -472,7 +472,10 @@ function buildSourceAttempts(
 export async function getIndicator(ctx: Ctx, key: string, countryInput: string, opts: SeriesOpts = {}): Promise<SeriesResult> {
   const def = getIndicatorDef(key);
   if (!def) {
-    const near = searchIndicatorDefs(key, 5).map((m) => m.def.key);
+    // Suggestions must be actionable. Offering a permanently-disabled
+    // FRED-reserved key as a "closest match" sends the caller to a second
+    // guaranteed failure and makes the recovery advice untrue.
+    const near = searchIndicatorDefs(key, 8).filter((m) => !isDisabledDef(m.def)).slice(0, 5).map((m) => m.def.key);
     throw new ToolError(
       `Unknown indicator '${key}'.` +
         (near.length ? ` Closest matches: ${near.join(", ")}.` : "") +
@@ -736,7 +739,10 @@ export async function getIndicatorAsOf(
 ): Promise<{ result: SeriesResult; edition: string; sourceInfo: AsOfSourceInfo }> {
   const def = getIndicatorDef(key);
   if (!def) {
-    const near = searchIndicatorDefs(key, 5).map((m) => m.def.key);
+    // Suggestions must be actionable. Offering a permanently-disabled
+    // FRED-reserved key as a "closest match" sends the caller to a second
+    // guaranteed failure and makes the recovery advice untrue.
+    const near = searchIndicatorDefs(key, 8).filter((m) => !isDisabledDef(m.def)).slice(0, 5).map((m) => m.def.key);
     throw new ToolError(
       `Unknown indicator '${key}'.` + (near.length ? ` Closest matches: ${near.join(", ")}.` : ""),
       { input: key, suggestions: near },
@@ -823,7 +829,7 @@ export async function getSeries(
       throw new ToolError("World Bank series require a 'country' parameter (ISO3 code or name).", { series_id: id });
     }
     const country = requireCountry(opts.country);
-    const wb = await fetchWbSeries(country.iso3, code);
+    const wb = await fetchWbSeries(country.iso3, code, { countryUnverified: country.unverified });
     const citation = worldBankCitation(ctx, {
       indicatorId: wb.indicatorId,
       indicatorName: wb.indicatorName,
@@ -945,7 +951,7 @@ export interface SearchResultItem {
 }
 
 /** A registry key with no servable source def (FRED-only) is permanently disabled — it always declines. */
-function isDisabledDef(d: IndicatorDef): boolean {
+export function isDisabledDef(d: IndicatorDef): boolean {
   // "Disabled" means the def has NO servable source left — in practice the six
   // FRED-reserved keys. An sdmx-backed def is servable and must never be
   // reported inactive.
@@ -1075,7 +1081,10 @@ export interface CompareSourcesResult {
 export async function compareSources(ctx: Ctx, key: string, countryInput: string, period?: string): Promise<CompareSourcesResult> {
   const def = getIndicatorDef(key);
   if (!def) {
-    const near = searchIndicatorDefs(key, 5).map((m) => m.def.key);
+    // Suggestions must be actionable. Offering a permanently-disabled
+    // FRED-reserved key as a "closest match" sends the caller to a second
+    // guaranteed failure and makes the recovery advice untrue.
+    const near = searchIndicatorDefs(key, 8).filter((m) => !isDisabledDef(m.def)).slice(0, 5).map((m) => m.def.key);
     throw new ToolError(
       `Unknown indicator '${key}'.` + (near.length ? ` Closest matches: ${near.join(", ")}.` : ""),
       { input: key, suggestions: near },
@@ -1085,9 +1094,15 @@ export async function compareSources(ctx: Ctx, key: string, countryInput: string
   const year = period ? parseInt(period.slice(0, 4), 10) : undefined;
   // Window the fetch around the requested year (some cushion for latest-common
   // resolution); default window pulls recent history only.
+  // With no period given, a 12-observation tail is too narrow to find a shared
+  // period: sources publish to different horizons, so IMF projections running
+  // to 2030 and a World Bank series ending 2024 can have NO overlap inside
+  // twelve observations each, and the comparison reported "no common period"
+  // for a pair that overlaps for decades. Pull real history instead and let
+  // the intersection logic below choose the latest genuinely shared period.
   const opts: SeriesOpts = year
     ? { start: String(year - 1), end: String(year + 1) }
-    : { limit: 12 };
+    : { limit: 60 };
   const attempts = buildSourceAttempts(ctx, def, country, opts);
   if (attempts.length === 0) {
     throw new ToolError(`Indicator '${def.key}' has no comparable sources for ${country.name}.`, { indicator: def.key });
@@ -1141,7 +1156,7 @@ export async function compareSources(ctx: Ctx, key: string, countryInput: string
           }
         }
       } else {
-        notes.push("The responding sources share no common period with published values — per-source latest values are shown and no numeric comparison is made.");
+        notes.push("The responding sources share no common period with published values, so per-source latest values are shown and no numeric comparison is made. This reflects the sources' own published ranges, not a truncated lookup.");
       }
     }
   }
@@ -1161,8 +1176,16 @@ export async function compareSources(ctx: Ctx, key: string, countryInput: string
       spread_abs: max - min,
       spread_pct: mid > 1e-9 ? Math.round(((max - min) / mid) * 10000) / 100 : null,
     };
-  } else if (results.filter((r) => r.ok).length < 2) {
-    notes.push("Only one source responded — no cross-source comparison is possible right now; the per-source error fields say why.");
+  } else {
+    // "Only one" when the true count is ZERO is not a rounding error in the
+    // prose: an agent reads it as evidence that a figure was at least
+    // partially corroborated, when in fact nothing was returned at all.
+    const responded = results.filter((r) => r.ok).length;
+    if (responded === 1) {
+      notes.push("Only one source responded, so no cross-source comparison is possible right now. The per-source error fields say why.");
+    } else if (responded === 0) {
+      notes.push("No source returned a value for this indicator and country, so nothing here is corroborated. The per-source error fields say why.");
+    }
   }
 
   return { indicator: def.key, label: def.label, country: { iso3: country.iso3, name: country.name }, period: comparePeriod, results, comparison, notes };

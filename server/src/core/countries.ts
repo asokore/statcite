@@ -7,11 +7,48 @@ export interface Country {
   iso2: string;
   name: string;
   aggregate?: boolean;
+  /**
+   * True when this was NOT matched against the known-economy table and is only
+   * a syntactically plausible three-letter code passed through for the upstream
+   * to adjudicate. Downstream code must not describe such a code as an economy:
+   * saying "the World Bank does not publish GDP growth for XYZ, some economies
+   * are not reporting economies" asserts a coverage fact about a country that
+   * does not exist, which is precisely the fabrication this service exists to
+   * prevent.
+   */
+  unverified?: boolean;
 }
 
 type Row = [string, string, string, ...string[]]; // iso3, iso2, name, aliases
 
 const ROWS: Row[] = [
+  // Small territories and non-UN-member economies. Added 2026-08-13 after a
+  // check found 19 REAL places falling through the three-letter passthrough,
+  // including Montserrat and Anguilla, which are this service's own headline
+  // example of coverage the World Bank does not provide. While they were
+  // absent, the passthrough could not distinguish "a genuine economy the
+  // source does not cover" from "not a country at all", so the honest-absence
+  // contract rested on a table that did not know these places existed.
+  ["MSR", "MS", "Montserrat"],
+  ["AIA", "AI", "Anguilla"],
+  ["VGB", "VG", "British Virgin Islands", "bvi", "virgin islands british"],
+  ["TCA", "TC", "Turks and Caicos Islands", "turks and caicos"],
+  ["GIB", "GI", "Gibraltar"],
+  ["FLK", "FK", "Falkland Islands", "malvinas"],
+  ["SHN", "SH", "Saint Helena", "st helena"],
+  ["GRL", "GL", "Greenland"],
+  ["FRO", "FO", "Faroe Islands", "faroes"],
+  ["IMN", "IM", "Isle of Man"],
+  ["JEY", "JE", "Jersey"],
+  ["GGY", "GG", "Guernsey"],
+  ["NIU", "NU", "Niue"],
+  ["COK", "CK", "Cook Islands"],
+  ["REU", "RE", "Reunion", "réunion"],
+  ["GLP", "GP", "Guadeloupe"],
+  ["MTQ", "MQ", "Martinique"],
+  ["GUF", "GF", "French Guiana", "guyane"],
+  ["ESH", "EH", "Western Sahara"],
+  ["TWN", "TW", "Taiwan", "chinese taipei", "taiwan province of china"],
   ["AFG", "AF", "Afghanistan"],
   ["ALB", "AL", "Albania"],
   ["DZA", "DZ", "Algeria"],
@@ -302,7 +339,9 @@ export function resolveCountry(input: string, opts: { strict?: boolean } = {}): 
     if (uniq.length === 1) return hits[0].c;
   }
   // Pass through plausible ISO codes the map may not know — the upstream validates.
-  if (!opts.strict && /^[A-Z]{3}$/.test(upper)) return { iso3: upper, iso2: upper.slice(0, 2), name: upper };
+  if (!opts.strict && /^[A-Z]{3}$/.test(upper)) {
+    return { iso3: upper, iso2: upper.slice(0, 2), name: upper, unverified: true };
+  }
   return null;
 }
 

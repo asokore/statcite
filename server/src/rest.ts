@@ -3,7 +3,7 @@
 
 import type { Ctx } from "./core/types.ts";
 import { ToolError } from "./core/types.ts";
-import { UpstreamError, fetchJson } from "./core/upstream.ts";
+import { UpstreamError, fetchJson, isMemCached } from "./core/upstream.ts";
 import { getIndicator, getSeries, searchIndicators, listRegistry, compareSources } from "./core/series.ts";
 import { countrySnapshot } from "./core/snapshot.ts";
 import { inflationAdjust } from "./core/inflation.ts";
@@ -30,8 +30,45 @@ function errJson(status: number, message: string, details?: unknown): Response {
   return json(status, { error: { message, ...(details !== undefined ? { details } : {}) } });
 }
 
+/** A 405 that names the methods it will accept, as RFC 9110 requires. */
+function json405(message: string, allow: string): Response {
+  const r = errJson(405, message);
+  const h = new Headers(r.headers);
+  h.set("allow", allow);
+  return new Response(r.body, { status: 405, headers: h });
+}
+
+/** Strip the body from a response, preserving status and every header. */
+function toHead(r: Response): Response {
+  return new Response(null, { status: r.status, headers: r.headers });
+}
+
 /** Parameter-format error (thrown to produce a 400 with the parameter named). */
 class ParamError extends Error {}
+
+/**
+ * Query booleans, parsed properly.
+ *
+ * `q.get(name) === "true"` looks harmless and is not. `strict_source=1` read as
+ * false does not fail, it SILENTLY DOWNGRADES: the caller asked for a
+ * primary-source-only guarantee and quietly received a fallback value with a
+ * 200. `latest_only=1` returned all 65 observations instead of one. Both were
+ * live on 2026-08-13.
+ *
+ * An unparseable value is a 400 rather than a default, because for a
+ * reproducibility flag the safe direction is refusing the request, not guessing
+ * the permissive reading of it.
+ */
+function qBool(q: URLSearchParams, name: string, fallback = false): boolean {
+  const raw = q.get(name);
+  if (raw == null || raw === "") return fallback;
+  const v = raw.trim().toLowerCase();
+  if (["true", "1", "yes", "on"].includes(v)) return true;
+  if (["false", "0", "no", "off"].includes(v)) return false;
+  throw new ParamError(
+    `Query parameter '${name}' must be a boolean (true/false, 1/0, yes/no, on/off). Received '${raw}'.`,
+  );
+}
 
 function qNum(q: URLSearchParams, name: string, required: boolean): number | undefined {
   const raw = q.get(name);
@@ -64,7 +101,12 @@ interface UsageSlot {
 export async function handleRest(request: Request, ctx: Ctx): Promise<Response> {
   const started = Date.now();
   const slot: UsageSlot = {};
-  const res = await routeRest(request, ctx, slot);
+  const routed = await routeRest(request, ctx, slot);
+  // Strip the body once, here, rather than at every return point inside
+  // routeRest. HEAD must be byte-identical to GET in status and headers and
+  // carry no body, and doing it in one place is what guarantees the two can
+  // never drift apart.
+  const res = request.method === "HEAD" ? toHead(routed) : routed;
   try {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "");
@@ -106,7 +148,14 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
   const path = url.pathname.replace(/\/+$/, "");
 
   if (path === "/v1/verify_claims") return verifyClaimsRoute(request, ctx);
-  if (request.method !== "GET") return errJson(405, "Only GET is supported on /v1 endpoints (POST is accepted on /v1/verify_claims only).");
+  // HEAD must behave as GET-without-a-body. Rejecting it with 405 breaks every
+  // generic HTTP client, link checker and cache warmer that probes with HEAD
+  // before fetching, and a 405 carrying no Allow header does not even tell them
+  // what to use instead.
+  const isHead = request.method === "HEAD";
+  if (request.method !== "GET" && !isHead) {
+    return json405("Only GET and HEAD are supported on /v1 endpoints (POST is accepted on /v1/verify_claims only).", "GET, HEAD, OPTIONS");
+  }
 
   const q = url.searchParams;
 
@@ -118,7 +167,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
         description: "Official economic statistics with full citations, for AI agents and humans.",
         mcp_endpoint: `${ctx.baseUrl}/mcp`,
         openapi: `${ctx.baseUrl}/openapi.json`,
-        docs: `${ctx.baseUrl}/docs.html`,
+        docs: `${ctx.baseUrl}/docs`,
         endpoints: [
           "/v1/indicators",
           "/v1/indicator/{key}?country=BRB&start_year=2015&end_year=2025&transform=none|yoy|pct_change|index&latest_only=true",
@@ -127,7 +176,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
           "/v1/snapshot/{country}",
           "/v1/verify?indicator=inflation_cpi&country=BRB&period=2024&value=1.4",
           "/v1/verify_claims (POST, JSON body { claims: [{ indicator, country, period, claimed_value }] }, max 15 claims)",
-          "/v1/inflation?amount=100&from_year=1995&to_year=2025&country=USA",
+          "/v1/inflation?amount=100&from_year=1995&to_year=2024&country=USA",
           "/v1/fx?amount=100&from=USD&to=BBD&date=2024",
           "/v1/sources",
           "/v1/status",
@@ -157,29 +206,35 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
       // probe result reflects what real requests would experience). Probe
       // failures report as degraded — never a thrown error; the status page
       // must not be the least reliable part of the system.
-      const probes: Record<string, { ok: boolean; ms: number }> = {};
-      const probe = async (name: string, fn: () => Promise<boolean>) => {
+      const probes: Record<string, { ok: boolean; ms: number | null; cached: boolean }> = {};
+      // `cached` is not decoration. A probe served from the 120s cache measures
+      // ~0ms and returns ok:true without contacting the upstream at all, so
+      // without this field the status page reports five green sources with
+      // ms:0 as though it had just checked them. A health page must never
+      // assert freshness it did not observe: a cached probe reports ms:null.
+      const probe = async (name: string, url: string, fn: () => Promise<boolean>) => {
+        const cached = isMemCached(url);
         const t0 = Date.now();
         try {
-          probes[name] = { ok: await fn(), ms: Date.now() - t0 };
+          probes[name] = { ok: await fn(), ms: cached ? null : Date.now() - t0, cached };
         } catch {
-          probes[name] = { ok: false, ms: Date.now() - t0 };
+          probes[name] = { ok: false, ms: cached ? null : Date.now() - t0, cached };
         }
       };
       await Promise.all([
-        probe("worldbank", async () => {
+        probe("worldbank", "https://api.worldbank.org/v2/country/USA?format=json", async () => {
           await fetchJson("https://api.worldbank.org/v2/country/USA?format=json", { ttlSeconds: 120, timeoutMs: 5000 });
           return true;
         }),
-        probe("imf_datamapper", async () => {
+        probe("imf_datamapper", "https://www.imf.org/external/datamapper/api/v1/regions", async () => {
           await fetchJson("https://www.imf.org/external/datamapper/api/v1/regions", { ttlSeconds: 120, timeoutMs: 5000 });
           return true;
         }),
-        probe("dbnomics", async () => {
+        probe("dbnomics", "https://api.db.nomics.world/v22/datasets/IMF/WEO:latest?limit=1", async () => {
           await fetchJson("https://api.db.nomics.world/v22/datasets/IMF/WEO:latest?limit=1", { ttlSeconds: 120, timeoutMs: 5000 });
           return true;
         }),
-        probe("bis", async () => {
+        probe("bis", "https://stats.bis.org/api/v2/data/dataflow/BIS/WS_CBPOL/1.0/M.US?lastNObservations=1&format=sdmx-json", async () => {
           // NEVER probe BIS with HEAD: it returns 500 to HEAD on URLs that
           // serve 200 to GET (verified 2026-08-08). And BIS content-negotiates
           // JSON only via the vendor media type — a plain Accept yields XML,
@@ -191,7 +246,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
           });
           return true;
         }),
-        probe("ecb_data", async () => {
+        probe("ecb_data", "https://data-api.ecb.europa.eu/service/data/HICP/M.U2.N.000000.4D0.ANR?format=jsondata&lastNObservations=1", async () => {
           await fetchJson("https://data-api.ecb.europa.eu/service/data/HICP/M.U2.N.000000.4D0.ANR?format=jsondata&lastNObservations=1", {
             ttlSeconds: 120,
             timeoutMs: 5000,
@@ -205,7 +260,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
         version: SERVER_VERSION,
         status: allOk ? "ok" : "degraded",
         upstreams: probes,
-        note: "Upstream probes are cached ~120s; each hits the cheapest real endpoint for that source (never HEAD — BIS 500s on HEAD); 'degraded' means at least one primary source is unreachable right now — fallback chains may still serve affected indicators, with fallback_used disclosed per response.",
+        note: "Upstream probes are cached ~120s and a cached probe reports ms:null with cached:true, so a green row is never mistaken for a fresh measurement; each hits the cheapest real endpoint for that source (never HEAD — BIS 500s on HEAD); 'degraded' means at least one primary source is unreachable right now — fallback chains may still serve affected indicators, with fallback_used disclosed per response.",
       }, 120);
     }
 
@@ -213,13 +268,13 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
     if (indMatch) {
       const country = q.get("country");
       if (!country) return errJson(400, "Query parameter 'country' is required (ISO3 code or name).");
-      const latestOnly = q.get("latest_only") === "true";
+      const latestOnly = qBool(q, "latest_only");
       const result = await getIndicator(ctx, indMatch[1], country, {
         start: qYear(q, "start_year"),
         end: qYear(q, "end_year"),
         transform: parseTransform(q.get("transform")),
         limit: latestOnly ? 1 : 80,
-        strictSource: q.get("strict_source") === "true",
+        strictSource: qBool(q, "strict_source"),
       });
       // A fallback-sourced response must not linger in shared caches: once the
       // primary recovers, the same URL should serve the primary's value again.
@@ -235,7 +290,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
         end: qYear(q, "end_year"),
         transform: parseTransform(q.get("transform")),
         limit: 120,
-        strictSource: q.get("strict_source") === "true",
+        strictSource: qBool(q, "strict_source"),
       });
       return json(200, result, result.fallback_used ? 0 : 3600);
     }
@@ -285,6 +340,18 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
       const from = q.get("from");
       const to = q.get("to");
       if (!from || !to) return errJson(400, "Required: amount, from, to. Optional: date (YYYY-MM-DD or YYYY).");
+      // A future date is the CALLER's error, not an upstream outage. Letting it
+      // through produced a 502 "Upstream data source problem", which blames the
+      // ECB for a request it was never going to be able to answer and tells the
+      // caller to retry something that can never succeed.
+      const fxDate = q.get("date");
+      if (fxDate) {
+        const year = Number(fxDate.slice(0, 4));
+        const thisYear = new Date().getUTCFullYear();
+        if (Number.isFinite(year) && year > thisYear) {
+          return errJson(422, `ECB reference rates are only published up to the present day; '${fxDate}' is in the future.`);
+        }
+      }
       return json(200, await fxConvert(ctx, qNum(q, "amount", true)!, from, to, q.get("date") ?? undefined), 1800);
     }
 
@@ -306,10 +373,11 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
 }
 
 async function verifyClaimsRoute(request: Request, ctx: Ctx): Promise<Response> {
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders() });
   if (request.method !== "POST") {
-    return errJson(
-      405,
+    return json405(
       'Use POST for /v1/verify_claims with a JSON body: { "claims": [{ "indicator": "inflation_cpi", "country": "BRB", "period": "2024", "claimed_value": 1.4 }] } (1–15 claims per call).',
+      "POST, OPTIONS",
     );
   }
   const contentType = request.headers.get("content-type") ?? "";

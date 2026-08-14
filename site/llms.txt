@@ -13,7 +13,7 @@ Key facts: no API key, no auth, CORS open, read-only. MCP endpoint: https://stat
 ## Quick use
 
 - [Verify a stat](https://statcite.com/v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=4.1): GET /v1/verify?indicator=…&country=…&period=…&value=…
-- Verify a batch of claims: POST /v1/verify_claims with JSON body {"claims":[{"indicator":…,"country":…,"period":…,"claimed_value":…}]} (1–15 claims)
+- [Verify a batch of claims](https://statcite.com/docs#verify_claims): POST /v1/verify_claims with JSON body {"claims":[{"indicator":…,"country":…,"period":…,"claimed_value":…}]} (1–15 claims)
 - [Get an indicator](https://statcite.com/v1/indicator/gdp_growth?country=BRB&latest_only=true): GET /v1/indicator/{key}?country=…
 - [Country snapshot](https://statcite.com/v1/snapshot/Japan): GET /v1/snapshot/{country}
 - [Sources & licenses](https://statcite.com/v1/sources): what backs every number

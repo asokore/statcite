@@ -33,7 +33,7 @@ export async function inflationAdjust(
     throw new ToolError("'from_year' and 'to_year' must be integer years, e.g. 1995 and 2025.");
   }
   const country = requireCountry(countryInput);
-  const wb = await fetchWbSeries(country.iso3, "FP.CPI.TOTL");
+  const wb = await fetchWbSeries(country.iso3, "FP.CPI.TOTL", { countryUnverified: country.unverified });
   const byYear = new Map(wb.observations.filter((o) => o.value != null).map((o) => [parseInt(o.period, 10), o.value as number]));
   const years = [...byYear.keys()].sort((a, b) => a - b);
   if (years.length === 0) {

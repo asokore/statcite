@@ -91,7 +91,7 @@ curl "https://statcite.com/v1/verify?indicator=inflation_cpi&country=USA&period=
 curl -X POST https://statcite.com/mcp -H "content-type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
-Expect: health ok · verdict "match" with citation · 11 tools.
+Expect: health ok · verdict "match" with citation · 12 tools.
 
 Then the real test: **Claude → Settings → Connectors → Add custom connector → `https://statcite.com/mcp`** and ask Claude: *"Verify this claim and cite the source: Barbados inflation was about 1.4% in 2024."* It should call `verify_stat` and answer with the citation.
 

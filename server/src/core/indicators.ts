@@ -210,7 +210,7 @@ export const INDICATORS: IndicatorDef[] = [
     synonyms: ["fdi", "foreign direct investment", "fdi inflows"],
   },
   // SDMX sources (BIS, ECB). Policy rates fill the hole left by FRED's
-  // permanent disablement — BIS WS_CBPOL covers ~38 central banks in one
+  // permanent disablement — BIS WS_CBPOL covers 49 economies in one
   // flow, licence-clean, no key. Licence ledger entries live in core/sources.ts.
   {
     key: "policy_rate",

@@ -510,7 +510,7 @@ var INDICATORS = [
     synonyms: ["fdi", "foreign direct investment", "fdi inflows"]
   },
   // SDMX sources (BIS, ECB). Policy rates fill the hole left by FRED's
-  // permanent disablement — BIS WS_CBPOL covers ~38 central banks in one
+  // permanent disablement — BIS WS_CBPOL covers 49 economies in one
   // flow, licence-clean, no key. Licence ledger entries live in core/sources.ts.
   {
     key: "policy_rate",
@@ -3065,7 +3065,7 @@ var SOURCES = [
   {
     id: "bis",
     name: "Bank for International Settlements \u2014 central bank policy rates",
-    coverage: "Policy rates for ~38 central banks (the rate that best captures each monetary authority's policy stance), monthly and daily, via the BIS SDMX API",
+    coverage: "Policy rates for 49 economies (the rate that best captures each monetary authority's policy stance), monthly and daily, via the BIS SDMX API",
     access: "No key; queried live from stats.bis.org/api/v2 (SDMX-JSON via Accept header)",
     license: "BIS statistics may be reproduced and redistributed with attribution; see the BIS terms and conditions for statistics",
     license_verdict: "served",

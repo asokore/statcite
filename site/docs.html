@@ -7,6 +7,20 @@
 <meta name="description" content="Full reference for the StatCite MCP server and REST API: tools, parameters, indicator registry, citation object spec, sources and licensing.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="canonical" href="https://statcite.com/docs">
+<meta property="og:title" content="StatCite Docs — MCP tools, REST API, indicator registry">
+<meta property="og:description" content="Full reference for the StatCite MCP server and REST API: tools, parameters, the indicator registry, the citation object spec, and sources and licensing.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://statcite.com/docs">
+<meta property="og:site_name" content="StatCite">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="StatCite Docs — MCP tools, REST API, indicator registry">
+<meta name="twitter:description" content="Full reference for the StatCite MCP server and REST API: tools, parameters, the indicator registry, the citation object spec, and sources and licensing.">
+<meta property="og:image" content="https://statcite.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="StatCite: economic statistics your AI can actually cite. Every number ships with its source, dataset, series id and licence.">
+<meta name="twitter:image" content="https://statcite.com/og.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <style>
 :root{--bg:#0b0f14;--card:#141c25;--line:#22303d;--text:#dbe4ec;--dim:#8fa1b0;--faint:#6b7f8e;--accent:#4cc38a;--accent2:#7cb8ff;--warn:#e5b567;
 --mono:ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,sans-serif}
@@ -122,7 +136,7 @@ li{margin:4px 0}
   <p>Raw series by explicit id. Params: <code>series_id</code> (required), <code>country</code> (for worldbank/*), <code>start_year</code>, <code>end_year</code>, <code>transform</code>. <code>fred/…</code> ids are recognized but always declined — FRED is disabled on this server (§8) — with cross-country alternatives suggested.</p>
 
   <h3>policy_rate / euro_area_hicp (SDMX sources)</h3>
-  <p>Two registry keys are served from SDMX APIs rather than the World Bank/IMF chain. <code>policy_rate</code> returns the BIS central-bank policy rate (monthly; the ~38 central banks the BIS compiles — economies outside that set return an honest no-published-data response rather than a substitute). <code>euro_area_hicp</code> returns monthly euro-area harmonised inflation from the ECB Data Portal, and is a euro-area aggregate only: request it with <code>country="euro area"</code>; a national country is rejected rather than silently answered with the aggregate. Both carry an upstream <strong>freshness check</strong> — if the newest published observation is older than the expectation for its frequency, the response carries a disclosure note, because a stalled dataflow returns HTTP 200 with well-formed but stale data rather than an error.</p>
+  <p>Two registry keys are served from SDMX APIs rather than the World Bank/IMF chain. <code>policy_rate</code> returns the BIS central-bank policy rate (monthly; the 49 economies the BIS compiles — economies outside that set return an honest no-published-data response rather than a substitute). <code>euro_area_hicp</code> returns monthly euro-area harmonised inflation from the ECB Data Portal, and is a euro-area aggregate only: request it with <code>country="euro area"</code>; a national country is rejected rather than silently answered with the aggregate. Both carry an upstream <strong>freshness check</strong> — if the newest published observation is older than the expectation for its frequency, the response carries a disclosure note, because a stalled dataflow returns HTTP 200 with well-formed but stale data rather than an error.</p>
 
   <h3>compare_sources</h3>
   <p>One indicator for one country fetched from <em>every</em> official source in its chain independently — e.g. World Bank WDI and the IMF WEO/Fiscal Monitor — each value with its own citation, plus spread statistics. Params: <code>indicator</code> (registry key), <code>country</code>, optional <code>period</code> (year; default is the latest period every responding source shares). Differences between sources are methodological or vintage differences (central vs general government coverage, calendar vs fiscal years, edition lags), never "source X is wrong" — cite the source whose definition matches your claim. A source that is down reports its error in place without sinking the comparison. REST: <code>GET /v1/compare?indicator=&amp;country=&amp;period=</code>.</p>
@@ -155,7 +169,7 @@ GET /v1/search?q=government+debt
 GET /v1/snapshot/{country}
 GET /v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=4.1
 POST /v1/verify_claims                    → JSON body { claims: [...] }, 1–15 claims (the only non-GET route)
-GET /v1/inflation?amount=100&from_year=1995&to_year=2025&country=USA
+GET /v1/inflation?amount=100&from_year=1995&to_year=2024&country=USA
 GET /v1/fx?amount=100&from=USD&to=BBD&date=2024
 GET /v1/sources
 GET /health</pre>

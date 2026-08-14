@@ -20,6 +20,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { handleRequest, type Env } from "../src/index.ts";
 import { _clearMemCache } from "../src/core/upstream.ts";
+import { resolveCountry } from "../src/core/countries.ts";
 
 const env = { ASSETS: { fetch: async () => new Response("site") }, BASE_URL: "https://statcite.com" } as unknown as Env;
 
@@ -79,4 +80,33 @@ test("a genuine upstream API error is still surfaced as an error, not disguised 
   const text = JSON.stringify(body);
   assert.match(text, /Service temporarily unavailable|World Bank API error/i);
   assert.ok(!/does not publish/i.test(text), "a transient fault must never be reported as a coverage fact");
+});
+
+// --- a coverage fact is not the same as an unknown code -------------------
+//
+// Live on 2026-08-13: country=XYZ returned "The World Bank does not publish
+// NY.GDP.MKTP.KD.ZG for 'XYZ'. This is a coverage fact at the source ... some
+// economies are not World Bank reporting economies at all." That invents a
+// country and then reports a coverage fact about it, which is exactly the
+// fabrication this service exists to prevent.
+//
+// The root cause was not the message. resolveCountry passes any plausible
+// three-letter code through for the upstream to adjudicate, and the countries
+// table was missing 19 REAL economies, so the passthrough could not tell a
+// genuine uncovered economy from a made-up code. Both halves are tested here.
+
+test("REAL economies resolve, and are not treated as unknown codes", () => {
+  for (const iso3 of ["MSR", "AIA", "VGB", "TCA", "GIB", "GRL", "FRO", "IMN", "JEY", "GGY", "TWN", "COK", "NIU"]) {
+    const c = resolveCountry(iso3);
+    assert.ok(c, `${iso3} must resolve`);
+    assert.ok(!c!.unverified, `${iso3} is a real economy and must not be flagged unverified`);
+    assert.notEqual(c!.name, iso3, `${iso3} must resolve to a NAME, not echo its own code`);
+  }
+});
+
+test("a made-up code is flagged unverified rather than described as an economy", () => {
+  for (const junk of ["XYZ", "ZZZ", "QQQ"]) {
+    const c = resolveCountry(junk);
+    assert.ok(c?.unverified, `${junk} must be marked unverified so no coverage fact is asserted about it`);
+  }
 });

@@ -1,0 +1,58 @@
+<!doctype html>
+<!--
+  Source artwork for /og.png, the social/link-preview card.
+
+  Kept in the repo rather than as a binary blob alone, so the card can be
+  regenerated and edited. Render at exactly 1200x630 and screenshot to og.png.
+  Deliberately reuses the site's own palette and the favicon mark so a shared
+  link looks like the site it points at.
+-->
+<html lang="en"><head><meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1200px;height:630px;overflow:hidden}
+  body{
+    background:#0b0f14;
+    color:#dbe4ec;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,sans-serif;
+    display:flex;flex-direction:column;justify-content:center;
+    padding:0 86px;position:relative;
+  }
+  /* faint grid, echoing a data table without being literal about it */
+  body:before{
+    content:"";position:absolute;inset:0;
+    background-image:linear-gradient(#22303d 1px,transparent 1px),linear-gradient(90deg,#22303d 1px,transparent 1px);
+    background-size:60px 60px;opacity:.28;
+  }
+  .inner{position:relative;z-index:1}
+  .mark{display:flex;align-items:center;gap:16px;margin-bottom:34px}
+  .mark span{font-size:34px;font-weight:700;letter-spacing:-.02em}
+  h1{font-size:66px;line-height:1.1;letter-spacing:-.025em;max-width:1010px;font-weight:700}
+  h1 em{font-style:normal;color:#4cc38a}
+  p{margin-top:26px;font-size:27px;color:#8fa1b0;max-width:940px;line-height:1.45}
+  .foot{margin-top:44px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .pill{
+    font-family:ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;
+    font-size:20px;color:#4cc38a;border:1px solid #2a4a3a;background:#12241c;
+    border-radius:22px;padding:8px 20px;
+  }
+  .src{font-size:20px;color:#6b7f8e}
+</style></head>
+<body>
+<div class="inner">
+  <div class="mark">
+    <svg width="44" height="44" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1.5" y="1.5" width="29" height="29" rx="7" stroke="#4cc38a" stroke-width="2.4"/>
+      <path d="M8 21.5 L13 13.5 L18 17.5 L24 9" stroke="#4cc38a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>StatCite</span>
+  </div>
+  <h1>Economic statistics your AI can <em>actually cite</em></h1>
+  <p>Every number ships with its source, dataset, series id and licence. Plus <strong style="color:#dbe4ec;font-weight:600">verify_stat</strong>: check a claimed figure against the official series.</p>
+  <div class="foot">
+    <span class="pill">statcite.com/mcp</span>
+    <span class="src">World Bank &middot; IMF &middot; BIS &middot; ECB &middot; free, no key</span>
+  </div>
+</div>
+</body></html>
