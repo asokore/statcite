@@ -7,6 +7,8 @@ import { getIndicatorDef } from "./indicators.ts";
 import { fetchWbMulti } from "../adapters/worldbank.ts";
 import { worldBankCitation } from "./citations.ts";
 import { latestNonNull } from "./transforms.ts";
+import { fetchCaribstatSeries, CARIBSTAT_ENABLED } from "../adapters/caribstat.ts";
+import { caribstatCitation } from "./citations.ts";
 
 const SNAPSHOT_WB_KEYS = [
   "gdp_current_usd",
@@ -19,6 +21,37 @@ const SNAPSHOT_WB_KEYS = [
   "trade_gdp",
   "fdi_inflows_gdp",
   "life_expectancy",
+] as const;
+
+/**
+ * ECCU geographies, plus the currency union aggregate.
+ *
+ * Anguilla and Montserrat are the reason this exists. Neither is a World Bank
+ * reporting economy, so the snapshot's usual path finds nothing and the whole
+ * call used to fail with "no snapshot data available" for countries whose
+ * central bank publishes full debt, fiscal and price statistics every quarter.
+ * That was the exact gap this service claims to close, failing at the one
+ * endpoint an agent reaches for first.
+ */
+export const ECCU_ISO3 = new Set(["AIA", "ATG", "DMA", "GRD", "KNA", "LCA", "MSR", "VCT", "XCU"]);
+
+/** Headline rows worth a snapshot slot, in the order they should appear. */
+const ECCU_SUPPLEMENT = [
+  {
+    key: "public_sector_debt_ec",
+    label: "Central government debt (ECCB)",
+    id: (iso3: string) => `caribstat/ECCB/total-public-sector-debt/${iso3}.a#Central Government Debt`,
+  },
+  {
+    key: "inflation_cpi_eccb",
+    label: "Inflation, end of period (ECCB)",
+    id: (iso3: string) => `caribstat/ECCB/consumer-price-index/${iso3}.a#Inflation Rate - end of period`,
+  },
+  {
+    key: "govt_revenue_ec",
+    label: "Total revenue and grants (ECCB)",
+    id: (iso3: string) => `caribstat/ECCB/central-government-fiscal-accounts/${iso3}.a#Total Revenue and Grants`,
+  },
 ] as const;
 
 export interface SnapshotItem {
@@ -49,7 +82,18 @@ export async function countrySnapshot(ctx: Ctx, countryInput: string): Promise<S
   const defs = SNAPSHOT_WB_KEYS.map((k) => getIndicatorDef(k)!);
   const codes = defs.map((d) => d.wb!) as string[];
 
-  const byCode = await fetchWbMulti(country.iso3, codes, { mrv: 8 });
+  // A World Bank failure must not decide whether a snapshot exists. Montserrat
+  // is not a World Bank reporting economy, so this call throws a coverage
+  // error, and letting it propagate killed the whole snapshot for a country
+  // whose central bank publishes debt, prices and fiscal accounts. One source
+  // not covering a country is a fact about that source, not about the country.
+  let byCode: Awaited<ReturnType<typeof fetchWbMulti>> = new Map();
+  let wbFailed: string | undefined;
+  try {
+    byCode = await fetchWbMulti(country.iso3, codes, { mrv: 8 });
+  } catch (e) {
+    wbFailed = e instanceof Error ? e.message : String(e);
+  }
   const items: SnapshotItem[] = [];
   const missing: string[] = [];
   const notes: string[] = [
@@ -110,6 +154,57 @@ export async function countrySnapshot(ctx: Ctx, countryInput: string): Promise<S
     }
   } catch {
     missing.push("govt_debt_gdp");
+  }
+
+  // ECCU supplement. Deliberately AFTER the World Bank pass and additive: for
+  // a country the World Bank does cover, these sit alongside rather than
+  // replacing, since the two use different definitions and currencies and one
+  // must never silently stand in for the other.
+  if (CARIBSTAT_ENABLED && ECCU_ISO3.has(country.iso3)) {
+    for (const spec of ECCU_SUPPLEMENT) {
+      try {
+        const c = await fetchCaribstatSeries(spec.id(country.iso3));
+        const latest = latestNonNull(c.observations);
+        if (!latest) continue;
+        items.push({
+          indicator: spec.key,
+          label: spec.label,
+          period: latest.period,
+          value: latest.value as number,
+          unit: c.unit ?? "",
+          citation: caribstatCitation(ctx, {
+            source: c.doc.source,
+            sourceUrl: c.doc.source_url,
+            tableTitle: c.doc.table_title ?? c.doc.sheet,
+            rowLabel: c.label,
+            countryName: c.doc.country.name,
+            frequency: c.doc.frequency ?? "a",
+            dataAsAt: c.doc.data_as_at,
+            dataAsAtRaw: c.doc.data_as_at_raw,
+            publicationTitle: c.doc.publication_title,
+            publishedAt: c.doc.published_at,
+            attachmentUrl: c.doc.attachment_url,
+            apiUrl: c.apiUrl,
+            seriesId: spec.id(country.iso3),
+          }),
+        });
+      } catch {
+        // A missing table is not a snapshot failure. The bank does not publish
+        // every table for every geography and the honest result is a shorter
+        // snapshot, not an error.
+        missing.push(spec.key);
+      }
+    }
+    if (items.length) {
+      if (wbFailed) {
+        notes.push(
+          "The World Bank publishes none of its headline indicators for this economy, so everything here comes from the regional central bank.",
+        );
+      }
+      notes.push(
+        "Items marked (ECCB) come from the Eastern Caribbean Central Bank, not the World Bank. They are stated in EC$ and on the ECCB's own definitions, so they are not interchangeable with the World Bank series above.",
+      );
+    }
   }
 
   if (items.length === 0) {
