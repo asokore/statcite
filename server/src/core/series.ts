@@ -12,7 +12,7 @@ import { fetchFredSeries, fredAvailable } from "../adapters/fred.ts";
 import { fetchDataMapperSeries, fetchDataMapperMetadata, computeBoundaryYear, parseEditionLabel } from "../adapters/datamapper.ts";
 import { worldBankCitation, dbnomicsCitation, fredCitation, imfDataMapperCitation, sdmxCitation, caribstatCitation } from "./citations.ts";
 import { fetchSdmxSeries, BIS_POLICY_RATE_AREAS } from "../adapters/sdmx.ts";
-import { fetchCaribstatSeries, inferFrequency, searchCaribstat, CARIBSTAT_ENABLED } from "../adapters/caribstat.ts";
+import { fetchCaribstatSeries, inferFrequency, searchCaribstat, searchUnctadGap, CARIBSTAT_ENABLED } from "../adapters/caribstat.ts";
 import { isTransientUpstreamError } from "./upstream.ts";
 export { expectedWeoEdition } from "./weo-calendar.ts";
 import { expectedWeoEdition } from "./weo-calendar.ts";
@@ -1046,6 +1046,19 @@ export async function searchIndicators(ctx: Ctx, query: string, opts: { includeD
         usage: `get_series(id="${hit.id}") — add '#Row Label' to pick a row, e.g. '#${hit.entry.sampleRow}'`,
       });
     }
+  }
+
+  // Economies the main chain cannot serve GDP for at all. Surfaced with the
+  // range stated, because the series stops in 2019 and a caller asking about
+  // GDP today must not be handed a six-year-old number without being told.
+  for (const g of searchUnctadGap(query)) {
+    items.push({
+      type: "dbnomics_dataset",
+      id: g.id,
+      title: `UNCTAD: GDP growth, ${g.name} (1971-2019)`,
+      description: `The World Bank and IMF publish no GDP series for ${g.name}. UNCTAD does, annually from 1971, but it ENDS IN 2019, so it is history rather than a current figure.`,
+      usage: `get_series(id="${g.id}")`,
+    });
   }
 
   if (opts.includeDbnomics !== false && items.length < 5) {
