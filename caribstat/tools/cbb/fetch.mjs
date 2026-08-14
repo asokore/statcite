@@ -79,13 +79,19 @@ export const CBB_UNEXTRACTED = ["statistics"];
 
 /**
  * Partially extracted, with the reason. The balance-of-payments workbook has
- * 15 sheets; 4 extract cleanly via the transposed reader (12,719 observations
- * back to 1967). The rest use a MERGED-CELL HEADER: the year label sits one
- * column to the LEFT of the values it heads (row 2 reads 1967, blank, 1968,
- * 1969...), so a strict period-run match breaks on the gap and an offset guess
- * would silently shift every series by one year. Left unextracted rather than
- * guessed — an off-by-one year on a balance-of-payments figure is exactly the
- * kind of wrong-but-plausible number this pipeline exists to prevent.
+ * 15 sheets and 14 now extract; the 15th is the Table of Contents, which is
+ * correctly not read as data. Nothing here is left unextracted.
+ *
+ * Historically only 4 extracted. The other 10 use a MERGED-CELL HEADER: the
+ * year label sits one column to the LEFT of the values it heads (row 2 reads
+ * 1967, blank, 1968, 1969...), so a strict period-run match broke on the gap,
+ * and an offset guess would have silently shifted every series by one year.
+ * They were left unextracted rather than guessed, until the transposed reader
+ * and the merged-header span rule landed and read the span correctly instead
+ * of guessing at it. Both rules are covered by tests — see the MERGED HEADER
+ * and TRANSPOSED cases in the suite — because an off-by-one year on a
+ * balance-of-payments figure is exactly the kind of wrong-but-plausible
+ * number this pipeline exists to prevent.
  */
 export const CBB_PARTIAL = {
   "balance-of-payments-reports":
