@@ -28,8 +28,11 @@ import { fetchJson } from "../core/upstream.ts";
 import { ToolError } from "../core/types.ts";
 import type { Observation } from "../core/types.ts";
 
-/** Not yet served. Flip only when the licence ledger carries the grant. */
-export const CARIBSTAT_ENABLED = false;
+/** Served since 2026-08-14. The ECCB ledger entry records the grant that
+ * permits it. CBB is collected but NOT served: its documents deliberately
+ * carry `published_at` rather than `data_as_at` and sit at a different path
+ * shape, so serving it needs an adapter change, not a flag. */
+export const CARIBSTAT_ENABLED = true;
 
 /** Publishing origin for the ingested JSON. Overridable so the adapter can be
  * tested against a local corpus before any origin exists. */
@@ -143,16 +146,33 @@ export function selectRow(doc: CaribstatDoc, want?: string): { label: string; un
 export async function fetchCaribstatSeries(id: string, opts: { origin?: string; ttlSeconds?: number } = {}): Promise<CaribstatSeries> {
   const parsed = parseCaribstatId(id);
   const apiUrl = caribstatUrl(parsed, opts.origin ?? CARIBSTAT_ORIGIN);
-  const doc = (await fetchJson(apiUrl, {
+  // A 404 from the origin means THIS SERIES DOES NOT EXIST, not that the
+  // upstream is broken. Letting it surface as a 502 "upstream data source
+  // problem" (with a page of GitHub's 404 HTML attached) blames the origin for
+  // the caller's request and tells them to retry something that can never
+  // succeed. Not every table is collected at every frequency: CPI is annual
+  // and quarterly only, so `consumer-price-index/GRD.m` is a real miss.
+  let doc: CaribstatDoc;
+  try {
+    doc = (await fetchJson(apiUrl, {
     // Six hours: the banks publish monthly at best, and the document carries
     // its own data_as_at so a consumer can always see the real currency.
-    ttlSeconds: opts.ttlSeconds ?? 21600,
-    timeoutMs: 8000,
-    validate: (d) => {
-      const x = d as CaribstatDoc;
-      return Boolean(x && typeof x === "object" && Array.isArray(x.series) && x.country?.iso3 && x.source);
-    },
-  })) as CaribstatDoc;
+      ttlSeconds: opts.ttlSeconds ?? 21600,
+      timeoutMs: 8000,
+      validate: (d) => {
+        const x = d as CaribstatDoc;
+        return Boolean(x && typeof x === "object" && Array.isArray(x.series) && x.country?.iso3 && x.source);
+      },
+    })) as CaribstatDoc;
+  } catch (e) {
+    if (e instanceof Error && /HTTP 404/.test(e.message)) {
+      throw new ToolError(
+        `No CaribStat series '${id}'. That combination of table, country and frequency is not collected. Not every table exists at every frequency: consumer-price-index is annual and quarterly only, and public-sector-debt is annual only.`,
+        { series_id: id, api_url: apiUrl, no_published_data: true },
+      );
+    }
+    throw e;
+  }
 
   const row = selectRow(doc, parsed.row);
   return { doc, label: row.label, unit: row.unit, observations: row.observations, apiUrl };

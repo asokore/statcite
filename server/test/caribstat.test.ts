@@ -163,11 +163,26 @@ test("the citation keeps the BANK's currency date separate from our retrieval da
 
 // --- the serving gate ------------------------------------------------------
 
-test("CaribStat is NOT served until its licence ledger entry exists", () => {
-  // Guards against the flag being flipped incidentally alongside unrelated
-  // work. Serving is a licence decision, not an engineering one: the ledger at
-  // /v1/sources is a public claim about what StatCite is permitted to
-  // redistribute, and every other entry in it carries a verbatim basis, scope
-  // and verification date. This one must too before this becomes true.
-  assert.equal(CARIBSTAT_ENABLED, false);
+test("CARIBSTAT_ENABLED and the licence ledger must agree", async () => {
+  // The original form of this test asserted the flag was false. That was right
+  // while nothing was served and useless the moment it was, so it now asserts
+  // the invariant it was always protecting: serving is a LICENCE decision, and
+  // the flag may only be true when the ledger says the source may be served.
+  // The ledger at /v1/sources is a public claim about what StatCite is
+  // permitted to redistribute. The flag getting ahead of it is the failure
+  // this guards against, in either direction.
+  const { SOURCES } = await import("../src/core/sources.ts");
+  const eccb = SOURCES.find((x) => x.id === "eccb");
+  assert.ok(eccb, "eccb must have a ledger entry either way");
+  if (CARIBSTAT_ENABLED) {
+    assert.equal(eccb!.license_verdict, "served",
+      "the adapter is enabled, so the ledger must record permission to serve");
+    assert.ok((eccb!.license_note ?? "").length > 60,
+      "a served entry must state the basis for the permission it relies on");
+    assert.ok(!/not applicable/i.test(eccb!.attribution_required ?? ""),
+      "a served source must name its required attribution");
+  } else {
+    assert.notEqual(eccb!.license_verdict, "served",
+      "the ledger claims permission to serve while the adapter is off");
+  }
 });

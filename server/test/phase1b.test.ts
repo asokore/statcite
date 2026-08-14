@@ -14,10 +14,12 @@ test("licence ledger: every source carries a verdict, note, and verified-on date
     assert.ok(s.license_note?.length > 20, `${s.id} lacks a licence note`);
     assert.match(s.license_verified_on, /^\d{4}-\d{2}-\d{2}$/, `${s.id} lacks a verified-on date`);
   }
-  for (const refused of ["fred", "un_comtrade", "eccb", "cbb"]) {
+  for (const refused of ["fred", "un_comtrade", "cbb"]) {
     assert.equal((byId.get(refused) as any)?.license_verdict, "refused", `refused source ${refused} missing from ledger`);
   }
   assert.equal((byId.get("worldbank") as any)?.license_verdict, "served");
+  // ECCB moved refused -> served on 2026-08-14 when the grant was recorded.
+  assert.equal((byId.get("eccb") as any)?.license_verdict, "served");
   assert.equal((byId.get("dbnomics") as any)?.license_verdict, "flow_through");
 });
 

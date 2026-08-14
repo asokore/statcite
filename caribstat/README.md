@@ -9,6 +9,12 @@ and the phasing. This file records current status only.
 
 ## Status: 2026-08-10
 
+**ECCB IS SERVED, live at statcite.com since 2026-08-14.** The data is published at
+github.com/asokore/caribstat and fetched by the Worker like any other upstream.
+CBB is collected but not served: its documents carry a publication date rather
+than the Bank's own currency stamp, and serving them as equivalent would
+misstate the source.
+
 **Phase 0 (licence gate): CLEARED.** The operator obtained permission from the
 source institution. Ingestion proceeds.
 
