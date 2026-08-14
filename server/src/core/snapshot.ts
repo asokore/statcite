@@ -52,6 +52,21 @@ const ECCU_SUPPLEMENT = [
     label: "Total revenue and grants (ECCB)",
     id: (iso3: string) => `caribstat/ECCB/central-government-fiscal-accounts/${iso3}.a#Total Revenue and Grants`,
   },
+  {
+    // The one directly comparable to the global govt_debt_gdp concept, and a
+    // ratio rather than an EC$ level, so it is readable without knowing the
+    // currency or the size of the economy.
+    key: "govt_debt_gdp_eccb",
+    label: "Central government debt to GDP (ECCB)",
+    id: (iso3: string) => `caribstat/ECCB/debt-to-gdp/${iso3}.a#Central Government Debt to GDP`,
+  },
+  {
+    // Tourism is the dominant sector in most of these economies, so a snapshot
+    // that omits it describes them poorly however many other rows it carries.
+    key: "visitor_arrivals_eccb",
+    label: "Total visitor arrivals (ECCB)",
+    id: (iso3: string) => `caribstat/ECCB/selected-tourism-statistics/${iso3}.a#Total Visitor Arrivals`,
+  },
 ] as const;
 
 export interface SnapshotItem {
