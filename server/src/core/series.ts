@@ -12,7 +12,7 @@ import { fetchFredSeries, fredAvailable } from "../adapters/fred.ts";
 import { fetchDataMapperSeries, fetchDataMapperMetadata, computeBoundaryYear, parseEditionLabel } from "../adapters/datamapper.ts";
 import { worldBankCitation, dbnomicsCitation, fredCitation, imfDataMapperCitation, sdmxCitation, caribstatCitation } from "./citations.ts";
 import { fetchSdmxSeries, BIS_POLICY_RATE_AREAS } from "../adapters/sdmx.ts";
-import { fetchCaribstatSeries, inferFrequency, CARIBSTAT_ENABLED } from "../adapters/caribstat.ts";
+import { fetchCaribstatSeries, inferFrequency, searchCaribstat, CARIBSTAT_ENABLED } from "../adapters/caribstat.ts";
 import { isTransientUpstreamError } from "./upstream.ts";
 export { expectedWeoEdition } from "./weo-calendar.ts";
 import { expectedWeoEdition } from "./weo-calendar.ts";
@@ -991,7 +991,7 @@ export async function getSeries(
 }
 
 export interface SearchResultItem {
-  type: "indicator" | "dbnomics_dataset";
+  type: "indicator" | "dbnomics_dataset" | "caribstat_series";
   id: string;
   title: string;
   description?: string;
@@ -1032,6 +1032,22 @@ export async function searchIndicators(ctx: Ctx, query: string, opts: { includeD
       active: !disabled,
     };
   });
+  // Regional series, surfaced before the DBnomics fallback. A query naming a
+  // Caribbean economy should find the central bank that actually publishes it
+  // rather than an unrelated Eurostat dataset, which is what "anguilla"
+  // returned before this existed.
+  if (CARIBSTAT_ENABLED) {
+    for (const hit of searchCaribstat(query, 4)) {
+      items.push({
+        type: "caribstat_series",
+        id: hit.id,
+        title: `${hit.entry.provider}: ${hit.entry.title}${hit.iso3 ? `, ${hit.iso3}` : ""}`,
+        description: `${hit.why}. Regional central bank data, not a registry indicator: values are on the publishing bank's own definitions.`,
+        usage: `get_series(id="${hit.id}") — add '#Row Label' to pick a row, e.g. '#${hit.entry.sampleRow}'`,
+      });
+    }
+  }
+
   if (opts.includeDbnomics !== false && items.length < 5) {
     try {
       const ds = await searchDbnomicsDatasets(query, 4);

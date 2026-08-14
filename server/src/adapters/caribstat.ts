@@ -233,3 +233,140 @@ export async function fetchCaribstatSeries(id: string, opts: { origin?: string; 
   const row = selectRow(doc, parsed.row);
   return { doc, label: row.label, unit: row.unit, observations: row.observations, apiUrl };
 }
+
+/**
+ * What CaribStat actually holds, for search.
+ *
+ * These are NOT registry indicator keys and are deliberately not modelled as
+ * such. A registry key promises one concept across 200+ economies with a source
+ * fallback chain behind it. These are regional tables: nine ECCB geographies in
+ * EC$, or Barbados from a specific workbook. Giving them registry keys would
+ * make them look universal in /v1/indicators and would let a EC$ figure answer
+ * a question that expected the World Bank's definition in US$.
+ *
+ * So they stay explicit-id series and search points at the id. Derived from the
+ * published corpus on 2026-08-14 rather than written by hand, so it says what
+ * is actually there.
+ */
+export interface CaribstatTable {
+  provider: "ECCB" | "CBB";
+  table: string;
+  title: string;
+  /** ECCB: frequencies collected. CBB: the sheet names that exist. */
+  freqs?: string[];
+  sheets?: string[];
+  /** Geographies, ECCB only. CBB is Barbados throughout. */
+  geographies?: number;
+  /** Words a person would actually search for. */
+  topics: string[];
+  sampleRow: string;
+}
+
+export const CARIBSTAT_CATALOGUE: CaribstatTable[] = [
+  {
+    provider: "ECCB", table: "total-public-sector-debt", title: "Total Public Sector Debt",
+    freqs: ["a", "q"], geographies: 9, sampleRow: "Central Government Debt",
+    topics: ["debt", "public sector debt", "government debt", "external debt", "domestic debt"],
+  },
+  {
+    provider: "ECCB", table: "debt-to-gdp", title: "Debt to GDP",
+    freqs: ["a"], geographies: 9, sampleRow: "Total Public Sector Debt to GDP",
+    topics: ["debt to gdp", "debt ratio", "debt burden", "gdp"],
+  },
+  {
+    provider: "ECCB", table: "central-government-fiscal-accounts", title: "Central Government Fiscal Accounts",
+    freqs: ["a", "q", "m"], geographies: 9, sampleRow: "Total Revenue and Grants",
+    topics: ["fiscal", "revenue", "expenditure", "budget", "deficit", "tax", "grants"],
+  },
+  {
+    provider: "ECCB", table: "consumer-price-index", title: "Consumer Price Index",
+    freqs: ["a", "q"], geographies: 9, sampleRow: "Inflation Rate - end of period",
+    topics: ["inflation", "cpi", "prices", "consumer price", "cost of living"],
+  },
+  {
+    provider: "ECCB", table: "summarized-monetary-survey", title: "Summarized Monetary Survey",
+    freqs: ["a", "q", "m"], geographies: 9, sampleRow: "Money Supply (M2)",
+    topics: ["money supply", "monetary", "m2", "credit", "deposits", "reserves"],
+  },
+  {
+    provider: "ECCB", table: "interest-rates-deposits-loans", title: "Interest Rates on Deposits and Loans",
+    freqs: ["a", "q", "m"], geographies: 9, sampleRow: "Weighted Average Deposit Rate",
+    topics: ["interest rate", "lending rate", "deposit rate", "spread"],
+  },
+  {
+    provider: "ECCB", table: "selected-tourism-statistics", title: "Selected Tourism Statistics",
+    freqs: ["a", "q", "m"], geographies: 9, sampleRow: "Total Visitors",
+    topics: ["tourism", "visitors", "arrivals", "cruise", "stayover"],
+  },
+  {
+    provider: "CBB", table: "balance-of-payments-reports", title: "Balance of Payments",
+    sheets: ["current-account", "analytical-summary", "capital-account", "primary-income"],
+    sampleRow: "Current Account Balance",
+    topics: ["balance of payments", "bop", "current account", "capital account", "trade balance"],
+  },
+  {
+    provider: "CBB", table: "gross-domestic-product", title: "Gross Domestic Product",
+    sheets: ["real-gdp", "gdp-by-sector"], sampleRow: "Real GDP",
+    topics: ["gdp", "growth", "output", "sectors"],
+  },
+  {
+    provider: "CBB", table: "inflation-and-retail-price-index", title: "Inflation and Retail Price Index",
+    sheets: ["inflation"], sampleRow: "12 MONTH MA",
+    topics: ["inflation", "retail price index", "rpi", "prices"],
+  },
+  {
+    provider: "CBB", table: "tourism", title: "Tourism",
+    sheets: ["tourism"], sampleRow: "Total Arrivals",
+    topics: ["tourism", "arrivals", "visitors"],
+  },
+  {
+    provider: "CBB", table: "labour-statistics", title: "Labour Statistics",
+    sheets: ["unemployment"], sampleRow: "Unemployment Rate",
+    topics: ["labour", "labor", "unemployment", "employment", "jobs"],
+  },
+];
+
+/** ECCB geographies, for matching a country name in a search query. */
+export const ECCB_GEOGRAPHIES: Record<string, string> = {
+  AIA: "Anguilla", ATG: "Antigua and Barbuda", DMA: "Dominica", GRD: "Grenada",
+  KNA: "St. Kitts and Nevis", LCA: "St. Lucia", MSR: "Montserrat",
+  VCT: "St. Vincent and the Grenadines", XCU: "ECCU (currency union aggregate)",
+};
+
+/** Score a catalogue entry against a free-text query. */
+export function searchCaribstat(query: string, limit = 4): Array<{
+  entry: CaribstatTable; iso3?: string; id: string; why: string;
+}> {
+  const q = query.toLowerCase().trim();
+  if (!q) return [];
+  let iso3: string | undefined;
+  for (const [code, name] of Object.entries(ECCB_GEOGRAPHIES)) {
+    if (q.includes(name.toLowerCase()) || q.includes(code.toLowerCase())) { iso3 = code; break; }
+  }
+  const caribbeanIntent = /caribbean|eccu|eccb|barbados|antigua|anguilla|montserrat|grenada|dominica|lucia|kitts|nevis|vincent/i.test(q);
+  const out: Array<{ entry: CaribstatTable; iso3?: string; id: string; why: string; score: number }> = [];
+  for (const e of CARIBSTAT_CATALOGUE) {
+    let score = 0;
+    for (const t of e.topics) {
+      if (q.includes(t)) score += t.split(" ").length * 2;
+    }
+    if (e.title.toLowerCase().includes(q)) score += 3;
+    // A topic alone is not enough: "inflation" must not surface a nine-country
+    // regional table above the global registry key. Regional intent is required
+    // unless the query names the table itself.
+    if (score > 0 && !caribbeanIntent && !e.title.toLowerCase().includes(q)) continue;
+    if (score === 0 && caribbeanIntent) score = 1;
+    if (score === 0) continue;
+    const id = e.provider === "ECCB"
+      ? `caribstat/ECCB/${e.table}/${iso3 ?? "AIA"}.${e.freqs?.[0] ?? "a"}`
+      : `caribstat/CBB/${e.table}/${e.sheets?.[0]}`;
+    out.push({
+      entry: e, iso3, id, score,
+      why: e.provider === "ECCB"
+        ? `${e.title}, ${e.geographies} ECCB geographies, ${(e.freqs ?? []).join("/")}`
+        : `${e.title}, Barbados, ${(e.sheets ?? []).length} sheet(s)`,
+    });
+  }
+  return out.sort((a, b) => b.score - a.score).slice(0, limit)
+    .map(({ entry, iso3, id, why }) => ({ entry, iso3, id, why }));
+}

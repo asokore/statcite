@@ -16,6 +16,7 @@ Key facts: no API key, no auth, CORS open, read-only. MCP endpoint: https://stat
 - [Verify a batch of claims](https://statcite.com/docs#verify_claims): POST /v1/verify_claims with JSON body {"claims":[{"indicator":…,"country":…,"period":…,"claimed_value":…}]} (1–15 claims)
 - [Get an indicator](https://statcite.com/v1/indicator/gdp_growth?country=BRB&latest_only=true): GET /v1/indicator/{key}?country=…
 - [Country snapshot](https://statcite.com/v1/snapshot/Japan): GET /v1/snapshot/{country}
+- [Caribbean central bank series](https://statcite.com/v1/series?id=caribstat/ECCB/total-public-sector-debt/AIA.a): GET /v1/series?id=caribstat/{ECCB|CBB}/{table}/{ISO3}.{a|q|m} for ECCB, or /{table}/{sheet} for the Central Bank of Barbados. Covers Anguilla and Montserrat, which are not World Bank reporting economies. Add '#Row Label' to pick a row.
 - [Sources & licenses](https://statcite.com/v1/sources): what backs every number
 
 ## Reuse terms

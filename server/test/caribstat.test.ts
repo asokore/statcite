@@ -339,3 +339,52 @@ test("the ECCU supplement is scoped to ECCU geographies only", async () => {
   // figures from the currency union.
   assert.ok(!ECCU_ISO3.has("BRB"));
 });
+
+// --- search must surface regional data without polluting global queries ---
+
+test("a Caribbean query finds the bank that publishes it", async () => {
+  const { searchCaribstat } = await import("../src/adapters/caribstat.ts");
+  const debt = searchCaribstat("anguilla debt");
+  assert.ok(debt.length, "'anguilla debt' must return something");
+  assert.equal(debt[0].iso3, "AIA", "the country in the query must select the geography");
+  assert.match(debt[0].id, /total-public-sector-debt\/AIA/);
+
+  const infl = searchCaribstat("montserrat inflation");
+  assert.equal(infl[0].iso3, "MSR");
+  assert.match(infl[0].id, /consumer-price-index\/MSR/);
+
+  const bop = searchCaribstat("barbados balance of payments");
+  assert.ok(bop.some((h) => h.id.includes("CBB/balance-of-payments-reports")),
+    "a Barbados BOP query must reach the Central Bank of Barbados");
+});
+
+test("A GLOBAL QUERY IS NOT ANSWERED WITH NINE-COUNTRY REGIONAL TABLES", async () => {
+  // The failure this prevents is subtle and would look like success: someone
+  // asks about Japan or a generic topic and gets an EC$ table covering nine
+  // small economies, ranked as though it answered the question. Regional data
+  // needs regional intent, otherwise it stays out of the way.
+  const { searchCaribstat } = await import("../src/adapters/caribstat.ts");
+  for (const q of ["japan gdp", "united states unemployment", "germany trade", "world population"]) {
+    assert.equal(searchCaribstat(q).length, 0, `'${q}' must not return regional Caribbean tables`);
+  }
+});
+
+test("the catalogue describes tables that actually exist", async () => {
+  // A catalogue is a promise about the corpus. If it drifts, search sends
+  // callers to ids that 404, which is worse than not surfacing them at all.
+  const { CARIBSTAT_CATALOGUE, ECCB_GEOGRAPHIES, caribstatUrl, parseCaribstatId } =
+    await import("../src/adapters/caribstat.ts");
+  assert.ok(CARIBSTAT_CATALOGUE.length >= 10);
+  for (const e of CARIBSTAT_CATALOGUE) {
+    assert.ok(e.topics.length > 0, `${e.table} needs searchable topics`);
+    assert.ok(e.sampleRow.length > 0, `${e.table} needs a sample row for the usage hint`);
+    const id = e.provider === "ECCB"
+      ? `caribstat/ECCB/${e.table}/AIA.${e.freqs![0]}`
+      : `caribstat/CBB/${e.table}/${e.sheets![0]}`;
+    // Every advertised id must at least be well formed and routable.
+    const parsed = parseCaribstatId(id);
+    assert.equal(parsed.provider, e.provider);
+    assert.ok(caribstatUrl(parsed).startsWith("https://"), `${id} must build a URL`);
+  }
+  assert.equal(Object.keys(ECCB_GEOGRAPHIES).length, 9, "nine ECCB geographies incl. the union aggregate");
+});
