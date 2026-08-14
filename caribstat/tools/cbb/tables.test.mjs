@@ -1,0 +1,211 @@
+// CBB table extraction tests.
+//
+// Every case here is a real defect found while running this against live CBB
+// workbooks on 2026-08-13, not a hypothetical. Three of them produced
+// plausible-looking output rather than an error, which is the class that
+// actually reaches a published number.
+
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { normalisePeriod, excelSerialToISO, findHeaderAnchor, extractSheet, extractTransposed } from "./tables.mjs";
+
+// --- the year/serial collision --------------------------------------------
+
+test("A BARE YEAR IS NOT AN EXCEL SERIAL", () => {
+  // The GDP sheet stores 2010 as the number 2010. Read as a serial it becomes
+  // 1905-07-02, and the whole annual table silently reports Edwardian dates
+  // against modern values. Caught live.
+  assert.equal(normalisePeriod(2010).period, "2010");
+  assert.equal(normalisePeriod(2023).period, "2023");
+  assert.equal(normalisePeriod(1999).period, "1999");
+});
+
+test("a real Excel serial still converts", () => {
+  // 44562 is 2022-01-01 — the tourism sheet's first monthly observation.
+  assert.equal(excelSerialToISO(44562), "2022-01-01");
+  assert.equal(normalisePeriod(44562).period, "2022-01", "a month-start collapses to YYYY-MM");
+});
+
+test("small numbers are not dates", () => {
+  assert.equal(excelSerialToISO(12), undefined, "an index value must not become 1900");
+  assert.equal(excelSerialToISO(0), undefined);
+});
+
+// --- metadata rows must not become observations ---------------------------
+
+test("UNPARSEABLE LABELS ARE REJECTED, not passed through", () => {
+  // CBB's inflation sheets carry "Basket Weights" and "BASE YEAR" rows between
+  // the header and the data, WITH numbers alongside. Passing the label through
+  // recorded them as periods and their weights as observations.
+  assert.equal(normalisePeriod("Basket Weights"), undefined);
+  assert.equal(normalisePeriod("BASE YEAR"), undefined);
+  assert.equal(normalisePeriod("Source: Barbados Statistical Service"), undefined);
+  assert.equal(normalisePeriod("Note:"), undefined);
+});
+
+test("recognised period formats survive", () => {
+  assert.equal(normalisePeriod("2006").period, "2006");
+  assert.equal(normalisePeriod("1Q 1965").period, "1965-Q1");
+  assert.equal(normalisePeriod("Q3 1980").period, "1980-Q3");
+  assert.equal(normalisePeriod("2024-07").period, "2024-07");
+  assert.equal(normalisePeriod("2024-Q2").period, "2024-Q2");
+});
+
+// --- the revision flag -----------------------------------------------------
+
+test("a revision suffix is RECORDED, not silently stripped", () => {
+  // "2006R" is the bank saying the figure has been revised. Dropping the R
+  // turns a qualified number into an unqualified one.
+  const r = normalisePeriod("2006R");
+  assert.equal(r.period, "2006");
+  assert.equal(r.revised, true);
+  assert.equal(r.raw, "2006R", "the source's own label survives");
+  const p = normalisePeriod("2023P");
+  assert.equal(p.revised, true, "P for provisional counts too");
+  assert.equal(normalisePeriod("2006").revised, false);
+});
+
+// --- anchoring -------------------------------------------------------------
+
+const GDP_LIKE = [
+  ["REAL GROSS DOMESTIC PRODUCT"], [], [],
+  ["Period", "Agriculture", "Mining", "Manufacturing"],
+  ["2006R", 119.18, 31.53, 709.09],
+  ["2007R", 120.79, 29.8, 680.51],
+  ["Source: Barbados Statistical Service"],
+];
+
+const TOURISM_LIKE = [
+  [null, "BARBADOS' TOURIST ARRIVALS"], [],
+  [null, "Period", "U.S.A", "Canada"],
+  [null, 44562, 8762, 3565],
+  [null, 44593, 10068, 5128],
+];
+
+test("the anchor finds the period column wherever it sits", () => {
+  // Tourism's table starts in column 1, GDP's in column 0. A fixed offset
+  // would shear one of them by a column and file U.S.A arrivals under Canada.
+  assert.deepEqual({ ...findHeaderAnchor(GDP_LIKE) }.col, 0);
+  assert.deepEqual({ ...findHeaderAnchor(TOURISM_LIKE) }.col, 1);
+});
+
+test('"Period Ended" anchors too', () => {
+  // CBB's inflation sheets use "Period Ended". A Period-only matcher found NO
+  // table in a 2.3MB workbook of 13 data sheets and reported "0 tables" — a
+  // quiet nothing rather than an error.
+  const rows = [["Period Ended", "12 MONTH MA", "POINT TO POINT"], [27364, 39.05, 39.05]];
+  const a = findHeaderAnchor(rows);
+  assert.ok(a, "Period Ended must anchor");
+  assert.equal(a.col, 0);
+});
+
+test("a stray 'Period' in prose does not anchor a table", () => {
+  const rows = [["Period", "of review"], ["some prose"]];
+  assert.equal(findHeaderAnchor(rows), undefined, "one named column to the right is not a table");
+});
+
+// --- end to end ------------------------------------------------------------
+
+test("extracts series, flags revisions, and reports what it skipped", () => {
+  const t = extractSheet({ name: "GDP", rows: GDP_LIKE });
+  assert.deepEqual(t.periods, ["2006", "2007"]);
+  assert.deepEqual(t.revised_periods, ["2006", "2007"]);
+  assert.equal(t.series.length, 3);
+  assert.equal(t.series[0].label, "Agriculture");
+  assert.equal(t.series[0].observations[0].value, 119.18);
+  assert.ok(t.unparsed_labels.some((l) => /Source/.test(l)), "the footnote is reported, not silently dropped");
+});
+
+test("the tourism shape extracts from its offset column", () => {
+  const t = extractSheet({ name: "H1", rows: TOURISM_LIKE });
+  assert.deepEqual(t.periods, ["2022-01", "2022-02"]);
+  assert.equal(t.series[0].label, "U.S.A");
+  assert.equal(t.series[0].observations[0].value, 8762, "values must not slide across columns");
+  assert.equal(t.series[1].label, "Canada");
+  assert.equal(t.series[1].observations[0].value, 3565);
+});
+
+test("a sheet with no table returns undefined, not an empty table", () => {
+  assert.equal(extractSheet({ name: "TOC", rows: [["Table", "Description"], ["I1", "INFLATION"]] }), undefined);
+});
+
+// --- transposed sheets and merged year headers -----------------------------
+//
+// CBB is not internally consistent about orientation: balance of payments runs
+// years ACROSS a header row with line items down the side, the opposite of GDP
+// and tourism. Worse, it anchors a merged year header at the LEFT of its span,
+// so 1967 sits in column 0 while its values sit in column 1.
+
+const BOP_LIKE = [
+  ["TABLE 1: STANDARD SUMMARY"],
+  ["BDS$Millions"],
+  // 1967 is a merged cell spanning columns 0-1; the rest are single columns.
+  [1967, null, 1968, 1969, 1970, 1971],
+  ["1. CURRENT ACCOUNT", -31.74, -52.77, -79.16, -92.40, -83.86],
+  ["   a. Goods", -58.01, -85.49, -112.16, -143.09, -156.91],
+];
+
+test("TRANSPOSED: years across the header, line items down the side", () => {
+  const t = extractTransposed(BOP_LIKE.length ? { name: "Standard Summary", rows: BOP_LIKE } : null, { minRun: 5 });
+  assert.ok(t, "a transposed sheet must extract; the column parser finds nothing here");
+  assert.equal(t.anchor.orientation, "transposed");
+  assert.deepEqual(t.periods, ["1967", "1968", "1969", "1970", "1971"]);
+});
+
+test("MERGED HEADER: a left-anchored year maps to its OWN values, not its neighbour's", () => {
+  // This is the off-by-one that would have shifted every balance-of-payments
+  // series by a year while looking perfectly healthy. 1967's value is in
+  // column 1 even though its label is in column 0.
+  const t = extractTransposed({ name: "Standard Summary", rows: BOP_LIKE }, { minRun: 5 });
+  const ca = t.series.find((s) => s.label.startsWith("1. CURRENT ACCOUNT"));
+  assert.equal(ca.observations[0].period, "1967");
+  assert.equal(ca.observations[0].value, -31.74, "1967 must carry -31.74, not 1968's -52.77");
+  assert.equal(ca.observations[1].value, -52.77);
+  assert.equal(ca.observations.at(-1).period, "1971");
+  assert.equal(ca.observations.at(-1).value, -83.86, "the last year must not fall off the end");
+});
+
+test("TRANSPOSED: the label column is derived, not assumed to be column 0", () => {
+  const t = extractTransposed({ name: "Standard Summary", rows: BOP_LIKE }, { minRun: 5 });
+  assert.equal(t.anchor.col, 0);
+  assert.equal(t.series.length, 2, "both line items extract");
+});
+
+test("a sheet with too few periods is not force-fit as transposed", () => {
+  const rows = [["Table of Contents"], ["Table 1", "Standard Summary"], ["Table 2", "Analytical Summary"]];
+  assert.equal(extractTransposed({ name: "TOC", rows }, { minRun: 5 }), undefined);
+});
+
+// --- republished vs our-query-changed --------------------------------------
+
+test("a source that did not republish is not reported as changed data", async () => {
+  const { classifyChange, sourceStamp } = await import("../changed.mjs");
+  const { writeFile, mkdtemp } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const path = (await import("node:path")).default;
+
+  const dir = await mkdtemp(path.join(tmpdir(), "caribstat-"));
+  const file = path.join(dir, "doc.json");
+  const base = {
+    data_as_at: "2026-07-28",
+    retrieved_at: "2026-08-13T10:00:00Z",
+    periods: ["2024", "2025"],
+    series: [{ label: "Total", observations: [{ period: "2024", value: 1 }, { period: "2025", value: 2 }] }],
+  };
+  await writeFile(file, JSON.stringify(base), "utf8");
+
+  // Same content, later fetch: our bookkeeping is not news.
+  assert.equal(await classifyChange(file, { ...base, retrieved_at: "2026-08-14T10:00:00Z" }), "unchanged");
+
+  // Wider window, SAME bank stamp: our query changed, the source did not.
+  // This is the exact case that reported 135 ECCB series as changed.
+  const wider = { ...base, periods: ["2024", "2025", "2026"],
+    series: [{ label: "Total", observations: [...base.series[0].observations, { period: "2026", value: 3 }] }] };
+  assert.equal(await classifyChange(file, wider), "our-query-changed");
+
+  // New bank stamp: the source genuinely republished.
+  assert.equal(await classifyChange(file, { ...wider, data_as_at: "2026-08-28" }), "republished");
+
+  assert.equal(sourceStamp({ published_at: "2025-03-31" }), "2025-03-31", "CBB uses published_at");
+});
+

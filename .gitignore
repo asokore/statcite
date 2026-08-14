@@ -22,3 +22,20 @@ analytics/
 # not dumped wholesale.
 audit-defects.json
 audit-plan.md
+
+# CaribStat harvested data. THE HARD RULE FOR THIS DIRECTORY.
+#
+# This repository is PUBLIC (verified: gh repo view asokore/statcite -> PUBLIC).
+# caribstat/data/ holds ~27MB of ECCB and Central Bank of Barbados series whose
+# published terms do NOT permit redistribution, which is exactly what StatCite's
+# own licence ledger says at https://statcite.com/v1/sources: both sources are
+# recorded as "not served ... its website terms do not permit the redistribution
+# this service would perform."
+#
+# Committing that data here would perform the redistribution the ledger publicly
+# says we refuse, turning a legal claim we make about ourselves into a false one.
+# The code is public. The harvest is not, and does not become public when a
+# grant arrives either — the ledger flip is the gate, and it is the operator's.
+caribstat/data/
+caribstat/*.log
+caribstat/node_modules/
