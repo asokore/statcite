@@ -186,3 +186,109 @@ test("CARIBSTAT_ENABLED and the licence ledger must agree", async () => {
       "the ledger claims permission to serve while the adapter is off");
   }
 });
+
+// --- CBB: one provider, a different shape, no invented currency stamp ------
+//
+// CBB was collected but unserved until 2026-08-14 for a reason worth keeping
+// visible: the Bank prints no "data as at" anywhere, so the ingest recorded a
+// weaker publication date and refused to call it currency. The fix was not to
+// relabel that date. It was to let a citation name the PUBLICATION a figure
+// came from, which is narrower than a currency claim and checkable, because a
+// reader can open the exact workbook.
+
+test("CBB ids parse without inventing a country or a frequency", () => {
+  const p = parseCaribstatId("caribstat/CBB/balance-of-payments-reports/analytical-summary");
+  assert.equal(p.provider, "CBB");
+  assert.equal(p.table, "balance-of-payments-reports");
+  assert.equal(p.sheet, "analytical-summary");
+  assert.equal(p.iso3, "BRB", "every CBB series is Barbados");
+});
+
+test("CBB ids resolve to the per-sheet path, not the per-country one", () => {
+  const p = parseCaribstatId("caribstat/CBB/balance-of-payments-reports/current-account");
+  assert.equal(
+    caribstatUrl(p, "https://example.test"),
+    "https://example.test/data/cbb/balance-of-payments-reports/current-account.json",
+  );
+  // The ECCB shape must be untouched by the CBB branch.
+  const e = parseCaribstatId("caribstat/ECCB/total-public-sector-debt/AIA.a");
+  assert.equal(
+    caribstatUrl(e, "https://example.test"),
+    "https://example.test/data/eccb/total-public-sector-debt/a/AIA.json",
+  );
+});
+
+test("A PUBLICATION DATE IS NEVER PRESENTED AS A CURRENCY STAMP", async () => {
+  const { caribstatCitation } = await import("../src/core/citations.ts");
+  const ctx = { now: () => new Date("2026-08-14T00:00:00Z") } as never;
+
+  const cbb = caribstatCitation(ctx, {
+    source: "Central Bank of Barbados",
+    sourceUrl: "https://www.centralbank.org.bb/news/x",
+    tableTitle: "Analytical Summary",
+    publicationTitle: "Balance of Payments (BOP) 1967 - 2017",
+    publishedAt: "2022-07-28",
+    attachmentUrl: "https://cdn.centralbank.org.bb/documents/bop.xlsx",
+    rowLabel: "1. CURRENT ACCOUNT",
+    countryName: "Barbados",
+    frequency: "a",
+    apiUrl: "https://origin.test/data/cbb/x/y.json",
+    seriesId: "caribstat/CBB/x/y",
+  });
+  assert.match(cbb.citation_text, /published 2022-07-28/);
+  assert.doesNotMatch(cbb.citation_text, /data as at/i,
+    "CBB publishes no currency stamp, so the citation must not claim one");
+  assert.match(cbb.citation_text, /Balance of Payments/, "the publication must be named");
+  assert.match(cbb.citation_text, /cdn\.centralbank\.org\.bb/, "link the workbook the figure came from");
+  assert.match(cbb.notices?.[0] ?? "", /weaker claim/,
+    "the notice must say plainly that this is not a currency claim");
+
+  // ECCB, which does stamp currency, must be unaffected.
+  const eccb = caribstatCitation(ctx, {
+    source: "Eastern Caribbean Central Bank",
+    sourceUrl: "https://www.eccb-centralbank.org/x",
+    tableTitle: "Total Public Sector Debt",
+    rowLabel: "Central Government Debt",
+    countryName: "Anguilla",
+    frequency: "a",
+    dataAsAt: "2026-06-08",
+    dataAsAtRaw: "08 June 2026",
+    apiUrl: "https://origin.test/data/eccb/x/a/AIA.json",
+    seriesId: "caribstat/ECCB/x/AIA.a",
+  });
+  assert.match(eccb.citation_text, /data as at 08 June 2026/);
+  assert.doesNotMatch(eccb.citation_text, /published/i);
+});
+
+test("frequency is INFERRED, never defaulted, for a source that states none", async () => {
+  // CBB does not declare a frequency. Defaulting to "annual" would mislabel
+  // its monthly monetary survey, which is a quiet way to misdescribe a series:
+  // the numbers would be right and the thing they are called would be wrong.
+  const { inferFrequency } = await import("../src/adapters/caribstat.ts");
+  assert.equal(inferFrequency(["1967", "1968", "2017"]), "a");
+  assert.equal(inferFrequency(["2024-Q1", "2024-Q2"]), "q");
+  assert.equal(inferFrequency(["2024-01", "2024-02"]), "m");
+  assert.equal(inferFrequency([]), "a", "no periods falls back rather than throwing");
+  assert.equal(inferFrequency(undefined), "a");
+});
+
+test("a citation never loses its dataset name when a source omits table_title", async () => {
+  // This crashed the whole CBB path: `dataset` fed bibtexEscape an undefined
+  // and every CBB request returned a 500. The export formats are derived from
+  // the same fields as citation_text, so one missing name took out all three.
+  const { caribstatCitation } = await import("../src/core/citations.ts");
+  const c = caribstatCitation({ now: () => new Date("2026-08-14T00:00:00Z") } as never, {
+    source: "Central Bank of Barbados",
+    sourceUrl: "https://www.centralbank.org.bb/x",
+    publicationTitle: "Balance of Payments (BOP) 1967 - 2017",
+    publishedAt: "2022-07-28",
+    rowLabel: "Current Account Balance",
+    countryName: "Barbados",
+    frequency: "a",
+    apiUrl: "https://origin.test/x.json",
+    seriesId: "caribstat/CBB/x/y",
+  });
+  assert.equal(c.dataset, "Balance of Payments (BOP) 1967 - 2017");
+  assert.ok(c.export_formats?.bibtex?.length > 20, "bibtex must still build");
+  assert.ok(c.export_formats?.apa?.length > 20, "apa must still build");
+});
