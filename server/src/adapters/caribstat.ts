@@ -370,3 +370,42 @@ export function searchCaribstat(query: string, limit = 4): Array<{
   return out.sort((a, b) => b.score - a.score).slice(0, limit)
     .map(({ entry, iso3, id, why }) => ({ entry, iso3, id, why }));
 }
+
+/**
+ * Economies with no World Bank GDP series, where UNCTAD does hold one.
+ *
+ * Anguilla, Montserrat and the British Virgin Islands return nothing for
+ * gdp_growth from any source in the main chain. UNCTAD carries 49 years for
+ * each, 1971 to 2019, reachable today through the DBnomics adapter with no new
+ * source. The only reason nobody found it is that you had to already know the
+ * series code.
+ *
+ * It is surfaced through SEARCH rather than wired into the gdp_growth chain,
+ * and that is deliberate. The series ends in 2019. Letting it answer
+ * "what is Anguilla's GDP growth" would hand back a six-year-old figure to a
+ * question that almost always means "now", which is the kind of quietly wrong
+ * answer this service exists to prevent. Offered as history, labelled as
+ * history, and the caller decides.
+ */
+export const UNCTAD_GDP_FALLBACK: Record<string, { name: string; slug: string }> = {
+  AIA: { name: "Anguilla", slug: "anguilla" },
+  MSR: { name: "Montserrat", slug: "montserrat" },
+  VGB: { name: "British Virgin Islands", slug: "british-virgin-islands" },
+};
+
+/** Does this query ask about GDP for an economy the main chain cannot serve? */
+export function searchUnctadGap(query: string): Array<{ iso3: string; name: string; id: string }> {
+  const q = query.toLowerCase();
+  if (!/\bgdp\b|growth|economy|output|national accounts/.test(q)) return [];
+  const out: Array<{ iso3: string; name: string; id: string }> = [];
+  for (const [iso3, v] of Object.entries(UNCTAD_GDP_FALLBACK)) {
+    if (q.includes(v.name.toLowerCase()) || q.includes(iso3.toLowerCase())) {
+      out.push({
+        iso3,
+        name: v.name,
+        id: `dbnomics/UNCTAD/GDPTAPCGRA/A.annual-average-growth-rate.${v.slug}`,
+      });
+    }
+  }
+  return out;
+}
