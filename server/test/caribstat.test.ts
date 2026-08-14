@@ -292,3 +292,50 @@ test("a citation never loses its dataset name when a source omits table_title", 
   assert.ok(c.export_formats?.bibtex?.length > 20, "bibtex must still build");
   assert.ok(c.export_formats?.apa?.length > 20, "apa must still build");
 });
+
+// --- the snapshot must not depend on one source covering a country --------
+
+test("A WORLD BANK MISS DOES NOT DECIDE WHETHER A SNAPSHOT EXISTS", async () => {
+  // Montserrat is not a World Bank reporting economy, so the snapshot's
+  // multi-fetch throws a coverage error. That error used to propagate and
+  // return "No snapshot data available for Montserrat", for a country whose
+  // central bank publishes debt, prices and fiscal accounts every quarter.
+  // The failing endpoint was the one an agent reaches for first, and the gap
+  // it reported is the exact gap this service exists to close.
+  const { countrySnapshot } = await import("../src/core/snapshot.ts");
+  const ctx = { baseUrl: "https://statcite.com", now: () => new Date("2026-08-14T00:00:00Z") } as never;
+
+  for (const name of ["Montserrat", "Anguilla"]) {
+    const s = await countrySnapshot(ctx, name);
+    assert.ok(s.indicators.length > 0, `${name} must return indicators, not an error`);
+    assert.ok(
+      s.indicators.every((i) => typeof i.value === "number" && Number.isFinite(i.value)),
+      `${name} indicators must carry real values`,
+    );
+    assert.ok(
+      s.indicators.every((i) => i.citation?.citation_text?.includes("Eastern Caribbean Central Bank")),
+      `${name} items must cite the bank that published them`,
+    );
+    assert.ok(
+      s.notes.some((n) => /Eastern Caribbean Central Bank/.test(n)),
+      `${name} must say these are not World Bank figures on World Bank definitions`,
+    );
+  }
+});
+
+test("the ECCU supplement is scoped to ECCU geographies only", async () => {
+  // Additive, never substitutive. The gate is asserted directly rather than by
+  // taking a live World Bank snapshot, because a test that needs the network to
+  // prove a scoping rule fails for reasons that have nothing to do with the rule.
+  const { ECCU_ISO3 } = await import("../src/core/snapshot.ts");
+  for (const iso3 of ["AIA", "MSR", "ATG", "DMA", "GRD", "KNA", "LCA", "VCT", "XCU"]) {
+    assert.ok(ECCU_ISO3.has(iso3), `${iso3} is an ECCB geography and must be in scope`);
+  }
+  for (const iso3 of ["JPN", "USA", "GBR", "BRB", "JAM", "TTO"]) {
+    assert.ok(!ECCU_ISO3.has(iso3), `${iso3} must not receive ECCB items: different bank, different definitions`);
+  }
+  // Barbados is the sharp case. It is Caribbean and it IS covered here, but by
+  // the Central Bank of Barbados, not the ECCB, so it must never pick up EC$
+  // figures from the currency union.
+  assert.ok(!ECCU_ISO3.has("BRB"));
+});
