@@ -388,3 +388,34 @@ test("the catalogue describes tables that actually exist", async () => {
   }
   assert.equal(Object.keys(ECCB_GEOGRAPHIES).length, 9, "nine ECCB geographies incl. the union aggregate");
 });
+
+// --- economies the main chain cannot serve GDP for at all -----------------
+
+test("GDP for Anguilla, Montserrat and BVI is offered as history, labelled as history", async () => {
+  // The World Bank and IMF publish no GDP series for these three. UNCTAD does,
+  // 1971 to 2019, reachable through the existing DBnomics adapter with no new
+  // source. The only reason nobody found it is that you had to know the code.
+  //
+  // It is surfaced through SEARCH and deliberately NOT wired into gdp_growth.
+  // The series ends in 2019, and "what is Anguilla's GDP growth" almost always
+  // means now. Answering with a six-year-old figure would be exactly the
+  // quietly wrong answer this service exists to prevent, so the range is stated
+  // in the result and the caller decides.
+  const { searchUnctadGap } = await import("../src/adapters/caribstat.ts");
+
+  for (const [q, iso3] of [["anguilla gdp", "AIA"], ["montserrat gdp growth", "MSR"],
+                           ["british virgin islands economy", "VGB"]] as const) {
+    const hits = searchUnctadGap(q);
+    assert.equal(hits.length, 1, `'${q}' must surface the UNCTAD route`);
+    assert.equal(hits[0].iso3, iso3);
+    assert.match(hits[0].id, /UNCTAD\/GDPTAPCGRA/);
+  }
+
+  // Not triggered without GDP intent: an Anguilla DEBT query is already served
+  // properly by the ECCB and must not be cluttered with a 2019 GDP series.
+  assert.equal(searchUnctadGap("anguilla debt").length, 0);
+  assert.equal(searchUnctadGap("anguilla tourism").length, 0);
+  // Not triggered for economies the main chain covers.
+  assert.equal(searchUnctadGap("japan gdp").length, 0);
+  assert.equal(searchUnctadGap("barbados gdp").length, 0);
+});
