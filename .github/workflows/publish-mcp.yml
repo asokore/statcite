@@ -45,6 +45,12 @@ jobs:
             echo "REFUSING: distribution/server.json says $MANIFEST but server/src/mcp.ts says $CODE." >&2
             exit 1
           fi
+          # The registry caps description at 100 characters and rejects the
+          # whole publish with a 422 if it is longer. Catch it here, where the
+          # message is obvious, rather than after authenticating.
+          DESC=$(node -p "require('./distribution/server.json').description.length")
+          echo "description length=$DESC"
+          [ "$DESC" -le 100 ] || { echo "REFUSING: description is $DESC chars, registry allows 100." >&2; exit 1; }
 
       - name: Install mcp-publisher
         run: |
