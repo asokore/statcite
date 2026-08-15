@@ -63,19 +63,20 @@ export const CBB_LISTINGS = [
 /**
  * Categories whose newest publication does not yet extract, with the reason.
  * Recorded because "we have not solved this sheet yet" and "this category has
- * no data" are different claims, and only the first is true here:
+ * no data" are different claims, and only the first is true here.
  *
- *   statistics                 sheets B2F/B3F have no period label and no
- *                              plausible period column; the fallback correctly
- *                              declines rather than adopting a data column
+ * Empty as of 2026-08-14: "statistics" (sheets B2F/B3F, which previously had
+ * no period label and no plausible period column) was resolved in the same
+ * pass that fixed the xlsx.mjs self-closing-cell bug — it now ingests 148
+ * monthly periods to April 2026. balance-of-payments-reports was here until
+ * the transposed reader and the merged-header span rule landed earlier; it
+ * now extracts 14 of 15 sheets (see CBB_PARTIAL below).
  *
- * (balance-of-payments-reports was here until the transposed reader and the
- * merged-header span rule landed; it now extracts 14 of 15 sheets.)
- *
- * Both need a per-sheet anchor, which is real work rather than a missing
- * feature — and until then they fail LOUDLY in the runner, not silently.
+ * If a future run FAILs a category, that is a regression against this list,
+ * not a rediscovery of a known gap — investigate rather than assuming it is
+ * expected.
  */
-export const CBB_UNEXTRACTED = ["statistics"];
+export const CBB_UNEXTRACTED = [];
 
 /**
  * Partially extracted, with the reason. The balance-of-payments workbook has
