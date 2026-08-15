@@ -96,6 +96,20 @@ export function normalisePeriod(cell, { monthOnly = false } = {}) {
   // the numeric branch already applies to serial dates landing on the 1st. Any
   // other day is kept as a full date rather than being silently collapsed,
   // because a genuinely daily series must not be relabelled monthly.
+  // "January 2007" / "Feb 2026". The depository-corporations workbook labels
+  // every month this way down column 0. Without it that column parsed to
+  // NOTHING, the period-run search fell through to a neighbouring column of
+  // Excel serials that is not a period axis at all (it repeats values and has
+  // no header), and the sheet was served with 87 invented periods attached to
+  // real numbers instead of its actual 230 months. Fabricated periods on real
+  // figures is the worst failure this pipeline can produce, so this format is
+  // covered by tests both ways.
+  const my = /^([A-Za-z]{3,9})\s+(\d{4})$/.exec(bare);
+  if (my) {
+    const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+    const mi = months.indexOf(my[1].slice(0, 3).toLowerCase());
+    if (mi >= 0) return { period: `${my[2]}-${String(mi + 1).padStart(2, "0")}`, raw: s, revised };
+  }
   const dmy = /^(\d{1,2})[-\s]([A-Za-z]{3,9})[-\s](\d{4})$/.exec(bare);
   if (dmy) {
     const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
@@ -254,6 +268,43 @@ export function fillBlankHeadersFromAbove(rows, headerRow, firstCol, headers) {
   return out;
 }
 
+/**
+ * Is this column a DATE column rather than an observation series?
+ *
+ * The depository-corporations sheets carry an "End of Period" column of Excel
+ * date serials (40909, 42705 …) beside the month labels. Read as data it
+ * becomes a series of five-figure numbers that look like statistics and are
+ * not.
+ *
+ * Two independent signatures, because one alone is not enough here:
+ *
+ *  - the header names a date concept. Cheap and exact.
+ *  - the values step like a calendar. Consecutive differences of roughly 28
+ *    to 31 across a long run, inside the modern serial range, is a month
+ *    ticking over. A monetary series does not advance by almost exactly one
+ *    month's worth of days every month for fourteen years.
+ *
+ * The second matters because one of these columns is UNLABELLED, and the
+ * first because CBB's own serial column is misaligned with its month labels
+ * (the row reading "January 2007" carries a serial for January 2012), so
+ * comparing the column against the period axis does not identify it.
+ */
+const DATE_HEADERS = new Set(["end of period", "period", "period ended", "date", "month", "year", "quarter"]);
+
+export function isDateColumn(label, observations) {
+  if (DATE_HEADERS.has(String(label ?? "").trim().toLowerCase())) return true;
+  const vals = observations.map((o) => o.value).filter((v) => typeof v === "number");
+  if (vals.length < 12) return false;
+  // Modern Excel serials only: 36526 is 2000-01-01, 49309 is 2035-01-01.
+  if (!vals.every((v) => v >= 36526 && v <= 49309)) return false;
+  const steps = [];
+  for (let i = 1; i < vals.length; i++) steps.push(vals[i] - vals[i - 1]);
+  const nonDecreasing = steps.every((d) => d >= 0);
+  const sorted = [...steps].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  return nonDecreasing && median >= 27 && median <= 32;
+}
+
 export function extractSheet(sheet) {
   // Labelled anchor first; the period-run fallback only when there is no label.
   const anchor = findHeaderAnchor(sheet.rows) ?? findPeriodRunAnchor(sheet.rows);
@@ -300,7 +351,9 @@ export function extractSheet(sheet) {
     // Drop columns with no data unless the sheet itself named them. Without
     // the namedBySheet test, a label filled in from the row above would keep a
     // trailing spacer column alive as a series of nulls.
-    .filter((s, i) => (s.label !== "" && namedBySheet[i]) || s.observations.some((o) => o.value !== null));
+    .filter((s, i) => (s.label !== "" && namedBySheet[i]) || s.observations.some((o) => o.value !== null))
+    // A date column is not an observation series, however it is labelled.
+    .filter((s) => !isDateColumn(s.label, s.observations));
 
   return {
     anchor: { row: anchor.row, col: anchor.col },
