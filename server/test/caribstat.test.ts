@@ -15,6 +15,7 @@ import assert from "node:assert/strict";
 import {
   parseCaribstatId,
   caribstatUrl,
+  CARIBSTAT_CACHE_EPOCH,
   selectRow,
   fetchCaribstatSeries,
   CARIBSTAT_ENABLED,
@@ -58,7 +59,10 @@ const ctx = { now: () => new Date("2026-08-13T00:00:00Z") } as unknown as Ctx;
 test("parses a caribstat series id into provider, table, country and frequency", () => {
   const p = parseCaribstatId("caribstat/ECCB/total-public-sector-debt/AIA.a");
   assert.deepEqual(p, { provider: "ECCB", table: "total-public-sector-debt", iso3: "AIA", freq: "a", row: undefined });
-  assert.equal(caribstatUrl(p, "https://origin.test"), "https://origin.test/data/eccb/total-public-sector-debt/a/AIA.json");
+  assert.equal(
+    caribstatUrl(p, "https://origin.test"),
+    `https://origin.test/data/eccb/total-public-sector-debt/a/AIA.json?v=${CARIBSTAT_CACHE_EPOCH}`,
+  );
 });
 
 test("a row selector is parsed off the fragment", () => {
@@ -128,7 +132,7 @@ test("fetches and returns the selected row with its unit", async () => {
   const s = await fetchCaribstatSeries("caribstat/ECCB/total-public-sector-debt/AIA.a#Public Sector Debt", {
     origin: "https://origin.test",
   });
-  assert.equal(requested, "https://origin.test/data/eccb/total-public-sector-debt/a/AIA.json");
+  assert.equal(requested, `https://origin.test/data/eccb/total-public-sector-debt/a/AIA.json?v=${CARIBSTAT_CACHE_EPOCH}`);
   assert.equal(s.label, "Public Sector Debt");
   assert.equal(s.unit, "EC$M");
   assert.equal(s.observations.at(-1)?.value, 232.9);
@@ -208,13 +212,13 @@ test("CBB ids resolve to the per-sheet path, not the per-country one", () => {
   const p = parseCaribstatId("caribstat/CBB/balance-of-payments-reports/current-account");
   assert.equal(
     caribstatUrl(p, "https://example.test"),
-    "https://example.test/data/cbb/balance-of-payments-reports/current-account.json",
+    `https://example.test/data/cbb/balance-of-payments-reports/current-account.json?v=${CARIBSTAT_CACHE_EPOCH}`,
   );
   // The ECCB shape must be untouched by the CBB branch.
   const e = parseCaribstatId("caribstat/ECCB/total-public-sector-debt/AIA.a");
   assert.equal(
     caribstatUrl(e, "https://example.test"),
-    "https://example.test/data/eccb/total-public-sector-debt/a/AIA.json",
+    `https://example.test/data/eccb/total-public-sector-debt/a/AIA.json?v=${CARIBSTAT_CACHE_EPOCH}`,
   );
 });
 
