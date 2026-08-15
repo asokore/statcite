@@ -178,6 +178,42 @@ Each of these cost a debugging cycle and is documented at its call site:
   CPI varies *by country*. Caching one date for the source would mislabel most
   of the corpus.
 
+### CBB spreadsheet traps, found 2026-08-14
+
+The Central Bank of Barbados half is spreadsheets rather than HTML tables, and
+four separate defects all surfaced as one message, "no data tables found", on
+the `statistics` category. Each hid the next.
+
+- **Self-closing cells.** Excel writes `<c r="A9" s="14"/>` for a blank cell
+  that still carries formatting. `tools/xlsx.mjs` required a closing `</c>`, so
+  the empty cell's match ran on to the NEXT cell's closing tag, took its value,
+  and deleted it. This corrupted data that was already published: the wages
+  index lost a whole series column and served values under the wrong labels,
+  inflation carried four periods that do not exist, and BOP travel had a
+  cruise-passenger figure that is genuinely null. If a sheet ever reads as a
+  column of small ascending integers where labels should be, this is why.
+- **Two date encodings in one column.** The investments sheet writes its early
+  dates as text ("31-Jan-2014") and its later ones as Excel serials. Month-end
+  folding has to run on both paths or the final observation is labelled
+  `2026-04-30` while every other reads `2026-04`.
+- **Revision markers in brackets.** The wages sheet ends "2016 (R)",
+  "2017 (P)", "2018 (P)". Only a trailing bare R or P was handled, so the three
+  most recent years of a series that stops in 2018 were dropped as
+  unparseable.
+- **Headers spanning two rows.** Sometimes the upper row carries country groups
+  over repeated instrument names, sometimes the lower row names only a subset
+  and the rest sit above. Blanks are filled from above and repeated labels are
+  qualified as "BARBADOS: Fixed Income Securities", both only when needed, so
+  sheets with unique complete labels are left alone.
+
+One more, which is about citation rather than parsing. **CBB's page `<title>`
+is not reliable.** The item page for the June 2025 tourism release carried
+`<title>Long Stay & Cruise Arrivals December 2023</title>`, and a matching
+og:title, while its `<h1>` and its attachment filename both said June 2025.
+Their CMS had carried the previous release's title forward. Titles come from
+the `<h1>`, and an ingest now refuses any item whose title and attachment
+disagree on the year rather than storing a wrong citation.
+
 ## Where this lives, and where the data does not
 
 This pipeline sits inside the StatCite repository because the sources it
