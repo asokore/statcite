@@ -135,6 +135,64 @@ export function extractItemLinks(html, listingPath) {
   return [...new Set([...html.matchAll(abs)].map((m) => m[0]))];
 }
 
+/**
+ * The publication title, taken from the page's <h1> rather than its <title>.
+ *
+ * WHY NOT <title>. On 2026-08-14 the item page for the JUNE 2025 tourism
+ * release carried `<title>Long Stay & Cruise Arrivals December 2023</title>`
+ * and an og:title to match, while its <h1> and its attachment
+ * (H1LongStayCruiseJune2025.xlsx) both said June 2025. CBB's CMS had carried
+ * the previous release's title forward. Reading <title> made StatCite cite
+ * eighteen-month-old provenance for current data, which is a worse failure
+ * than serving nothing.
+ *
+ * <title> is kept as a fallback for pages with no <h1>, with the site-name
+ * suffix stripped in BOTH forms the site uses: "… | Central Bank of Barbados"
+ * and "… - Central Bank of Barbados". Only the pipe form was handled before,
+ * so every dash-form title carried the site name into the citation's dataset
+ * field.
+ */
+export function extractTitle(html) {
+  const h1 = /<h1[^>]*>([\s\S]*?)<\/h1>/i.exec(html)?.[1];
+  const clean = (t) =>
+    t
+      ?.replace(/<[^>]+>/g, "")
+      .replace(/&amp;/g, "&")
+      .replace(/&#0?39;|&apos;/g, "'")
+      .replace(/&quot;/g, '"')
+      .replace(/&nbsp;/g, " ")
+      .replace(/\s+/g, " ")
+      .replace(/\s*[|-]\s*Central Bank of Barbados\s*$/i, "")
+      .trim();
+  const fromH1 = clean(h1);
+  if (fromH1) return fromH1;
+  return clean(/<title>([^<]+)<\/title>/i.exec(html)?.[1]) || undefined;
+}
+
+/**
+ * Does the title agree with the file it describes?
+ *
+ * Both carry a year, and when they disagree one of them is describing a
+ * different publication. This is the check that would have caught the December
+ * 2023 title on the June 2025 workbook, so it is a hard failure rather than a
+ * warning: a citation that names the wrong publication is the specific harm
+ * this project exists to prevent.
+ */
+export function titleAgreesWithAttachment(title, attachmentUrl) {
+  const years = (s) => [...String(s ?? "").matchAll(/(?:19|20)\d{2}/g)].map((m) => m[0]);
+  // Drop the CDN's own date prefix, which is the publication timestamp and
+  // says nothing about the period the workbook covers.
+  const file = String(attachmentUrl ?? "").split("/").pop()?.replace(/^\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-/, "");
+  const t = years(title);
+  const f = years(file);
+  if (!t.length || !f.length) return { ok: true };
+  if (t[t.length - 1] === f[f.length - 1]) return { ok: true };
+  return {
+    ok: false,
+    problem: `title "${title}" ends at ${t[t.length - 1]} but the attachment ${file} ends at ${f[f.length - 1]} — the page title may be a stale carry-over from the previous release`,
+  };
+}
+
 /** The spreadsheet attachment on an item page, or undefined. */
 export function extractAttachment(html) {
   const docs = [...new Set([...html.matchAll(/https:\/\/cdn\.centralbank\.org\.bb\/documents\/[^"'<> ]+/g)].map((m) => m[0]))];
@@ -214,7 +272,7 @@ export async function resolveAttachment(itemUrl, cookies = "") {
   const { res, html } = await get(itemUrl, cookies);
   if (!res.ok) throw new Error(`CBB item GET ${res.status} for ${itemUrl}`);
   const url = extractAttachment(html);
-  const title = /<title>([^<]+)<\/title>/i.exec(html)?.[1]?.replace(/\s*\|\s*Central Bank.*$/i, "").trim();
+  const title = extractTitle(html);
   return { itemUrl, attachmentUrl: url, title };
 }
 

@@ -13,6 +13,8 @@ import {
   extractItemLinks,
   extractAttachment,
   publicationDateFromUrl,
+  extractTitle,
+  titleAgreesWithAttachment,
   CBB_LISTINGS,
   CBB_UNRESOLVED_CATEGORIES,
 } from "./fetch.mjs";
@@ -96,4 +98,74 @@ test("the catalogue records unresolved categories rather than calling them empty
   for (const u of CBB_UNRESOLVED_CATEGORIES) {
     assert.ok(!listed.has(u), `${u} is unresolved and must not be presented as a working listing`);
   }
+});
+
+// --- the title is the citation, so it has to describe the right release ----
+//
+// Live on 2026-08-14: the item page for the JUNE 2025 tourism release carried
+// <title>Long Stay & Cruise Arrivals December 2023</title> and a matching
+// og:title, while its <h1> and its attachment (H1LongStayCruiseJune2025.xlsx)
+// both said June 2025. CBB's CMS had carried the previous release's title
+// forward. Reading <title> put eighteen-month-old provenance on current data.
+
+const STALE_TITLE_PAGE = `
+  <html><head><title>Long Stay &amp; Cruise Arrivals December 2023</title>
+  <meta property="og:title" content="Long Stay &amp; Cruise Arrivals December 2023"></head>
+  <body><h2>Navigation</h2>
+  <h1>Long Stay &amp; Cruise Arrivals June 2025</h1>
+  <a href="https://cdn.centralbank.org.bb/documents/2025-09-16-15-18-59-H1LongStayCruiseJune2025.xlsx">data</a>
+  ${BOILERPLATE}</body></html>`;
+
+const DASH_SUFFIX_PAGE = `
+  <html><head><title>Balance of Payments (BOP) 1967 - 2017 - Central Bank of Barbados</title></head>
+  <body><h1>Balance of Payments (BOP) 1967 - 2017</h1></body></html>`;
+
+test("the title comes from the h1, not a stale <title>", () => {
+  assert.equal(extractTitle(STALE_TITLE_PAGE), "Long Stay & Cruise Arrivals June 2025");
+});
+
+test("the site-name suffix is stripped in both the pipe and dash forms", () => {
+  // Only the pipe form was handled before, so every dash-form title carried
+  // "- Central Bank of Barbados" into the citation's dataset field.
+  assert.equal(
+    extractTitle("<html><head><title>Wages Index 2018 | Central Bank of Barbados</title></head><body></body></html>"),
+    "Wages Index 2018",
+  );
+  assert.equal(extractTitle(DASH_SUFFIX_PAGE), "Balance of Payments (BOP) 1967 - 2017");
+  // The fallback path has to strip it too, since that is where it came from.
+  assert.equal(
+    extractTitle("<html><head><title>Wages Index 2018 - Central Bank of Barbados</title></head><body></body></html>"),
+    "Wages Index 2018",
+  );
+});
+
+test("a title describing a different year is rejected, not ingested", () => {
+  const bad = titleAgreesWithAttachment(
+    "Long Stay & Cruise Arrivals December 2023",
+    "https://cdn.centralbank.org.bb/documents/2025-09-16-15-18-59-H1LongStayCruiseJune2025.xlsx",
+  );
+  assert.equal(bad.ok, false, "the real historical defect must fail the check");
+  assert.match(bad.problem, /2023.*2025|stale/i);
+
+  const good = titleAgreesWithAttachment(
+    "Long Stay & Cruise Arrivals June 2025",
+    "https://cdn.centralbank.org.bb/documents/2025-09-16-15-18-59-H1LongStayCruiseJune2025.xlsx",
+  );
+  assert.equal(good.ok, true);
+});
+
+test("the CDN date prefix is not mistaken for the period the workbook covers", () => {
+  // Every attachment URL starts with its publication timestamp. Counting that
+  // as a year would make a 2023 publication of 2018 data look like a mismatch
+  // and refuse a perfectly good release.
+  const r = titleAgreesWithAttachment(
+    "Wages Index 2018",
+    "https://cdn.centralbank.org.bb/documents/2023-08-23-14-05-36-I7WagesIndex2018.xlsx",
+  );
+  assert.equal(r.ok, true, "the 2023 in the CDN prefix must be ignored");
+});
+
+test("a title or filename with no year is not treated as a mismatch", () => {
+  assert.equal(titleAgreesWithAttachment("Monetary Survey", "https://cdn.centralbank.org.bb/documents/2026-01-01-00-00-00-Survey.xlsx").ok, true);
+  assert.equal(titleAgreesWithAttachment("", "").ok, true);
 });

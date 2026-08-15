@@ -92,11 +92,18 @@ export function parseSheet(xml, shared = []) {
   for (const rm of xml.matchAll(/<row[^>]*r="(\d+)"[^>]*>([\s\S]*?)<\/row>/g)) {
     const rowIdx = Number(rm[1]) - 1;
     const cells = [];
-    for (const cm of rm[2].matchAll(/<c([^>]*)>([\s\S]*?)<\/c>/g)) {
+    // A cell may be self-closing (`<c r="A9" s="14"/>`), which Excel emits for
+    // a blank cell that still carries formatting. Requiring `</c>` made such a
+    // cell swallow the NEXT one: the match ran on to the following cell's
+    // closing tag, so the empty cell took its neighbour's <v> as its own value
+    // and the neighbour disappeared. On the CBB investments workbook that put
+    // raw shared-string indices (15, 16, 17 …) in the label column and deleted
+    // every date, which is why the whole sheet read as having no data table.
+    for (const cm of rm[2].matchAll(/<c([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
       const attrs = cm[1];
       const ref = /r="([A-Z]+\d+)"/.exec(attrs)?.[1] ?? "";
       const type = /t="([^"]+)"/.exec(attrs)?.[1];
-      const body = cm[2];
+      const body = cm[2] ?? "";
       let value = null;
       if (type === "inlineStr") {
         value = [...body.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map((t) => decodeEntities(t[1])).join("");
