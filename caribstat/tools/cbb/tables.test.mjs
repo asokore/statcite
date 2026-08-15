@@ -15,6 +15,7 @@ import {
   extractTransposed,
   composeGroupedHeaders,
   fillBlankHeadersFromAbove,
+  isDateColumn,
 } from "./tables.mjs";
 
 // --- the year/serial collision --------------------------------------------
@@ -327,4 +328,49 @@ test("filling a header does not resurrect an empty spacer column", () => {
   sheet2.rows[0] = [null, "Period", "Real", "Also Real", null];
   const t2 = extractSheet(sheet2);
   assert.deepEqual(t2.series.map((s) => s.label), ["Real", "Also Real"], "an unnamed, data-less column stays dropped");
+});
+
+// --- a date column is not a statistic -------------------------------------
+//
+// The depository-corporations sheets put an "End of Period" column of Excel
+// date serials beside the month labels. Served as data it became a series of
+// five-figure numbers indistinguishable from statistics. CBB's own serials are
+// MISALIGNED with their month labels (the row reading "January 2007" carries a
+// serial for January 2012), so comparing the column against the period axis
+// does not identify it.
+
+const monthly = (start, n, step = 30.4) =>
+  Array.from({ length: n }, (_, i) => ({ period: `2012-${String((i % 12) + 1).padStart(2, "0")}`, value: Math.round(start + i * step) }));
+
+test("a date column is dropped by its header", () => {
+  assert.equal(isDateColumn("End of Period", monthly(40909, 24)), true);
+  assert.equal(isDateColumn("Period", monthly(40909, 24)), true);
+  assert.equal(isDateColumn("date", monthly(40909, 24)), true);
+});
+
+test("an unlabelled date column is caught by its calendar step", () => {
+  // Loans&Deposits carries this column with no header at all.
+  assert.equal(isDateColumn("", monthly(42705, 170)), true);
+});
+
+test("a real statistic in the same numeric range is NOT dropped", () => {
+  // The guard must not eat a monetary series that happens to sit in the
+  // 40,000s. Real series do not advance by one month of days every month.
+  const jumpy = monthly(41000, 40).map((o, i) => ({ ...o, value: o.value + (i % 7) * 900 }));
+  assert.equal(isDateColumn("Total Deposits", jumpy), false);
+  // A steady series with the wrong step size is also safe.
+  assert.equal(isDateColumn("Reserves", monthly(41000, 40, 120)), false);
+  // And anything outside the modern serial range.
+  assert.equal(isDateColumn("Debt EC$M", monthly(900, 40)), false);
+});
+
+test("a short column is never guessed at", () => {
+  assert.equal(isDateColumn("", monthly(42705, 6)), false, "six points is not a calendar");
+});
+
+test("Month YYYY labels parse, prose does not", () => {
+  assert.equal(normalisePeriod("January 2007").period, "2007-01");
+  assert.equal(normalisePeriod("Feb 2026").period, "2026-02");
+  assert.equal(normalisePeriod("Source: Central Bank of Barbados"), undefined);
+  assert.equal(normalisePeriod("Basket Weights"), undefined);
 });
