@@ -283,6 +283,52 @@ the `statistics` category. Each hid the next.
   qualified as "BARBADOS: Fixed Income Securities", both only when needed, so
   sheets with unique complete labels are left alone.
 
+### The period column can only be read through its number format, 2026-08-15
+
+Three live sheets carried TWO period formats in one series — `tourism`
+(H1 - Processing), `inflation-and-retail-price-index` (Jul2001_EOP_RW) and
+`statistics` (B2F). Nothing caught it, because every individual label was
+defensible on its own. Only the shape of the SERIES was wrong, and a consumer
+joining on the period string sees `2025-01` and `2025-01-04` as two different
+months.
+
+**The tourism column drifts.** Its serials run 2022-01-01, 2022-02-01 … then
+2022-10-02, 2022-11-03, 2022-12-04, and stay on the 4th forever. Read as dates
+that is a series with a wandering day, and the month-start fold stops applying
+partway through. Read through the cell's own number format, `[$-409]mmmm\-yy;@`,
+every one of them displays to a human as "January-22" and **the day is never
+shown at all**. The drift is an artefact of how the column was generated; the
+bank means months. The inflation table is the same story with `mmmm\ yyyy`.
+
+So the reader now resolves each cell's number format and `normalisePeriod`
+folds an arbitrary day to `YYYY-MM` **only** when the format proves no day is
+displayed. That is the one rule here allowed to discard a day component, and it
+is allowed to because the format is evidence rather than an inference from the
+values. Widening the fold to "any day of the month" would have been the obvious
+fix and would have silently destroyed genuine daily dates elsewhere.
+
+**B2F is the opposite case and needed the opposite reasoning.** Its format is
+`[$-409]d\-mmm\-yyyy;@`, which does display a day, so the month-only rule
+correctly does not fire. It is a month-end series, and 147 of its 148 labels
+folded already; the one that did not was `2024-02-28`, because February 2024
+ended on the 29th. 28 February now counts as month-end in a leap year too.
+
+Two traps inside the trap, both of which produced a confidently wrong answer
+before being caught:
+
+- **`styles.xml` has two blocks of identical `<xf>` elements.** `cellStyleXfs`
+  comes FIRST and `cellXfs` is the one cell `s=` indices point at. A regex that
+  takes whichever it finds reported the tourism period column as an accounting
+  number format, which is how this investigation initially concluded the bank
+  displayed raw serials. `parseStyles` slices the `cellXfs` block explicitly.
+- **A format's literals can contain a `d`.** `mmmm "d" yyyy` prints a letter,
+  not a day, so quoted literals, escapes and `[$-409]`-style prefixes are
+  stripped before looking for a day token.
+
+A sentinel now FAILS any sheet whose periods carry more than one format, so
+this class cannot pass silently again. It was checked against the three real
+pre-fix documents and catches all three, naming the offending labels.
+
 One more, which is about citation rather than parsing. **CBB's page `<title>`
 is not reliable.** The item page for the June 2025 tourism release carried
 `<title>Long Stay & Cruise Arrivals December 2023</title>`, and a matching

@@ -87,7 +87,7 @@ const colToIndex = (ref) => {
  * Parse one worksheet into a dense array of rows of cell values.
  * Strings come back as strings, numbers as numbers, blanks as null.
  */
-export function parseSheet(xml, shared = []) {
+export function parseSheet(xml, shared = [], { monthOnlyStyles, monthOnly } = {}) {
   const rows = [];
   for (const rm of xml.matchAll(/<row[^>]*r="(\d+)"[^>]*>([\s\S]*?)<\/row>/g)) {
     const rowIdx = Number(rm[1]) - 1;
@@ -120,6 +120,13 @@ export function parseSheet(xml, shared = []) {
       }
       const ci = ref ? colToIndex(ref) : cells.length;
       cells[ci] = value === "" ? null : value;
+      // Record cells whose FORMAT says month-and-year. Only numbers qualify:
+      // a serial is the only thing whose displayed month can differ from what
+      // a naive date conversion would produce.
+      if (monthOnly && typeof value === "number") {
+        const sIdx = Number(/s="(\d+)"/.exec(attrs)?.[1] ?? -1);
+        if (sIdx >= 0 && monthOnlyStyles?.has(sIdx)) monthOnly.add(`${rowIdx}:${ci}`);
+      }
     }
     for (let i = 0; i < cells.length; i++) if (cells[i] === undefined) cells[i] = null;
     rows[rowIdx] = cells;
@@ -128,7 +135,67 @@ export function parseSheet(xml, shared = []) {
   return rows;
 }
 
-/** Read a whole workbook: { sheets: [{ name, rows }] }, in workbook order. */
+/** Excel's built-in number formats that matter here. Only 17 is month-and-year
+ * with no day; the rest are listed so a day-bearing builtin is not mistaken for
+ * one. Anything not listed resolves to "" and is treated as not-a-month-format,
+ * which fails toward keeping the full date rather than inventing a month. */
+const BUILTIN_FORMATS = {
+  14: "m/d/yyyy", 15: "d-mmm-yy", 16: "d-mmm", 17: "mmm-yy",
+  18: "h:mm AM/PM", 19: "h:mm:ss AM/PM", 20: "h:mm", 21: "h:mm:ss", 22: "m/d/yy h:mm",
+};
+
+/**
+ * Does this number-format code display a month and a year but NO day?
+ *
+ * This is the question that decides whether an Excel serial is a MONTH or a
+ * DATE, and it has to be asked of the format rather than of the value. The CBB
+ * tourism sheet stores its period column as serials that drift from the 1st to
+ * the 4th of the month (2022-09-01, 2022-10-02, 2022-11-03, 2022-12-04, then
+ * the 4th forever). Read as dates that is a series with a wandering day; read
+ * through its format, `[$-409]mmmm\-yy;@`, every one of them displays to a
+ * human as "January-22" and the day is never shown at all. The drift is an
+ * artefact of however the column was generated, and the bank means months.
+ *
+ * Literals are stripped before looking for a day token, because a format like
+ * `mmmm "d" yyyy` prints a letter d without dating anything.
+ */
+export function isMonthYearFormat(code) {
+  if (!code) return false;
+  let s = String(code).split(";")[0]; // positive section only
+  s = s.replace(/\[[^\]]*\]/g, ""); // [$-409], [Red]
+  s = s.replace(/"[^"]*"/g, ""); // quoted literals
+  s = s.replace(/\\./g, ""); // escaped single chars, e.g. \-
+  s = s.toLowerCase();
+  if (/[hs]/.test(s)) return false; // a time format; `m` there means minutes
+  return /y/.test(s) && /m/.test(s) && !/d/.test(s);
+}
+
+/**
+ * Map each cellXfs index to its format code.
+ *
+ * Reads the cellXfs block ONLY. styles.xml also contains a cellStyleXfs block
+ * of identically-shaped <xf> elements that appears FIRST, and a regex that
+ * grabs whichever it finds returns a confidently wrong answer: during the
+ * investigation that produced this function it reported the tourism period
+ * column as an accounting number format when it is in fact a date format.
+ */
+export function parseStyles(xml = "") {
+  const custom = new Map();
+  for (const m of xml.matchAll(/<numFmt[^>]*numFmtId="(\d+)"[^>]*formatCode="([^"]*)"[^>]*\/>/g)) {
+    custom.set(Number(m[1]), decodeEntities(m[2]));
+  }
+  const start = xml.indexOf("<cellXfs");
+  const end = xml.indexOf("</cellXfs>");
+  if (start < 0 || end < 0) return [];
+  return [...xml.slice(start, end).matchAll(/<xf\b[^>]*?>/g)].map((m) => {
+    const id = Number(/numFmtId="(\d+)"/.exec(m[0])?.[1] ?? 0);
+    return custom.get(id) ?? BUILTIN_FORMATS[id] ?? "";
+  });
+}
+
+/** Read a whole workbook: { sheets: [{ name, rows, monthOnly }] }, in workbook
+ * order. `monthOnly` is a Set of "row:col" keys for numeric cells whose format
+ * shows a month and year but no day. */
 export function readXlsx(buf) {
   const zip = unzip(buf);
   const dec = (name) => {
@@ -138,6 +205,8 @@ export function readXlsx(buf) {
   const shared = parseSharedStrings(dec("xl/sharedStrings.xml"));
   const workbook = dec("xl/workbook.xml") ?? "";
   const rels = dec("xl/_rels/workbook.xml.rels") ?? "";
+  const formats = parseStyles(dec("xl/styles.xml"));
+  const monthOnlyStyles = new Set(formats.flatMap((code, i) => (isMonthYearFormat(code) ? [i] : [])));
 
   // Sheet name -> target part, resolved through r:id so sheet ORDER and NAME
   // stay correct even when the parts are not numbered in display order.
@@ -152,7 +221,8 @@ export function readXlsx(buf) {
     const target = relMap.get(rid);
     const xml = target ? dec(`xl/${target}`) : undefined;
     if (!xml) continue;
-    sheets.push({ name: decodeEntities(name), rows: parseSheet(xml, shared) });
+    const monthOnly = new Set();
+    sheets.push({ name: decodeEntities(name), rows: parseSheet(xml, shared, { monthOnlyStyles, monthOnly }), monthOnly });
   }
   return { sheets };
 }

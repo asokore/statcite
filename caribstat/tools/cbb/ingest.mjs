@@ -42,6 +42,32 @@ export function validateTable(table, publishedAt) {
   // resurfacing. Fail loudly rather than emit Edwardian periods again.
   const antique = (table.periods ?? []).filter((p) => /^19[0-3]\d-/.test(p));
   if (antique.length) problems.push(`${antique.length} period(s) parsed into the 1900s (e.g. ${antique[0]}) — likely a year read as an Excel serial`);
+  // ONE SHEET, ONE PERIOD FORMAT. A series whose labels change shape partway
+  // through cannot be matched on period by anything downstream: "2025-01" and
+  // "2025-01-04" are the same month written two ways, and a consumer joining on
+  // the string sees two different periods. This went undetected across three
+  // sheets — tourism, an inflation table and the investments sheet — because
+  // each individual label was defensible on its own. The shape of the SERIES is
+  // the thing that was wrong, so that is what this checks.
+  const shapes = new Set(
+    (table.periods ?? []).map((p) =>
+      /^\d{4}$/.test(p) ? "YYYY"
+        : /^\d{4}-Q[1-4]$/.test(p) ? "YYYY-Qn"
+        : /^\d{4}-\d{2}$/.test(p) ? "YYYY-MM"
+        : /^\d{4}-\d{2}-\d{2}$/.test(p) ? "YYYY-MM-DD"
+        : "unrecognised",
+    ),
+  );
+  if (shapes.size > 1) {
+    const counts = [...shapes].map((s) => {
+      const n = (table.periods ?? []).filter((p) => (s === "YYYY" ? /^\d{4}$/ : s === "YYYY-Qn" ? /^\d{4}-Q[1-4]$/ : s === "YYYY-MM" ? /^\d{4}-\d{2}$/ : s === "YYYY-MM-DD" ? /^\d{4}-\d{2}-\d{2}$/ : /^$/).test(p)).length;
+      return `${s} x${n}`;
+    });
+    const odd = (table.periods ?? []).filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p)).slice(0, 3);
+    problems.push(
+      `period labels carry ${shapes.size} different formats (${counts.join(", ")})${odd.length ? `, e.g. ${odd.join(", ")}` : ""} — one series must use one format or period matching breaks`,
+    );
+  }
   if (!publishedAt) problems.push("no publication date could be read from the attachment URL");
   return problems;
 }
