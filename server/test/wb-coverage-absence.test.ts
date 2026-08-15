@@ -157,8 +157,30 @@ test("every territory points at its own department page, not a shared one", () =
   const urls = Object.values(INTEGRATED_TERRITORIES).map((t) => t.publisherUrl);
   assert.equal(new Set(urls).size, urls.length, "publisher URLs must be distinct per territory");
   for (const [iso3, t] of Object.entries(INTEGRATED_TERRITORIES)) {
-    assert.match(t.publisherUrl, /^https:\/\/www\.insee\.fr\/.+DEP-\d{3}$/, `${iso3} URL shape`);
-    assert.ok(resolveCountry(iso3)?.name, `${iso3} must resolve to a real name`);
-    assert.ok(!resolveCountry(iso3)?.unverified, `${iso3} must not be an unverified passthrough`);
+    assert.match(t.publisherUrl, /^https:\/\/[a-z0-9.-]+\/\S+$/, `${iso3} URL shape`);
+    if (t.parentIso3 === "FRA") {
+      assert.match(t.publisherUrl, /^https:\/\/www\.insee\.fr\/.+DEP-\d{3}$/, `${iso3} INSEE URL shape`);
+    }
+    const c = resolveCountry(iso3);
+    assert.ok(c?.name, `${iso3} must resolve to a real name`);
+    assert.notEqual(c!.name, iso3, `${iso3} must resolve to a NAME, not echo its own code`);
+    assert.ok(!c?.unverified, `${iso3} must not be an unverified passthrough`);
+    // The message tells the caller to retry with the parent, so the parent
+    // name has to be a string this service will actually accept.
+    const parent = resolveCountry(t.parentName);
+    assert.equal(parent?.iso3, t.parentIso3, `country="${t.parentName}" must resolve to ${t.parentIso3}`);
   }
+});
+
+test("the Caribbean Netherlands is a real economy, not an unknown code", async () => {
+  // Found on 2026-08-14 by re-running the Caribbean sweep rather than
+  // restating an earlier count: BES fell through the three-letter passthrough
+  // and answered "No snapshot data available for 'BES' (BES)", echoing the
+  // code back as if it were a name.
+  stubWorldBank(EMPTY_RESULT);
+  const text = JSON.stringify((await getIndicator("BES")).body);
+  assert.match(text, /special municipalities of the Netherlands/i, "must state its actual status");
+  assert.ok(!/overseas department/i.test(text), "it is not a French overseas department");
+  assert.match(text, /cbs\.nl/, "must point at the office that does publish it");
+  assert.match(text, /no_published_data/);
 });
