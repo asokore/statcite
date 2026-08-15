@@ -1,0 +1,10 @@
+# Shell scripts must keep LF endings regardless of platform.
+#
+# This repo is developed on Windows with core.autocrlf=true, which rewrites
+# checked-out files to CRLF. A shell script that comes back with CRLF has
+# "#!/bin/sh\r" as its shebang, which is not a valid interpreter path on Unix,
+# so the script fails to execute. For .githooks/ that would silently disable
+# the embargo guard on a fresh clone, which is the exact failure mode the
+# tracked hook exists to prevent.
+.githooks/* text eol=lf
+*.sh text eol=lf

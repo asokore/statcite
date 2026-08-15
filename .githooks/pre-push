@@ -1,0 +1,34 @@
+#!/bin/sh
+# Embargo guard. TRACKED copy — see CLAUDE.md "Branch topology and the embargo
+# guard" for why this exists and how to enable it.
+#
+# Local `main` carries the R2 benchmark RESULTS (bench/runs/R2*), which stay off
+# the public remote until the vendor courtesy-preview window closes. This hook
+# refuses any push whose TIP TREE contains embargoed paths — tree membership,
+# not range diffs, because a new-branch push has no range and the first version
+# of this guard silently passed on exactly that case.
+#
+# (bench/questions/R2* and bench/snapshots/R2* are pre-registered and public by
+# design — only runs/ is embargoed.)
+#
+# THIS FILE IS NOT ACTIVE UNTIL ENABLED. Git never runs hooks straight from a
+# clone, by design. Enable once per clone:
+#
+#     git config core.hooksPath .githooks
+#
+# Verify it is active with `git config --get core.hooksPath` (expect
+# `.githooks`). If that prints nothing, this guard is NOT protecting you and a
+# plain `git push` from main would publish the embargoed results.
+
+while read local_ref local_sha remote_ref remote_sha; do
+  # A delete-push sends the all-zero sha; nothing to inspect.
+  [ "$local_sha" = "0000000000000000000000000000000000000000" ] && continue
+  leaked=$(git ls-tree -r --name-only "$local_sha" -- bench/runs 2>/dev/null | grep -E "^bench/runs/R2" | head -5)
+  if [ -n "$leaked" ]; then
+    echo "PUSH REFUSED: the pushed tree ($local_ref) contains embargoed R2 results:" >&2
+    echo "$leaked" >&2
+    echo "Push via the public-sync branch (git push origin public-sync:main), which excludes bench/runs/R2*." >&2
+    exit 1
+  fi
+done
+exit 0
