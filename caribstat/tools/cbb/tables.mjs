@@ -32,7 +32,7 @@ export function excelSerialToISO(n) {
  * "2006R" is the bank telling you the figure has been revised and dropping
  * that turns a qualified number into an unqualified one.
  */
-export function normalisePeriod(cell) {
+export function normalisePeriod(cell, { monthOnly = false } = {}) {
   if (cell == null || cell === "") return undefined;
   if (typeof cell === "number") {
     // A BARE YEAR IS ALSO A VALID EXCEL SERIAL, and that collision silently
@@ -55,7 +55,20 @@ export function normalisePeriod(cell) {
     // either format on its own.
     const [yy, mm, dd] = iso.split("-").map(Number);
     const lastDay = new Date(Date.UTC(yy, mm, 0)).getUTCDate();
-    return { period: dd === 1 || dd === lastDay ? iso.slice(0, 7) : iso, raw: cell, revised: false };
+    // The cell's own number format says month-and-year with no day, so the day
+    // component is not something the bank ever shows and must not become part
+    // of the period. This is the ONLY rule here that folds an arbitrary day,
+    // and it is allowed to because the format is evidence rather than a guess:
+    // the tourism column drifts 1st -> 2nd -> 3rd -> 4th while every cell
+    // displays as "January-22". See isMonthYearFormat in tools/xlsx.mjs.
+    if (monthOnly) return { period: iso.slice(0, 7), raw: cell, revised: false };
+    // 28 February counts as month-end even in a leap year. The CBB investments
+    // sheet (B2F) is a month-end series whose neighbours are 2024-01-31 and
+    // 2024-03-31, and it writes February 2024 as the 28th although that year's
+    // last day is the 29th. Without this, one observation in 148 kept a
+    // YYYY-MM-DD label while the rest were months.
+    const monthEnd = dd === lastDay || (mm === 2 && dd === 28);
+    return { period: dd === 1 || monthEnd ? iso.slice(0, 7) : iso, raw: cell, revised: false };
   }
   const s = String(cell).trim();
   if (!s) return undefined;
@@ -259,7 +272,7 @@ export function extractSheet(sheet) {
 
   for (let r = anchor.row + 1; r < sheet.rows.length; r++) {
     const row = sheet.rows[r] ?? [];
-    const p = normalisePeriod(row[anchor.col]);
+    const p = normalisePeriod(row[anchor.col], { monthOnly: sheet.monthOnly?.has(`${r}:${anchor.col}`) });
     if (!p) {
       // Only count a skip when the cell had content — blank spacer rows are
       // not anomalies worth reporting.
@@ -333,7 +346,7 @@ export function extractTransposed(sheet, { minRun = 5 } = {}) {
     const row = rows[r] ?? [];
     const found = [];
     for (let c = 0; c < row.length; c++) {
-      const p = normalisePeriod(row[c]);
+      const p = normalisePeriod(row[c], { monthOnly: sheet.monthOnly?.has(`${r}:${c}`) });
       if (p && !/^19[0-4]\d-/.test(String(p.period))) found.push({ c, p });
     }
     if (found.length < minRun) continue;
