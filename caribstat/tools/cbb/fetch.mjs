@@ -86,6 +86,26 @@ export const CBB_LISTINGS = [
   { id: "index-of-industrial-production", path: "/news/index-of-industrial-production", title: "Index of Industrial Production" },
   { id: "tourism", path: "/news/tourism", title: "Tourism" },
   { id: "balance-of-payments-reports", path: "/news/balance-of-payments-reports", title: "Balance of Payments" },
+
+  // Resolved 2026-08-15 from the five category pages that list no items of
+  // their own. They are hubs, as suspected, and tools/cbb/probe-hubs.mjs
+  // recovers their children by subtracting the site-wide navigation that every
+  // page links. Ten had items; eight are here.
+  //
+  // TWO ARE DELIBERATELY ABSENT. `selected-indicators-of-depository-corporations`
+  // and `investments-based-on-supplementary-schedules` are the SAME two
+  // publications the `statistics` listing already carries, reached by a second
+  // path, and the statistics route holds the NEWER edition of each (February
+  // and April 2026 against January and March). Adding them would publish two
+  // vintages of one series with nothing to say which wins.
+  { id: "international-reserves", path: "/news/international-reserves", title: "International Reserves" },
+  { id: "commercial-banks-deposit-liabilities", path: "/news/commercial-banks-deposit-liabilities", title: "Commercial Banks: Loan Assets and Deposit Liabilities" },
+  { id: "depository-corporations-survey", path: "/news/depository-corporations-survey", title: "Depository Corporations Survey" },
+  { id: "commercial-banks-provisional-deposit-liabilities", path: "/news/commercial-banks-provisional-deposit-liabilities", title: "Commercial Banks: Provisional Deposit Liabilities" },
+  { id: "financial-soundness-indicators", path: "/news/financial-soundness-indicators", title: "Core Financial Soundness Indicators for Deposit Takers" },
+  { id: "interest-rates", path: "/news/interest-rates", title: "Selected Interest Rates" },
+  { id: "exchange-rates-cbob", path: "/news/exchange-rates-cbob", title: "Exchange Rates" },
+  { id: "trade-in-goods-barbados", path: "/news/trade-in-goods-barbados", title: "Trade in Goods" },
 ];
 
 /**
@@ -140,7 +160,26 @@ export const CBB_PARTIAL = {
     "14 of 15 sheets; the 15th is the workbook's Table of Contents, which is correctly not a data table",
 };
 
-export const CBB_UNRESOLVED_CATEGORIES = [
+/**
+ * RESOLVED 2026-08-15. These five list no items because they are hubs, which
+ * is what the earlier note suspected and did not confirm. Their children were
+ * recovered by subtracting the site-wide navigation every CBB page links (see
+ * tools/cbb/probe-hubs.mjs); comparing raw link counts just measures the nav.
+ *
+ *   deposit-taking-financial-system    21 children, 7 with items
+ *   interest-rates-and-exchange-rates   6 children, 2 with items
+ *   trade-in-goods-tables               5 children, 1 with items
+ *   summary-of-government-operations    4 children, NONE with items
+ *   securities-tables                   4 children, NONE with items
+ *
+ * The last two are genuinely empty as published today: every child of theirs
+ * is itself an itemless hub. That is a coverage fact about CBB, not a gap in
+ * this pipeline, and it should be re-probed rather than assumed permanent.
+ */
+export const CBB_UNRESOLVED_CATEGORIES = [];
+
+/** Hubs, kept so a future probe knows where to look rather than rediscovering it. */
+export const CBB_HUBS = [
   "deposit-taking-financial-system",
   "interest-rates-and-exchange-rates",
   "trade-in-goods-tables",
