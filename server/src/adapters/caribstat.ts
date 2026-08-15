@@ -381,31 +381,114 @@ export const CARIBSTAT_CATALOGUE: CaribstatTable[] = [
     freqs: ["a", "q", "m"], geographies: 9, sampleRow: "Total Visitors",
     topics: ["tourism", "visitors", "arrivals", "cruise", "stayover"],
   },
+  // --- CBB ------------------------------------------------------------
+  //
+  // GENERATED. Run `node tools/cbb/catalogue.mjs` in caribstat/ and paste the
+  // output here. Do not hand-edit the sheet lists.
+  //
+  // WHY GENERATED. Search builds a series id from the FIRST sheet listed:
+  // `caribstat/CBB/{table}/{sheets[0]}`. These were written by hand and were
+  // wrong -- `real-gdp`, `tourism` and `unemployment` against the real
+  // `real-gdp-2010-prices`, `h1-processing` and `table-i5` -- so every CBB
+  // suggestion search made returned 422 when followed. A recommendation that
+  // cannot be fetched is worse than none, because the caller blames their own
+  // request. The list also covered 5 of 16 categories, leaving eleven
+  // unreachable by search.
   {
-    provider: "CBB", table: "balance-of-payments-reports", title: "Balance of Payments",
-    sheets: ["current-account", "analytical-summary", "capital-account", "primary-income"],
-    sampleRow: "Current Account Balance",
-    topics: ["balance of payments", "bop", "current account", "capital account", "trade balance"],
+    provider: "CBB", table: "balance-of-payments-reports", title: "Balance of Payments (BOP)",
+    sheets: ["standard-summary","financial-account-balances","net-acquision-of-assets","net-incurrence-of-liabilities","financial-account-summary","other-services","primary-income","secondary-income","transport","current-account","analytical-summary","capital-account","travel","government-nie"],
+    sampleRow: "1. CURRENT ACCOUNT",
+    topics: ["balance of payments","bop","current account","capital account","trade balance"],
   },
   {
-    provider: "CBB", table: "gross-domestic-product", title: "Gross Domestic Product",
-    sheets: ["real-gdp", "gdp-by-sector"], sampleRow: "Real GDP",
-    topics: ["gdp", "growth", "output", "sectors"],
+    provider: "CBB", table: "commercial-banks-deposit-liabilities", title: "Loan Assets And Deposit Liability",
+    sheets: ["bankdeptot","cudeposits","partiiideptot","bankloantot","culoans","partiiiloantot"],
+    sampleRow: "Central Bank",
+    topics: ["deposit liabilities","commercial banks","loan assets","bank deposits"],
   },
   {
-    provider: "CBB", table: "inflation-and-retail-price-index", title: "Inflation and Retail Price Index",
-    sheets: ["inflation"], sampleRow: "12 MONTH MA",
-    topics: ["inflation", "retail price index", "rpi", "prices"],
+    provider: "CBB", table: "commercial-banks-provisional-deposit-liabilities", title: "Commercial Banks' Provisional Deposit Liabilities",
+    sheets: ["b2e1a","b2e","b2e1","b2e2","b2e3","b2e4"],
+    sampleRow: "Agriculture",
+    topics: ["provisional deposits","commercial banks","deposit liabilities"],
   },
   {
-    provider: "CBB", table: "tourism", title: "Tourism",
-    sheets: ["tourism"], sampleRow: "Total Arrivals",
-    topics: ["tourism", "arrivals", "visitors"],
+    provider: "CBB", table: "depository-corporations-survey", title: "Depository Corporation Survey",
+    sheets: ["dcs-broadmoney","dcs-domestic-claims-expanded"],
+    sampleRow: "Claims on Non Residents",
+    topics: ["depository corporations","broad money","domestic claims","money supply"],
+  },
+  {
+    provider: "CBB", table: "exchange-rates-cbob", title: "Exchange Rates",
+    sheets: ["e3","e4"],
+    sampleRow: "Stg",
+    topics: ["exchange rate","currency","fx","barbados dollar"],
+  },
+  {
+    provider: "CBB", table: "financial-soundness-indicators", title: "Core Financial Soundness Indicators for Deposit Takers",
+    sheets: ["core-fis-for-deposit-takers"],
+    sampleRow: "Regulatory capital to risk-weighted assets",
+    topics: ["financial soundness","capital adequacy","fsi","deposit takers","bank stability"],
+  },
+  {
+    provider: "CBB", table: "gross-domestic-product", title: "Gross Domestic Product (GDP)",
+    sheets: ["real-gdp-2016-prices","real-gdp-2010-prices"],
+    sampleRow: "Agriculture and Fishing",
+    topics: ["gdp","growth","output","sectors","real gdp"],
+  },
+  {
+    provider: "CBB", table: "index-of-industrial-production", title: "Index of Industrial Production",
+    sheets: ["1994-avg","1994-eop","1982-avg","1982-eop"],
+    sampleRow: "Total All Industries",
+    topics: ["industrial production","manufacturing","output","iip"],
+  },
+  {
+    provider: "CBB", table: "inflation-and-retail-price-index", title: "Retail Price Index (RPI) and Rate of Inflation",
+    sheets: ["inflation","jul2001-eop-rw","jul2018-avg-rw","jul2018-eop-rw","jul2001-avg-rw","jul2001-eop","may1994-eop","jul2001-avg","mar1980-avg","mar1980-eop","may1994-avg","oct1965-avg","oct1965-eop"],
+    sampleRow: "12 MONTH MOVING AVERAGE",
+    topics: ["inflation","retail price index","rpi","prices","cost of living"],
+  },
+  {
+    provider: "CBB", table: "interest-rates", title: "Selected Interest Rates, Comparative Treasury Bill Rates and Bank Rates",
+    sheets: ["e1","e2"],
+    sampleRow: "Deposits: Savings",
+    topics: ["interest rate","treasury bill","bank rate","lending rate","deposit rate"],
+  },
+  {
+    provider: "CBB", table: "international-reserves", title: "Monetary Base and Net Domestic Assets",
+    sheets: ["nda","internationalreserves"],
+    sampleRow: "NIR",
+    topics: ["international reserves","foreign reserves","monetary base","net domestic assets"],
   },
   {
     provider: "CBB", table: "labour-statistics", title: "Labour Statistics",
-    sheets: ["unemployment"], sampleRow: "Unemployment Rate",
-    topics: ["labour", "labor", "unemployment", "employment", "jobs"],
+    sheets: ["table-i5d","table-i5b","table-i5f","table-i5","table-i5c2","table-i5a","table-i5c1","table-i5e"],
+    sampleRow: "Employer",
+    topics: ["labour","labor","unemployment","employment","jobs","wages"],
+  },
+  {
+    provider: "CBB", table: "statistics", title: "Investments (Provisional)",
+    sheets: ["b2f","b3f","depositorycorporations","monetaryauthorities","loans-deposits"],
+    sampleRow: "TOTAL: Fixed Income Securities",
+    topics: ["investments","depository corporations","monetary authorities","bank investments"],
+  },
+  {
+    provider: "CBB", table: "the-wages-index", title: "Wages Index",
+    sheets: ["wagesindex"],
+    sampleRow: "Extrapolated WAGES INDEX",
+    topics: ["wages","wage index","earnings","pay"],
+  },
+  {
+    provider: "CBB", table: "tourism", title: "Long Stay & Cruise Arrivals",
+    sheets: ["h1-processing"],
+    sampleRow: "U.S.A",
+    topics: ["tourism","arrivals","visitors","cruise","long stay"],
+  },
+  {
+    provider: "CBB", table: "trade-in-goods-barbados", title: "Trade in Goods",
+    sheets: ["g2b","g3b","g4b","g1a","g2a","g3a","g4a","g1"],
+    sampleRow: "FOOD AND BEVERAGES: Sugar",
+    topics: ["trade in goods","imports","exports","re-exports","merchandise trade"],
   },
 ];
 

@@ -270,6 +270,40 @@ Each of these cost a debugging cycle and is documented at its call site:
   CPI varies *by country*. Caching one date for the source would mislabel most
   of the corpus.
 
+### The search catalogue is generated, not hand-written
+
+StatCite's `CARIBSTAT_CATALOGUE` decides what search can find, and it builds
+each suggestion's series id from the FIRST sheet an entry lists:
+`caribstat/CBB/{table}/{sheets[0]}`.
+
+Those sheet names had been written by hand and were wrong. Search suggested
+`real-gdp`, `tourism` and `unemployment` where the published ids are
+`real-gdp-2010-prices`, `h1-processing` and `table-i5`, so **following any CBB
+suggestion returned HTTP 422**. A recommendation that cannot be fetched is
+worse than none: the caller assumes they typed it wrong. The catalogue also
+listed 5 of 16 categories, leaving eleven unreachable by search entirely.
+
+    node tools/cbb/catalogue.mjs        # prints the CBB block, writes the manifest
+
+Paste the output over the CBB entries in `server/src/adapters/caribstat.ts`.
+The same run writes `server/test/fixtures/cbb-sheets.json`, a committed
+manifest of the ids the pipeline actually publishes.
+
+**The manifest is the part that matters.** A test can otherwise only check that
+a catalogue sheet name is slug-SHAPED, and every wrong name was: `real-gdp`
+looks perfectly valid and does not exist. That weakness was not theoretical.
+The first version of this guard passed a mutation that renamed a sheet back to
+`real-gdp` — the exact defect it was written for — and only failed on the
+cruder mutation of deleting a whole category. With the manifest, both are
+caught.
+
+Two editorial inputs stay hand-maintained in the generator, because no amount
+of reading the data supplies them: the search `topics` for each category, and
+`PREFERRED`, which names the canonical sheet for tables where the widest sheet
+is not the one a person means. The balance-of-payments standard summary is the
+answer to "Barbados balance of payments"; the financial-account balances are
+not.
+
 ### The legacy .xls balance-of-payments tables: not worth a BIFF8 reader
 
 Fourteen of the fifteen balance-of-payments items are legacy binary `.xls`,

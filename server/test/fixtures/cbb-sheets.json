@@ -1,0 +1,111 @@
+{
+  "balance-of-payments-reports": [
+    "standard-summary",
+    "financial-account-balances",
+    "net-acquision-of-assets",
+    "net-incurrence-of-liabilities",
+    "financial-account-summary",
+    "other-services",
+    "primary-income",
+    "secondary-income",
+    "transport",
+    "current-account",
+    "analytical-summary",
+    "capital-account",
+    "travel",
+    "government-nie"
+  ],
+  "commercial-banks-deposit-liabilities": [
+    "bankdeptot",
+    "cudeposits",
+    "partiiideptot",
+    "bankloantot",
+    "culoans",
+    "partiiiloantot"
+  ],
+  "commercial-banks-provisional-deposit-liabilities": [
+    "b2e1a",
+    "b2e",
+    "b2e1",
+    "b2e2",
+    "b2e3",
+    "b2e4"
+  ],
+  "depository-corporations-survey": [
+    "dcs-broadmoney",
+    "dcs-domestic-claims-expanded"
+  ],
+  "exchange-rates-cbob": [
+    "e3",
+    "e4"
+  ],
+  "financial-soundness-indicators": [
+    "core-fis-for-deposit-takers"
+  ],
+  "gross-domestic-product": [
+    "real-gdp-2016-prices",
+    "real-gdp-2010-prices"
+  ],
+  "index-of-industrial-production": [
+    "1994-avg",
+    "1994-eop",
+    "1982-avg",
+    "1982-eop"
+  ],
+  "inflation-and-retail-price-index": [
+    "inflation",
+    "jul2001-eop-rw",
+    "jul2018-avg-rw",
+    "jul2018-eop-rw",
+    "jul2001-avg-rw",
+    "jul2001-eop",
+    "may1994-eop",
+    "jul2001-avg",
+    "mar1980-avg",
+    "mar1980-eop",
+    "may1994-avg",
+    "oct1965-avg",
+    "oct1965-eop"
+  ],
+  "interest-rates": [
+    "e1",
+    "e2"
+  ],
+  "international-reserves": [
+    "nda",
+    "internationalreserves"
+  ],
+  "labour-statistics": [
+    "table-i5d",
+    "table-i5b",
+    "table-i5f",
+    "table-i5",
+    "table-i5c2",
+    "table-i5a",
+    "table-i5c1",
+    "table-i5e"
+  ],
+  "statistics": [
+    "b2f",
+    "b3f",
+    "depositorycorporations",
+    "monetaryauthorities",
+    "loans-deposits"
+  ],
+  "the-wages-index": [
+    "wagesindex"
+  ],
+  "tourism": [
+    "h1-processing"
+  ],
+  "trade-in-goods-barbados": [
+    "g2b",
+    "g3b",
+    "g4b",
+    "g1a",
+    "g2a",
+    "g3a",
+    "g4a",
+    "g1"
+  ]
+}
