@@ -305,38 +305,61 @@ before the bank restated it. That is a feature decision, and a defensible one
 given the service already reasons about vintages elsewhere. It is not a
 coverage gap, and it should not be described as one.
 
-### Independent verification of the ECCB values, 2026-08-15
+### Independent verification, both sources, 2026-08-15
 
-Every value-level defect this pipeline has produced was a PARSING defect, and
-a parser cannot audit itself: re-running the ingest and getting the same answer
-proves consistency, not correctness. So the published ECCB data is checked
-against a second implementation, written in another language so it shares no
-code path with the ingest.
+Every value-level defect this project has produced was a PARSING defect, and a
+parser cannot audit itself: re-running the ingest and getting the same answer
+proves consistency, not correctness. Both halves of the corpus are now checked
+against second implementations written in Python, sharing no code with the JS
+pipeline.
 
-    node tools/eccb/capture.mjs --all --start 2015 --end 2026
+    node tools/eccb/capture.mjs --all --freq a --start 2015 --end 2026
+    node tools/eccb/capture.mjs --all --freq q --start 2015 --end 2026
+    node tools/eccb/capture.mjs --all --freq m --start 2015 --end 2026
     python tools/eccb/verify_independent.py
 
-**Result: 55 documents, 11,838 cells, zero disagreements.** The capture step
-reuses the pipeline's fetch, because the CSRF handshake needs it and fetching
-is not where any defect has been found. The parse and the comparison are
-independent.
+    node tools/cbb/capture.mjs
+    python tools/cbb/verify_independent.py
 
-The verifier is proven able to fail: changing one published value by 0.01 and
-renaming one row is reported as exactly two disagreements, and the run returns
-to zero when they are restored. A checker that has only ever printed zero is
-not evidence of anything.
+**Result: 185 documents, 172,634 values, zero disagreements.** ECCB contributes
+137 documents and 98,313 cells across annual, quarterly and monthly; CBB
+contributes 48 documents and 74,321 values.
 
-Two things the first run got wrong, both in the CHECKER rather than the data,
-and both worth knowing before trusting a future report:
+Both are proven able to fail rather than merely printing zero. Nudging one
+published value by 0.01, renaming a series to something the sheet never says,
+and corrupting one period are each reported as exactly one disagreement, and
+each run returns to zero on restore.
+
+**The two checkers work differently, on purpose.** ECCB is HTML, so its checker
+re-derives the table and compares cell by cell. CBB is spreadsheets, where
+re-deriving would mean re-implementing the same header and axis guesses, and
+two implementations of one guess agreeing proves very little. So the CBB
+checker treats the published document as a CLAIM and audits it against the raw
+grid: some line of the sheet must actually carry the published periods (a wrong
+axis fails), every series must equal some real line read at those positions
+(invented numbers fail), and that line must be headed with the published label
+(values shifted into a neighbouring column fail, which is the defect that
+started all of this).
+
+**Four false alarms, all in the checkers, all worth knowing before trusting a
+future report:**
 
 - ECCB writes a missing value as a run of dashes, `---`. A single-dash pattern
-  reported 44 false mismatches.
-- Tables in this corpus were collected with different date windows, so
-  demanding identical period lists reported a capture-configuration difference
-  as a data defect. The comparison now runs over the overlapping periods.
+  called 44 cells mismatched.
+- Tables were collected with different date windows, so demanding identical
+  period lists reported a capture-configuration difference as a data defect.
+  The comparison runs over overlapping periods.
+- ECCB labels a QUARTERLY column with the quarter's end month, so "Mar 2020"
+  means 2020-Q1 in a quarterly table and 2020-03 in a monthly one. A checker
+  that does not take frequency as an input cannot read either.
+- CBB date cells can hold 2022-10-02 while DISPLAYING as "October-22", because
+  the bank's own serials drift a day or two per month. The number format is
+  what the publication means, so the day must be dropped. Ignoring cell formats
+  reported three correctly-published documents as having a wrong axis. See
+  `isMonthYearFormat` in `tools/xlsx.mjs`.
 
-`.capture/` is gitignored. The verifier is committed; the publishers' raw HTML
-is not ours to redistribute.
+`.capture/` is gitignored. The checkers are committed; the publishers' raw HTML
+and workbooks are not ours to redistribute.
 
 ### ECCB: a repeated row label is not one series
 
