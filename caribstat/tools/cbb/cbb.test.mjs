@@ -19,7 +19,7 @@ import {
   CBB_LISTINGS,
   CBB_UNRESOLVED_CATEGORIES,
 } from "./fetch.mjs";
-import { selectItems } from "./ingest.mjs";
+import { selectItems, validateTable } from "./ingest.mjs";
 
 const BOILERPLATE = `
   <a href="https://cdn.centralbank.org.bb/documents/2022-04-21-04-57-32-Government-of-Barbados-Tradeable-Bonds-FAQ-1.pdf">Bonds FAQ</a>
@@ -223,4 +223,31 @@ test("the statistics listing is the only one declaring more than one publication
   // but it does record what was true when the rule was written.
   const declared = CBB_LISTINGS.filter((l) => (l.families ?? 1) > 1).map((l) => l.id);
   assert.deepEqual(declared, ["statistics"]);
+});
+
+test("a sheet whose axis misses most of its rows is REFUSED", () => {
+  // The guard that would have stopped today's worst defect from publishing.
+  // The depository-corporations sheets were read off the wrong column and
+  // dated 87 of 230 numeric rows. Values and labels were correct, so nothing
+  // value-shaped could see it; coverage could.
+  const bad = {
+    periods: ["2012-01"],
+    series: [{ label: "X", observations: [{ period: "2012-01", value: 1 }] }],
+    axis_coverage: 0.38,
+  };
+  const problems = validateTable(bad, "2026-05-03");
+  assert.ok(problems.length > 0, "38% coverage must fail");
+  assert.match(problems[0], /38%|wrong one/);
+});
+
+test("the worst real sheet still passes the coverage gate", () => {
+  // Calibration: measured across every CBB sample workbook, correctly-read
+  // sheets score 0.87 to 1.00. The gate sits at 0.60 so the real low-water
+  // mark has room, and a sheet that skips most of its rows still fails.
+  const ok = {
+    periods: ["2012-01"],
+    series: [{ label: "X", observations: [{ period: "2012-01", value: 1 }] }],
+    axis_coverage: 0.87,
+  };
+  assert.deepEqual(validateTable(ok, "2026-05-03"), []);
 });
