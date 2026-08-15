@@ -22,6 +22,7 @@
 import { readFileSync, existsSync, mkdirSync, appendFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
+import { execFileSync } from "node:child_process";
 
 const ZONE = "9d183b85f315b73cc41ff0059caac168"; // statcite.com
 const GQL = "https://api.cloudflare.com/client/v4/graphql";
@@ -33,14 +34,46 @@ const OUT = join(process.cwd(), "analytics");
 // It is already on this machine, already scoped to this account, and already
 // refreshed by wrangler. A separate API token would be one more secret to leak.
 
-function token() {
-  if (process.env.CLOUDFLARE_API_TOKEN) return process.env.CLOUDFLARE_API_TOKEN;
-  const roots = [
+/**
+ * Wrangler's OAuth token expires roughly hourly and wrangler refreshes it
+ * lazily, on its next command. A tool that only READS the stored file
+ * therefore works all session and then fails with a bare "Authentication
+ * error" that says nothing about why. Ask wrangler to refresh first, which
+ * costs one subprocess and turns an opaque failure into no failure.
+ */
+function refreshIfExpired() {
+  for (const dir of configDirs()) {
+    if (!existsSync(dir)) continue;
+    for (const f of readdirSync(dir).filter((f) => f.endsWith(".toml"))) {
+      const body = readFileSync(join(dir, f), "utf8");
+      const exp = body.match(/^expiration_time\s*=\s*"([^"]+)"/m);
+      if (!exp) continue;
+      // Refresh a minute early: a token valid for 20 more seconds will expire
+      // mid-run and fail on the second query rather than the first.
+      if (Date.parse(exp[1]) - Date.now() > 60_000) return;
+      try {
+        execFileSync("npx", ["wrangler", "whoami"], { stdio: "ignore", shell: true });
+      } catch {
+        // If this fails the request below fails with its own message, which is
+        // more informative than anything invented here.
+      }
+      return;
+    }
+  }
+}
+
+function configDirs() {
+  return [
     join(homedir(), "AppData", "Roaming", "xdg.config", ".wrangler", "config"),
     join(homedir(), ".wrangler", "config"),
     join(homedir(), ".config", ".wrangler", "config"),
   ];
-  for (const dir of roots) {
+}
+
+function token() {
+  if (process.env.CLOUDFLARE_API_TOKEN) return process.env.CLOUDFLARE_API_TOKEN;
+  refreshIfExpired();
+  for (const dir of configDirs()) {
     if (!existsSync(dir)) continue;
     for (const f of readdirSync(dir).filter((f) => f.endsWith(".toml"))) {
       const m = readFileSync(join(dir, f), "utf8").match(/^oauth_token\s*=\s*"([^"]+)"/m);

@@ -19,6 +19,62 @@ export interface Country {
   unverified?: boolean;
 }
 
+/**
+ * Economies that are constitutionally part of another state and are reported
+ * inside that state's national accounts rather than under their own code.
+ *
+ * WHY THIS EXISTS. A Caribbean coverage check on 2026-08-14 found Guadeloupe
+ * and Martinique returning a bare "No snapshot data available", which reads as
+ * a lookup failure and invites the caller to retry with a different spelling.
+ * The truth is more useful and more final: these are French overseas
+ * departments, the World Bank and the IMF carry them inside France, and the
+ * department-level figures exist but are published by the national statistical
+ * institute. Saying so turns a dead end into a working referral.
+ *
+ * Every URL below was fetched on 2026-08-14 and confirmed to return that
+ * department's own "Dossier complet" page rather than a generic search page.
+ * An earlier candidate URL (insee.fr/fr/statistiques?geo=REG-nn) returned an
+ * identical byte-for-byte page for four different regions, because the filter
+ * is applied in the browser, so it was rejected.
+ */
+export interface IntegratedTerritory {
+  parentIso3: string;
+  parentName: string;
+  publisher: string;
+  publisherUrl: string;
+}
+
+const INSEE = (dep: string): Omit<IntegratedTerritory, "parentIso3" | "parentName"> => ({
+  publisher: "INSEE, the French national statistical institute",
+  publisherUrl: `https://www.insee.fr/fr/statistiques/2011101?geo=DEP-${dep}`,
+});
+const FRANCE = { parentIso3: "FRA", parentName: "France" };
+
+export const INTEGRATED_TERRITORIES: Record<string, IntegratedTerritory> = {
+  GLP: { ...FRANCE, ...INSEE("971") },
+  MTQ: { ...FRANCE, ...INSEE("972") },
+  GUF: { ...FRANCE, ...INSEE("973") },
+  REU: { ...FRANCE, ...INSEE("974") },
+  MYT: { ...FRANCE, ...INSEE("976") },
+};
+
+/**
+ * One sentence explaining why an international source holds nothing for this
+ * code, and where the figures actually live. Returns undefined for everywhere
+ * else, so callers can append it without knowing the special cases.
+ */
+export function integratedTerritoryNote(iso3: string, name: string): string | undefined {
+  const t = INTEGRATED_TERRITORIES[iso3.toUpperCase()];
+  if (!t) return undefined;
+  return (
+    `${name} is an overseas department of ${t.parentName}, so the international ` +
+    `sources this service draws on report it inside ${t.parentName} rather than as a ` +
+    `separate economy. This is a coverage fact, not a lookup failure. Figures for ` +
+    `${name} itself are published by ${t.publisher}, at ${t.publisherUrl}. ` +
+    `A snapshot for the parent state is available with country="${t.parentName}".`
+  );
+}
+
 type Row = [string, string, string, ...string[]]; // iso3, iso2, name, aliases
 
 const ROWS: Row[] = [
@@ -47,6 +103,7 @@ const ROWS: Row[] = [
   ["GLP", "GP", "Guadeloupe"],
   ["MTQ", "MQ", "Martinique"],
   ["GUF", "GF", "French Guiana", "guyane"],
+  ["MYT", "YT", "Mayotte"],
   ["ESH", "EH", "Western Sahara"],
   ["TWN", "TW", "Taiwan", "chinese taipei", "taiwan province of china"],
   ["AFG", "AF", "Afghanistan"],
