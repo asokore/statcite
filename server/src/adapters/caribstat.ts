@@ -195,6 +195,17 @@ export function caribstatUrl(p: ParsedId, origin = CARIBSTAT_ORIGIN): string {
   return `${origin}/data/${p.provider.toLowerCase()}/${p.table}/${p.freq}/${p.iso3}.json${v}`;
 }
 
+/**
+ * Mark a row that shares its label with others, so the citation says WHICH one.
+ *
+ * Three rows all citing "Central Government Fiscal Accounts: Domestic" puts
+ * the ambiguity straight back into the output the caller quotes, which is the
+ * last place it can still do damage.
+ */
+function withOccurrence<T extends { label: string }>(row: T, n: number, total: number): T {
+  return total > 1 ? { ...row, label: `${row.label} [${n} of ${total}]` } : row;
+}
+
 /** Pick a row by label. Exact match first, then a case-insensitive prefix — a
  * prefix match must be UNIQUE, because silently picking the first of several
  * "Public Sector …" rows would serve a different series than the caller asked
@@ -208,8 +219,52 @@ export function selectRow(doc: CaribstatDoc, want?: string): { label: string; un
     });
   }
   if (!want) return doc.series[0];
-  const exact = doc.series.find((s) => s.label.toLowerCase() === want.toLowerCase());
-  if (exact) return exact;
+
+  // An occurrence selector, "Domestic[2]", picks the Nth row carrying a
+  // repeated label. It exists because ECCB tables legitimately repeat a label
+  // under different parent headings and we do not have the parent heading:
+  // the ingest reads the rendered table, which carries the indentation
+  // visually rather than structurally. Naming the row "Interest Payments:
+  // Domestic" would be inventing a hierarchy we have not verified, so the
+  // caller gets an exact, checkable position instead.
+  // Accept both the compact selector "Domestic[2]" and the display form this
+  // function returns, "Domestic [2 of 3]", so a label copied out of a previous
+  // response can be pasted straight back in.
+  const occ = /^(.*?)\s*\[(\d+)(?:\s+of\s+\d+)?\]$/i.exec(want.trim());
+  const wantLabel = occ ? occ[1].trim() : want;
+  const matches = doc.series.filter((s) => s.label.toLowerCase() === wantLabel.toLowerCase());
+  if (occ) {
+    const n = Number(occ[2]);
+    if (n >= 1 && n <= matches.length) return withOccurrence(matches[n - 1], n, matches.length);
+    throw new ToolError(
+      `Row '${wantLabel}' occurs ${matches.length} time(s) in ${doc.table_id}/${doc.country.iso3}, so [${n}] is out of range.`,
+      { table: doc.table_id, country: doc.country.iso3, occurrences: matches.length },
+    );
+  }
+  // REPEATED EXACT LABELS. Taking the first was a real defect: the Anguilla
+  // fiscal accounts carry "Domestic" three times, under Interest Payments,
+  // under Financing and under Arrears, with completely different values, and
+  // `#Domestic` silently served the first while hiding the other two. The
+  // prefix branch below had guarded against exactly this and the exact branch
+  // had not. Refusing is the only safe answer, and the message has to make
+  // the alternatives selectable rather than merely naming the problem.
+  if (matches.length > 1) {
+    const first = (r: { observations: Observation[] }) =>
+      r.observations.find((o) => o.value != null)?.value ?? "no values";
+    throw new ToolError(
+      `Row selector '${wantLabel}' matches ${matches.length} different rows in ${doc.table_id}/${doc.country.iso3}, ` +
+        `which the source repeats under different headings. They are distinct series: ` +
+        matches.map((m, i) => `[${i + 1}] first value ${first(m)}`).join(", ") +
+        `. Select one with '${wantLabel}[1]' … '${wantLabel}[${matches.length}]'.`,
+      {
+        table: doc.table_id,
+        country: doc.country.iso3,
+        ambiguous_label: wantLabel,
+        occurrences: matches.length,
+      },
+    );
+  }
+  if (matches.length === 1) return matches[0];
   const prefixed = doc.series.filter((s) => s.label.toLowerCase().startsWith(want.toLowerCase()));
   if (prefixed.length === 1) return prefixed[0];
   if (prefixed.length > 1) {

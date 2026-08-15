@@ -255,6 +255,31 @@ Each of these cost a debugging cycle and is documented at its call site:
   CPI varies *by country*. Caching one date for the source would mislabel most
   of the corpus.
 
+### ECCB: a repeated row label is not one series
+
+A scan of all 154 ECCB documents on 2026-08-15, looking for the defect classes
+the CBB half had just produced, found **27 with repeated row labels**. The
+Anguilla fiscal accounts list "Domestic" three times, under Interest Payments,
+under Financing and under Arrears, with entirely different values. StatCite's
+row selector took the first exact match, so `#Domestic` served one series and
+hid the other two while looking perfectly healthy. The prefix branch of that
+selector had guarded against precisely this; the exact branch had not.
+
+Repeated labels are now REFUSED with a message listing each occurrence and its
+first value, and each is reachable as `#Domestic[1]`, `[2]`, `[3]`. The served
+label carries "[2 of 3]" so three distinct series cannot share one citation,
+and that display form can be pasted straight back in as a selector.
+
+Note what was deliberately NOT done. The obvious fix is to name the rows
+"Interest Payments: Domestic" and so on, as the CBB grouped-header fix does.
+The parent heading is not available: the ingest reads the rendered table, whose
+hierarchy is visual rather than structural, and a nearest-preceding-heading
+rule gets it wrong (the "External" under Financing sits below an unrelated
+"Other"). Inventing a parent we have not verified would be the same class of
+error as everything else in this file, so the position is exposed instead. If
+the source hierarchy can be recovered later, the named form is the better
+answer.
+
 ### CBB spreadsheet traps, found 2026-08-14
 
 The Central Bank of Barbados half is spreadsheets rather than HTML tables, and
