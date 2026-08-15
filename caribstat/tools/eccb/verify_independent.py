@@ -58,21 +58,58 @@ def to_number(v: str):
     return -n if negative else n
 
 
-def parse(raw: str):
+MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+
+
+def to_period(label, freq):
+    """A column header as the period string the pipeline publishes.
+
+    Frequency is REQUIRED, not cosmetic: ECCB labels a quarterly column with
+    the quarter's END MONTH, so "Mar 2020" means 2020-Q1 in a quarterly table
+    and 2020-03 in a monthly one. Reading the label without knowing which would
+    silently mislabel a whole table, and the first version of this checker did
+    not recognise these labels at all, reporting nine quarterly and nine
+    monthly documents as having no table in the source.
+    """
+    t = (label or "").strip()
+    if re.fullmatch(r"(19|20)\d{2}", t):
+        return t
+    if re.fullmatch(r"(19|20)\d{2}-Q[1-4]", t, re.I):
+        return t.upper()
+    if re.fullmatch(r"(19|20)\d{2}-\d{2}", t):
+        return t
+    m = re.fullmatch(r"([A-Za-z]{3,9})\s+((?:19|20)\d{2})", t)
+    if m and m.group(1)[:3].lower() in MONTHS:
+        month = MONTHS.index(m.group(1)[:3].lower()) + 1
+        year = m.group(2)
+        if freq == "q":
+            return f"{year}-Q{(month - 1) // 3 + 1}"
+        if freq == "m":
+            return f"{year}-{month:02d}"
+        return year
+    return None
+
+
+def parse(raw, freq="a"):
+    """(header periods, [(row label, values)]) or (None, reason)."""
     table = re.search(r"<table[\s\S]*?</table>", raw, re.I)
     if not table:
-        return None, None
+        return None, "no <table> element in the page"
     header, rows = None, []
     for tr in re.findall(r"<tr[\s\S]*?</tr>", table.group(0), re.I):
         cs = cells(tr)
         if not cs:
             continue
-        if header is None and len(cs) > 1 and all(re.fullmatch(r"(19|20)\d{2}(-Q[1-4]|-\d{2})?", c) for c in cs[1:]):
-            header = cs[1:]
-            continue
+        if header is None and len(cs) > 1:
+            got = [to_period(c, freq) for c in cs[1:]]
+            if all(got):
+                header = got
+                continue
         if header is None:
             continue
         rows.append((cs[0], [to_number(x) for x in cs[-len(header):]]))
+    if header is None:
+        return None, "a table is present but no row of it reads as a period header"
     return header, rows
 
 
@@ -94,11 +131,11 @@ def main() -> int:
                 continue
             files += 1
             with open(os.path.join(root, name), encoding="utf8", errors="replace") as fh:
-                header, rows = parse(fh.read())
+                header, rows = parse(fh.read(), freq)
             doc = json.load(open(published, encoding="utf8"))
             where = f"{table_id}/{freq}/{iso3}"
             if header is None:
-                problems.append(("NO TABLE IN SOURCE", where, "", "", ""))
+                problems.append(("SOURCE UNREADABLE", where, str(rows), "", ""))
                 continue
             # Compare the OVERLAP of periods rather than demanding identical
             # windows. Tables in this corpus were collected with different date
