@@ -270,6 +270,42 @@ Each of these cost a debugging cycle and is documented at its call site:
   CPI varies *by country*. Caching one date for the source would mislabel most
   of the corpus.
 
+### The legacy .xls balance-of-payments tables: not worth a BIFF8 reader
+
+Fourteen of the fifteen balance-of-payments items are legacy binary `.xls`,
+which the zero-dependency reader cannot open. Reading them needs a BIFF8
+parser, written from scratch under that constraint. Whether that is worth
+building was measured on 2026-08-15 rather than assumed either way.
+
+**It is not, on current evidence.**
+
+The comprehensive 1967-2017 workbook is `.xlsx` and is already ingested: 14
+sheets, 51 annual periods each, covering the standard accounts from 1967. The
+legacy items are 2010 and 2011 vintages whose data stops at 2009 or 2010,
+entirely inside that range. They add no periods.
+
+What they might have added is the supplementary tables, by subject: government
+and private transfer payments, government and private foreign capital, foreign
+assets of commercial banks, international reserves and official financing, and
+the foreign assets and liabilities of the monetary authorities. Every one of
+those subjects is now served, and served far more currently, by the eight
+categories recovered from the hub pages: `international-reserves` runs to
+February 2026, `commercial-banks-deposit-liabilities` and
+`commercial-banks-provisional-deposit-liabilities` to early 2026, and
+`depository-corporations-survey` to January 2026.
+
+**Stated precisely, because the distinction matters.** That mapping is by
+SUBJECT, from the publication titles. Line-item equivalence has not been
+verified and cannot be without a BIFF8 reader, so the honest claim is that the
+legacy tables cover subjects we now hold more recent data for, not that every
+individual line in them exists elsewhere.
+
+So the cost is a binary-format parser carrying exactly the wrong-but-plausible-
+number risk that produced every defect in this project, and the benefit is
+2010-vintage breakdowns of subjects already covered to 2026. If a specific
+historical line item is ever needed, this is the place to start and the reason
+it was deferred.
+
 ### Backfilling older CBB editions: measured, and not worth doing
 
 Recorded because two earlier notes in this project named the wrong blocker,
