@@ -36,8 +36,32 @@ export const BASE = "https://www.centralbank.org.bb";
 export const CDN = "https://cdn.centralbank.org.bb";
 
 /** Listing pages that carry statistical publications, from the live sitemap. */
+/**
+ * `families` is how many DISTINCT publications a listing carries, as opposed
+ * to how many editions of one publication.
+ *
+ * Every listing here but one is a run of the same table republished: tourism
+ * is ten editions of Long Stay & Cruise Arrivals, labour is nine of Labour
+ * Statistics. For those, the newest item is the answer and `families: 1` is
+ * right. The `statistics` listing is different — its two items are DIFFERENT
+ * tables (commercial bank investments, and selected indicators of depository
+ * corporations), so taking only the newest silently discarded the other one
+ * entirely. That is a whole publication missing, not a stale edition.
+ *
+ * Found 2026-08-14 by listing the item slugs per category rather than assuming
+ * every listing behaved like tourism.
+ *
+ * Balance of payments is deliberately left at 1 even though its fifteen items
+ * DO split into several slug families ("…private-foreign-capital…-table-13",
+ * "…yincome-table-8"). Those are 2010 and 2011 vintages of individual tables,
+ * superseded by the comprehensive 1967-2017 workbook that is now ingested.
+ * Pulling them in would serve older figures alongside newer ones for the same
+ * series with no rule saying which wins, which is the overlap-precedence
+ * problem this project has not yet solved. Left out on purpose, recorded here
+ * so the next session does not read it as an oversight.
+ */
 export const CBB_LISTINGS = [
-  { id: "statistics", path: "/news/statistics", title: "Statistics" },
+  { id: "statistics", path: "/news/statistics", title: "Statistics", families: 2 },
   { id: "gross-domestic-product", path: "/news/gross-domestic-product", title: "Gross Domestic Product" },
   { id: "inflation-and-retail-price-index", path: "/news/inflation-and-retail-price-index", title: "Inflation and Retail Price Index" },
   { id: "labour-statistics", path: "/news/labour-statistics", title: "Labour Statistics" },
@@ -192,6 +216,33 @@ export function titleAgreesWithAttachment(title, attachmentUrl) {
     ok: false,
     problem: `title "${title}" ends at ${t[t.length - 1]} but the attachment ${file} ends at ${f[f.length - 1]} — the page title may be a stale carry-over from the previous release`,
   };
+}
+
+/**
+ * The publication a slug belongs to, with its edition stamp removed.
+ *
+ *   long-stay-cruise-arrivals-june-2025      -> long-stay-cruise-arrivals
+ *   long-stay-cruise-arrivals-december-2023  -> long-stay-cruise-arrivals
+ *   investments-provisional-2014-april-2026  -> investments-provisional
+ *
+ * Trailing years, month names and quarter markers are edition stamps, so they
+ * come off. Anything earlier in the slug is the publication's identity and
+ * stays, which is what keeps "investments" and "selected indicators of
+ * depository corporations" apart.
+ */
+export function publicationFamily(slugOrUrl) {
+  const slug = String(slugOrUrl ?? "").split("/").filter(Boolean).pop() ?? "";
+  const MONTHS = /^(january|february|march|april|may|june|july|august|september|october|november|december)$/i;
+  const parts = slug.split("-");
+  while (parts.length > 1) {
+    const last = parts[parts.length - 1];
+    if (/^\d{4}$/.test(last) || MONTHS.test(last) || /^q[1-4]$/i.test(last) || /^\d{1,2}$/.test(last)) {
+      parts.pop();
+      continue;
+    }
+    break;
+  }
+  return parts.join("-");
 }
 
 /** The spreadsheet attachment on an item page, or undefined. */

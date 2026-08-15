@@ -16,7 +16,7 @@
 
 import { mkdir, writeFile, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
-import { openListing, extractItemLinks, resolveAttachment, downloadAttachment, publicationDateFromUrl, titleAgreesWithAttachment, CBB_LISTINGS } from "./fetch.mjs";
+import { openListing, extractItemLinks, resolveAttachment, downloadAttachment, publicationDateFromUrl, titleAgreesWithAttachment, publicationFamily, CBB_LISTINGS } from "./fetch.mjs";
 import { readXlsx } from "../xlsx.mjs";
 import { extractWorkbook } from "./tables.mjs";
 import { compareWithExisting, classifyChange } from "../changed.mjs";
@@ -153,6 +153,31 @@ export async function heldPublication(dataDir, categoryId) {
  * cannot see is a file replaced in place under an unchanged URL, and that is
  * precisely what the weekly deep run is for.
  */
+/**
+ * Which items to fetch from a listing.
+ *
+ * Listings are newest-first, and most of them are one publication republished,
+ * so "the newest item" is normally the whole answer. It is not always: the
+ * statistics listing carries two DIFFERENT tables, and taking only the newest
+ * dropped the other publication entirely rather than merely serving it stale.
+ *
+ * So: group by publication, take the newest `maxItems` editions of each, and
+ * keep as many publications as the listing declares. A listing that does not
+ * declare `families` keeps the old single-publication behaviour exactly.
+ */
+export function selectItems(items, listing, maxItems = 1) {
+  const wanted = listing?.families ?? 1;
+  const byFamily = new Map();
+  for (const url of items) {
+    const key = publicationFamily(url);
+    if (!byFamily.has(key)) byFamily.set(key, []);
+    byFamily.get(key).push(url);
+  }
+  const out = [];
+  for (const [, urls] of [...byFamily].slice(0, wanted)) out.push(...urls.slice(0, maxItems));
+  return out;
+}
+
 export async function ingestCategory(listing, { maxItems = 1, dataDir = DATA_DIR, gapMs = 1000, deep = false } = {}) {
   const retrievedAt = new Date().toISOString();
   const results = [];
@@ -162,7 +187,7 @@ export async function ingestCategory(listing, { maxItems = 1, dataDir = DATA_DIR
     return { category: listing.id, retrievedAt, results: [{ ok: false, problems: ["listing returned no items — it may be a hub of sub-categories, not a listing"] }] };
   }
 
-  for (const itemUrl of items.slice(0, maxItems)) {
+  for (const itemUrl of selectItems(items, listing, maxItems)) {
     try {
       const { attachmentUrl, title } = await resolveAttachment(itemUrl, session.cookies);
       if (!attachmentUrl) {
