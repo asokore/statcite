@@ -8,14 +8,17 @@
 // must never be able to break statcite.com.
 //
 // LICENCE GATE. Ingestion is permitted because the operator obtained written
-// permission from the source institution (2026-08-10). SERVING is gated
-// separately and deliberately: `caribstat` stays absent from the served
-// registry until its licence-ledger entry records the grant's scope verbatim
+// permission from both source institutions (2026-08-10). SERVING was gated
+// separately and deliberately: `caribstat` stayed absent from the served
+// registry until each licence-ledger entry recorded the grant's scope verbatim
 // (redistribution, derivative works, commercial use, required attribution)
 // with a verification date, exactly as every other source in that ledger does.
-// This adapter is therefore complete and tested but NOT wired into the serving
-// chain — see CARIBSTAT_ENABLED below. Turning it on is a one-line change once
-// the ledger entry exists, and must not happen before.
+// Both `eccb` and `cbb` entries record that grant as of 2026-08-14
+// (server/src/core/sources.ts, license_verdict: "served"), and CARIBSTAT_ENABLED
+// below has been true since the same date. This paragraph is deliberately kept
+// past tense rather than deleted: the gate this section describes is a real
+// constraint that will apply again to the next source, not a historical
+// curiosity.
 //
 // WHY data_as_at MATTERS HERE MORE THAN ANYWHERE ELSE. These banks stamp every
 // table with their own "Data as at" date, and the stamps genuinely differ per
@@ -28,10 +31,18 @@ import { fetchJson } from "../core/upstream.ts";
 import { ToolError } from "../core/types.ts";
 import type { Observation } from "../core/types.ts";
 
-/** Served since 2026-08-14. The ECCB ledger entry records the grant that
- * permits it. CBB is collected but NOT served: its documents deliberately
- * carry `published_at` rather than `data_as_at` and sit at a different path
- * shape, so serving it needs an adapter change, not a flag. */
+/** Both providers served since 2026-08-14; each ledger entry in
+ * server/src/core/sources.ts records the grant that permits it. CBB's
+ * documents carry `published_at` rather than `data_as_at` and sit at a
+ * different path shape (see caribstatUrl below), which the adapter has always
+ * handled per-provider — there was never a second flag gating CBB separately,
+ * only this one. A comment here previously said CBB needed "an adapter
+ * change, not a flag" as if that change were still pending; the CBB branches
+ * throughout this file (parseCaribstatId, caribstatUrl, CBB_TABLES) show the
+ * change already landed, and server/test/caribstat.test.ts has asserted CBB
+ * is served since 2026-08-14. Corrected 2026-08-15 after that staleness was
+ * caught while investigating why a live CBB series still read the pre-fix
+ * period labels — the code path was fine; only this comment was behind. */
 export const CARIBSTAT_ENABLED = true;
 
 /** Publishing origin for the ingested JSON. Overridable so the adapter can be
