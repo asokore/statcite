@@ -168,14 +168,31 @@ export function inferFrequency(periods: string[] | undefined): string {
   return "a";
 }
 
+/**
+ * Cache epoch for the mirror.
+ *
+ * The mirror fetch is cached at Cloudflare's edge for six hours, and that URL
+ * lives on asokore.github.io rather than in this zone, so it cannot be purged
+ * through the zone API. That is fine for a monthly-updating corpus and NOT
+ * fine when a document has been corrected: on 2026-08-15 a period-axis fix
+ * went live on the mirror while StatCite kept serving the previous version,
+ * with invented dates, for one series.
+ *
+ * Bumping this changes the cache key and the corrected data serves at once.
+ * Bump it whenever published data is CORRECTED, not on ordinary refreshes,
+ * which the six-hour TTL handles by itself.
+ */
+export const CARIBSTAT_CACHE_EPOCH = "2026-08-15a";
+
 export function caribstatUrl(p: ParsedId, origin = CARIBSTAT_ORIGIN): string {
   // CBB is one geography and its axis is the PUBLICATION, not the country, so
   // its corpus is laid out per workbook sheet rather than per country and
   // frequency. Two providers, two shapes, one adapter.
+  const v = `?v=${CARIBSTAT_CACHE_EPOCH}`;
   if (p.provider.toLowerCase() === "cbb") {
-    return `${origin}/data/cbb/${p.table}/${p.sheet}.json`;
+    return `${origin}/data/cbb/${p.table}/${p.sheet}.json${v}`;
   }
-  return `${origin}/data/${p.provider.toLowerCase()}/${p.table}/${p.freq}/${p.iso3}.json`;
+  return `${origin}/data/${p.provider.toLowerCase()}/${p.table}/${p.freq}/${p.iso3}.json${v}`;
 }
 
 /** Pick a row by label. Exact match first, then a case-insensitive prefix — a
