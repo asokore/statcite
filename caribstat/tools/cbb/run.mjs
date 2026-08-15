@@ -39,15 +39,29 @@ if (has("dry-run")) {
 let failures = 0;
 let sheets = 0;
 let observations = 0;
+let skippedCategories = 0;
+let heldSheets = 0;
+const deep = has("deep");
+if (deep) console.log("DEEP run: re-downloading every workbook, including ones whose URL has not changed.");
 
 for (const t of targets) {
-  const r = await ingestCategory(t, { maxItems });
+  const r = await ingestCategory(t, { maxItems, deep });
   const ok = r.results.filter((x) => x.ok);
+  // A skipped category re-read nothing, so reporting it as "N sheet(s)
+  // ingested" would be a false claim about work we did not do. It reports what
+  // it actually is: a held publication, with the sheet count we already have.
+  if (r.results.length && r.results.every((x) => x.skipped)) {
+    skippedCategories++;
+    const s = r.results[0];
+    heldSheets += s.heldSheets ?? 0;
+    console.log(`\n${t.id} — SKIPPED, still on the workbook published ${s.publishedAt} (${s.heldSheets} sheet(s) held)`);
+    continue;
+  }
   console.log(`\n${t.id} — ${ok.length} sheet(s) ingested`);
   for (const x of r.results) {
     if (x.ok) {
       sheets++;
-      observations += x.observations;
+      observations += x.observations ?? 0;
       console.log(`  ${x.state === "unchanged" ? "same" : x.state === "new" ? "NEW " : x.state === "republished" ? "PUB " : "qry "} ${String(x.sheet).slice(0, 28).padEnd(28)} ${String(x.periods).padStart(4)} periods, ${String(x.series).padStart(3)} series, ${String(x.observations).padStart(6)} obs  pub ${x.publishedAt}`);
     } else {
       failures++;
@@ -56,9 +70,13 @@ for (const t of targets) {
   }
 }
 
+if (skippedCategories) {
+  console.log(`\nSKIPPED ${skippedCategories} categor(ies) whose newest publication is one we already hold — ${skippedCategories} workbook download(s) not made, ${heldSheets} sheet(s) held unchanged.`);
+  console.log("Run with --deep to re-download them anyway (catches a workbook replaced in place under an unchanged URL).");
+}
 console.log(
   failures === 0
-    ? `\nINGEST: ${sheets} sheets, ${observations.toLocaleString()} observations, all sentinels passed`
-    : `\nINGEST: ${sheets} sheets ingested, ${failures} FAILED — see above`,
+    ? `\nINGEST: ${sheets} sheets re-read, ${observations.toLocaleString()} observations, all sentinels passed`
+    : `\nINGEST: ${sheets} sheets re-read, ${failures} FAILED — see above`,
 );
 process.exit(failures === 0 ? 0 : 1);

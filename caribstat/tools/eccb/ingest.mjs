@@ -21,6 +21,7 @@ import path from "node:path";
 import { openTableSession, fetchGeography, ECCB_GEOGRAPHIES } from "./fetch.mjs";
 import { TABLES, tableById, tableUrl, isPerCountry } from "./catalogue.mjs";
 import { compareWithExisting, classifyChange } from "../changed.mjs";
+import { loadLedger, saveLedger, noteCheck, canSkip, windowKey } from "../checkpoint.mjs";
 
 export const DATA_DIR = path.resolve(process.cwd(), "data", "eccb");
 
@@ -90,11 +91,41 @@ async function writeJson(file, doc) {
 }
 
 /**
+ * Do the documents we already hold agree they were built from `liveStamp`?
+ *
+ * The ledger is our own bookkeeping and is deliberately not trusted on its
+ * own. If it ever drifts from the data on disk, the cost must be a redundant
+ * fetch and never a skipped update, so any missing file, unreadable file or
+ * disagreeing stamp vetoes the skip.
+ */
+export async function storedStampsAgree(def, freq, geographies, dataDir, liveStamp) {
+  const held = [];
+  for (const g of geographies) {
+    let doc;
+    try {
+      doc = JSON.parse(await readFile(path.join(dataDir, def.id, freq, `${g.iso3}.json`), "utf8"));
+    } catch {
+      return { ok: false, why: `no stored document for ${g.iso3}` };
+    }
+    if (doc.data_as_at_raw !== liveStamp) {
+      return { ok: false, why: `${g.iso3} holds stamp "${doc.data_as_at_raw}", live page says "${liveStamp}"` };
+    }
+    held.push({ iso3: g.iso3, rows: doc.series?.length ?? 0, periods: doc.periods?.length ?? 0, dataAsAt: doc.data_as_at });
+  }
+  return { ok: true, held };
+}
+
+/**
  * Ingest one table across geographies at one frequency.
  * Returns a per-geography status report. Nothing is written for a geography
  * whose sentinel failed.
+ *
+ * `deep` forces a full re-read, ignoring the stamp shortcut below. A stamp is
+ * the bank's CLAIM about its own currency; a silent correction that left the
+ * stamp untouched would slip past an incremental run, so the deep run is what
+ * bounds how long such a correction could hide. Daily incremental, weekly deep.
  */
-export async function ingestTable(tableId, { freq = "a", geographies = ECCB_GEOGRAPHIES, startDate, endDate, dataDir = DATA_DIR, gapMs = 1200 } = {}) {
+export async function ingestTable(tableId, { freq = "a", geographies = ECCB_GEOGRAPHIES, startDate, endDate, dataDir = DATA_DIR, gapMs = 1200, deep = false } = {}) {
   const def = tableById.get(tableId);
   if (!def) throw new Error(`unknown table id '${tableId}'`);
   if (!def.frequencies.includes(freq)) {
@@ -106,6 +137,40 @@ export async function ingestTable(tableId, { freq = "a", geographies = ECCB_GEOG
   const results = [];
   let session;
   let sessionUrl;
+
+  const perCountry = isPerCountry(def);
+  const ledgerKey = `${def.id}/${freq}`;
+  const window = windowKey(startDate, endDate);
+  const ledger = await loadLedger(dataDir);
+
+  // A geography-selector table renders all nine geographies from ONE page, so a
+  // single GET reveals the bank's "Data as at" stamp for the whole table before
+  // we ask for nine renderings of it. If that stamp has not moved since the
+  // last run, the nine POSTs cannot return anything new and are pure cost.
+  //
+  // Per-country tables (currently only CPI) get no such shortcut and are not
+  // given a fake one: each geography lives at its own URL, and the page we
+  // would have to fetch to read its stamp is the same page that carries its
+  // table. Fetching it and discarding it would save nothing.
+  if (!perCountry) {
+    const url = tableUrl(def, geographies[0]?.iso3);
+    session = await openTableSession(url, freq);
+    sessionUrl = url;
+    if (!deep) {
+      const verdict = canSkip(ledger, ledgerKey, { liveStamp: session.dataAsAt, window });
+      const agree = verdict.skip
+        ? await storedStampsAgree(def, freq, geographies, dataDir, session.dataAsAt)
+        : { ok: false, why: verdict.why };
+      if (verdict.skip && agree.ok) {
+        noteCheck(ledger, ledgerKey, { checkedAt: retrievedAt, sourceStamp: session.dataAsAt, window, action: "skipped", fetched: false });
+        await saveLedger(dataDir, ledger);
+        return {
+          tableId, freq, retrievedAt, skipped: true, reason: verdict.why, requestsSaved: geographies.length,
+          results: agree.held.map((h) => ({ ...h, ok: true, state: "unchanged", skipped: true })),
+        };
+      }
+    }
+  }
 
   for (const g of geographies) {
     const url = tableUrl(def, g.iso3);
@@ -142,7 +207,22 @@ export async function ingestTable(tableId, { freq = "a", geographies = ECCB_GEOG
     }
     await new Promise((r) => setTimeout(r, gapMs));
   }
-  return { tableId, freq, retrievedAt, results };
+
+  // Record the check only when the whole table came back clean. A table with a
+  // failed sentinel must not leave a ledger entry that lets the next run skip
+  // it — that would turn one bad fetch into a permanent blind spot.
+  const allOk = results.every((r) => r.ok);
+  if (allOk) {
+    noteCheck(ledger, ledgerKey, {
+      checkedAt: retrievedAt,
+      sourceStamp: perCountry ? null : session?.dataAsAt ?? null,
+      window,
+      action: deep ? "deep-fetch" : "fetch",
+      fetched: true,
+    });
+    await saveLedger(dataDir, ledger);
+  }
+  return { tableId, freq, retrievedAt, skipped: false, results };
 }
 
 export { TABLES };
