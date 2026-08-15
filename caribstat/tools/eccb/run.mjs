@@ -42,9 +42,20 @@ if (has("dry-run")) {
 }
 
 let failures = 0;
+let skippedTables = 0;
+let requestsSaved = 0;
+const deep = has("deep");
+if (deep) console.log("DEEP run: ignoring the stamp shortcut and re-reading every series.");
+
 for (const t of targets) {
-  const r = await ingestTable(t.id, { freq, startDate, endDate });
+  const r = await ingestTable(t.id, { freq, startDate, endDate, deep });
   const ok = r.results.filter((x) => x.ok).length;
+  if (r.skipped) {
+    skippedTables++;
+    requestsSaved += r.requestsSaved ?? 0;
+    console.log(`\n${r.tableId} [${freq}] — SKIPPED, ${r.reason}`);
+    continue;
+  }
   console.log(`\n${r.tableId} [${freq}] — ${ok}/${r.results.length} geographies`);
   for (const x of r.results) {
     if (x.ok) console.log(`  ${x.state === "unchanged" ? "same" : x.state === "new" ? "NEW " : x.state === "republished" ? "PUB " : "qry "} ${x.iso3}  rows=${x.rows} periods=${x.periods}  data as at ${x.dataAsAt}`);
@@ -55,5 +66,9 @@ for (const t of targets) {
   }
 }
 
+if (skippedTables) {
+  console.log(`\nSKIPPED ${skippedTables} table(s) whose "Data as at" stamp had not moved — ${requestsSaved} request(s) not made.`);
+  console.log("Run with --deep to re-read them anyway (catches a silent correction that left the stamp untouched).");
+}
 console.log(failures === 0 ? "\nINGEST: all series passed their sentinels" : `\nINGEST: ${failures} series FAILED — see above`);
 process.exit(failures === 0 ? 0 : 1);

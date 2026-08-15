@@ -14,12 +14,13 @@
 //  - WORKBOOKS CARRY MANY TABLES. One download can hold 13 sheets, so a
 //    document is written per sheet, not per file.
 
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { openListing, extractItemLinks, resolveAttachment, downloadAttachment, publicationDateFromUrl, titleAgreesWithAttachment, CBB_LISTINGS } from "./fetch.mjs";
 import { readXlsx } from "../xlsx.mjs";
 import { extractWorkbook } from "./tables.mjs";
 import { compareWithExisting, classifyChange } from "../changed.mjs";
+import { loadLedger, saveLedger, noteCheck } from "../checkpoint.mjs";
 
 export const DATA_DIR = path.resolve(process.cwd(), "data", "cbb");
 
@@ -76,8 +77,57 @@ async function writeJson(file, doc) {
   await writeFile(file, JSON.stringify(doc, null, 2) + "\n", "utf8");
 }
 
-/** Ingest the newest publication(s) for one CBB category. */
-export async function ingestCategory(listing, { maxItems = 1, dataDir = DATA_DIR, gapMs = 1000 } = {}) {
+/**
+ * Which attachment did we last ingest for this category?
+ *
+ * Every sheet document from one workbook carries the same `attachment_url`, so
+ * any of them answers the question. If they DISAGREE the category is mid-way
+ * through a migration or a past run half-failed, and the honest response is to
+ * decline the shortcut and re-read the workbook.
+ *
+ * Returns undefined when nothing is stored yet, which correctly forces a fetch.
+ */
+export async function heldPublication(dataDir, categoryId) {
+  let names;
+  try {
+    names = (await readdir(path.join(dataDir, categoryId), { withFileTypes: true }))
+      .filter((d) => d.isFile() && d.name.endsWith(".json"))
+      .map((d) => d.name);
+  } catch {
+    return undefined;
+  }
+  if (names.length === 0) return undefined;
+  const urls = new Set();
+  for (const n of names) {
+    try {
+      const doc = JSON.parse(await readFile(path.join(dataDir, categoryId, n), "utf8"));
+      urls.add(doc.attachment_url ?? "");
+    } catch {
+      return undefined; // an unreadable document means we cannot claim to know
+    }
+  }
+  // The sheet count travels with the answer so a skipped run can still report
+  // how many sheets this category holds. Without it a quiet day would report
+  // zero sheets, and the standing "fewer than 14 balance-of-payments sheets is
+  // a regression" check would read every skip as a catastrophic regression.
+  return urls.size === 1 ? { attachmentUrl: [...urls][0], sheets: names.length } : undefined;
+}
+
+/**
+ * Ingest the newest publication(s) for one CBB category.
+ *
+ * `deep` forces the workbook to be downloaded and re-parsed even when the
+ * attachment URL is one we have already ingested. The incremental path skips
+ * that download, which is where nearly all of this source's cost sits: the
+ * balance-of-payments workbook has not moved since 2022-07-28 and was being
+ * re-downloaded every single day to produce a guaranteed "same".
+ *
+ * The URL is a safe key because CBB's CDN puts a publication timestamp IN the
+ * filename, so a new publication is necessarily a new URL. What the shortcut
+ * cannot see is a file replaced in place under an unchanged URL, and that is
+ * precisely what the weekly deep run is for.
+ */
+export async function ingestCategory(listing, { maxItems = 1, dataDir = DATA_DIR, gapMs = 1000, deep = false } = {}) {
   const retrievedAt = new Date().toISOString();
   const results = [];
   const session = await openListing(listing.path);
@@ -102,6 +152,19 @@ export async function ingestCategory(listing, { maxItems = 1, dataDir = DATA_DIR
         continue;
       }
       const publishedAt = publicationDateFromUrl(attachmentUrl);
+
+      // The newest item still points at the workbook we already hold, so there
+      // is nothing to download. Checked AFTER the title/attachment agreement
+      // test above, so a category we refused to ingest on citation grounds
+      // cannot be skipped into looking settled.
+      if (!deep) {
+        const held = await heldPublication(dataDir, listing.id);
+        if (held && held.attachmentUrl === attachmentUrl) {
+          results.push({ item: itemUrl, ok: true, state: "unchanged", skipped: true, publishedAt, attachmentUrl, heldSheets: held.sheets });
+          continue;
+        }
+      }
+
       const buf = await downloadAttachment(attachmentUrl);
       const { sheets, skipped } = extractWorkbook(readXlsx(buf));
       if (sheets.length === 0) {
@@ -130,6 +193,20 @@ export async function ingestCategory(listing, { maxItems = 1, dataDir = DATA_DIR
       results.push({ item: itemUrl, ok: false, problems: [String(e.message ?? e)] });
     }
     await new Promise((r) => setTimeout(r, gapMs));
+  }
+
+  // As on the ECCB side, only a clean pass earns a ledger entry.
+  if (results.length && results.every((r) => r.ok)) {
+    const ledger = await loadLedger(dataDir);
+    const skipped = results.every((r) => r.skipped);
+    noteCheck(ledger, listing.id, {
+      checkedAt: retrievedAt,
+      sourceStamp: results[0].publishedAt ?? null,
+      window: null,
+      action: skipped ? "skipped" : deep ? "deep-fetch" : "fetch",
+      fetched: !skipped,
+    });
+    await saveLedger(dataDir, ledger);
   }
   return { category: listing.id, retrievedAt, results };
 }

@@ -7,7 +7,7 @@ regional central banks into dated, citable JSON snapshots, served through
 Read `SCOPING.md` first. It holds the source recon, the architecture decision
 and the phasing. This file records current status only.
 
-## Status: 2026-08-10
+## Status: 2026-08-15
 
 **ECCB IS SERVED, live at statcite.com since 2026-08-14.** The data is published at
 github.com/asokore/caribstat and fetched by the Worker like any other upstream.
@@ -25,14 +25,17 @@ end against both banks.
 | corpus | series files | snapshots |
 |---|---|---|
 | ECCB (9 geographies, 7 tables, a/q/m) | 153 | 153 |
-| CBB (7 categories, 43 sheets) | 43 | 43 |
+| CBB (8 categories, 45 sheets) | 45 | 45 |
 
-One CBB gap remains, recorded rather than hidden: the `statistics` workbook's
-B2F/B3F sheets have no period label and no plausible period column, so the
-fallback correctly declines rather than adopting a data column. It fails loudly
-in the runner every run.
+**No CBB gap remains.** This section previously recorded the `statistics`
+workbook's B2F/B3F sheets as having no period label and no plausible period
+column, failing loudly on every run. That was fixed on 2026-08-14 in the same
+pass as the XLSX self-closing-cell bug: the category now ingests 148 monthly
+periods to April 2026, and `CBB_UNEXTRACTED` in `tools/cbb/fetch.mjs` is empty.
+A FAIL from any category is now a regression to investigate, not a known gap to
+wave through.
 
-Balance of payments now extracts 14 of 15 sheets (the 15th is the workbook's
+Balance of payments extracts 14 of 15 sheets (the 15th is the workbook's
 Table of Contents). Its merged year headers anchor at the LEFT of their span, 1967 sits in column 0 while its values sit in column 1, so the reader maps each
 period to the last column of its merge span. That mapping was checked against
 the raw sheet before being trusted, because an off-by-one year on a
@@ -93,17 +96,25 @@ wording. Until those are recorded, output stays local.
 
 Two schedulers, because one of them cannot run yet.
 
-- **Local (active now):** a daily task at 07:30 runs both ingests, commits only
-  what the banks changed, and reports NEW / PUB / qry / same counts plus any
-  sentinel failures. Defined in `~/.claude/scheduled-tasks/caribstat-ingest/`. It runs
-  while the app is open; if the app was closed when it was due, it runs on next
-  launch.
+- **Local (active now):** a daily task at 07:30 runs both ingests and reports
+  NEW / PUB / qry / same / SKIPPED counts plus any sentinel failures. It runs
+  incrementally Monday to Saturday and with `--deep` on Sunday. Defined in
+  `~/.claude/scheduled-tasks/caribstat-ingest/`. It runs while the app is open;
+  if the app was closed when it was due, it runs on next launch.
+  **It does not commit the data, and must not.** That bullet used to say it
+  committed what the banks changed, which was true only while this lived in a
+  repository with no remote; the rule inverted on 2026-08-13 when the pipeline
+  moved into this public repo. See "Where this lives, and where the data does
+  not" below.
 - **CI: deliberately removed.** The old `.github/workflows/ingest.yml` committed
-  `data/` on every run. That was harmless while this lived in a repository with
-  no remote. It is now inside a PUBLIC repository, where the same workflow would
-  be an automated redistribution engine for data the licence ledger says may not
-  be redistributed. It was not carried over, and must not be reinstated while
-  the ledger records these sources as not served.
+  `data/` into this repository on every run. That was harmless while this lived
+  in a repository with no remote. It was not carried over and must not be
+  reinstated here: the data's canonical home is github.com/asokore/caribstat,
+  and a workflow committing it into this repo too would create a second copy
+  that can drift from the one being served. (This bullet previously justified
+  the removal by saying the ledger records these sources as not served. Both
+  entries were flipped to `served` on 2026-08-14 once the banks' permission was
+  obtained, so that justification is retired even though the removal stands.)
 
 **Change detection is what makes a schedule worth having.** `tools/changed.mjs`
 compares a freshly-built document against what is on disk, ignoring only our own
@@ -132,6 +143,59 @@ Only `PUB` means a bank published something. Widening a window, fixing a parser
 or adding a table all show as `qry`, which is real work worth committing but is
 not news about the region.
 
+## Incremental collection: asking only for what could have moved
+
+Change detection above still required fetching everything first, then throwing
+almost all of it away. A daily run made 168 ECCB requests and downloaded 8 CBB
+workbooks to conclude, nearly every time, that nothing had moved. The balance of
+payments workbook has not been republished since **2022-07-28** and was being
+downloaded in full every single day.
+
+The runners now ask a cheaper question first, using each bank's own claim about
+its currency:
+
+- **ECCB.** A geography-selector table renders all nine geographies from one
+  page, and that page prints the `Data as at` stamp. One GET reveals whether the
+  table moved; if it did not, the nine POSTs behind it cannot return anything new
+  and are not made. Per-country tables (CPI) get **no** shortcut and are not
+  given a fake one: each geography's page IS its table, so there is nothing to
+  save by fetching it and discarding it.
+- **CBB.** The CDN puts a publication timestamp in the filename, so a new
+  publication is necessarily a new URL. If the newest item still points at the
+  workbook we already hold, the download does not happen.
+
+Measured on 2026-08-15, a quiet day: **478s to 81s**, with 135 ECCB requests and
+8 workbook downloads not made. The verdicts were identical, confirmed by running
+`--deep` immediately afterwards and getting the same 45 sheets and 63,255
+observations.
+
+**`same` and `SKIPPED` are different claims and are never merged.** `same` means
+we re-read the numbers and they matched. `SKIPPED` means we did not re-read them
+and are trusting the bank's stamp. A report that collapsed the two would be
+claiming verification it did not perform.
+
+**What the shortcut cannot see, and what bounds it.** A stamp is a claim, not a
+guarantee: a silent correction that left the stamp untouched, or a workbook
+replaced in place under an unchanged URL, would slip past. `--deep` ignores the
+shortcut entirely and re-reads everything. The schedule runs deep on Sundays, so
+that class of change can hide for at most seven days. Two independent conditions
+must hold before anything is skipped, and either one vetoes it:
+
+1. the check ledger (`data/{source}/_last_check.json`) records the same stamp
+   **and the same query window** as last time, because widening `--start`/`--end`
+   legitimately changes our extract while the bank's stamp stands still, and
+2. every document already on disk agrees it was built from that same stamp.
+
+The ledger is our own bookkeeping and is deliberately not trusted alone. If it
+drifts from the data, the cost is a redundant fetch, never a skipped update. An
+unreadable ledger reads as empty, which fails toward doing the work.
+
+The ledger also replaced a wart: the pipeline used to answer "when did we last
+confirm this?" by rewriting all ~196 latest files with a fresh `retrieved_at`
+every run, so a quiet day still churned every file and the schedule's notes had
+to explain that the mtimes were not evidence of a write. That claim is now
+recorded once, in one file, and the data files are left alone.
+
 ## Usage
 
 ```bash
@@ -139,7 +203,16 @@ npm test                                    # parser + sentinel tests, no networ
 node tools/eccb/run.mjs --dry-run           # what would be fetched, no requests
 node tools/eccb/run.mjs --freq a --start 2015 --end 2025
 node tools/eccb/run.mjs --table consumer-price-index --freq q
+node tools/eccb/run.mjs --freq a --deep     # ignore the stamp shortcut, re-read everything
+node tools/cbb/run.mjs --deep               # re-download every workbook
+node tools/status.mjs                       # what we hold, and how far behind today it is
 ```
+
+`tools/status.mjs` reports the newest period that actually **holds a value**,
+not the newest column. Asking ECCB for `--end 2026` returns columns through
+December 2026 whether or not those months exist yet, so a monthly table carries
+several entirely-null future columns; counting them would have the inventory
+claim coverage the data does not have.
 
 The runner exits non-zero if any series fails its sentinel. **Do not pipe it
 through `tee` without `set -o pipefail`**, a pipeline reports the last stage's
@@ -153,8 +226,12 @@ tools/eccb/fetch.mjs      session handshake, table parsing, period normalisation
 tools/eccb/catalogue.mjs  table definitions, geographies, sentinel rows
 tools/eccb/ingest.mjs     validation, document shape, snapshot writing
 tools/eccb/run.mjs        CLI
+tools/changed.mjs         did the content move, and did the SOURCE republish
+tools/checkpoint.mjs      the check ledger and the skip decision
+tools/status.mjs          inventory: newest period held, per series
 data/eccb/{table}/{freq}/{ISO3}.json              latest (mutable)
 data/eccb/{table}/{freq}/snapshots/{ISO3}.{date}.json   immutable vintage
+data/{source}/_last_check.json                    check ledger (bookkeeping, never data)
 ```
 
 ## Traps already paid for
@@ -222,20 +299,28 @@ public licence ledger at https://statcite.com/v1/sources. Code that backs a
 claim the website makes belongs beside the website.
 
 **The harvested data is deliberately NOT in this repository.** `caribstat/data/`
-is gitignored. This repository is public, and the ledger states plainly that
-neither source's terms permit the redistribution StatCite would be performing:
+is gitignored, and stays that way.
 
-> Not served. ECCU monetary and financial statistics are published by the ECCB,
-> but its website terms do not permit the redistribution this service would
-> perform.
+The reason changed on 2026-08-14 and this section has been corrected to match.
+It previously quoted a ledger entry reading "Not served ... its website terms do
+not permit the redistribution this service would perform", and argued that
+committing the harvest here would make a claim the site publishes about itself
+untrue. **That quotation is retired.** The operator wrote to both banks
+describing this service and obtained permission, and the ledger entries for
+`eccb` and `cbb` were flipped to `"license_verdict": "served"` on 2026-08-14
+with their basis recorded. The requests that were granted are public in
+`caribstat/outreach/`. Verified against the live ledger on 2026-08-15.
 
-Committing the harvest here would carry out precisely the redistribution that
-sentence says we refuse, which would make a legal claim we publish about
-ourselves untrue. The extraction code is open. The extract is local.
+So redistribution is no longer the reason. The reason now is simply that the
+data has ONE canonical home and this is not it: the collected JSON is published
+at **github.com/asokore/caribstat**, which is the location the ledger's `access`
+field names and the Worker fetches. Committing ~28MB of the same files here
+would create a second copy that can silently disagree with the one being served.
 
-That stays true even after a grant arrives. The gate is the licence ledger entry
-with its verbatim basis, and flipping it is the operator's decision, not a
-consequence of permission landing in an inbox.
+A lesson worth keeping, since this section is where it was learned: **do not
+paste a mutable ledger's prose into a document.** Cite the ledger and state the
+date it was checked. The quotation above sat here as a confident verbatim block
+for a day after the thing it quoted had changed.
 
-Data lives at `caribstat/data/` on the operator's machine and is not backed up
-by this repository.
+Data lives at `caribstat/data/` on the operator's machine, is published from
+there to github.com/asokore/caribstat, and is not backed up by this repository.
