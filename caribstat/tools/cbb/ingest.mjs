@@ -36,6 +36,18 @@ export function validateTable(table, publishedAt) {
   if (!table) return ["no data table found in the sheet"];
   if (!table.periods?.length) problems.push("no periods parsed");
   if (!table.series?.length) problems.push("no series columns parsed");
+  // A wrong period axis produces real values under real labels with invented
+  // dates, so no value-shaped check can see it. Coverage can: every correctly
+  // read CBB sheet dates 87% or more of its numeric rows, and the one sheet
+  // that was read off the wrong column dated 38% of them. Anything below 0.6
+  // means most of the sheet was skipped, which is either a truncated read or
+  // an axis in the wrong column. Both are hard failures.
+  if (typeof table.axis_coverage === "number" && table.axis_coverage < 0.6) {
+    problems.push(
+      `only ${Math.round(table.axis_coverage * 100)}% of the sheet's numeric rows carry a parsed period — ` +
+        `the period column may be the wrong one, or most rows failed to parse`,
+    );
+  }
   const values = (table.series ?? []).flatMap((s) => s.observations.map((o) => o.value)).filter((v) => v != null);
   if (values.length === 0) problems.push("every cell parsed to null — the sheet layout or number format may have changed");
   // A 1900s date in a table published this decade is the year/serial collision

@@ -329,6 +329,28 @@ A sentinel now FAILS any sheet whose periods carry more than one format, so
 this class cannot pass silently again. It was checked against the three real
 pre-fix documents and catches all three, naming the offending labels.
 
+- **A wrong period axis, chosen by fallback.** The depository-corporations
+  sheets label months as text in column 0 ("January 2007" … "February 2026").
+  That format was unrecognised, so nothing in the column parsed, and the
+  period-run search fell through to the next column along, an "End of Period"
+  column of Excel serials. It is not a period axis: it is misaligned with the
+  month labels (the row reading "January 2007" holds a serial for January
+  2012) and it stops in 2019. The published result was real values under real
+  labels with **invented dates**, and 143 of 230 months missing. When a parser
+  picks its axis by heuristic, check WHICH column it picked, not just that the
+  numbers look sane. There is now a sentinel for this: `axis_coverage` is the
+  share of a sheet's data rows that carry a parsed period, and the ingest
+  REFUSES a sheet below 0.6. Correctly-read CBB sheets measure 0.96 to 1.00;
+  the bad read measured 0.38. Note that the coverage metric must ignore the
+  period column itself, or a dated row whose values are all "NA" counts as
+  data and a healthy sheet fails the gate — that false positive appeared on
+  the industrial-production sheet the first time this ran.
+- **A date column served as a statistic.** Same sheets: once the axis was
+  right, the serial column became a "series" of five-figure numbers. It is
+  dropped by `isDateColumn`, on either a date-naming header or a
+  calendar-shaped step, because comparing it against the period axis does not
+  work when the source's own serials disagree with its own labels.
+
 One more, which is about citation rather than parsing. **CBB's page `<title>`
 is not reliable.** The item page for the June 2025 tourism release carried
 `<title>Long Stay & Cruise Arrivals December 2023</title>`, and a matching

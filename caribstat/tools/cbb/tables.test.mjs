@@ -374,3 +374,19 @@ test("Month YYYY labels parse, prose does not", () => {
   assert.equal(normalisePeriod("Source: Central Bank of Barbados"), undefined);
   assert.equal(normalisePeriod("Basket Weights"), undefined);
 });
+
+test("the extractor records how much of the sheet its axis accounts for", () => {
+  // The wrong-axis failure is invisible in the values (real numbers, real
+  // labels, invented dates). Coverage is the one signal that shows it, so it
+  // has to be recorded for the ingest sentinel to test.
+  const sheet = {
+    name: "S",
+    rows: [
+      [null, "Period", "A", "B"],
+      ...Array.from({ length: 20 }, (_, i) => [null, `January ${2000 + i}`, i, i * 2]),
+    ],
+  };
+  const t = extractSheet(sheet);
+  assert.equal(t.periods.length, 20);
+  assert.equal(t.axis_coverage, 1, "every numeric row is dated");
+});

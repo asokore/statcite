@@ -355,8 +355,27 @@ export function extractSheet(sheet) {
     // A date column is not an observation series, however it is labelled.
     .filter((s) => !isDateColumn(s.label, s.observations));
 
+  // How much of the sheet the chosen axis actually accounts for.
+  //
+  // The wrong-axis failure is invisible in the values: they are real numbers
+  // under real labels, only the dates are invented. What it DOES show is
+  // coverage — the bad read of the depository-corporations sheet dated 87 of
+  // its 230 numeric rows, a coverage of 0.38, while every correctly-read CBB
+  // sheet measured 0.87 to 1.00. That gap is the detectable signature.
+  // Count only rows carrying a number OUTSIDE the period column. Counting the
+  // period cell itself would treat a fully-empty row as data whenever the
+  // sheet stamps a date on it: the industrial-production sheet carries 158
+  // dated rows whose every value is the string "NA", and those made a
+  // correctly-read sheet measure 0.56 and fail this gate.
+  let numericRows = 0;
+  for (let r = anchor.row + 1; r < sheet.rows.length; r++) {
+    const row = sheet.rows[r] ?? [];
+    if (row.some((c, i) => i !== anchor.col && typeof c === "number")) numericRows++;
+  }
+
   return {
     anchor: { row: anchor.row, col: anchor.col },
+    axis_coverage: numericRows ? periods.length / numericRows : undefined,
     periods,
     periods_raw: rawPeriods,
     // Which periods the bank marked revised/provisional. Carried, not dropped.
