@@ -423,3 +423,68 @@ test("GDP for Anguilla, Montserrat and BVI is offered as history, labelled as hi
   assert.equal(searchUnctadGap("japan gdp").length, 0);
   assert.equal(searchUnctadGap("barbados gdp").length, 0);
 });
+
+// --- a repeated row label is not one series -------------------------------
+//
+// Found 2026-08-15 by scanning every ECCB document for the defect classes CBB
+// had just produced. 27 of 154 carry repeated row labels: the Anguilla fiscal
+// accounts list "Domestic" three times, under Interest Payments, under
+// Financing and under Arrears, with completely different values. selectRow
+// took the FIRST exact match, so `#Domestic` served one series and hid two,
+// looking perfectly healthy. The prefix branch had guarded against exactly
+// this; the exact branch had not.
+
+const REPEATED: any = {
+  table_id: "central-government-fiscal-accounts",
+  country: { iso3: "AIA", name: "Anguilla" },
+  series: [
+    { label: "Interest Payments", observations: [{ period: "2021", value: 8.38 }] },
+    { label: "Domestic", observations: [{ period: "2021", value: 2.41 }] },
+    { label: "Financing", observations: [{ period: "2021", value: -3.93 }] },
+    { label: "Domestic", observations: [{ period: "2021", value: 0.12 }] },
+    { label: "Arrears", observations: [{ period: "2021", value: 0 }] },
+    { label: "Domestic", observations: [{ period: "2021", value: 0 }] },
+  ],
+};
+
+test("a repeated row label is refused, not silently resolved to the first", () => {
+  assert.throws(
+    () => selectRow(REPEATED, "Domestic"),
+    (e: any) => {
+      assert.match(String(e.message), /matches 3 different rows/);
+      assert.equal(e.details.occurrences, 3);
+      assert.match(String(e.message), /Domestic\[1\]/, "the message must make the rows selectable");
+      return true;
+    },
+  );
+});
+
+test("an occurrence selector reaches each repeated row", () => {
+  assert.equal(selectRow(REPEATED, "Domestic[1]").observations[0].value, 2.41);
+  assert.equal(selectRow(REPEATED, "Domestic[2]").observations[0].value, 0.12);
+  assert.equal(selectRow(REPEATED, "Domestic[3]").observations[0].value, 0);
+});
+
+test("the served label says which occurrence it is", () => {
+  // Otherwise three different series carry an identical citation, which is
+  // the same ambiguity moved to the last place it can still mislead.
+  assert.equal(selectRow(REPEATED, "Domestic[2]").label, "Domestic [2 of 3]");
+});
+
+test("the label a response returns can be pasted straight back in", () => {
+  const label = selectRow(REPEATED, "Domestic[2]").label;
+  assert.equal(selectRow(REPEATED, label).observations[0].value, 0.12, `round-trip of ${label}`);
+});
+
+test("a unique label gains no occurrence suffix", () => {
+  assert.equal(selectRow(REPEATED, "Arrears").label, "Arrears");
+});
+
+test("an out-of-range occurrence says how many there are", () => {
+  assert.throws(() => selectRow(REPEATED, "Domestic[4]"), /occurs 3 time\(s\)/);
+});
+
+test("a unique label is unaffected by any of this", () => {
+  assert.equal(selectRow(REPEATED, "Financing").observations[0].value, -3.93);
+  assert.equal(selectRow(REPEATED, "financing").observations[0].value, -3.93, "still case-insensitive");
+});
