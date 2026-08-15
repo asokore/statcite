@@ -82,15 +82,30 @@ expected definitional difference between ECCB's *public sector debt* and the
 IMF's *general government gross debt*, not an error by either, and exactly
 the kind of thing a citation has to name.
 
-## What is NOT done, and must not be skipped
+## Licence position, corrected 2026-08-15
 
-**Nothing here is published or served.** StatCite's licence ledger still
-records `eccb` with verdict `refused`. That ledger is a public legal claim and
-every entry in it carries a verbatim basis, a scope and a verification date.
-Flipping it needs the grant itself: **who granted it** (institution and role),
-**the date**, and **the scope**, redistribution, derivative works, commercial
-use (the metered Apify surface makes that live), and any required attribution
-wording. Until those are recorded, output stays local.
+
+
+This section used to say "nothing here is published or served" and that the
+ledger recorded `eccb` as `refused`. **Both statements are out of date and were
+contradicting the live deployment.** `eccb` and `cbb` were flipped to `served`
+on 2026-08-14, the data is published to the CaribStat mirror, and StatCite
+serves it. A doc asserting the opposite of what `/v1/sources` publishes is
+worse than either position on its own, which is why this is being corrected
+rather than quietly dropped.
+
+The published entries state their basis plainly: **the operator's confirmation**
+that permission was requested and granted, with the outbound request public in
+`caribstat/outreach/`. They do not claim a verbatim grant, so the ledger is
+honest about how strong its own evidence is.
+
+**What would still improve it.** Every other ledger entry quotes the source's
+own terms verbatim with a verification date. These two rest on an attestation.
+The reply emails would let them be written to the same standard and would pin
+down **who granted it** (institution and role), **the date**, and **the scope**,
+meaning redistribution, derivative works, commercial use (the metered Apify
+surface makes that live) and any required attribution wording. That is an
+evidence upgrade, not a gate on serving.
 
 ## Collection when new data is available
 
