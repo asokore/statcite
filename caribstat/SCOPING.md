@@ -1,6 +1,6 @@
 # CaribStat: Scoping Document
 
-Date: 2026-07-26. Status: **blocked on source permission** (see Section 2.3). Recon and architecture are done and stand ready; Phases 1 and 3 (ingestion) do not proceed until either ECCB or CBB grants reuse permission, or the owner decides to park this vertical.
+Date: 2026-07-26. Status: **SUPERSEDED, kept for the record.** This document was written while the vertical was blocked on source permission (Section 2.3). Permission was obtained, the ledger entries for `eccb` and `cbb` moved to `served` on 2026-08-14, and ingestion for both is built and publishing. Read `caribstat/README.md` for the current state and `docs/CARIBBEAN-CROSSCHECK-2026-08.md` for the licence position. The scoping and architecture below still describe the design accurately.
 
 CaribStat is a Caribbean and small-states data vertical. It ingests official statistics from regional central banks on a schedule, stores them as dated, citable series snapshots, and serves them to AI agents and analysts through the existing StatCite platform (statcite.com, MCP + REST). First slice: ECCB (8 ECCU territories plus the ECCU aggregate) and the Central Bank of Barbados.
 

@@ -11,18 +11,29 @@ received permission from the source institutions. On that basis the Phase 0
 gate that blocked Phases 1-3 since 2026-07-26 is lifted and ingestion work may
 proceed.
 
-**One thing is still required before the licence ledger flips in public.** The
-ledger at `/v1/sources` is a published legal claim about what StatCite is
-allowed to serve, and every entry in it carries a verifiable basis, a verbatim
-quote and a verification date. To record ECCB/CBB honestly it needs three
-facts from the grant itself: **who granted it** (institution and role), **the
-date**, and **the scope**. Specifically whether it covers redistribution and
-derivative works, whether commercial use is included (the metered Apify surface
-matters here), and any required attribution wording. Forward the reply emails
-and the entries get written verbatim, exactly as the IMF and BIS entries were.
-Until then `eccb`/`cbb` stay at `refused` in the published ledger rather than
-carrying a claim I cannot evidence, that is the same standard applied to every
-other source, not extra caution for this one.
+**Ledger state, corrected 2026-08-15.** This section used to say `eccb` and
+`cbb` would stay at `refused` until the grant text arrived. They did not. Both
+were flipped to **`served`** on 2026-08-14 and the live ledger at
+`/v1/sources` has said so since. Leaving the old sentence here meant the docs
+and the deployment asserted opposite things about a published legal claim,
+which is worse than either position on its own.
+
+What the published entries actually say is that the basis is *the operator's
+confirmation* that permission was requested and granted, with the outbound
+request public in `caribstat/outreach/`. That is disclosed in the entry rather
+than dressed up as a verbatim grant, so the ledger is honest about the strength
+of its own evidence.
+
+**Still worth having, and still outstanding.** Every other entry in the ledger
+carries a verbatim quote and a verification date taken from the source's own
+words. ECCB and CBB carry an operator attestation instead. Forwarding the reply
+emails would let these two be written to the same standard as the IMF and BIS
+entries, and would pin down three things the attestation does not: **who
+granted it** (institution and role), **the date**, and **the scope**, meaning
+whether it covers redistribution and derivative works, whether commercial use
+is included (the metered Apify surface matters here), and any required
+attribution wording. That is an upgrade in evidence, not a blocker on
+serving.
 
 ### What was verified live on 2026-08-10 (post-permission)
 
@@ -54,9 +65,12 @@ No ECCB or CBB connector may be written, and none was.
   compiling and redistribution that clause names.
 - **CBB publishes no data-reuse terms at all**, the default is
   all-rights-reserved, and silence is not permission.
-- StatCite's own licence ledger already records `eccb` with verdict
-  **`refused`**, and `cbb` likewise. Serving either would contradict the
-  ledger the same deployment publishes at `/v1/sources`.
+- StatCite's own licence ledger recorded `eccb` and `cbb` as **`refused`** at
+  the time of this reading, so serving either would then have contradicted the
+  ledger the same deployment publishes at `/v1/sources`. **Superseded**: both
+  became `served` on 2026-08-14 once permission was obtained, on the basis set
+  out in section 1. Kept as the record of why ingestion was held back for a
+  fortnight, not as the current position.
 
 This is the same class of catch as the FRED conflict resolved in v1.3.2:
 found by reading the terms before writing the adapter, not after.
