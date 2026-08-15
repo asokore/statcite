@@ -40,15 +40,27 @@ export interface Country {
 export interface IntegratedTerritory {
   parentIso3: string;
   parentName: string;
+  /**
+   * How the place relates to its parent, in its own correct terms. Not
+   * cosmetic: the French departments and the Caribbean Netherlands have
+   * genuinely different constitutional statuses, and calling the latter an
+   * overseas department would be a fabricated fact of exactly the kind this
+   * service exists to avoid.
+   */
+  relation: string;
   publisher: string;
   publisherUrl: string;
 }
 
-const INSEE = (dep: string): Omit<IntegratedTerritory, "parentIso3" | "parentName"> => ({
+const INSEE = (dep: string): Pick<IntegratedTerritory, "publisher" | "publisherUrl"> => ({
   publisher: "INSEE, the French national statistical institute",
   publisherUrl: `https://www.insee.fr/fr/statistiques/2011101?geo=DEP-${dep}`,
 });
-const FRANCE = { parentIso3: "FRA", parentName: "France" };
+const FRANCE = {
+  parentIso3: "FRA",
+  parentName: "France",
+  relation: "an overseas department of France",
+};
 
 export const INTEGRATED_TERRITORIES: Record<string, IntegratedTerritory> = {
   GLP: { ...FRANCE, ...INSEE("971") },
@@ -56,6 +68,17 @@ export const INTEGRATED_TERRITORIES: Record<string, IntegratedTerritory> = {
   GUF: { ...FRANCE, ...INSEE("973") },
   REU: { ...FRANCE, ...INSEE("974") },
   MYT: { ...FRANCE, ...INSEE("976") },
+  // Found 2026-08-14 by running the Caribbean sweep instead of restating an
+  // earlier count. Bonaire, Sint Eustatius and Saba were falling through the
+  // three-letter passthrough as an unknown code, which is the same defect the
+  // 19 territories above were added to fix.
+  BES: {
+    parentIso3: "NLD",
+    parentName: "the Netherlands",
+    relation: "made up of three special municipalities of the Netherlands",
+    publisher: "CBS, the Netherlands national statistical office",
+    publisherUrl: "https://www.cbs.nl/en-gb/dossier/caribbean-netherlands",
+  },
 };
 
 /**
@@ -66,13 +89,15 @@ export const INTEGRATED_TERRITORIES: Record<string, IntegratedTerritory> = {
 export function integratedTerritoryNote(iso3: string, name: string): string | undefined {
   const t = INTEGRATED_TERRITORIES[iso3.toUpperCase()];
   if (!t) return undefined;
-  return (
-    `${name} is an overseas department of ${t.parentName}, so the international ` +
+  // Some names carry a leading article ("the Caribbean Netherlands"), which is
+  // right mid-sentence and wrong at the start of one.
+  const note =
+    `${name} is ${t.relation}, so the international ` +
     `sources this service draws on report it inside ${t.parentName} rather than as a ` +
     `separate economy. This is a coverage fact, not a lookup failure. Figures for ` +
     `${name} itself are published by ${t.publisher}, at ${t.publisherUrl}. ` +
-    `A snapshot for the parent state is available with country="${t.parentName}".`
-  );
+    `A snapshot for the parent state is available with country="${t.parentName}".`;
+  return note.charAt(0).toUpperCase() + note.slice(1);
 }
 
 type Row = [string, string, string, ...string[]]; // iso3, iso2, name, aliases
@@ -104,6 +129,7 @@ const ROWS: Row[] = [
   ["MTQ", "MQ", "Martinique"],
   ["GUF", "GF", "French Guiana", "guyane"],
   ["MYT", "YT", "Mayotte"],
+  ["BES", "BQ", "the Caribbean Netherlands", "bonaire", "sint eustatius", "saba", "bes islands", "caribbean netherlands"],
   ["ESH", "EH", "Western Sahara"],
   ["TWN", "TW", "Taiwan", "chinese taipei", "taiwan province of china"],
   ["AFG", "AF", "Afghanistan"],
