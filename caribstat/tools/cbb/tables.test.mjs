@@ -390,3 +390,25 @@ test("the extractor records how much of the sheet its axis accounts for", () => 
   assert.equal(t.periods.length, 20);
   assert.equal(t.axis_coverage, 1, "every numeric row is dated");
 });
+
+test("a sub-group heading does not run past its parent's boundary", () => {
+  // The trade-in-goods sheet is three levels deep. CONSUMER GOODS and
+  // INTERMEDIATE GOODS sit on one row; NON-DURABLE, DURABLE and TOTAL CONSUMER
+  // on the next. A plain forward fill carried "TOTAL CONSUMER" rightwards over
+  // the intermediate columns and produced "TOTAL CONSUMER: Fuel". Fuel is not
+  // a consumer good, and nothing in the VALUES would ever have shown it: the
+  // numbers were right, only the thing they were filed under was wrong.
+  const rows = [
+    [null, null, "CONSUMER GOODS", null, null, "INTERMEDIATE GOODS", null],
+    [null, null, "NON-DURABLE", null, "TOTAL CONSUMER", null, null],
+    [null, null, "Food", "Other", null, "Fuel", "Other"],
+  ];
+  const out = composeGroupedHeaders(rows, 2, 2, ["Food", "Other", "", "Fuel", "Other"]);
+  assert.deepEqual(out, [
+    "NON-DURABLE: Food",
+    "NON-DURABLE: Other",
+    "",
+    "INTERMEDIATE GOODS: Fuel",
+    "INTERMEDIATE GOODS: Other",
+  ]);
+});

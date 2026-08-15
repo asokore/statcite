@@ -226,20 +226,46 @@ export function findPeriodRunAnchor(rows, { minRun = 5, maxScanCols = 12 } = {})
 export function composeGroupedHeaders(rows, headerRow, firstHeaderCol, headers) {
   const named = headers.filter((h) => h !== "");
   if (new Set(named).size === named.length) return headers;
-  for (let r = headerRow - 1; r >= 0 && r >= headerRow - 3; r--) {
+  // A heading runs rightwards until the next heading ON ITS OWN ROW, and NOT
+  // past a heading on a row above it. The second half matters: the
+  // trade-in-goods sheet is three levels deep, with CONSUMER GOODS and
+  // INTERMEDIATE GOODS on one row and NON-DURABLE / DURABLE / TOTAL CONSUMER
+  // on the next. A plain forward fill carried "TOTAL CONSUMER" across the
+  // intermediate and capital columns and produced "TOTAL CONSUMER: TOTAL
+  // CAPITAL", filing capital goods under consumer goods. The independent
+  // auditor caught that before it was published.
+  const fillRow = (r) => {
     const row = rows[r] ?? [];
-    const groups = [];
+    const breaks = new Set();
+    for (let above = r - 1; above >= 0 && above >= r - 3; above--) {
+      const ar = rows[above] ?? [];
+      for (let i = 0; i < headers.length; i++) {
+        const cell = ar[firstHeaderCol + i];
+        if (typeof cell === "string" && cell.trim() !== "") breaks.add(i);
+      }
+    }
+    const out = [];
     let current = "";
     for (let i = 0; i < headers.length; i++) {
       const cell = row[firstHeaderCol + i];
       if (typeof cell === "string" && cell.trim() !== "") current = cell.trim();
-      groups.push(current);
+      else if (breaks.has(i)) current = "";
+      out.push(current);
     }
-    if (new Set(groups.filter(Boolean)).size < 2) continue;
-    const composed = headers.map((h, i) => (h && groups[i] ? `${groups[i]}: ${h}` : h));
-    const c = composed.filter((h) => h !== "");
-    if (new Set(c).size === c.length) return composed;
+    return out;
+  };
+
+  // Nearest row wins; a column it does not cover falls back to the row above,
+  // so "Fuel" is grouped by INTERMEDIATE GOODS rather than left bare.
+  const groups = new Array(headers.length).fill("");
+  for (let r = headerRow - 1; r >= 0 && r >= headerRow - 3; r--) {
+    const filled = fillRow(r);
+    for (let i = 0; i < groups.length; i++) if (!groups[i] && filled[i]) groups[i] = filled[i];
   }
+  if (new Set(groups.filter(Boolean)).size < 2) return headers;
+  const composed = headers.map((h, i) => (h && groups[i] ? `${groups[i]}: ${h}` : h));
+  const c = composed.filter((h) => h !== "");
+  if (new Set(c).size === c.length) return composed;
   return headers;
 }
 

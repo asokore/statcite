@@ -18,6 +18,7 @@ import {
   publicationFamily,
   CBB_LISTINGS,
   CBB_UNRESOLVED_CATEGORIES,
+  CBB_HUBS,
 } from "./fetch.mjs";
 import { selectItems, validateTable } from "./ingest.mjs";
 
@@ -89,17 +90,40 @@ test("the publication date comes from the CDN filename prefix", () => {
   assert.equal(publicationDateFromUrl(undefined), undefined);
 });
 
-test("the catalogue records unresolved categories rather than calling them empty", () => {
-  // Five category pages returned zero items when probed. They are almost
-  // certainly hubs of sub-categories, like the GDP/inflation/labour page which
-  // links 60 sub-paths and lists no items of its own. Recording them as
-  // UNRESOLVED keeps "not yet explored" distinct from "publishes nothing".
-  assert.ok(CBB_LISTINGS.length >= 8);
-  assert.ok(CBB_UNRESOLVED_CATEGORIES.includes("securities-tables"));
+test("nothing unexplored is presented as a working listing", () => {
+  // The original invariant: "not yet explored" must stay distinct from
+  // "publishes nothing". Five category pages returned zero items and were
+  // recorded as UNRESOLVED rather than empty.
+  //
+  // Those five were resolved on 2026-08-15: all are hubs, and their children
+  // were recovered by subtracting the site-wide navigation. The invariant is
+  // unchanged and now simply has nothing left to hold, so this asserts the
+  // stronger fact instead — the hubs are still named, so a future probe knows
+  // where to look, and none of them is ever served as a listing.
+  assert.ok(CBB_LISTINGS.length >= 16, "the eight hub children are listings now");
+  assert.deepEqual(CBB_UNRESOLVED_CATEGORIES, [], "nothing is unexplored");
+  assert.ok(CBB_HUBS.includes("securities-tables"), "the hubs stay recorded");
+
   const listed = new Set(CBB_LISTINGS.map((l) => l.id));
+  for (const hub of CBB_HUBS) {
+    assert.ok(!listed.has(hub), `${hub} lists no items of its own and must not be a listing`);
+  }
   for (const u of CBB_UNRESOLVED_CATEGORIES) {
     assert.ok(!listed.has(u), `${u} is unresolved and must not be presented as a working listing`);
   }
+});
+
+test("the two publications reachable by a second path are not listed twice", () => {
+  // `selected-indicators-of-depository-corporations` and
+  // `investments-based-on-supplementary-schedules` are children of a hub AND
+  // are already carried by the `statistics` listing, which holds the newer
+  // edition of each. Listing both routes would publish two vintages of one
+  // series with no rule saying which wins.
+  const listed = new Set(CBB_LISTINGS.map((l) => l.id));
+  for (const dup of ["selected-indicators-of-depository-corporations", "investments-based-on-supplementary-schedules"]) {
+    assert.ok(!listed.has(dup), `${dup} duplicates the statistics listing at an older edition`);
+  }
+  assert.ok(listed.has("statistics"), "the route that carries them must still be listed");
 });
 
 // --- the title is the citation, so it has to describe the right release ----

@@ -306,13 +306,19 @@ def _label_text(grid, kind, line, positions):
     it is the cells to the left of the first value in the same row.
     """
     out = []
+    # Scan the WHOLE span above (or left of) the first value, not a fixed
+    # window. The trade-in-goods sheet carries its period column from 1979 but
+    # only starts publishing values in 2002, so the first value sits at row 285
+    # while the header is at row 6. An eight-row window found nothing and
+    # reported twenty-one correctly-labelled series as possibly misassigned.
+    # Data columns rarely hold text, so a wide scan is cheap and safe.
     if kind == "column":
-        for r in range(max(0, positions[0] - 8), positions[0]):
+        for r in range(0, positions[0]):
             v = _cell(grid, r, line)
             if isinstance(v, str) and v.strip():
                 out.append(v.strip())
     else:
-        for c in range(0, min(positions[0], 6)):
+        for c in range(0, positions[0]):
             v = _cell(grid, line, c)
             if isinstance(v, str) and v.strip():
                 out.append(v.strip())
