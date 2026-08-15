@@ -19,10 +19,42 @@ registry entry and stop.
 | 6 | Apify Store | apify.com actor `statcite` | `apify push` **then move the `latest` build tag** (see below) | No | 2026-08-05 (build 1.0.6+) |
 | 7 | mcpmarket | mcpmarket.com | Paid listing, edit in dashboard | No | 2026-07-26 |
 | 8 | mcp.so | listing id `ea8b3345-51f0-4395-8d31-48cb2fc390b5` | Dashboard edit (their React form drops fast-typed characters, set values via JS native setter) | No | 2026-07-26 (queued review) |
-| 9 | PulseMCP | pulsemcp.com | **Auto-ingests from the official MCP registry weekly**, fix #1 and this follows | Yes | auto |
+| 9 | PulseMCP | pulsemcp.com | **NOT LISTED as of 2026-08-15.** Submissions paused on their side, see note below | Yes | auto |
 | 10 | Docker MCP Catalog | PR docker/mcp-registry#4538 | PR (open, awaiting Docker review) | No | 2026-07-26 |
 | 11 | awesome-mcp-servers | PR #10881 | PR (open, Glama badge added per maintainer precondition) | No | 2026-07-26 |
 | 12 | awesome-remote-mcp-servers | PR #527 | PR (open, clean) | No | 2026-07-26 |
+
+## Checked 2026-08-15
+
+**PulseMCP: not listed, and nothing to submit.** `pulsemcp.com/servers?q=statcite`
+returns "No servers". Their `/submit` page says, in plain text, that until
+mid-August they are "not accepting new MCP server or client submissions" and
+are "not making changes to existing listings", and directs submitters to the
+Official MCP Registry: "we will pick it up automatically once we are back."
+That prerequisite is met — StatCite is in the registry at **v1.11.0**, marked
+`isLatest`, published 2026-08-14, carrying the current description. So this is
+waiting on them, not on us. Re-check after their pause lifts.
+
+One measurement note. PulseMCP's `v0beta` API is deprecated and *randomly
+fails requests*, returning `API_SUNSET` errors for queries that should match.
+An empty result from it is only believable against a positive control: the
+`statcite` query returns a well-formed `{"servers":[],"total_count":0}` while
+`filesystem` and `github` returned errors in the same run.
+
+**LobeHub: listing is a stale 25 July snapshot.**
+`lobehub.com/mcp/asokore-statcite` carries
+`"dateModified":"2026-07-25T03:00:49.282Z"` and still describes StatCite as
+serving "optional FRED", six times, including inside the page's JSON-LD
+`keywords` array, which is the part other tools ingest. FRED was retired in
+v1.2.0 on terms-of-use grounds, so this is a public claim that we use a source
+we deliberately do not touch.
+
+Our own text is clean, checked rather than assumed: `README.md` states "FRED is
+not served" with the reason, and the only other mention in the repository is
+the `site/docs.html` changelog line for 1.0.0, which correctly records the
+retirement. LobeHub scrapes `github.com/asokore/statcite`, so a re-scan alone
+fixes it. No self-service refresh or submissions repo exists for their MCP
+marketplace. Asking them directly is an owner decision.
 
 ## Not yet listed (Phase 2 targets)
 
