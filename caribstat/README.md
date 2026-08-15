@@ -370,3 +370,36 @@ for a day after the thing it quoted had changed.
 
 Data lives at `caribstat/data/` on the operator's machine, is published from
 there to github.com/asokore/caribstat, and is not backed up by this repository.
+
+### Publishing: `tools/publish-run.mjs`, added 2026-08-15
+
+For most of this pipeline's life "published from there" meant a one-off manual
+sync, done by hand with a scratch clone whenever someone remembered to. That
+gap produced a live incident the same day it was found: a period-format fix
+landed in the local corpus and never reached github.com/asokore/caribstat, so
+StatCite's public API kept serving the pre-fix labels for hours after the fix
+existed, because the Worker's upstream is the PUBLISHED repo, not this one.
+
+```bash
+node tools/publish-run.mjs --dry-run   # classify only, no clone/commit/push
+node tools/publish-run.mjs             # sync + commit + push, if anything changed
+```
+
+First run clones github.com/asokore/caribstat to `caribstat/.publish/`
+(gitignored — it is a checkout of a DIFFERENT public repository and must never
+be mistaken for part of this one). Every run after that fetches and hard-resets
+that clone to `origin/main` before comparing, because nothing else should ever
+be committing into it between runs.
+
+Same discipline as the rest of this pipeline: comparison uses `changed.mjs`'s
+`canonical()`, so a difference in nothing but `retrieved_at` is never mistaken
+for real content and republished. A raw file diff would have shown all ~400
+files as changed on the day this was written.
+
+**A file published but no longer produced locally is reported and never
+deleted.** "We stopped collecting X" and "X briefly failed to ingest" look
+identical from inside a sync script; only a person can tell them apart. If a
+run ever prints an orphan warning, that is the decision waiting, not a bug.
+
+This is not yet wired into the scheduled task. Running it is a deliberate
+extra step for now, not an automatic consequence of a clean ingest.

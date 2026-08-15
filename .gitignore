@@ -49,3 +49,9 @@ caribstat/node_modules/
 # parsers. Same licence status as the harvested data: these ARE the banks'
 # published files, so they never go to the public remote either.
 caribstat/reference/
+
+# tools/publish-run.mjs's staging clone. This is a working copy of a
+# DIFFERENT public repository (github.com/asokore/caribstat), used only to
+# sync the local harvest there. It has its own .git and its own remote and
+# must never be mistaken for part of this repository.
+caribstat/.publish/
