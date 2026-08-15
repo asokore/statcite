@@ -3,7 +3,7 @@
 
 import type { Citation, Ctx, IndicatorDef, Observation, SeriesResult } from "./types.ts";
 import { ToolError } from "./types.ts";
-import { resolveCountry, suggestCountries, type Country } from "./countries.ts";
+import { integratedTerritoryNote, INTEGRATED_TERRITORIES, resolveCountry, suggestCountries, type Country } from "./countries.ts";
 import { getIndicatorDef, searchIndicatorDefs, INDICATORS } from "./indicators.ts";
 import { applyTransform, filterPeriodRange, type Transform } from "./transforms.ts";
 import { fetchWbSeries } from "../adapters/worldbank.ts";
@@ -559,6 +559,21 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
         ".",
       { indicator: def.key, country: country.iso3, strict_source: true },
     );
+  }
+  // Where every source failed because the place is reported inside a parent
+  // state, the useful answer is not the concatenated upstream errors. Say what
+  // is true and point at who does publish it.
+  const territory = integratedTerritoryNote(country.iso3, country.name);
+  if (territory) {
+    const t = INTEGRATED_TERRITORIES[country.iso3];
+    throw new ToolError(`No '${def.key}' for ${country.name}. ${territory}`, {
+      indicator: def.key,
+      country: country.iso3,
+      no_published_data: true,
+      reported_under: t.parentIso3,
+      publisher: t.publisher,
+      publisher_url: t.publisherUrl,
+    });
   }
   throw new ToolError(
     `Could not retrieve '${def.key}' for ${country.name}: ${errors.join(" | ")}`,

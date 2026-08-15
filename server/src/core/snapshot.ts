@@ -7,6 +7,7 @@ import { getIndicatorDef } from "./indicators.ts";
 import { fetchWbMulti } from "../adapters/worldbank.ts";
 import { worldBankCitation } from "./citations.ts";
 import { latestNonNull } from "./transforms.ts";
+import { integratedTerritoryNote, INTEGRATED_TERRITORIES } from "./countries.ts";
 import { fetchCaribstatSeries, CARIBSTAT_ENABLED } from "../adapters/caribstat.ts";
 import { caribstatCitation } from "./citations.ts";
 
@@ -223,9 +224,25 @@ export async function countrySnapshot(ctx: Ctx, countryInput: string): Promise<S
   }
 
   if (items.length === 0) {
-    throw new ToolError(`No snapshot data available for '${countryInput}' (${country.iso3}).`, {
-      country: country.iso3,
-    });
+    // An empty snapshot for a real place is a coverage fact, and where we know
+    // WHY it is empty the caller should be told rather than left to guess that
+    // they mistyped the name.
+    const territory = integratedTerritoryNote(country.iso3, countryName);
+    const t = INTEGRATED_TERRITORIES[country.iso3];
+    throw new ToolError(
+      territory ?? `No snapshot data available for '${countryInput}' (${country.iso3}).`,
+      {
+        country: country.iso3,
+        ...(t
+          ? {
+              no_published_data: true,
+              reported_under: t.parentIso3,
+              publisher: t.publisher,
+              publisher_url: t.publisherUrl,
+            }
+          : {}),
+      },
+    );
   }
 
   return {

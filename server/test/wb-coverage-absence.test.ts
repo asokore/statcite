@@ -20,7 +20,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { handleRequest, type Env } from "../src/index.ts";
 import { _clearMemCache } from "../src/core/upstream.ts";
-import { resolveCountry } from "../src/core/countries.ts";
+import { resolveCountry, INTEGRATED_TERRITORIES } from "../src/core/countries.ts";
 
 const env = { ASSETS: { fetch: async () => new Response("site") }, BASE_URL: "https://statcite.com" } as unknown as Env;
 
@@ -108,5 +108,57 @@ test("a made-up code is flagged unverified rather than described as an economy",
   for (const junk of ["XYZ", "ZZZ", "QQQ"]) {
     const c = resolveCountry(junk);
     assert.ok(c?.unverified, `${junk} must be marked unverified so no coverage fact is asserted about it`);
+  }
+});
+
+// --- integrated territories: absence with an address ----------------------
+//
+// A Caribbean coverage check on 2026-08-14 found Guadeloupe and Martinique
+// returning a bare "No snapshot data available", which reads as a lookup
+// failure and invites the caller to retry with a different spelling. They are
+// French overseas departments: the World Bank and the IMF report them inside
+// France, and the department-level figures do exist, published by INSEE. The
+// dead end was ours, not the world's.
+
+test("an overseas department explains where its figures actually live", async () => {
+  stubWorldBank(EMPTY_RESULT);
+  const { body } = await getIndicator("GLP");
+  const text = JSON.stringify(body);
+  assert.match(text, /overseas department of France/i, "must say WHY the sources hold nothing");
+  assert.match(text, /INSEE/, "must name the publisher that does hold it");
+  assert.match(text, /insee\.fr/, "must give a URL the caller can follow");
+  assert.match(text, /no_published_data/, "same machine-readable contract as every other absence");
+  assert.match(text, /FRA/, "must say which economy it is reported under");
+});
+
+test("the snapshot path carries the same explanation as the indicator path", async () => {
+  stubWorldBank(EMPTY_RESULT);
+  const res = await handleRequest(new Request("https://statcite.com/v1/snapshot/MTQ"), env);
+  const text = JSON.stringify(await res.json());
+  assert.match(text, /overseas department of France/i);
+  assert.match(text, /INSEE/);
+  assert.ok(!/No snapshot data available/.test(text), "the bare dead-end message must be gone");
+});
+
+test("the explanation does not fire for an ordinary uncovered economy", async () => {
+  // Montserrat is genuinely not a World Bank reporting economy, but it is a
+  // British Overseas Territory with its own statistics office and is NOT
+  // reported inside another state's national accounts. Claiming otherwise
+  // would be a fabricated constitutional fact.
+  stubWorldBank(EMPTY_RESULT);
+  const text = JSON.stringify((await getIndicator("MSR")).body);
+  assert.ok(!/overseas department/i.test(text), "must not assert a parent state that does not exist");
+  assert.ok(!/INSEE/.test(text));
+});
+
+test("every territory points at its own department page, not a shared one", () => {
+  // A copy-paste slip here would send four territories to one department's
+  // figures, which is worse than no referral at all.
+  const urls = Object.values(INTEGRATED_TERRITORIES).map((t) => t.publisherUrl);
+  assert.equal(new Set(urls).size, urls.length, "publisher URLs must be distinct per territory");
+  for (const [iso3, t] of Object.entries(INTEGRATED_TERRITORIES)) {
+    assert.match(t.publisherUrl, /^https:\/\/www\.insee\.fr\/.+DEP-\d{3}$/, `${iso3} URL shape`);
+    assert.ok(resolveCountry(iso3)?.name, `${iso3} must resolve to a real name`);
+    assert.ok(!resolveCountry(iso3)?.unverified, `${iso3} must not be an unverified passthrough`);
   }
 });
