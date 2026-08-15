@@ -255,6 +255,41 @@ Each of these cost a debugging cycle and is documented at its call site:
   CPI varies *by country*. Caching one date for the source would mislabel most
   of the corpus.
 
+### Backfilling older CBB editions: measured, and not worth doing
+
+Recorded because two earlier notes in this project named the wrong blocker,
+and a wrong blocker sends the next session to build something unnecessary.
+
+The claim was that older publications could not be ingested until an
+overlap-precedence rule existed, to decide which publication wins where two
+cover the same period. Measured on 2026-08-15, that rule is not what is
+missing.
+
+**Every readable older edition is a strict subset in time.** Each has the same
+start period as the current publication and simply stops earlier:
+
+| | older edition | current |
+|---|---|---|
+| tourism | 2022-01 to 2023-12 | 2022-01 to 2025-06 |
+| inflation | 1974-12 to 2024-08 | 1974-12 to 2024-10 |
+| labour | 1975-Q1 to 2023-Q4 | 1975-Q1 to 2024-Q1 |
+
+The newest publication carries the full history every time. "Newest
+publication wins" is therefore the complete answer for coverage, not a stopgap.
+Backfilling would add **no periods at all**.
+
+**Balance of payments is blocked by the file format, not by precedence.** Only
+the comprehensive 1967-2017 workbook is `.xlsx`. The other fourteen items are
+legacy binary `.xls`, which the zero-dependency reader cannot open, and three
+carry no spreadsheet at all. Reading them needs a BIFF8 parser, which is a
+substantial piece of work and cannot be borrowed from a dependency without
+abandoning the zero-dependency stance.
+
+**What backfill would actually buy** is revision history: what a figure said
+before the bank restated it. That is a feature decision, and a defensible one
+given the service already reasons about vintages elsewhere. It is not a
+coverage gap, and it should not be described as one.
+
 ### Independent verification of the ECCB values, 2026-08-15
 
 Every value-level defect this pipeline has produced was a PARSING defect, and

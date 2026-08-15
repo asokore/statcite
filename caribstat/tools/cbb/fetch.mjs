@@ -53,12 +53,29 @@ export const CDN = "https://cdn.centralbank.org.bb";
  *
  * Balance of payments is deliberately left at 1 even though its fifteen items
  * DO split into several slug families ("…private-foreign-capital…-table-13",
- * "…yincome-table-8"). Those are 2010 and 2011 vintages of individual tables,
- * superseded by the comprehensive 1967-2017 workbook that is now ingested.
- * Pulling them in would serve older figures alongside newer ones for the same
- * series with no rule saying which wins, which is the overlap-precedence
- * problem this project has not yet solved. Left out on purpose, recorded here
- * so the next session does not read it as an oversight.
+ * "…yincome-table-8"). MEASURED 2026-08-15, because the earlier note here gave
+ * the wrong reason and would have sent someone to build the wrong thing:
+ *
+ *   Only item 0, the comprehensive 1967-2017 workbook, is .xlsx. Every other
+ *   BOP item is a legacy binary .xls, which this project's zero-dependency
+ *   reader cannot open at all, and three carry no spreadsheet. The blocker is
+ *   the FILE FORMAT, not a missing precedence rule.
+ *
+ * The earlier note claimed the blocker was overlap precedence. It is not, and
+ * not just for BOP. Across every category whose older editions ARE readable
+ * (tourism, inflation and labour are all .xlsx), each older edition has the
+ * same start period as the current one and simply stops earlier:
+ *
+ *   tourism    2022-01 -> 2023-12   against current 2022-01 -> 2025-06
+ *   inflation  1974-12 -> 2024-08   against current 1974-12 -> 2024-10
+ *   labour     1975-Q1 -> 2023-Q4   against current 1975-Q1 -> 2024-Q1
+ *
+ * The newest publication carries the FULL history every time, so "newest
+ * publication wins" is not a stopgap awaiting a precedence rule, it is the
+ * complete and correct answer for coverage. Backfilling older editions would
+ * add no periods at all. What it WOULD add is revision history, what a figure
+ * said before it was restated, and that is a deliberate feature decision
+ * rather than a gap to be filled.
  */
 export const CBB_LISTINGS = [
   { id: "statistics", path: "/news/statistics", title: "Statistics", families: 2 },
