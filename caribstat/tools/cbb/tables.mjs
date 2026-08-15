@@ -46,19 +46,57 @@ export function normalisePeriod(cell) {
     }
     const iso = excelSerialToISO(cell);
     if (!iso) return undefined;
-    // Monthly/quarterly publications land on the 1st; keep YYYY-MM for those.
-    return { period: iso.endsWith("-01") ? iso.slice(0, 7) : iso, raw: cell, revised: false };
+    // Monthly/quarterly publications land on the 1st OR on the month end; keep
+    // YYYY-MM for both. The month-end half matters: the CBB investments sheet
+    // writes its early dates as text ("31-Jan-2014") and its later ones as
+    // Excel serials, so folding only one of them left a single series whose
+    // final observation was labelled 2026-04-30 while every other read 2026-04.
+    // A period format that changes partway through a series is worse than
+    // either format on its own.
+    const [yy, mm, dd] = iso.split("-").map(Number);
+    const lastDay = new Date(Date.UTC(yy, mm, 0)).getUTCDate();
+    return { period: dd === 1 || dd === lastDay ? iso.slice(0, 7) : iso, raw: cell, revised: false };
   }
   const s = String(cell).trim();
   if (!s) return undefined;
-  const revised = /[RP]$/.test(s) && /\d/.test(s);
-  const bare = revised ? s.slice(0, -1).trim() : s;
+  // Revision markers come in two forms and only one was handled. The wages
+  // sheet writes "2016 (R)", "2017 (P)", "2018 (P)", and those three rows were
+  // being refused as unparseable and dropped — silently losing the three most
+  // recent observations in the series, which are the ones anyone asking about
+  // wages actually wants.
+  const paren = /^(.*?)\s*\(([RP])\)$/i.exec(s);
+  const revised = paren ? true : /[RP]$/.test(s) && /\d/.test(s);
+  const bare = paren ? paren[1].trim() : revised ? s.slice(0, -1).trim() : s;
   // "1Q 1965" / "Q1 1965" -> 1965-Q1
   const q = /^(?:(\d)Q\s*(\d{4})|Q(\d)\s*(\d{4}))$/i.exec(bare);
   if (q) return { period: `${q[2] ?? q[4]}-Q${q[1] ?? q[3]}`, raw: s, revised };
   if (/^\d{4}$/.test(bare)) return { period: bare, raw: s, revised };
   if (/^\d{4}-\d{2}(-\d{2})?$/.test(bare)) return { period: bare, raw: s, revised };
   if (/^\d{4}-Q[1-4]$/i.test(bare)) return { period: bare.toUpperCase(), raw: s, revised };
+  // "31-Jan-2014" / "1-Feb-2014". The CBB investments workbook (statistics
+  // category, the freshest series this source publishes) stamps each MONTHLY
+  // observation with its month-end date, and without this the sheet has no
+  // recognisable period column at all and the whole 2014-to-date table was
+  // reported as "no data tables found".
+  //
+  // A month-end or month-start stamp is folded to YYYY-MM, matching the rule
+  // the numeric branch already applies to serial dates landing on the 1st. Any
+  // other day is kept as a full date rather than being silently collapsed,
+  // because a genuinely daily series must not be relabelled monthly.
+  const dmy = /^(\d{1,2})[-\s]([A-Za-z]{3,9})[-\s](\d{4})$/.exec(bare);
+  if (dmy) {
+    const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+    const mi = months.indexOf(dmy[2].slice(0, 3).toLowerCase());
+    if (mi >= 0) {
+      const year = Number(dmy[3]);
+      const day = Number(dmy[1]);
+      const lastDay = new Date(Date.UTC(year, mi + 1, 0)).getUTCDate();
+      const mm = String(mi + 1).padStart(2, "0");
+      if (day < 1 || day > lastDay) return undefined;
+      const period = day === 1 || day === lastDay ? `${year}-${mm}` : `${year}-${mm}-${String(day).padStart(2, "0")}`;
+      return { period, raw: s, revised };
+    }
+  }
   // REJECT anything that is not recognisably a period. Passing free text
   // through silently admitted metadata rows as observations — CBB's inflation
   // sheets carry "Basket Weights" and "BASE YEAR" rows between the header and
@@ -144,10 +182,74 @@ export function findPeriodRunAnchor(rows, { minRun = 5, maxScanCols = 12 } = {})
  * Returns { anchor, periods, series[] } or undefined when no table is found —
  * undefined is an honest "this sheet is not a data table", not an empty table.
  */
+/**
+ * Qualify repeated column labels with the group heading above them.
+ *
+ * The CBB investments sheet is two-level: row 4 reads TOTAL, BARBADOS, USA,
+ * CARICOM AND WIDER CARIBBEAN across the span of each block, and row 5 repeats
+ * "Fixed Income Securities / Shares & Other Equity / Derivatives" underneath
+ * every one. Read flat, the sheet yields five identically named series and no
+ * way to tell a Barbados holding from a US one — and StatCite's row selector
+ * refuses an ambiguous prefix, so the series become unreachable rather than
+ * merely confusing.
+ *
+ * Applied ONLY when the flat labels actually repeat. A sheet whose labels are
+ * already unique is left exactly as it was, so no existing series is renamed.
+ */
+export function composeGroupedHeaders(rows, headerRow, firstHeaderCol, headers) {
+  const named = headers.filter((h) => h !== "");
+  if (new Set(named).size === named.length) return headers;
+  for (let r = headerRow - 1; r >= 0 && r >= headerRow - 3; r--) {
+    const row = rows[r] ?? [];
+    const groups = [];
+    let current = "";
+    for (let i = 0; i < headers.length; i++) {
+      const cell = row[firstHeaderCol + i];
+      if (typeof cell === "string" && cell.trim() !== "") current = cell.trim();
+      groups.push(current);
+    }
+    if (new Set(groups.filter(Boolean)).size < 2) continue;
+    const composed = headers.map((h, i) => (h && groups[i] ? `${groups[i]}: ${h}` : h));
+    const c = composed.filter((h) => h !== "");
+    if (new Set(c).size === c.length) return composed;
+  }
+  return headers;
+}
+
+/**
+ * Fill blank header cells from the nearest row above that names them.
+ *
+ * CBB's wages sheet splits one header across two rows: row 4 names most
+ * sectors, row 5 names the Manufacturing sub-columns. The anchor search takes
+ * the NEAREST row with two or more labels, which is row 5, so eleven columns
+ * arrived with an empty name. Empty-named series are not merely untidy, they
+ * are unselectable: StatCite picks a row by label, so those eleven were served
+ * as anonymous numbers.
+ *
+ * Only blanks are filled, so a row that names its own column always wins.
+ */
+export function fillBlankHeadersFromAbove(rows, headerRow, firstCol, headers) {
+  const out = [...headers];
+  for (let r = headerRow - 1; r >= 0 && r >= headerRow - 3; r--) {
+    const row = rows[r] ?? [];
+    for (let i = 0; i < out.length; i++) {
+      if (out[i] !== "") continue;
+      const cell = row[firstCol + i];
+      if (typeof cell === "string" && cell.trim() !== "") out[i] = cell.trim();
+    }
+  }
+  return out;
+}
+
 export function extractSheet(sheet) {
   // Labelled anchor first; the period-run fallback only when there is no label.
   const anchor = findHeaderAnchor(sheet.rows) ?? findPeriodRunAnchor(sheet.rows);
   if (!anchor) return undefined;
+  // Remember which columns the sheet itself named, so a filled-in label
+  // cannot resurrect an empty spacer column as an all-null series.
+  const namedBySheet = anchor.headers.map((h) => h !== "");
+  anchor.headers = fillBlankHeadersFromAbove(sheet.rows, anchor.row, anchor.col + 1, anchor.headers);
+  anchor.headers = composeGroupedHeaders(sheet.rows, anchor.row, anchor.col + 1, anchor.headers);
 
   const periods = [];
   const rawPeriods = [];
@@ -182,8 +284,10 @@ export function extractSheet(sheet) {
       label,
       observations: periods.map((p, r) => ({ period: p, value: valueRows[r][i] })),
     }))
-    // Drop columns with no header AND no data — trailing spacer columns.
-    .filter((s) => s.label !== "" || s.observations.some((o) => o.value !== null));
+    // Drop columns with no data unless the sheet itself named them. Without
+    // the namedBySheet test, a label filled in from the row above would keep a
+    // trailing spacer column alive as a series of nulls.
+    .filter((s, i) => (s.label !== "" && namedBySheet[i]) || s.observations.some((o) => o.value !== null));
 
   return {
     anchor: { row: anchor.row, col: anchor.col },

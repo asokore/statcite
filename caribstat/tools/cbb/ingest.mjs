@@ -16,7 +16,7 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { openListing, extractItemLinks, resolveAttachment, downloadAttachment, publicationDateFromUrl, CBB_LISTINGS } from "./fetch.mjs";
+import { openListing, extractItemLinks, resolveAttachment, downloadAttachment, publicationDateFromUrl, titleAgreesWithAttachment, CBB_LISTINGS } from "./fetch.mjs";
 import { readXlsx } from "../xlsx.mjs";
 import { extractWorkbook } from "./tables.mjs";
 import { compareWithExisting, classifyChange } from "../changed.mjs";
@@ -91,6 +91,14 @@ export async function ingestCategory(listing, { maxItems = 1, dataDir = DATA_DIR
       const { attachmentUrl, title } = await resolveAttachment(itemUrl, session.cookies);
       if (!attachmentUrl) {
         results.push({ item: itemUrl, ok: false, problems: ["no spreadsheet attachment (press release or PDF-only publication)"] });
+        continue;
+      }
+      // Refuse the item outright if its title describes a different
+      // publication. Ingesting the data under a wrong citation is worse than
+      // not ingesting it.
+      const agree = titleAgreesWithAttachment(title, attachmentUrl);
+      if (!agree.ok) {
+        results.push({ item: itemUrl, ok: false, problems: [agree.problem] });
         continue;
       }
       const publishedAt = publicationDateFromUrl(attachmentUrl);

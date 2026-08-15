@@ -7,7 +7,15 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalisePeriod, excelSerialToISO, findHeaderAnchor, extractSheet, extractTransposed } from "./tables.mjs";
+import {
+  normalisePeriod,
+  excelSerialToISO,
+  findHeaderAnchor,
+  extractSheet,
+  extractTransposed,
+  composeGroupedHeaders,
+  fillBlankHeadersFromAbove,
+} from "./tables.mjs";
 
 // --- the year/serial collision --------------------------------------------
 
@@ -209,3 +217,114 @@ test("a source that did not republish is not reported as changed data", async ()
   assert.equal(sourceStamp({ published_at: "2025-03-31" }), "2025-03-31", "CBB uses published_at");
 });
 
+
+// --- the statistics category: monthly investments, 2014 to date -----------
+//
+// This is the freshest series CBB publishes and it was reported as "no data
+// tables found" for three separate reasons, each of which hid the next.
+
+test("a month-end date is a monthly period, however it is stored", () => {
+  // The sheet writes its early dates as text and its later ones as Excel
+  // serials. Folding only one of them gave a series whose last observation was
+  // labelled 2026-04-30 while every other read 2026-04.
+  assert.equal(normalisePeriod("31-Jan-2014").period, "2014-01");
+  assert.equal(normalisePeriod("28-Feb-2014").period, "2014-02");
+  assert.equal(normalisePeriod("29-Feb-2024").period, "2024-02", "leap year");
+  assert.equal(normalisePeriod("1-Feb-2014").period, "2014-02", "month start folds too");
+  assert.equal(normalisePeriod(46142).period, "2026-04", "the serial form must agree with the text form");
+});
+
+test("a mid-month date stays a full date and an impossible one is refused", () => {
+  // Collapsing an arbitrary day to YYYY-MM would relabel a daily series as
+  // monthly, which is a quiet lie about frequency.
+  assert.equal(normalisePeriod("15-Mar-2020").period, "2020-03-15");
+  assert.equal(normalisePeriod("31-Feb-2014"), undefined);
+  assert.equal(normalisePeriod("Basket Weights"), undefined, "metadata rows must still be refused");
+});
+
+test("repeated column labels are qualified by their group heading", () => {
+  // Row 4 spans the country groups, row 5 repeats the same three instruments
+  // under each. Read flat, five series share a name and none can be selected.
+  const rows = [
+    [null, null, "TOTAL", null, "BARBADOS", null],
+    [null, null, "Fixed Income", "Derivatives", "Fixed Income", "Derivatives"],
+  ];
+  const out = composeGroupedHeaders(rows, 1, 2, ["Fixed Income", "Derivatives", "Fixed Income", "Derivatives"]);
+  assert.deepEqual(out, [
+    "TOTAL: Fixed Income",
+    "TOTAL: Derivatives",
+    "BARBADOS: Fixed Income",
+    "BARBADOS: Derivatives",
+  ]);
+});
+
+test("labels that are already unique are left exactly alone", () => {
+  // The guard that stops this change renaming every existing CBB series.
+  const rows = [
+    [null, null, "SOMETHING", null],
+    [null, null, "Imports", "Exports"],
+  ];
+  const headers = ["Imports", "Exports"];
+  assert.deepEqual(composeGroupedHeaders(rows, 1, 2, headers), headers);
+});
+
+test("a group row that cannot disambiguate is not applied", () => {
+  // One group covering everything adds a prefix without resolving anything,
+  // so the labels would still collide. Better to leave them and let the
+  // sentinel complain than to invent distinctions that are not there.
+  const rows = [
+    [null, null, "ALL", null],
+    [null, null, "Fixed Income", "Fixed Income"],
+  ];
+  const headers = ["Fixed Income", "Fixed Income"];
+  assert.deepEqual(composeGroupedHeaders(rows, 1, 2, headers), headers);
+});
+
+test("a parenthesised revision marker is a period, not an unparseable row", () => {
+  // The wages sheet ends "2016 (R)", "2017 (P)", "2018 (P)". Only a trailing
+  // bare R/P was handled, so those three rows were refused and dropped — the
+  // three most recent observations in a series that stops in 2018.
+  for (const [raw, period] of [["2016 (R)", "2016"], ["2017 (P)", "2017"], ["2018 (p)", "2018"]]) {
+    const p = normalisePeriod(raw);
+    assert.equal(p?.period, period, raw);
+    assert.equal(p?.revised, true, `${raw} must be flagged revised, not silently cleaned`);
+    assert.equal(p?.raw, raw, "the bank's own label is carried, not rewritten");
+  }
+});
+
+test("blank header cells are filled from the row above", () => {
+  // CBB's wages header spans two rows: the upper names most sectors, the lower
+  // names the Manufacturing sub-columns. Taking only the nearest row left
+  // eleven series with an empty label, and an empty label cannot be selected.
+  const rows = [
+    [null, null, "Hotels", "Distribution", "Manufacturing"],
+    [null, null, null, null, "Garments"],
+  ];
+  assert.deepEqual(
+    fillBlankHeadersFromAbove(rows, 1, 2, ["", "", "Garments"]),
+    ["Hotels", "Distribution", "Garments"],
+    "a row that names its own column wins; only blanks are filled",
+  );
+});
+
+test("filling a header does not resurrect an empty spacer column", () => {
+  // The regression this guard exists for: giving a data-less trailing column a
+  // borrowed name would keep it as a series of nulls.
+  const sheet = {
+    name: "S",
+    rows: [
+      [null, "Period", "Real", "Also Real", "Spacer"],
+      [null, 2020, 1, 10, null],
+      [null, 2021, 2, 20, null],
+      [null, 2022, 3, 30, null],
+      [null, 2023, 4, 40, null],
+      [null, 2024, 5, 50, null],
+    ],
+  };
+  const t = extractSheet(sheet);
+  assert.deepEqual(t.series.map((s) => s.label), ["Real", "Also Real", "Spacer"], "a column the sheet itself named is kept");
+  const sheet2 = JSON.parse(JSON.stringify(sheet));
+  sheet2.rows[0] = [null, "Period", "Real", "Also Real", null];
+  const t2 = extractSheet(sheet2);
+  assert.deepEqual(t2.series.map((s) => s.label), ["Real", "Also Real"], "an unnamed, data-less column stays dropped");
+});
