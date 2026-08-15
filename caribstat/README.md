@@ -255,6 +255,39 @@ Each of these cost a debugging cycle and is documented at its call site:
   CPI varies *by country*. Caching one date for the source would mislabel most
   of the corpus.
 
+### Independent verification of the ECCB values, 2026-08-15
+
+Every value-level defect this pipeline has produced was a PARSING defect, and
+a parser cannot audit itself: re-running the ingest and getting the same answer
+proves consistency, not correctness. So the published ECCB data is checked
+against a second implementation, written in another language so it shares no
+code path with the ingest.
+
+    node tools/eccb/capture.mjs --all --start 2015 --end 2026
+    python tools/eccb/verify_independent.py
+
+**Result: 55 documents, 11,838 cells, zero disagreements.** The capture step
+reuses the pipeline's fetch, because the CSRF handshake needs it and fetching
+is not where any defect has been found. The parse and the comparison are
+independent.
+
+The verifier is proven able to fail: changing one published value by 0.01 and
+renaming one row is reported as exactly two disagreements, and the run returns
+to zero when they are restored. A checker that has only ever printed zero is
+not evidence of anything.
+
+Two things the first run got wrong, both in the CHECKER rather than the data,
+and both worth knowing before trusting a future report:
+
+- ECCB writes a missing value as a run of dashes, `---`. A single-dash pattern
+  reported 44 false mismatches.
+- Tables in this corpus were collected with different date windows, so
+  demanding identical period lists reported a capture-configuration difference
+  as a data defect. The comparison now runs over the overlapping periods.
+
+`.capture/` is gitignored. The verifier is committed; the publishers' raw HTML
+is not ours to redistribute.
+
 ### ECCB: a repeated row label is not one series
 
 A scan of all 154 ECCB documents on 2026-08-15, looking for the defect classes
