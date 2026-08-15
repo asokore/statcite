@@ -274,3 +274,93 @@ test("README does not advertise an absolute test count", () => {
     `README states "${claim?.[0]}". A hard-coded count drifts silently; describe the suite instead.`,
   );
 });
+
+// --- the ledger and the prose must not contradict each other --------------
+//
+// The licence ledger at /v1/sources is a PUBLISHED LEGAL CLAIM about what this
+// service may serve. On 2026-08-15 `eccb` and `cbb` had been `served` for a
+// day while three documents still stated they were `refused` and that nothing
+// was published. A reader had no way to tell which was true, and the wrong one
+// was the reassuring one.
+//
+// Same failure as the v1.8.2 licence fix that missed the live homepage for two
+// days: a correction applied to the code and not swept through the prose. The
+// guard is deliberately crude, a literal search for the retired claim, because
+// a literal search is exactly what the earlier sweeps skipped.
+
+test("no document claims a source is refused when the ledger serves it", async () => {
+  const { SOURCES } = await import("../src/core/sources.ts");
+  const served = SOURCES.filter((s) => s.license_verdict === "served").map((s) => s.id);
+  assert.ok(
+    served.includes("eccb") && served.includes("cbb"),
+    "fixture check: this guard exists because eccb and cbb flipped to served",
+  );
+
+  const docs = [
+    "docs/CARIBBEAN-CROSSCHECK-2026-08.md",
+    "caribstat/README.md",
+    "caribstat/SCOPING.md",
+    "README.md",
+  ];
+  const offences = [];
+  for (const rel of docs) {
+    let text;
+    try {
+      text = readFileSync(path.join(repoRoot, rel), "utf8");
+    } catch {
+      continue; // a doc that no longer exists cannot contradict anything
+    }
+    const lines = text.split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (!served.some((id) => line.toLowerCase().includes(id))) continue;
+      if (!/\brefused\b/i.test(line)) continue;
+      // Judge the TENSE of the claim, not nearby keywords. The first version
+      // allowlisted words like "corrected" and "history" anywhere within three
+      // lines, and a section heading reading "Licence position, corrected
+      // 2026-08-15" then suppressed a freshly reintroduced present-tense
+      // claim sitting directly underneath it. The guard passed a mutation it
+      // existed to catch.
+      //
+      // A live claim asserts refusal in the present: "records eccb as refused",
+      // "eccb is refused", "cbb stays refused". A historical one is past or
+      // conditional: "would stay at refused", "recorded ... at the time",
+      // "used to say".
+      const PRESENT = /\b(records?|is|are|stays?|remains?|carries|carry|has|have)\b[^.]{0,60}\brefused\b/i;
+      const PAST = /\b(was|were|would|used to|had|previously|until|superseded|no longer)\b/i;
+      if (!PRESENT.test(line)) continue;
+      if (PAST.test(line)) continue;
+      // Only an immediately adjacent line may mark this one as history, and
+      // only with an explicit supersession word.
+      const neighbours = [lines[i - 1] ?? "", lines[i + 1] ?? ""].join(" ");
+      if (/superseded|used to say|no longer|out of date/i.test(neighbours)) continue;
+      offences.push(`${rel}: ${line.trim().slice(0, 110)}`);
+    }
+  }
+  assert.deepEqual(
+    offences,
+    [],
+    "these lines say a served source is refused; fix the prose or the ledger so they agree",
+  );
+});
+
+test("the ECCB and CBB entries keep disclosing that they rest on an attestation", async () => {
+  // These two are the only served sources whose basis is the operator's word
+  // rather than the publisher's own terms quoted verbatim. That is legitimate
+  // and it is disclosed. What must never happen is the disclosure being tidied
+  // away, leaving them looking as well-evidenced as entries that quote their
+  // source. If the grant text arrives and the note is rewritten around it,
+  // this test should be updated deliberately, not deleted quietly.
+  const { SOURCES } = await import("../src/core/sources.ts");
+  for (const id of ["eccb", "cbb"]) {
+    const entry = SOURCES.find((s) => s.id === id);
+    assert.ok(entry, `${id} must exist in the ledger`);
+    assert.equal(entry.license_verdict, "served", `${id} verdict`);
+    assert.match(
+      entry.license_note,
+      /operator/i,
+      `${id} must say whose confirmation the verdict rests on, not imply a verbatim grant`,
+    );
+    assert.ok(entry.license_verified_on, `${id} must carry a verification date`);
+  }
+});
