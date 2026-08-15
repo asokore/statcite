@@ -15,9 +15,11 @@ import {
   publicationDateFromUrl,
   extractTitle,
   titleAgreesWithAttachment,
+  publicationFamily,
   CBB_LISTINGS,
   CBB_UNRESOLVED_CATEGORIES,
 } from "./fetch.mjs";
+import { selectItems } from "./ingest.mjs";
 
 const BOILERPLATE = `
   <a href="https://cdn.centralbank.org.bb/documents/2022-04-21-04-57-32-Government-of-Barbados-Tradeable-Bonds-FAQ-1.pdf">Bonds FAQ</a>
@@ -168,4 +170,57 @@ test("the CDN date prefix is not mistaken for the period the workbook covers", (
 test("a title or filename with no year is not treated as a mismatch", () => {
   assert.equal(titleAgreesWithAttachment("Monetary Survey", "https://cdn.centralbank.org.bb/documents/2026-01-01-00-00-00-Survey.xlsx").ok, true);
   assert.equal(titleAgreesWithAttachment("", "").ok, true);
+});
+
+// --- one listing can carry two different publications --------------------
+//
+// Found 2026-08-14 by listing the item slugs per category instead of assuming
+// every listing behaved like tourism. The statistics listing holds commercial
+// bank investments AND selected indicators of depository corporations, so
+// "take the newest item" silently discarded a whole publication rather than
+// merely serving a stale edition of it.
+
+test("an edition stamp is stripped from a slug, the publication name is not", () => {
+  assert.equal(publicationFamily("long-stay-cruise-arrivals-june-2025"), "long-stay-cruise-arrivals");
+  assert.equal(publicationFamily("long-stay-cruise-arrivals-december-2023"), "long-stay-cruise-arrivals");
+  assert.equal(publicationFamily("labour-statistics-1975-2023-q1-2024"), "labour-statistics");
+  assert.equal(publicationFamily("wages-index-2017-1"), "wages-index");
+  assert.equal(
+    publicationFamily("https://www.centralbank.org.bb/news/statistics/investments-provisional-2014-april-2026"),
+    "investments-provisional",
+    "a full URL resolves to the same family as its slug",
+  );
+  // The distinction the whole change rests on: these two must NOT collapse.
+  assert.notEqual(
+    publicationFamily("investments-provisional-2014-april-2026"),
+    publicationFamily("selected-indicators-of-depository-corporations-february-2026"),
+  );
+});
+
+test("a listing of repeated editions still yields exactly one item", () => {
+  // The regression guard: seven of the eight listings must behave as before.
+  const editions = [
+    "long-stay-cruise-arrivals-june-2025",
+    "long-stay-cruise-arrivals-december-2023",
+    "long-stay-cruise-arrivals-june-2023",
+  ];
+  assert.deepEqual(selectItems(editions, { id: "tourism" }, 1), [editions[0]]);
+  assert.deepEqual(selectItems(editions, { id: "tourism" }, 2), editions.slice(0, 2), "--max-items still deepens history");
+});
+
+test("a listing declaring two publications yields the newest of each", () => {
+  const items = [
+    "investments-provisional-2014-april-2026",
+    "selected-indicators-of-depository-corporations-february-2026",
+  ];
+  assert.deepEqual(selectItems(items, { id: "statistics", families: 2 }, 1), items);
+  // Without the declaration the second publication is lost, which is the bug.
+  assert.deepEqual(selectItems(items, { id: "statistics" }, 1), [items[0]]);
+});
+
+test("the statistics listing is the only one declaring more than one publication", () => {
+  // If a future listing starts mixing publications this test does not fail,
+  // but it does record what was true when the rule was written.
+  const declared = CBB_LISTINGS.filter((l) => (l.families ?? 1) > 1).map((l) => l.id);
+  assert.deepEqual(declared, ["statistics"]);
 });
