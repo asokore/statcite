@@ -157,11 +157,57 @@ growth by nearly half.
 - Central Bank of Trinidad and Tobago, *Economic Bulletin*. Https://www.central-bank.org.tt/economic-bulletin
 - Government of Trinidad and Tobago, *Review of the Economy 2025*. Https://www.finance.gov.tt/wp-content/uploads/2025/08/WEB-%E2%80%A2-REVIEW-OF-THE-ECONOMY-2025.pdf
 
-## 6. Open items
+## 6. Caribbean coverage audit, 2026-08-14
 
-1. **OWNER**: decide the ECCB/CBB permission email, or park the vertical.
+Thirty Caribbean economies were queried against the live service to find out
+where the real gaps are rather than assuming them. **27 returned data and three
+did not.** Two of the three are not gaps in the ordinary sense. The third was a
+genuine defect, and it was only found because the sweep was re-run rather than
+an earlier count repeated.
+
+**Guadeloupe and Martinique are French overseas departments.** So are French
+Guiana, Reunion and Mayotte. The World Bank and the IMF report them inside
+France, so no international source this service draws on holds a country-level
+series for them, and none is likely to. The figures do exist, published by
+INSEE at department level. This is settled and does not need re-researching.
+
+Until 2026-08-14 they returned a bare "No snapshot data available", which reads
+as a lookup failure and invites a caller to retry with a different spelling.
+They now return the constitutional reason, the parent economy, and the INSEE
+department page, carrying the same `no_published_data` contract as every other
+absence. See `INTEGRATED_TERRITORIES` in `server/src/core/countries.ts`.
+
+One trap worth recording. The obvious INSEE deep link,
+`insee.fr/fr/statistiques?geo=REG-nn`, returns HTTP 200 and a byte-identical
+page for four different regions, because the filter is applied in the browser.
+It looks like a working per-territory link and is not one. The stable
+per-department page is `insee.fr/fr/statistiques/2011101?geo=DEP-nnn`, verified by
+reading the title of each.
+
+**The Caribbean Netherlands (BES) was the real defect.** Bonaire, Sint Eustatius
+and Saba were missing from the country table, so the code fell through the
+three-letter passthrough and the service answered "No snapshot data available
+for 'BES' (BES)", echoing the code back as though it were a name. That is the
+same defect the nineteen territories added on 2026-08-13 were meant to close.
+BES is now in the table and refers the caller to CBS, which publishes Caribbean
+Netherlands figures. It is three special municipalities of the Netherlands, not
+an overseas department, so the explanation carries a per-territory description
+of the relationship rather than one hardcoded phrase.
+
+**Anguilla, Montserrat and the British Virgin Islands are the opposite case.**
+They are real economies with no World Bank coverage, and they are served from
+ECCB and from UNCTAD via DBnomics. They are the headline example of what this
+vertical is for.
+
+## 7. Open items
+
+1. **OWNER**: forward the ECCB/CBB grant text so the licence ledger can flip.
    Everything sub-annual depends on it.
-2. Normalise the Montserrat upstream error into the honest-absence contract.
+2. ~~Normalise the Montserrat upstream error into the honest-absence
+   contract.~~ Done 2026-08-13, with tests.
 3. Extend the cross-check to the six ECCU members individually, their
    national figures come via ECCB reports, readable and citable even while
    ingestion stays blocked.
+4. Decide whether StatCite serves sub-national geographies at all. The INSEE
+   referral answers the question for the French departments without committing
+   to ingesting regional data, which is a much larger scope.
