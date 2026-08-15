@@ -8,6 +8,34 @@ StatCite is a free remote MCP server + REST API serving official economic statis
 
 **If the task is "take this live" or "deploy": follow `HANDOFF.md` step by step**, but read `BRIEF.md` §4 and §9 first and decide whether shipping as-is is actually the right move. Growth sequence: `docs/LAUNCH.md`.
 
+## Branch topology and the embargo guard: read before your first push
+
+This repository is **public**. Local `main` is not what ships.
+
+- **`main`** carries the R2 benchmark RESULTS (`bench/runs/R2*`), which stay off the public remote until the vendor courtesy-preview window closes. `bench/questions/R2*` and `bench/snapshots/R2*` are pre-registered and public by design; only `runs/` is embargoed.
+- **`public-sync`** is the branch that actually publishes. It excludes `bench/runs/R2*`.
+
+**Never `git push` from `main`.** To publish work, put the commit on `public-sync` and push that:
+
+```
+git checkout public-sync
+git cherry-pick <sha>          # or: git checkout main -- <safe paths>
+git push origin public-sync:main
+git checkout main
+```
+
+A `pre-push` hook mechanically refuses any push whose tip tree contains `bench/runs/R2*`. It checks **tree membership, not range diffs**, because a new-branch push has no range and an earlier version of the guard silently passed on exactly that case.
+
+**The guard is not automatic. Enable it once per clone:**
+
+```
+git config core.hooksPath .githooks
+```
+
+Git never runs hooks straight from a clone, by design, so a fresh clone has the script at `.githooks/pre-push` but does not execute it. Check with `git config --get core.hooksPath` and expect `.githooks`. If that prints nothing, you are unprotected and a plain push from `main` would publish the embargoed results. Verify the guard actually fires rather than assuming it does: a dry-run push to a **new** remote branch reaches the hook, whereas a dry-run push to an existing branch can be rejected as non-fast-forward by the remote before the hook ever runs, which looks like a pass and is not one.
+
+Separately, `caribstat/data/` and the other gitignored paths listed in `.gitignore` carry harvested source data whose terms do not permit redistribution. Never `git add` them, never force with `-f`, and never relax those entries. The gate is the licence ledger at `https://statcite.com/v1/sources` flipping to served, and that is the owner's decision.
+
 ## Commands (run in `server/`)
 
 - `npm install`. Dev deps only (typescript, tsx, workers-types; wrangler on demand via npx)
