@@ -1,6 +1,7 @@
 # Counting users: why the instrumentation was not built
 
-Date: 2026-08-16. Status: **recommendation withdrawn, one owner decision open.**
+Date: 2026-08-16. Status: **closed. Recommendation withdrawn; the policy
+question was put to the owner and declined.**
 
 ## The question
 
@@ -69,7 +70,7 @@ None of these identify anyone:
    steady across two weeks, is a real and defensible number for a README or an
    investor line, provided it is described as calls and never as users.
 
-## OPEN, needs the owner: the policy over-claims about Cloudflare's logs
+## CLOSED: the policy over-claim, raised and declined
 
 Found while answering the question, and worth fixing whichever way is chosen.
 
@@ -97,7 +98,18 @@ resolutions:
   from `analytics/daily.jsonl`. This preserves the sentence exactly but loses
   the crawler breakdown.
 
-Not actioned here because `site/privacy.html` is a published legal claim, and
-weakening or restating it is the owner's decision, not an agent's. The first
-option is the recommendation: it costs nothing analytically and makes a public
-promise true rather than approximately true.
+**Outcome, 2026-08-16.** Both options were put to the owner with the exact
+replacement wording drafted and ready to deploy. He judged the change not worth
+making, and that is his call: he owns the risk and the sentence is his to
+stand behind.
+
+So the position is now DELIBERATE rather than accidental. The wording stays as
+published, the tooling keeps its crawler breakdown, and the gap between the two
+is small, local, aggregate, and knowingly accepted.
+
+**Do not re-raise this.** It has been found, measured, written up, and decided.
+A later session noticing the same sentence should read this paragraph and move
+on, not spend an hour rediscovering it. If the position ever needs revisiting
+the trigger would be an external one — a regulator, an enterprise customer's
+privacy review, or a decision to publish traffic figures — and not simply
+another agent reading the page fresh.
