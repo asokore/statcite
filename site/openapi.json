@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StatCite API",
-    "version": "1.11.0",
+    "version": "1.11.1",
     "description": "Official economic statistics with full citations, built for AI agents. Every numeric response includes a citation object (source, dataset, series_id, source_url, license, attribution, retrieved_at, citation_text). Free, no auth, read-only. MCP endpoint at https://statcite.com/mcp.",
     "contact": {
       "email": "hello@statcite.com",
@@ -198,7 +198,7 @@
     "/v1/series": {
       "get": {
         "operationId": "getSeries",
-        "summary": "Raw series by explicit id (worldbank/\u2026, imf/\u2026, dbnomics/\u2026; fred/\u2026 is recognized but always declines \u2014 FRED is disabled)",
+        "summary": "Raw series by explicit id (worldbank/\u2026, imf/\u2026, dbnomics/\u2026, caribstat/\u2026 for Eastern Caribbean Central Bank and Central Bank of Barbados series; fred/\u2026 is recognized but always declines \u2014 FRED is disabled)",
         "parameters": [
           {
             "name": "id",
@@ -207,7 +207,25 @@
             "schema": {
               "type": "string"
             },
-            "description": "e.g. worldbank/NY.GDP.MKTP.KD.ZG, imf/NGDP_RPCH, dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change"
+            "description": "Explicit series id. Forms: worldbank/NY.GDP.MKTP.KD.ZG, imf/NGDP_RPCH, dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change, caribstat/ECCB/{table}/{ISO3}.{a|q|m}, caribstat/CBB/{table}/{sheet}. CaribStat ids cover the eight ECCU territories, the currency-union aggregate and Barbados, including Anguilla and Montserrat, which are not World Bank reporting economies. Append '#Row Label' to select one row of a multi-row table. Where a source repeats a label under different headings, the selector is refused as ambiguous and each occurrence is reachable as '#Row Label[1]', '[2]' and so on; the served label then reads 'Row Label [2 of 3]' and can be pasted back in as a selector.",
+            "examples": {
+              "worldBank": {
+                "value": "worldbank/NY.GDP.MKTP.KD.ZG",
+                "summary": "World Bank, needs country"
+              },
+              "caribstatEccb": {
+                "value": "caribstat/ECCB/total-public-sector-debt/AIA.a",
+                "summary": "ECCB, Anguilla, annual"
+              },
+              "caribstatEccbRow": {
+                "value": "caribstat/ECCB/central-government-fiscal-accounts/AIA.a#Domestic[2]",
+                "summary": "ECCB, second row carrying a repeated label"
+              },
+              "caribstatCbb": {
+                "value": "caribstat/CBB/exchange-rates-cbob/e3",
+                "summary": "Central Bank of Barbados, by sheet"
+              }
+            }
           },
           {
             "name": "country",
@@ -215,7 +233,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Required for worldbank/* ids"
+            "description": "Required for worldbank/* ids. Not used by caribstat/* ids, which carry their geography in the id."
           },
           {
             "name": "start_year",
