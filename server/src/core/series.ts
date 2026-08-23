@@ -1029,8 +1029,52 @@ const FRED_DISABLED_REASON =
   "FRED is permanently disabled on this service (FRED's terms of use prohibit AI/ML use and redistribution of its content). This key always declines; use an active World Bank/IMF-backed key instead.";
 
 /** Search the curated registry (primary) and DBnomics datasets (secondary). */
+/**
+ * A series published for ONE fixed geography, not per country.
+ *
+ * The signal is structural rather than a new field: a SDMX config whose key has
+ * no `{ISO2}` placeholder has nowhere to put a country, which is exactly the
+ * condition getIndicator uses at the serving end to refuse anything but the
+ * euro area. Deriving it the same way means search and serving cannot drift.
+ */
+function isFixedGeographyDef(def: IndicatorDef): boolean {
+  return Boolean(def.sdmx && !def.sdmx.key.includes("{ISO2}"));
+}
+
+/**
+ * The country a free-text query names, if it names one unambiguously.
+ *
+ * Only VERIFIED matches count. resolveCountry passes any plausible
+ * three-letter string through as `unverified`, so without that filter "cpi"
+ * and "gdp" would each resolve to an imaginary country and suppress results.
+ * Two-letter tokens are skipped for the same reason in reverse: "in" is India
+ * and would wreck "inflation in europe".
+ */
+function countryNamedIn(query: string): Country | undefined {
+  const tokens = query.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter((t) => t.length >= 3);
+  // Longest phrases first: "saint kitts and nevis" must beat "saint".
+  for (let n = Math.min(4, tokens.length); n >= 1; n--) {
+    for (let i = 0; i + n <= tokens.length; i++) {
+      const phrase = tokens.slice(i, i + n).join(" ");
+      const c = resolveCountry(phrase);
+      if (c && !c.unverified) return c;
+    }
+  }
+  return undefined;
+}
+
 export async function searchIndicators(ctx: Ctx, query: string, opts: { includeDbnomics?: boolean } = {}): Promise<SearchResultItem[]> {
-  const matches = searchIndicatorDefs(query, 8);
+  const matches = searchIndicatorDefs(query, 8)
+    // Drop a fixed-geography series when the query names a country it cannot
+    // serve. "barbados inflation" ranked euro_area_hicp third, and following
+    // that suggestion returns 422, because the series is euro-area only. A
+    // recommendation the caller cannot use is worse than one fewer result.
+    .filter((m) => {
+      if (!isFixedGeographyDef(m.def)) return true;
+      const c = countryNamedIn(query);
+      if (!c) return true;
+      return c.iso3 === "EMU" || c.iso3 === "XM";
+    });
   const items: SearchResultItem[] = matches.map((m) => {
     const disabled = isDisabledDef(m.def);
     return {
