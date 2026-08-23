@@ -296,11 +296,21 @@ test("no document claims a source is refused when the ledger serves it", async (
     "fixture check: this guard exists because eccb and cbb flipped to served",
   );
 
+  // site/llms.txt and site/llms-full.txt are in this list because the first
+  // version of this guard omitted them, and llms-full.txt was still telling
+  // every AI agent that read it that "REFUSED sources (FRED, UN Comtrade,
+  // ECCB, Central Bank of Barbados)" — two days after those two became
+  // served. A guard that covers the documents a human browses and not the
+  // ones machines consume protects the wrong audience for this service.
   const docs = [
     "docs/CARIBBEAN-CROSSCHECK-2026-08.md",
     "caribstat/README.md",
     "caribstat/SCOPING.md",
     "README.md",
+    "site/llms.txt",
+    "site/llms-full.txt",
+    "site/sources.html",
+    "site/docs.html",
   ];
   const offences = [];
   for (const rel of docs) {
@@ -310,31 +320,50 @@ test("no document claims a source is refused when the ledger serves it", async (
     } catch {
       continue; // a doc that no longer exists cannot contradict anything
     }
+    // TWO PRECISE PATTERNS, not a tense heuristic.
+    //
+    // Three earlier versions of this guard failed, each instructively:
+    //   1. it allowlisted any nearby "corrected", so a section heading reading
+    //      "Licence position, corrected 2026-08-15" excused everything under it;
+    //   2. it required a verb BEFORE "refused", but the sentence that was
+    //      actually live and wrong read "REFUSED sources (FRED, UN Comtrade,
+    //      ECCB, Central Bank of Barbados)" — refused as an adjective, first;
+    //   3. broadening the past-tense list to fix a false positive then excused
+    //      that same sentence, because it also contains "listed" and "was".
+    //
+    // Tense cannot be read reliably with a regex on prose that mixes a present
+    // claim with past clauses. What CAN be read is the two shapes a licence
+    // refusal actually takes in these documents.
+    const refusedList = /refused\s+sources?\s*\(([^)]*)\)/gi;
+    for (const m of text.matchAll(refusedList)) {
+      for (const id of served) {
+        if (m[1].toLowerCase().includes(id)) {
+          offences.push(`${rel}: "${m[0].slice(0, 90)}" enumerates ${id}, which the ledger serves`);
+        }
+      }
+    }
     const lines = text.split("\n");
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (!served.some((id) => line.toLowerCase().includes(id))) continue;
-      if (!/\brefused\b/i.test(line)) continue;
-      // Judge the TENSE of the claim, not nearby keywords. The first version
-      // allowlisted words like "corrected" and "history" anywhere within three
-      // lines, and a section heading reading "Licence position, corrected
-      // 2026-08-15" then suppressed a freshly reintroduced present-tense
-      // claim sitting directly underneath it. The guard passed a mutation it
-      // existed to catch.
-      //
-      // A live claim asserts refusal in the present: "records eccb as refused",
-      // "eccb is refused", "cbb stays refused". A historical one is past or
-      // conditional: "would stay at refused", "recorded ... at the time",
-      // "used to say".
-      const PRESENT = /\b(records?|is|are|stays?|remains?|carries|carry|has|have)\b[^.]{0,60}\brefused\b/i;
-      const PAST = /\b(was|were|would|used to|had|previously|until|superseded|no longer)\b/i;
-      if (!PRESENT.test(line)) continue;
-      if (PAST.test(line)) continue;
-      // Only an immediately adjacent line may mark this one as history, and
-      // only with an explicit supersession word.
-      const neighbours = [lines[i - 1] ?? "", lines[i + 1] ?? ""].join(" ");
-      if (/superseded|used to say|no longer|out of date/i.test(neighbours)) continue;
-      offences.push(`${rel}: ${line.trim().slice(0, 110)}`);
+      const lower = line.toLowerCase();
+      // A verdict statement: the source id sits beside the word refused.
+      if (!/verdict|license_verdict|licence ledger|ledger/.test(lower)) continue;
+      if (!/refused/.test(lower)) continue;
+      // History is the point of keeping these documents; only present claims
+      // fail. The marker is looked for across a small WINDOW, not this line
+      // alone: these documents wrap at about 76 characters, so a line can end
+      // on "...as **`refused`** at" with "the time of this reading" beginning
+      // the next one. Checking one line flagged two correctly-marked history
+      // passages.
+      const ctx = lines.slice(Math.max(0, i - 2), i + 3).join(" ");
+      if (/at the time|superseded|used to|no longer|until the grant|previously|out of date|corrected 2026/i.test(ctx)) continue;
+      const near = served.some((id) => {
+        for (let at = lower.indexOf(id); at !== -1; at = lower.indexOf(id, at + 1)) {
+          if (lower.slice(Math.max(0, at - 60), at + id.length + 60).includes("refused")) return true;
+        }
+        return false;
+      });
+      if (near) offences.push(`${rel}: ${line.trim().slice(0, 110)}`);
     }
   }
   assert.deepEqual(
@@ -362,5 +391,45 @@ test("the ECCB and CBB entries keep disclosing that they rest on an attestation"
       `${id} must say whose confirmation the verdict rests on, not imply a verbatim grant`,
     );
     assert.ok(entry.license_verified_on, `${id} must carry a verification date`);
+  }
+});
+
+// --- the spec must document what the service actually serves --------------
+//
+// openapi.json mentioned caribstat ZERO times until 2026-08-16, so the entire
+// Caribbean corpus — the thing that differentiates this service, and the only
+// source of data for Anguilla and Montserrat — was invisible to anyone
+// generating a client from the spec. The data was served and undiscoverable,
+// which is the same shape as the search catalogue listing 5 of 16 categories.
+
+test("openapi documents the caribstat id form and the row selector", () => {
+  const spec = readJson("site/openapi.json");
+  const series = spec.paths["/v1/series"].get;
+  const idParam = series.parameters.find((p: any) => p.name === "id");
+  assert.ok(idParam, "/v1/series must document its id parameter");
+  assert.match(idParam.description, /caribstat\/ECCB/, "the ECCB id form must be documented");
+  assert.match(idParam.description, /caribstat\/CBB/, "the CBB id form must be documented");
+  assert.match(idParam.description, /#Row Label/, "the row selector must be documented");
+  assert.match(idParam.description, /\[2\]|\[1\]/, "the occurrence selector must be documented");
+});
+
+test("every openapi example id is a real published series", () => {
+  // A fictional example is worse than none: a client generated from it fails
+  // and the caller blames their own code. The CBB example is drawn from the
+  // committed sheet manifest for exactly this reason.
+  const spec = readJson("site/openapi.json");
+  const real = readJson("server/test/fixtures/cbb-sheets.json");
+  const idParam = spec.paths["/v1/series"].get.parameters.find((p: any) => p.name === "id");
+  const examples = Object.values(idParam.examples ?? {}) as Array<{ value: string }>;
+  assert.ok(examples.length >= 3, "expected worked examples on the id parameter");
+  for (const ex of examples) {
+    const id = String(ex.value).split("#")[0];
+    if (!id.startsWith("caribstat/CBB/")) continue;
+    const [, , table, sheet] = id.split("/");
+    assert.ok(real[table], `openapi cites CBB table ${table}, which the pipeline does not publish`);
+    assert.ok(
+      real[table].includes(sheet),
+      `openapi cites ${table}/${sheet}, not a published sheet. Real: ${real[table].join(", ")}`,
+    );
   }
 });
