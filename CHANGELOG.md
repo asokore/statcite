@@ -5,6 +5,29 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.11.1
+
+Second audit pass, every finding verified against the live service.
+
+- Search no longer recommends a series the caller cannot use. A query naming a
+  country now drops fixed-geography series that cannot serve it, so
+  `euro_area_hicp` stopped ranking third for "barbados inflation" and
+  "jamaica inflation", both of which returned 422 when followed.
+- `/docs` no longer scrolls sideways on a phone. Two inline code spans, an MCP
+  config JSON and a long DBnomics series id, widened the page to 465px in a
+  375px viewport. Inline code now wraps; `pre` still scrolls.
+- `openapi.json` documents the `caribstat/` id form, the `#Row Label` selector
+  and the `[n]` occurrence form. It had never mentioned caribstat at all, so
+  the Caribbean corpus was invisible to generated clients.
+- The licence ledger is stated correctly on `/docs` and in `llms-full.txt`.
+  Both still listed ECCB and the Central Bank of Barbados as refused sources
+  two days after they became served.
+- `llms.txt` and `llms-full.txt` now state the real coverage: seven ECCB tables
+  across nine geographies and sixteen Barbados tables.
+- The country_snapshot description no longer claims a fixed indicator count.
+  It varies from 5 to 11 by economy, and was overstated for exactly the small
+  states this service exists to cover.
+
 ## 1.11.0 — 2026-08-13
 
 Found by auditing the LIVE service rather than the repo, and each item verified
