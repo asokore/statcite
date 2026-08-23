@@ -192,3 +192,48 @@ test("no unexpected upstream calls leaked", () => {
   );
   assert.deepEqual(unexpected, []);
 });
+
+// --- a suggestion must be usable for the country the query names ----------
+//
+// Live on 2026-08-16: "barbados inflation" and "jamaica inflation" both ranked
+// euro_area_hicp third. It is a real series and it resolves, so an
+// id-exists check passes, but it is published for the euro area ONLY and
+// following it for Barbados returns 422. A recommendation the caller cannot
+// use is the same defect class as the CBB catalogue suggesting sheet ids that
+// did not exist: the caller assumes they typed something wrong.
+//
+// The rule is derived structurally rather than from a new field: an SDMX
+// config whose key has no {ISO2} placeholder has nowhere to put a country,
+// which is the same condition getIndicator uses to refuse one.
+
+test("a euro-area-only series is not suggested for a non-euro country", async () => {
+  const { searchIndicators } = await import("../src/core/series.ts");
+  const ctx = { now: () => new Date("2026-08-16T00:00:00Z") } as any;
+  for (const q of ["barbados inflation", "jamaica inflation", "trinidad inflation"]) {
+    const out = await searchIndicators(ctx, q);
+    const ids = out.map((r: any) => String(r.id));
+    assert.ok(
+      !ids.includes("euro_area_hicp"),
+      `${q} must not suggest euro_area_hicp; got ${ids.slice(0, 5).join(", ")}`,
+    );
+    assert.ok(ids.length > 0, `${q} must still return something`);
+  }
+});
+
+test("a euro-area query still finds the euro-area series", async () => {
+  // The filter must not make the series unreachable. It only applies when the
+  // query names a country the series cannot serve.
+  const { searchIndicators } = await import("../src/core/series.ts");
+  const ctx = { now: () => new Date("2026-08-16T00:00:00Z") } as any;
+  for (const q of ["euro area inflation", "hicp"]) {
+    const ids = (await searchIndicators(ctx, q)).map((r: any) => String(r.id));
+    assert.ok(ids.includes("euro_area_hicp"), `${q} should surface euro_area_hicp; got ${ids.slice(0, 5).join(", ")}`);
+  }
+});
+
+test("a country-free query is unaffected by the geography filter", async () => {
+  const { searchIndicators } = await import("../src/core/series.ts");
+  const ctx = { now: () => new Date("2026-08-16T00:00:00Z") } as any;
+  const ids = (await searchIndicators(ctx, "inflation")).map((r: any) => String(r.id));
+  assert.ok(ids.length > 0, "bare 'inflation' must still return results");
+});
