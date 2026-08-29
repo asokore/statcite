@@ -7,6 +7,29 @@ claims were re-verified by the orchestrator before this file was written;
 external claims carry their evidence URL inline. Where a claim is unverified
 it says so.
 
+**Measured verdicts since this plan was written.**
+
+- *Sitemap/canonical fix, judged 2026-08-29.* The 2026-08-14 fix (extensionless
+  sitemap URLs, canonicals that resolve 200) did NOT move search-crawl volume:
+  the week before averaged 14.3 search-engine crawls a day (13, 16, 6, 29, 5,
+  19, 12) and the week of 22-28 Aug averages 17.1 (24, 11, 7, 20, 48, 5, 5),
+  which is noise on daily swings of 5 to 48. Days 15-21 are unrecoverable:
+  Cloudflare keeps request-level detail about seven days and no snapshot ran
+  that week. Crawl VOLUME on a site this small is budget-driven and was the
+  wrong success metric anyway; the question that matters is whether the pages
+  are INDEXED, which only Search Console answers, and statcite.com's Search
+  Console is an owner-account surface. Do not keep re-measuring crawl counts
+  looking for this signal.
+- *AI-native confirmation stands.* Across every measured day, AI crawlers
+  outnumber search engines except on the very quietest days (e.g. 611 vs 24 on
+  22 Aug, 215 vs 48 on 26 Aug). Distribution effort belongs on agent surfaces,
+  which is where the 1.11.x releases, the registry description, llms.txt and
+  the GET /mcp descriptor went.
+- *PulseMCP, checked 2026-08-29.* Still paused, still "mid-August" verbatim,
+  still not listing statcite. The prerequisite they name (official registry)
+  serves 1.11.3. Waiting on them; the lever if it drags is an email, which is
+  the owner's.
+
 **Strategic read.** The growth engine is not the product; it is the benchmark
 result, funnelled through a zero-friction demo into agent-native distribution
 surfaces. All directory plumbing exists, but there has never been a launch
