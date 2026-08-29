@@ -62,10 +62,28 @@ jobs:
       # mcp-publisher reads server.json from the working directory, so run it
       # from distribution/ where the manifest lives rather than copying it and
       # risking the copy drifting from the original.
+      # IDEMPOTENT. The registry rejects a same-version republish with
+      # "cannot publish duplicate version", so a bare publish made the manual
+      # Run-workflow button a guaranteed red whenever the registry was already
+      # current — which is precisely when a person presses it to check. A
+      # dispatch means "make the registry match the repo": if it already does,
+      # there is nothing to publish and the run is green.
       - name: Publish
         working-directory: distribution
         run: |
           set -euo pipefail
+          EXPECTED=$(node -p "require('./server.json').version")
+          CURRENT=$(curl -fsSL "https://registry.modelcontextprotocol.io/v0/servers?search=statcite" \
+            | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
+                const j=JSON.parse(s);
+                const m=(j.servers||[]).filter(x=>(x.server||x).name==='io.github.asokore/statcite'&&(x._meta?.['io.modelcontextprotocol.registry/official']?.isLatest));
+                console.log(m.length?(m[0].server||m[0]).version:'none');
+              })")
+          if [ "$CURRENT" = "$EXPECTED" ]; then
+            echo "Registry already serves $EXPECTED as latest. Nothing to publish."
+            exit 0
+          fi
+          echo "Registry serves $CURRENT, repo declares $EXPECTED. Publishing."
           ../mcp-publisher login github-oidc
           ../mcp-publisher publish
 
