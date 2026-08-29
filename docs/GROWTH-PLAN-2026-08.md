@@ -17,9 +17,19 @@ it says so.
   Cloudflare keeps request-level detail about seven days and no snapshot ran
   that week. Crawl VOLUME on a site this small is budget-driven and was the
   wrong success metric anyway; the question that matters is whether the pages
-  are INDEXED, which only Search Console answers, and statcite.com's Search
-  Console is an owner-account surface. Do not keep re-measuring crawl counts
-  looking for this signal.
+  are INDEXED, which only Search Console answers. ANSWERED 2026-08-29, same
+  day: statcite.com had NEVER been a verified Search Console property. It is
+  now — URL-prefix property verified by HTML file (`googlee227cf46ca3fa231.html`,
+  committed to `site/` and it must never be removed), sitemap.xml submitted,
+  and indexing requested for the homepage. The URL inspection gave the real
+  diagnosis the crawl counts never could: "Crawled — currently not indexed",
+  LAST CRAWL 25 JULY 2026 — Google fetched the homepage before the canonical
+  and sitemap fixes existed, declined to index it, and never came back. The
+  sitemap row read "Couldn't fetch" minutes after submission with Last read
+  empty, which is the known placeholder before Google's first read (same
+  pattern asokore.com showed). CHECK BACK in about a week: Sitemaps "Last
+  read" should be populated and the homepage indexing state should move. Do
+  not keep re-measuring crawl counts looking for this signal.
 - *AI-native confirmation stands.* Across every measured day, AI crawlers
   outnumber search engines except on the very quietest days (e.g. 611 vs 24 on
   22 Aug, 215 vs 48 on 26 Aug). Distribution effort belongs on agent surfaces,
