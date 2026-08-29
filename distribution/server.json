@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.asokore/statcite",
   "title": "StatCite — Verified Economic Statistics",
-  "description": "Economic statistics with citations: World Bank, IMF, BIS, ECB. Verify GDP, inflation, debt figures.",
+  "description": "Cited economic statistics: World Bank, IMF, BIS, ECB, Caribbean central banks. Verify any figure.",
   "repository": {
     "url": "https://github.com/asokore/statcite",
     "source": "github"
