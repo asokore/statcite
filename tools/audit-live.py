@@ -323,11 +323,110 @@ def audit_mcp():
     check("mcp", "2026-07-28 without Mcp-Method is refused", "-32020" in txt3 or "Mcp-Method" in txt3, txt3[:90])
 
 
+# ------------------------------------------------- accessibility (structural)
+def audit_a11y():
+    """Static accessibility checks.
+
+    These are the ones answerable from the served HTML. Two things this CANNOT
+    check and that need a real browser at 375px: horizontal overflow, and
+    colour contrast on a non-root element (the preview pane pins root colours,
+    so probing body gives a fake pass). Both were checked by hand on
+    2026-08-16: contrast measured 7.2:1 on body prose, which passes AAA, and
+    /docs overflowed by 90px until inline code was allowed to wrap.
+    """
+    print("\n== accessibility (structural) ==")
+    for p in PAGES + ["/404.html"]:
+        st, _, html = get(p)
+        if st != 200:
+            check("a11y", f"{p} loads", False, f"status {st}")
+            continue
+        check("a11y", f"{p} declares a viewport", bool(re.search(r'<meta[^>]+name="viewport"', html, re.I)), "missing")
+        check("a11y", f"{p} declares a language", bool(re.search(r'<html[^>]+lang="', html, re.I)), "missing")
+        h1s = len(re.findall(r"<h1[\s>]", html, re.I))
+        check("a11y", f"{p} has exactly one h1", h1s == 1, f"found {h1s}")
+        heads = [int(m) for m in re.findall(r"<h([1-6])[\s>]", html, re.I)]
+        skip = next((f"h{heads[i-1]}->h{heads[i]}" for i in range(1, len(heads)) if heads[i] - heads[i - 1] > 1), None)
+        check("a11y", f"{p} skips no heading level", skip is None, skip or "")
+        imgs = re.findall(r"<img[^>]*>", html, re.I)
+        no_alt = [i for i in imgs if "alt=" not in i.lower()]
+        check("a11y", f"{p} images all have alt", not no_alt, f"{len(no_alt)} of {len(imgs)}")
+        links = re.findall(r"<a\b[^>]*>(.*?)</a>", html, re.I | re.S)
+        empty = [l for l in links if not re.sub(r"<[^>]+>", "", l).strip()]
+        check("a11y", f"{p} has no empty links", not empty, f"{len(empty)} empty")
+
+    # Inline code that cannot wrap is what pushed /docs 90px wide on mobile.
+    # Any page that STYLES inline code must also let it break.
+    for p in PAGES:
+        st, _, html = get(p)
+        if st != 200 or "code{font-family" not in html:
+            continue
+        wraps = "overflow-wrap" in html or "word-break" in html
+        check("a11y", f"{p} lets inline code wrap", wraps, "long tokens will widen the page on mobile")
+
+
+# --------------------------------------------------- AI discovery surfaces
+def audit_discovery():
+    """The surfaces AI agents and dataset crawlers use to find this service.
+
+    Every URL asserted here is fetched live. A structured-data example that
+    404s is worse than none: the search catalogue and openapi both had exactly
+    that defect, and a crawler that follows a dead example concludes the
+    service is broken.
+    """
+    print("\n== AI discovery ==")
+
+    st, _, home = get("/")
+    blocks = re.findall(r'<script type="application/ld\+json">(.*?)</script>', home, re.S)
+    check("disc", "homepage has one JSON-LD block", len(blocks) == 1, f"found {len(blocks)}")
+    graph = []
+    if blocks:
+        try:
+            d = json.loads(blocks[0])
+            graph = d.get("@graph", [])
+            check("disc", "JSON-LD parses", True)
+        except Exception as e:
+            check("disc", "JSON-LD parses", False, str(e)[:80])
+    types = {g.get("@type") for g in graph}
+    for want in ("SoftwareApplication", "WebAPI", "DataCatalog"):
+        check("disc", f"JSON-LD declares {want}", want in types, f"types={sorted(types)}")
+    cat = next((g for g in graph if g.get("@type") == "DataCatalog"), {})
+    dsets = cat.get("dataset", [])
+    check("disc", "DataCatalog lists 6 publisher datasets", len(dsets) == 6, f"found {len(dsets)}")
+    bad = []
+    for ds in dsets:
+        creator = (ds.get("creator") or {}).get("name", "")
+        if creator in ("", "StatCite"):
+            bad.append(f"{ds.get('name','?')[:40]} creator={creator!r}")
+        url = ((ds.get("distribution") or {}).get("contentUrl") or "")
+        st2, _, _ = get(url.replace(BASE, "")) if url.startswith(BASE) else (0, {}, "")
+        if st2 != 200:
+            bad.append(f"{url[:60]}:{st2}")
+    check("disc", "datasets are publisher-attributed and every contentUrl resolves", not bad, "; ".join(bad)[:180])
+    # The publication boundary applies to markup too: no person, no employer.
+    lower = (blocks[0] if blocks else "").lower()
+    check("disc", "JSON-LD names no person or ministry", "beckles" not in lower and "ministry" not in lower, "")
+
+    st, _, sec = get("/.well-known/security.txt")
+    check("disc", "security.txt serves with a contact", st == 200 and "Contact:" in sec, f"status {st}")
+
+    # A bare GET on /mcp must stay 405 (no SSE stream to offer) but carry a
+    # discovery body: agents sniff the URL before speaking JSON-RPC, and until
+    # 2026-08-29 they got zero bytes.
+    st, hdr, body = get("/mcp")
+    ok_shape = False
+    try:
+        j = json.loads(body)
+        ok_shape = j.get("mcp", {}).get("name") == "statcite" and "docs" in j
+    except Exception:
+        pass
+    check("disc", "GET /mcp is 405 with a discovery body", st == 405 and ok_shape, f"status {st} body={body[:60]!r}")
+
+
 def main():
     only = None
     if "--only" in sys.argv:
         only = sys.argv[sys.argv.index("--only") + 1]
-    for name, fn in [("api", audit_api), ("seo", audit_seo), ("links", audit_links), ("claims", audit_consistency), ("mcp", audit_mcp)]:
+    for name, fn in [("api", audit_api), ("seo", audit_seo), ("links", audit_links), ("claims", audit_consistency), ("mcp", audit_mcp), ("a11y", audit_a11y), ("disc", audit_discovery)]:
         if only and only != name:
             continue
         try:

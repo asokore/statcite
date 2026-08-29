@@ -43,7 +43,7 @@ import { listRegistry } from "./core/series.ts";
 import { SOURCES } from "./core/sources.ts";
 import { sidsCountries } from "./core/countries.ts";
 
-export const SERVER_VERSION = "1.11.1";
+export const SERVER_VERSION = "1.11.2";
 
 /** Session-era revisions: opened with `initialize`, negotiated once. */
 export const LEGACY_PROTOCOL_VERSIONS = ["2025-03-26", "2025-06-18", "2025-11-25"];
@@ -593,7 +593,33 @@ export async function handleMcp(request: Request, ctx: Ctx): Promise<Response> {
   }
   if (request.method !== "POST") {
     // Stateless server: no SSE stream (GET), no session to delete (DELETE).
-    return new Response(null, { status: 405, headers: { allow: "POST, OPTIONS", ...corsHeaders() } });
+    // The 405 stands, but it carries a DISCOVERY BODY. Agents and humans sniff
+    // an MCP URL with a bare GET before speaking JSON-RPC, and until 2026-08-29
+    // they got zero bytes back: no name, no docs, not even confirmation that
+    // this is an MCP endpoint. A 405 with a descriptor keeps the transport
+    // semantics (no client can mistake it for an SSE stream) while turning
+    // every sniff into a working start.
+    return new Response(
+      JSON.stringify({
+        error: "Use POST with JSON-RPC 2.0. This is a stateless MCP endpoint; there is no SSE stream.",
+        mcp: {
+          name: "statcite",
+          version: SERVER_VERSION,
+          transport: "streamable-http",
+          protocol_versions: ["2025-06-18", "2026-07-28"],
+          note: "2026-07-28 requests must also send the Mcp-Method header.",
+        },
+        service: "Official economic statistics with citations: World Bank, IMF, BIS, ECB, and Caribbean central banks (ECCB, Central Bank of Barbados).",
+        docs: "https://statcite.com/docs",
+        rest_api: "https://statcite.com/v1",
+        openapi: "https://statcite.com/openapi.json",
+        llms_txt: "https://statcite.com/llms.txt",
+      }),
+      {
+        status: 405,
+        headers: { allow: "POST, OPTIONS", "content-type": "application/json", ...corsHeaders() },
+      },
+    );
   }
 
   // Protocol-version header: present but unsupported -> 400 with the modern

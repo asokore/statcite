@@ -15,6 +15,39 @@ function today(ctx) {
 }
 
 // ../server/src/core/countries.ts
+var INSEE = (dep) => ({
+  publisher: "INSEE, the French national statistical institute",
+  publisherUrl: `https://www.insee.fr/fr/statistiques/2011101?geo=DEP-${dep}`
+});
+var FRANCE = {
+  parentIso3: "FRA",
+  parentName: "France",
+  relation: "an overseas department of France"
+};
+var INTEGRATED_TERRITORIES = {
+  GLP: { ...FRANCE, ...INSEE("971") },
+  MTQ: { ...FRANCE, ...INSEE("972") },
+  GUF: { ...FRANCE, ...INSEE("973") },
+  REU: { ...FRANCE, ...INSEE("974") },
+  MYT: { ...FRANCE, ...INSEE("976") },
+  // Found 2026-08-14 by running the Caribbean sweep instead of restating an
+  // earlier count. Bonaire, Sint Eustatius and Saba were falling through the
+  // three-letter passthrough as an unknown code, which is the same defect the
+  // 19 territories above were added to fix.
+  BES: {
+    parentIso3: "NLD",
+    parentName: "the Netherlands",
+    relation: "made up of three special municipalities of the Netherlands",
+    publisher: "CBS, the Netherlands national statistical office",
+    publisherUrl: "https://www.cbs.nl/en-gb/dossier/caribbean-netherlands"
+  }
+};
+function integratedTerritoryNote(iso3, name) {
+  const t = INTEGRATED_TERRITORIES[iso3.toUpperCase()];
+  if (!t) return void 0;
+  const note = `${name} is ${t.relation}, so the international sources this service draws on report it inside ${t.parentName} rather than as a separate economy. This is a coverage fact, not a lookup failure. Figures for ${name} itself are published by ${t.publisher}, at ${t.publisherUrl}. A snapshot for the parent state is available with country="${t.parentName}".`;
+  return note.charAt(0).toUpperCase() + note.slice(1);
+}
 var ROWS = [
   // Small territories and non-UN-member economies. Added 2026-08-13 after a
   // check found 19 REAL places falling through the three-letter passthrough,
@@ -41,6 +74,8 @@ var ROWS = [
   ["GLP", "GP", "Guadeloupe"],
   ["MTQ", "MQ", "Martinique"],
   ["GUF", "GF", "French Guiana", "guyane"],
+  ["MYT", "YT", "Mayotte"],
+  ["BES", "BQ", "the Caribbean Netherlands", "bonaire", "sint eustatius", "saba", "bes islands", "caribbean netherlands"],
   ["ESH", "EH", "Western Sahara"],
   ["TWN", "TW", "Taiwan", "chinese taipei", "taiwan province of china"],
   ["AFG", "AF", "Afghanistan"],
@@ -1484,6 +1519,32 @@ function sdmxCitation(ctx, opts) {
     citation_text: `${source}, ${dataset}, series ${opts.key} (${opts.seriesName}). Retrieved ${date} via StatCite. ${opts.sourceUrl}`
   });
 }
+function caribstatCitation(ctx, opts) {
+  const date = today(ctx);
+  const freqWord = opts.frequency === "m" ? "monthly" : opts.frequency === "q" ? "quarterly" : "annual";
+  const asAt = opts.dataAsAtRaw ?? opts.dataAsAt;
+  return withExports({
+    source: opts.source,
+    dataset: opts.publicationTitle ?? opts.tableTitle ?? "",
+    series_id: opts.seriesId,
+    series_name: `${opts.rowLabel}, ${opts.countryName} (${freqWord})`,
+    source_url: opts.sourceUrl,
+    api_url: opts.apiUrl,
+    license: "Reproduced with the publishing central bank's permission; see the source entry in /v1/sources for the scope of that grant",
+    attribution: `Source: ${opts.source}`,
+    retrieved_at: date,
+    citation_text: `${opts.source}, ${opts.publicationTitle ?? opts.tableTitle}, ${opts.rowLabel}, ${opts.countryName} (${freqWord})` + (asAt ? `, data as at ${asAt}` : opts.publishedAt ? `, published ${opts.publishedAt}` : "") + `. Retrieved ${date} via StatCite. ${opts.attachmentUrl ?? opts.sourceUrl}`,
+    ...asAt ? {
+      notices: [
+        `The publishing bank stamps this table "Data as at ${asAt}". That is the source's own currency claim and is not the same as the retrieval date above.`
+      ]
+    } : opts.publishedAt ? {
+      notices: [
+        `This source publishes no "data as at" stamp. ${opts.publishedAt} is the date of the publication these figures were taken from, which is a weaker claim: it says when the document appeared, not how current the bank considers the figures. Neither is the retrieval date above.`
+      ]
+    } : {}
+  });
+}
 
 // ../server/src/adapters/sdmx.ts
 var BIS_POLICY_RATE_AREAS = {
@@ -1619,6 +1680,415 @@ function pickRoot(d) {
   if (any.data && any.data.dataSets) return any.data;
   if (any.dataSets) return any;
   return void 0;
+}
+
+// ../server/src/adapters/caribstat.ts
+var CARIBSTAT_ENABLED = true;
+var CARIBSTAT_ORIGIN = "https://asokore.github.io/caribstat";
+function parseCaribstatId(id) {
+  const rest = id.replace(/^caribstat\//i, "");
+  const [pathPart, rowPart] = rest.split("#");
+  const bits = pathPart.split("/");
+  if (bits[0]?.toLowerCase() === "cbb") {
+    if (bits.length < 3) {
+      throw new ToolError(
+        `Malformed caribstat series id '${id}'. Central Bank of Barbados ids have the form 'caribstat/CBB/{category}/{sheet}', e.g. 'caribstat/CBB/balance-of-payments-reports/analytical-summary'. Add '#Row Label' to select one row.`,
+        { series_id: id }
+      );
+    }
+    return {
+      provider: "CBB",
+      table: bits.slice(1, -1).join("/"),
+      sheet: bits[bits.length - 1],
+      iso3: "BRB",
+      freq: "a",
+      ...rowPart ? { row: decodeURIComponent(rowPart) } : {}
+    };
+  }
+  if (bits.length < 3) {
+    throw new ToolError(
+      `Malformed caribstat series id '${id}'. Expected 'caribstat/{PROVIDER}/{table}/{ISO3}.{freq}', e.g. 'caribstat/ECCB/total-public-sector-debt/AIA.a'. Add '#Row Label' to select one row.`,
+      { series_id: id }
+    );
+  }
+  const provider = bits[0];
+  const last = bits[bits.length - 1];
+  const table = bits.slice(1, -1).join("/");
+  const dot = last.lastIndexOf(".");
+  if (dot < 1) {
+    throw new ToolError(
+      `Malformed caribstat series id '${id}': the last segment must be '{ISO3}.{freq}' (frequency a, q or m), e.g. 'AIA.a'.`,
+      { series_id: id }
+    );
+  }
+  const iso3 = last.slice(0, dot).toUpperCase();
+  const freq = last.slice(dot + 1).toLowerCase();
+  if (!["a", "q", "m"].includes(freq)) {
+    throw new ToolError(`Unsupported caribstat frequency '${freq}' in '${id}'. Use a (annual), q (quarterly) or m (monthly).`, {
+      series_id: id
+    });
+  }
+  return { provider: provider.toUpperCase(), table, iso3, freq, row: rowPart?.trim() || void 0 };
+}
+function inferFrequency(periods) {
+  const p = (periods ?? []).find((x) => typeof x === "string");
+  if (!p) return "a";
+  if (/^\d{4}-Q[1-4]$/i.test(p)) return "q";
+  if (/^\d{4}-\d{2}$/.test(p)) return "m";
+  return "a";
+}
+var CARIBSTAT_CACHE_EPOCH = "2026-08-15a";
+function caribstatUrl(p, origin = CARIBSTAT_ORIGIN) {
+  const v = `?v=${CARIBSTAT_CACHE_EPOCH}`;
+  if (p.provider.toLowerCase() === "cbb") {
+    return `${origin}/data/cbb/${p.table}/${p.sheet}.json${v}`;
+  }
+  return `${origin}/data/${p.provider.toLowerCase()}/${p.table}/${p.freq}/${p.iso3}.json${v}`;
+}
+function withOccurrence(row, n, total) {
+  return total > 1 ? { ...row, label: `${row.label} [${n} of ${total}]` } : row;
+}
+function selectRow(doc, want) {
+  if (!doc.series?.length) {
+    throw new ToolError(`caribstat document for ${doc.table_id}/${doc.country.iso3} contains no series rows.`, {
+      table: doc.table_id,
+      country: doc.country.iso3,
+      no_published_data: true
+    });
+  }
+  if (!want) return doc.series[0];
+  const occ = /^(.*?)\s*\[(\d+)(?:\s+of\s+\d+)?\]$/i.exec(want.trim());
+  const wantLabel = occ ? occ[1].trim() : want;
+  const matches = doc.series.filter((s) => s.label.toLowerCase() === wantLabel.toLowerCase());
+  if (occ) {
+    const n = Number(occ[2]);
+    if (n >= 1 && n <= matches.length) return withOccurrence(matches[n - 1], n, matches.length);
+    throw new ToolError(
+      `Row '${wantLabel}' occurs ${matches.length} time(s) in ${doc.table_id}/${doc.country.iso3}, so [${n}] is out of range.`,
+      { table: doc.table_id, country: doc.country.iso3, occurrences: matches.length }
+    );
+  }
+  if (matches.length > 1) {
+    const first = (r) => r.observations.find((o) => o.value != null)?.value ?? "no values";
+    throw new ToolError(
+      `Row selector '${wantLabel}' matches ${matches.length} different rows in ${doc.table_id}/${doc.country.iso3}, which the source repeats under different headings. They are distinct series: ` + matches.map((m, i) => `[${i + 1}] first value ${first(m)}`).join(", ") + `. Select one with '${wantLabel}[1]' \u2026 '${wantLabel}[${matches.length}]'.`,
+      {
+        table: doc.table_id,
+        country: doc.country.iso3,
+        ambiguous_label: wantLabel,
+        occurrences: matches.length
+      }
+    );
+  }
+  if (matches.length === 1) return matches[0];
+  const prefixed = doc.series.filter((s) => s.label.toLowerCase().startsWith(want.toLowerCase()));
+  if (prefixed.length === 1) return prefixed[0];
+  if (prefixed.length > 1) {
+    throw new ToolError(
+      `Row selector '${want}' is ambiguous in ${doc.table_id}/${doc.country.iso3}: it matches ${prefixed.length} rows (${prefixed.map((s) => `"${s.label}"`).join(", ")}). Use the exact label.`,
+      { table: doc.table_id, country: doc.country.iso3, matches: prefixed.map((s) => s.label) }
+    );
+  }
+  throw new ToolError(
+    `No row '${want}' in ${doc.table_id}/${doc.country.iso3}. Available rows: ${doc.series.map((s) => s.label).join(" | ")}`,
+    { table: doc.table_id, country: doc.country.iso3, available_rows: doc.series.map((s) => s.label) }
+  );
+}
+async function fetchCaribstatSeries(id, opts = {}) {
+  const parsed = parseCaribstatId(id);
+  const apiUrl = caribstatUrl(parsed, opts.origin ?? CARIBSTAT_ORIGIN);
+  let doc;
+  try {
+    doc = await fetchJson(apiUrl, {
+      // Six hours: the banks publish monthly at best, and the document carries
+      // its own data_as_at so a consumer can always see the real currency.
+      ttlSeconds: opts.ttlSeconds ?? 21600,
+      timeoutMs: 8e3,
+      validate: (d) => {
+        const x = d;
+        return Boolean(x && typeof x === "object" && Array.isArray(x.series) && x.country?.iso3 && x.source);
+      }
+    });
+  } catch (e) {
+    if (e instanceof Error && /HTTP 404/.test(e.message)) {
+      throw new ToolError(
+        `No CaribStat series '${id}'. That combination of table, country and frequency is not collected. Not every table exists at every frequency: consumer-price-index is annual and quarterly only, and public-sector-debt is annual only.`,
+        { series_id: id, api_url: apiUrl, no_published_data: true }
+      );
+    }
+    throw e;
+  }
+  const row = selectRow(doc, parsed.row);
+  return { doc, label: row.label, unit: row.unit, observations: row.observations, apiUrl };
+}
+var CARIBSTAT_CATALOGUE = [
+  {
+    provider: "ECCB",
+    table: "total-public-sector-debt",
+    title: "Total Public Sector Debt",
+    freqs: ["a", "q"],
+    geographies: 9,
+    sampleRow: "Central Government Debt",
+    topics: ["debt", "public sector debt", "government debt", "external debt", "domestic debt"]
+  },
+  {
+    provider: "ECCB",
+    table: "debt-to-gdp",
+    title: "Debt to GDP",
+    freqs: ["a"],
+    geographies: 9,
+    sampleRow: "Total Public Sector Debt to GDP",
+    topics: ["debt to gdp", "debt ratio", "debt burden", "gdp"]
+  },
+  {
+    provider: "ECCB",
+    table: "central-government-fiscal-accounts",
+    title: "Central Government Fiscal Accounts",
+    freqs: ["a", "q", "m"],
+    geographies: 9,
+    sampleRow: "Total Revenue and Grants",
+    topics: ["fiscal", "revenue", "expenditure", "budget", "deficit", "tax", "grants"]
+  },
+  {
+    provider: "ECCB",
+    table: "consumer-price-index",
+    title: "Consumer Price Index",
+    freqs: ["a", "q"],
+    geographies: 9,
+    sampleRow: "Inflation Rate - end of period",
+    topics: ["inflation", "cpi", "prices", "consumer price", "cost of living"]
+  },
+  {
+    provider: "ECCB",
+    table: "summarized-monetary-survey",
+    title: "Summarized Monetary Survey",
+    freqs: ["a", "q", "m"],
+    geographies: 9,
+    sampleRow: "Money Supply (M2)",
+    topics: ["money supply", "monetary", "m2", "credit", "deposits", "reserves"]
+  },
+  {
+    provider: "ECCB",
+    table: "interest-rates-deposits-loans",
+    title: "Interest Rates on Deposits and Loans",
+    freqs: ["a", "q", "m"],
+    geographies: 9,
+    sampleRow: "Weighted Average Deposit Rate",
+    topics: ["interest rate", "lending rate", "deposit rate", "spread"]
+  },
+  {
+    provider: "ECCB",
+    table: "selected-tourism-statistics",
+    title: "Selected Tourism Statistics",
+    freqs: ["a", "q", "m"],
+    geographies: 9,
+    sampleRow: "Total Visitors",
+    topics: ["tourism", "visitors", "arrivals", "cruise", "stayover"]
+  },
+  // --- CBB ------------------------------------------------------------
+  //
+  // GENERATED. Run `node tools/cbb/catalogue.mjs` in caribstat/ and paste the
+  // output here. Do not hand-edit the sheet lists.
+  //
+  // WHY GENERATED. Search builds a series id from the FIRST sheet listed:
+  // `caribstat/CBB/{table}/{sheets[0]}`. These were written by hand and were
+  // wrong -- `real-gdp`, `tourism` and `unemployment` against the real
+  // `real-gdp-2010-prices`, `h1-processing` and `table-i5` -- so every CBB
+  // suggestion search made returned 422 when followed. A recommendation that
+  // cannot be fetched is worse than none, because the caller blames their own
+  // request. The list also covered 5 of 16 categories, leaving eleven
+  // unreachable by search.
+  {
+    provider: "CBB",
+    table: "balance-of-payments-reports",
+    title: "Balance of Payments (BOP)",
+    sheets: ["standard-summary", "financial-account-balances", "net-acquision-of-assets", "net-incurrence-of-liabilities", "financial-account-summary", "other-services", "primary-income", "secondary-income", "transport", "current-account", "analytical-summary", "capital-account", "travel", "government-nie"],
+    sampleRow: "1. CURRENT ACCOUNT",
+    topics: ["balance of payments", "bop", "current account", "capital account", "trade balance"]
+  },
+  {
+    provider: "CBB",
+    table: "commercial-banks-deposit-liabilities",
+    title: "Loan Assets And Deposit Liability",
+    sheets: ["bankdeptot", "cudeposits", "partiiideptot", "bankloantot", "culoans", "partiiiloantot"],
+    sampleRow: "Central Bank",
+    topics: ["deposit liabilities", "commercial banks", "loan assets", "bank deposits"]
+  },
+  {
+    provider: "CBB",
+    table: "commercial-banks-provisional-deposit-liabilities",
+    title: "Commercial Banks' Provisional Deposit Liabilities",
+    sheets: ["b2e1a", "b2e", "b2e1", "b2e2", "b2e3", "b2e4"],
+    sampleRow: "Agriculture",
+    topics: ["provisional deposits", "commercial banks", "deposit liabilities"]
+  },
+  {
+    provider: "CBB",
+    table: "depository-corporations-survey",
+    title: "Depository Corporation Survey",
+    sheets: ["dcs-broadmoney", "dcs-domestic-claims-expanded"],
+    sampleRow: "Claims on Non Residents",
+    topics: ["depository corporations", "broad money", "domestic claims", "money supply"]
+  },
+  {
+    provider: "CBB",
+    table: "exchange-rates-cbob",
+    title: "Exchange Rates",
+    sheets: ["e3", "e4"],
+    sampleRow: "Stg",
+    topics: ["exchange rate", "currency", "fx", "barbados dollar"]
+  },
+  {
+    provider: "CBB",
+    table: "financial-soundness-indicators",
+    title: "Core Financial Soundness Indicators for Deposit Takers",
+    sheets: ["core-fis-for-deposit-takers"],
+    sampleRow: "Regulatory capital to risk-weighted assets",
+    topics: ["financial soundness", "capital adequacy", "fsi", "deposit takers", "bank stability"]
+  },
+  {
+    provider: "CBB",
+    table: "gross-domestic-product",
+    title: "Gross Domestic Product (GDP)",
+    sheets: ["real-gdp-2016-prices", "real-gdp-2010-prices"],
+    sampleRow: "Agriculture and Fishing",
+    topics: ["gdp", "growth", "output", "sectors", "real gdp"]
+  },
+  {
+    provider: "CBB",
+    table: "index-of-industrial-production",
+    title: "Index of Industrial Production",
+    sheets: ["1994-avg", "1994-eop", "1982-avg", "1982-eop"],
+    sampleRow: "Total All Industries",
+    topics: ["industrial production", "manufacturing", "output", "iip"]
+  },
+  {
+    provider: "CBB",
+    table: "inflation-and-retail-price-index",
+    title: "Retail Price Index (RPI) and Rate of Inflation",
+    sheets: ["inflation", "jul2001-eop-rw", "jul2018-avg-rw", "jul2018-eop-rw", "jul2001-avg-rw", "jul2001-eop", "may1994-eop", "jul2001-avg", "mar1980-avg", "mar1980-eop", "may1994-avg", "oct1965-avg", "oct1965-eop"],
+    sampleRow: "12 MONTH MOVING AVERAGE",
+    topics: ["inflation", "retail price index", "rpi", "prices", "cost of living"]
+  },
+  {
+    provider: "CBB",
+    table: "interest-rates",
+    title: "Selected Interest Rates, Comparative Treasury Bill Rates and Bank Rates",
+    sheets: ["e1", "e2"],
+    sampleRow: "Deposits: Savings",
+    topics: ["interest rate", "treasury bill", "bank rate", "lending rate", "deposit rate"]
+  },
+  {
+    provider: "CBB",
+    table: "international-reserves",
+    title: "Monetary Base and Net Domestic Assets",
+    sheets: ["nda", "internationalreserves"],
+    sampleRow: "NIR",
+    topics: ["international reserves", "foreign reserves", "monetary base", "net domestic assets"]
+  },
+  {
+    provider: "CBB",
+    table: "labour-statistics",
+    title: "Labour Statistics",
+    sheets: ["table-i5d", "table-i5b", "table-i5f", "table-i5", "table-i5c2", "table-i5a", "table-i5c1", "table-i5e"],
+    sampleRow: "Employer",
+    topics: ["labour", "labor", "unemployment", "employment", "jobs", "wages"]
+  },
+  {
+    provider: "CBB",
+    table: "statistics",
+    title: "Investments (Provisional)",
+    sheets: ["b2f", "b3f", "depositorycorporations", "monetaryauthorities", "loans-deposits"],
+    sampleRow: "TOTAL: Fixed Income Securities",
+    topics: ["investments", "depository corporations", "monetary authorities", "bank investments"]
+  },
+  {
+    provider: "CBB",
+    table: "the-wages-index",
+    title: "Wages Index",
+    sheets: ["wagesindex"],
+    sampleRow: "Extrapolated WAGES INDEX",
+    topics: ["wages", "wage index", "earnings", "pay"]
+  },
+  {
+    provider: "CBB",
+    table: "tourism",
+    title: "Long Stay & Cruise Arrivals",
+    sheets: ["h1-processing"],
+    sampleRow: "U.S.A",
+    topics: ["tourism", "arrivals", "visitors", "cruise", "long stay"]
+  },
+  {
+    provider: "CBB",
+    table: "trade-in-goods-barbados",
+    title: "Trade in Goods",
+    sheets: ["g2b", "g3b", "g4b", "g1a", "g2a", "g3a", "g4a", "g1"],
+    sampleRow: "FOOD AND BEVERAGES: Sugar",
+    topics: ["trade in goods", "imports", "exports", "re-exports", "merchandise trade"]
+  }
+];
+var ECCB_GEOGRAPHIES = {
+  AIA: "Anguilla",
+  ATG: "Antigua and Barbuda",
+  DMA: "Dominica",
+  GRD: "Grenada",
+  KNA: "St. Kitts and Nevis",
+  LCA: "St. Lucia",
+  MSR: "Montserrat",
+  VCT: "St. Vincent and the Grenadines",
+  XCU: "ECCU (currency union aggregate)"
+};
+function searchCaribstat(query, limit = 4) {
+  const q = query.toLowerCase().trim();
+  if (!q) return [];
+  let iso3;
+  for (const [code, name] of Object.entries(ECCB_GEOGRAPHIES)) {
+    if (q.includes(name.toLowerCase()) || q.includes(code.toLowerCase())) {
+      iso3 = code;
+      break;
+    }
+  }
+  const caribbeanIntent = /caribbean|eccu|eccb|barbados|antigua|anguilla|montserrat|grenada|dominica|lucia|kitts|nevis|vincent/i.test(q);
+  const out = [];
+  for (const e of CARIBSTAT_CATALOGUE) {
+    let score = 0;
+    for (const t of e.topics) {
+      if (q.includes(t)) score += t.split(" ").length * 2;
+    }
+    if (e.title.toLowerCase().includes(q)) score += 3;
+    if (score > 0 && !caribbeanIntent && !e.title.toLowerCase().includes(q)) continue;
+    if (score === 0 && caribbeanIntent) score = 1;
+    if (score === 0) continue;
+    const id = e.provider === "ECCB" ? `caribstat/ECCB/${e.table}/${iso3 ?? "AIA"}.${e.freqs?.[0] ?? "a"}` : `caribstat/CBB/${e.table}/${e.sheets?.[0]}`;
+    out.push({
+      entry: e,
+      iso3,
+      id,
+      score,
+      why: e.provider === "ECCB" ? `${e.title}, ${e.geographies} ECCB geographies, ${(e.freqs ?? []).join("/")}` : `${e.title}, Barbados, ${(e.sheets ?? []).length} sheet(s)`
+    });
+  }
+  return out.sort((a, b) => b.score - a.score).slice(0, limit).map(({ entry, iso3: iso32, id, why }) => ({ entry, iso3: iso32, id, why }));
+}
+var UNCTAD_GDP_FALLBACK = {
+  AIA: { name: "Anguilla", slug: "anguilla" },
+  MSR: { name: "Montserrat", slug: "montserrat" },
+  VGB: { name: "British Virgin Islands", slug: "british-virgin-islands" }
+};
+function searchUnctadGap(query) {
+  const q = query.toLowerCase();
+  if (!/\bgdp\b|growth|economy|output|national accounts/.test(q)) return [];
+  const out = [];
+  for (const [iso3, v] of Object.entries(UNCTAD_GDP_FALLBACK)) {
+    if (q.includes(v.name.toLowerCase()) || q.includes(iso3.toLowerCase())) {
+      out.push({
+        iso3,
+        name: v.name,
+        id: `dbnomics/UNCTAD/GDPTAPCGRA/A.annual-average-growth-rate.${v.slug}`
+      });
+    }
+  }
+  return out;
 }
 
 // ../server/src/core/series.ts
@@ -2013,6 +2483,18 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
       { indicator: def.key, country: country.iso3, strict_source: true }
     );
   }
+  const territory = integratedTerritoryNote(country.iso3, country.name);
+  if (territory) {
+    const t = INTEGRATED_TERRITORIES[country.iso3];
+    throw new ToolError(`No '${def.key}' for ${country.name}. ${territory}`, {
+      indicator: def.key,
+      country: country.iso3,
+      no_published_data: true,
+      reported_under: t.parentIso3,
+      publisher: t.publisher,
+      publisher_url: t.publisherUrl
+    });
+  }
   throw new ToolError(
     `Could not retrieve '${def.key}' for ${country.name}: ${errors.join(" | ")}`,
     { indicator: def.key, country: country.iso3, ...absenceDetails ?? {} }
@@ -2204,6 +2686,46 @@ async function getSeries(ctx, seriesId, opts = {}) {
       opts
     );
   }
+  if (lower.startsWith("caribstat/")) {
+    if (!CARIBSTAT_ENABLED) {
+      throw new ToolError(
+        "caribstat series are not served on this deployment.",
+        { series_id: id }
+      );
+    }
+    const c = await fetchCaribstatSeries(id);
+    const freq = c.doc.frequency ?? inferFrequency(c.doc.periods);
+    const citation = caribstatCitation(ctx, {
+      source: c.doc.source,
+      sourceUrl: c.doc.source_url,
+      tableTitle: c.doc.table_title ?? c.doc.sheet,
+      rowLabel: c.label,
+      countryName: c.doc.country.name,
+      frequency: freq,
+      dataAsAt: c.doc.data_as_at,
+      dataAsAtRaw: c.doc.data_as_at_raw,
+      // Only one of these pairs is ever present. ECCB stamps currency; CBB
+      // does not and names the publication instead.
+      publicationTitle: c.doc.publication_title,
+      publishedAt: c.doc.published_at,
+      attachmentUrl: c.doc.attachment_url,
+      apiUrl: c.apiUrl,
+      seriesId: id
+    });
+    return finishSeries(
+      {
+        series_id: id,
+        name: `${c.doc.table_title ?? c.doc.publication_title ?? c.doc.sheet ?? "CaribStat"}: ${c.label}`,
+        country: { iso3: c.doc.country.iso3, name: c.doc.country.name },
+        unit: c.unit ?? null,
+        frequency: freq,
+        observations: c.observations,
+        citation,
+        notes: []
+      },
+      opts
+    );
+  }
   if (lower.startsWith("dbnomics/")) {
     const parts = id.split("/");
     if (parts.length < 4) {
@@ -2256,8 +2778,27 @@ function isDisabledDef(d) {
   return !d.wb && !d.dbnomics && !d.datamapper && !d.sdmx;
 }
 var FRED_DISABLED_REASON = "FRED is permanently disabled on this service (FRED's terms of use prohibit AI/ML use and redistribution of its content). This key always declines; use an active World Bank/IMF-backed key instead.";
+function isFixedGeographyDef(def) {
+  return Boolean(def.sdmx && !def.sdmx.key.includes("{ISO2}"));
+}
+function countryNamedIn(query) {
+  const tokens = query.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter((t) => t.length >= 3);
+  for (let n = Math.min(4, tokens.length); n >= 1; n--) {
+    for (let i = 0; i + n <= tokens.length; i++) {
+      const phrase = tokens.slice(i, i + n).join(" ");
+      const c = resolveCountry(phrase);
+      if (c && !c.unverified) return c;
+    }
+  }
+  return void 0;
+}
 async function searchIndicators(ctx, query, opts = {}) {
-  const matches = searchIndicatorDefs(query, 8);
+  const matches = searchIndicatorDefs(query, 8).filter((m) => {
+    if (!isFixedGeographyDef(m.def)) return true;
+    const c = countryNamedIn(query);
+    if (!c) return true;
+    return c.iso3 === "EMU" || c.iso3 === "XM";
+  });
   const items = matches.map((m) => {
     const disabled = isDisabledDef(m.def);
     return {
@@ -2270,6 +2811,26 @@ async function searchIndicators(ctx, query, opts = {}) {
       active: !disabled
     };
   });
+  if (CARIBSTAT_ENABLED) {
+    for (const hit of searchCaribstat(query, 4)) {
+      items.push({
+        type: "caribstat_series",
+        id: hit.id,
+        title: `${hit.entry.provider}: ${hit.entry.title}${hit.iso3 ? `, ${hit.iso3}` : ""}`,
+        description: `${hit.why}. Regional central bank data, not a registry indicator: values are on the publishing bank's own definitions.`,
+        usage: `get_series(id="${hit.id}") \u2014 add '#Row Label' to pick a row, e.g. '#${hit.entry.sampleRow}'`
+      });
+    }
+  }
+  for (const g of searchUnctadGap(query)) {
+    items.push({
+      type: "dbnomics_dataset",
+      id: g.id,
+      title: `UNCTAD: GDP growth, ${g.name} (1971-2019)`,
+      description: `The World Bank and IMF publish no GDP series for ${g.name}. UNCTAD does, annually from 1971, but it ENDS IN 2019, so it is history rather than a current figure.`,
+      usage: `get_series(id="${g.id}")`
+    });
+  }
   if (opts.includeDbnomics !== false && items.length < 5) {
     try {
       const ds = await searchDbnomicsDatasets(query, 4);
@@ -2327,11 +2888,50 @@ var SNAPSHOT_WB_KEYS = [
   "fdi_inflows_gdp",
   "life_expectancy"
 ];
+var ECCU_ISO3 = /* @__PURE__ */ new Set(["AIA", "ATG", "DMA", "GRD", "KNA", "LCA", "MSR", "VCT", "XCU"]);
+var ECCU_SUPPLEMENT = [
+  {
+    key: "public_sector_debt_ec",
+    label: "Central government debt (ECCB)",
+    id: (iso3) => `caribstat/ECCB/total-public-sector-debt/${iso3}.a#Central Government Debt`
+  },
+  {
+    key: "inflation_cpi_eccb",
+    label: "Inflation, end of period (ECCB)",
+    id: (iso3) => `caribstat/ECCB/consumer-price-index/${iso3}.a#Inflation Rate - end of period`
+  },
+  {
+    key: "govt_revenue_ec",
+    label: "Total revenue and grants (ECCB)",
+    id: (iso3) => `caribstat/ECCB/central-government-fiscal-accounts/${iso3}.a#Total Revenue and Grants`
+  },
+  {
+    // The one directly comparable to the global govt_debt_gdp concept, and a
+    // ratio rather than an EC$ level, so it is readable without knowing the
+    // currency or the size of the economy.
+    key: "govt_debt_gdp_eccb",
+    label: "Central government debt to GDP (ECCB)",
+    id: (iso3) => `caribstat/ECCB/debt-to-gdp/${iso3}.a#Central Government Debt to GDP`
+  },
+  {
+    // Tourism is the dominant sector in most of these economies, so a snapshot
+    // that omits it describes them poorly however many other rows it carries.
+    key: "visitor_arrivals_eccb",
+    label: "Total visitor arrivals (ECCB)",
+    id: (iso3) => `caribstat/ECCB/selected-tourism-statistics/${iso3}.a#Total Visitor Arrivals`
+  }
+];
 async function countrySnapshot(ctx, countryInput) {
   const country = requireCountry(countryInput);
   const defs = SNAPSHOT_WB_KEYS.map((k) => getIndicatorDef(k));
   const codes = defs.map((d) => d.wb);
-  const byCode2 = await fetchWbMulti(country.iso3, codes, { mrv: 8 });
+  let byCode2 = /* @__PURE__ */ new Map();
+  let wbFailed;
+  try {
+    byCode2 = await fetchWbMulti(country.iso3, codes, { mrv: 8 });
+  } catch (e) {
+    wbFailed = e instanceof Error ? e.message : String(e);
+  }
   const items = [];
   const missing = [];
   const notes = [
@@ -2385,10 +2985,64 @@ async function countrySnapshot(ctx, countryInput) {
   } catch {
     missing.push("govt_debt_gdp");
   }
+  if (CARIBSTAT_ENABLED && ECCU_ISO3.has(country.iso3)) {
+    for (const spec of ECCU_SUPPLEMENT) {
+      try {
+        const c = await fetchCaribstatSeries(spec.id(country.iso3));
+        const latest = latestNonNull(c.observations);
+        if (!latest) continue;
+        items.push({
+          indicator: spec.key,
+          label: spec.label,
+          period: latest.period,
+          value: latest.value,
+          unit: c.unit ?? "",
+          citation: caribstatCitation(ctx, {
+            source: c.doc.source,
+            sourceUrl: c.doc.source_url,
+            tableTitle: c.doc.table_title ?? c.doc.sheet,
+            rowLabel: c.label,
+            countryName: c.doc.country.name,
+            frequency: c.doc.frequency ?? "a",
+            dataAsAt: c.doc.data_as_at,
+            dataAsAtRaw: c.doc.data_as_at_raw,
+            publicationTitle: c.doc.publication_title,
+            publishedAt: c.doc.published_at,
+            attachmentUrl: c.doc.attachment_url,
+            apiUrl: c.apiUrl,
+            seriesId: spec.id(country.iso3)
+          })
+        });
+      } catch {
+        missing.push(spec.key);
+      }
+    }
+    if (items.length) {
+      if (wbFailed) {
+        notes.push(
+          "The World Bank publishes none of its headline indicators for this economy, so everything here comes from the regional central bank."
+        );
+      }
+      notes.push(
+        "Items marked (ECCB) come from the Eastern Caribbean Central Bank, not the World Bank. They are stated in EC$ and on the ECCB's own definitions, so they are not interchangeable with the World Bank series above."
+      );
+    }
+  }
   if (items.length === 0) {
-    throw new ToolError(`No snapshot data available for '${countryInput}' (${country.iso3}).`, {
-      country: country.iso3
-    });
+    const territory = integratedTerritoryNote(country.iso3, countryName);
+    const t = INTEGRATED_TERRITORIES[country.iso3];
+    throw new ToolError(
+      territory ?? `No snapshot data available for '${countryInput}' (${country.iso3}).`,
+      {
+        country: country.iso3,
+        ...t ? {
+          no_published_data: true,
+          reported_under: t.parentIso3,
+          publisher: t.publisher,
+          publisher_url: t.publisherUrl
+        } : {}
+      }
+    );
   }
   return {
     country: { iso3: country.iso3, name: countryName },
@@ -3175,27 +3829,27 @@ var SOURCES = [
   },
   {
     id: "eccb",
-    name: "Eastern Caribbean Central Bank statistics, permission granted, not yet served",
-    coverage: "Not yet served. ECCU monetary and financial statistics are published by the ECCB. Its published website terms grant use of the site for personal, non-commercial purposes and reserve redistribution unless permission is given, and the operator requested and obtained that permission. Serving is gated on recording the grant's scope here, so that every served value can name the permission it relies on.",
-    access: "Built and tested; not switched on pending the recorded grant",
-    license: "ECCB website terms of use",
-    license_verdict: "refused",
-    license_note: "The ECCB's website terms (linked from its site footer; deep URLs on the site change) reserve reproduction and redistribution of site content unless permission is given, and serving its statistics through a caching public API is redistribution. The operator requested and obtained that permission. This entry stays unserved only until the grant's own terms are recorded here verbatim. Who granted it, when, and what it covers. Because this ledger is the thing a user relies on to know what licenses each number, and a served value whose permission is not written down here cannot be checked by anyone but us.",
-    license_verified_on: "2026-07-31",
-    attribution_required: "To be set from the grant. The permission request offered to follow any attribution format the ECCB specified.",
+    name: "Eastern Caribbean Central Bank statistics",
+    coverage: "ECCU monetary, fiscal, debt, tourism, interest-rate and CPI statistics for the eight ECCB member geographies and the currency union aggregate, annual, quarterly and monthly. Includes Anguilla and Montserrat, which are not World Bank reporting economies and appear in few other machine-readable sources. Collected on a schedule from the ECCB's published tables and served with the bank's own data-as-at stamp carried separately from our retrieval time.",
+    access: "Scheduled collection to static JSON at github.com/asokore/caribstat, fetched and edge-cached like any other upstream",
+    license: "ECCB website terms of use, plus written permission granted to the operator",
+    license_verdict: "served",
+    license_note: "The ECCB's published website terms grant use of the site for personal, non-commercial purposes and reserve reproduction and redistribution unless permission is given. The operator wrote to the ECCB describing exactly this service, including scheduled fetching, storage, and serving each value with attribution and a link back to the source table, and permission was granted. Recorded here on the operator's confirmation of 2026-08-14; the correspondence itself is held privately rather than published, so this entry states its basis rather than quoting it. The request that was granted is public at github.com/asokore/statcite in caribstat/outreach/.",
+    license_verified_on: "2026-08-14",
+    attribution_required: `Eastern Caribbean Central Bank, with a link to the source table. Every served value carries both, and the bank's own "data as at" stamp.`,
     url: "https://www.eccb-centralbank.org",
     terms_url: "https://www.eccb-centralbank.org"
   },
   {
     id: "cbb",
-    name: "Central Bank of Barbados statistics, permission granted, not yet served",
-    coverage: "Not yet served. The Central Bank of Barbados publishes monetary and financial statistics. Its published website terms grant use of the site for personal, non-commercial purposes and reserve redistribution unless permission is given, and the operator requested and obtained that permission. Serving is gated on recording the grant's scope here, so that every served value can name the permission it relies on.",
-    access: "Built and tested; not switched on pending the recorded grant",
-    license: "Central Bank of Barbados website terms of use",
-    license_verdict: "refused",
-    license_note: "The Bank's website terms (linked from its site footer; deep URLs on the site change) reserve reproduction and redistribution of site content unless permission is given, and serving its statistics through a caching public API is redistribution. The operator requested and obtained that permission. This entry stays unserved only until the grant's own terms are recorded here verbatim. Who granted it, when, and what it covers. Because this ledger is the thing a user relies on to know what licenses each number, and a served value whose permission is not written down here cannot be checked by anyone but us.",
-    license_verified_on: "2026-07-31",
-    attribution_required: "To be set from the grant. The permission request offered to follow any attribution format the Bank specified.",
+    name: "Central Bank of Barbados statistics",
+    coverage: `Barbados balance of payments back to 1967, GDP, inflation and retail prices, tourism, and the monetary survey, from the Bank's published workbooks. The Bank prints no "data as at" stamp, so every value instead names the publication it came from and links that workbook directly, which is a narrower claim than a currency stamp and one a reader can check.`,
+    access: "Scheduled collection to static JSON at github.com/asokore/caribstat, fetched and edge-cached like any other upstream",
+    license: "Central Bank of Barbados website terms of use, plus written permission granted to the operator",
+    license_verdict: "served",
+    license_note: "The Bank's published website terms reserve reproduction and redistribution of site content unless permission is given, and the operator requested and obtained that permission. Recorded here on the operator's confirmation of 2026-08-14; the request that was granted is public at github.com/asokore/statcite in caribstat/outreach/. The Bank publishes no currency stamp, so citations name the source publication and its date rather than asserting how current the Bank considers a figure.",
+    license_verified_on: "2026-08-14",
+    attribution_required: "Central Bank of Barbados, with a link to the source publication. Every served value carries both, and the publication date.",
     url: "https://www.centralbank.org.bb",
     terms_url: "https://www.centralbank.org.bb"
   }
