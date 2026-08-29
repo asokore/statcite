@@ -73,15 +73,25 @@ jobs:
       # the registry still serves the old version is exactly the failure this
       # workflow exists to prevent, so assert against what the registry says.
       - name: Verify the registry actually serves the new version
+        # RETRIES, not a single poll. On 2026-08-29 the publish succeeded and
+        # the registry served the new version within a minute, but this step's
+        # one 10-second sleep sampled too early, read the previous isLatest,
+        # and marked a successful release run red. A sentinel that cries wolf
+        # on propagation delay teaches people to ignore it, which defeats the
+        # reason it exists.
         run: |
           set -euo pipefail
           EXPECTED=$(node -p "require('./distribution/server.json').version")
-          sleep 10
-          LATEST=$(curl -fsSL "https://registry.modelcontextprotocol.io/v0/servers?search=statcite" \
-            | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
-                const j=JSON.parse(s);
-                const m=(j.servers||[]).filter(x=>(x.server||x).name==='io.github.asokore/statcite'&&(x._meta?.['io.modelcontextprotocol.registry/official']?.isLatest));
-                console.log(m.length?(m[0].server||m[0]).version:'none');
-              })")
-          echo "registry isLatest = $LATEST, expected $EXPECTED"
-          [ "$LATEST" = "$EXPECTED" ] || { echo "Registry did not update." >&2; exit 1; }
+          for attempt in 1 2 3 4 5 6 7 8; do
+            sleep 15
+            LATEST=$(curl -fsSL "https://registry.modelcontextprotocol.io/v0/servers?search=statcite" \
+              | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
+                  const j=JSON.parse(s);
+                  const m=(j.servers||[]).filter(x=>(x.server||x).name==='io.github.asokore/statcite'&&(x._meta?.['io.modelcontextprotocol.registry/official']?.isLatest));
+                  console.log(m.length?(m[0].server||m[0]).version:'none');
+                })")
+            echo "attempt $attempt: registry isLatest = $LATEST, expected $EXPECTED"
+            [ "$LATEST" = "$EXPECTED" ] && exit 0
+          done
+          echo "Registry did not serve $EXPECTED within 2 minutes." >&2
+          exit 1
