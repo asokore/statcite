@@ -5,6 +5,24 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.11.2
+
+Discovery pass: how agents find and start using the service.
+
+- A bare `GET /mcp` stays 405 (stateless server, no SSE stream) but now carries
+  a JSON discovery body: name, version, both protocol versions with the
+  Mcp-Method note, docs, REST root, openapi and llms.txt links. Until now a
+  sniffing agent got zero bytes and learned nothing.
+- Homepage JSON-LD extended: the stale description that named only "World Bank,
+  IMF, ECB" now includes BIS and both Caribbean central banks, a SearchAction
+  entry point is declared, and a DataCatalog lists six datasets each attributed
+  to its PUBLISHER with a live example URL. All six verified to resolve 200.
+  No licence is stamped across publisher data and no person is named.
+- `/.well-known/security.txt` published.
+- The Apify actor bundle is rebuilt from current core. It predated the week's
+  fixes, so the paid surface was still suggesting series ids that 422 and
+  missing the French-territory explanations and the CBB catalogue.
+
 ## 1.11.1
 
 Second audit pass, every finding verified against the live service.
