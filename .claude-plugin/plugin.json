@@ -2,7 +2,7 @@
   "name": "statcite",
   "displayName": "StatCite",
   "description": "Official economic statistics with full citations, and a verifier that checks claimed figures against the official series. Connects the free remote StatCite MCP server (no auth) and installs the verify-then-cite workflow skill.",
-  "version": "1.11.1",
+  "version": "1.11.2",
   "author": {
     "name": "StatCite",
     "url": "https://statcite.com"

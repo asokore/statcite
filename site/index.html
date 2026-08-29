@@ -23,26 +23,135 @@
 <meta name="twitter:description" content="Official macro data with full citations, built for AI agents. Free MCP server + REST API, plus stat verification.">
 <script type="application/ld+json">
 {
-  "@context": "https://schema.org",
-  "@graph": [
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "SoftwareApplication",
+   "name": "StatCite",
+   "url": "https://statcite.com/",
+   "applicationCategory": "DeveloperApplication",
+   "operatingSystem": "Any",
+   "description": "Free remote MCP server + REST API serving official economic statistics \u2014 World Bank, IMF, BIS, ECB, and Caribbean central banks (ECCB, Central Bank of Barbados) \u2014 where every number ships with a full citation, plus verify_stat claim checking.",
+   "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+   }
+  },
+  {
+   "@type": "WebAPI",
+   "name": "StatCite REST API",
+   "url": "https://statcite.com/v1",
+   "documentation": "https://statcite.com/openapi.json",
+   "termsOfService": "https://statcite.com/terms",
+   "description": "REST mirror of the StatCite MCP tools: indicator lookup, stat verification, FX conversion and inflation adjustment, each response carrying a full source citation.",
+   "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+     "@type": "EntryPoint",
+     "urlTemplate": "https://statcite.com/v1/search?q={query}"
+    },
+    "query-input": "required name=query"
+   }
+  },
+  {
+   "@type": "DataCatalog",
+   "@id": "https://statcite.com/#catalog",
+   "name": "StatCite data catalog",
+   "url": "https://statcite.com/sources",
+   "description": "Registry of 48 curated indicators plus explicit series access. The figures belong to their publishers and carry the publishers' own licences, stated per source at /sources and inside every API response.",
+   "isAccessibleForFree": true,
+   "usageInfo": "https://statcite.com/terms#reuse",
+   "dataset": [
     {
-      "@type": "SoftwareApplication",
-      "name": "StatCite",
-      "url": "https://statcite.com/",
-      "applicationCategory": "DeveloperApplication",
-      "operatingSystem": "Any",
-      "description": "Free remote MCP server + REST API serving official economic statistics (World Bank, IMF, ECB) where every number ships with a full citation, plus verify_stat claim checking.",
-      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+     "@type": "Dataset",
+     "name": "World Bank World Development Indicators, via StatCite",
+     "creator": {
+      "@type": "Organization",
+      "name": "World Bank"
+     },
+     "isBasedOn": "https://data.worldbank.org/",
+     "distribution": {
+      "@type": "DataDownload",
+      "encodingFormat": "application/json",
+      "contentUrl": "https://statcite.com/v1/indicator/gdp_growth?country=BRB"
+     }
     },
     {
-      "@type": "WebAPI",
-      "name": "StatCite REST API",
-      "url": "https://statcite.com/v1",
-      "documentation": "https://statcite.com/openapi.json",
-      "termsOfService": "https://statcite.com/terms",
-      "description": "REST mirror of the StatCite MCP tools: indicator lookup, stat verification, FX conversion and inflation adjustment, each response carrying a full source citation."
+     "@type": "Dataset",
+     "name": "IMF World Economic Outlook and DataMapper series, via StatCite",
+     "creator": {
+      "@type": "Organization",
+      "name": "International Monetary Fund"
+     },
+     "isBasedOn": "https://www.imf.org/en/Data",
+     "distribution": {
+      "@type": "DataDownload",
+      "encodingFormat": "application/json",
+      "contentUrl": "https://statcite.com/v1/series?id=imf/NGDP_RPCH&country=BRB"
+     }
+    },
+    {
+     "@type": "Dataset",
+     "name": "BIS central bank policy rates, via StatCite",
+     "creator": {
+      "@type": "Organization",
+      "name": "Bank for International Settlements"
+     },
+     "isBasedOn": "https://data.bis.org/",
+     "distribution": {
+      "@type": "DataDownload",
+      "encodingFormat": "application/json",
+      "contentUrl": "https://statcite.com/v1/indicator/policy_rate?country=USA"
+     }
+    },
+    {
+     "@type": "Dataset",
+     "name": "ECB euro reference rates and euro-area series, via StatCite",
+     "creator": {
+      "@type": "Organization",
+      "name": "European Central Bank"
+     },
+     "isBasedOn": "https://data.ecb.europa.eu/",
+     "distribution": {
+      "@type": "DataDownload",
+      "encodingFormat": "application/json",
+      "contentUrl": "https://statcite.com/v1/fx?from=USD&to=EUR&amount=100"
+     }
+    },
+    {
+     "@type": "Dataset",
+     "name": "Eastern Caribbean Central Bank statistics, via StatCite",
+     "creator": {
+      "@type": "Organization",
+      "name": "Eastern Caribbean Central Bank"
+     },
+     "isBasedOn": "https://www.eccb-centralbank.org/statistics",
+     "distribution": {
+      "@type": "DataDownload",
+      "encodingFormat": "application/json",
+      "contentUrl": "https://statcite.com/v1/series?id=caribstat/ECCB/total-public-sector-debt/AIA.a"
+     },
+     "spatialCoverage": "Anguilla, Antigua and Barbuda, Dominica, Grenada, Montserrat, Saint Kitts and Nevis, Saint Lucia, Saint Vincent and the Grenadines"
+    },
+    {
+     "@type": "Dataset",
+     "name": "Central Bank of Barbados statistics (16 tables), via StatCite",
+     "creator": {
+      "@type": "Organization",
+      "name": "Central Bank of Barbados"
+     },
+     "isBasedOn": "https://www.centralbank.org.bb/",
+     "distribution": {
+      "@type": "DataDownload",
+      "encodingFormat": "application/json",
+      "contentUrl": "https://statcite.com/v1/series?id=caribstat/CBB/exchange-rates-cbob/e3"
+     },
+     "spatialCoverage": "Barbados"
     }
-  ]
+   ]
+  }
+ ]
 }
 </script>
 <style>
