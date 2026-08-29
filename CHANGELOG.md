@@ -5,6 +5,15 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.11.3
+
+Registry metadata only, no behaviour change. The MCP registry description, the
+one line every registry consumer sees, said "World Bank, IMF, BIS, ECB" and
+omitted the Caribbean central banks. The registry caps descriptions at 100
+characters and rejects same-version republishes, so the corrected line ships
+as a version: "Cited economic statistics: World Bank, IMF, BIS, ECB, Caribbean
+central banks. Verify any figure."
+
 ## 1.11.2
 
 Discovery pass: how agents find and start using the service.
