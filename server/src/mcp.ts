@@ -43,7 +43,7 @@ import { listRegistry } from "./core/series.ts";
 import { SOURCES } from "./core/sources.ts";
 import { sidsCountries } from "./core/countries.ts";
 
-export const SERVER_VERSION = "1.11.2";
+export const SERVER_VERSION = "1.11.3";
 
 /** Session-era revisions: opened with `initialize`, negotiated once. */
 export const LEGACY_PROTOCOL_VERSIONS = ["2025-03-26", "2025-06-18", "2025-11-25"];
