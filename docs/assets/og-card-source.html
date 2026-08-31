@@ -6,6 +6,15 @@
   regenerated and edited. Render at exactly 1200x630 and screenshot to og.png.
   Deliberately reuses the site's own palette and the favicon mark so a shared
   link looks like the site it points at.
+
+  AFTER regenerating, convert the screenshot from RGBA to RGB. A browser
+  screenshot always writes an alpha channel, and this card is fully opaque, so
+  that channel is a constant 255 across all 756,000 pixels and costs about 27%
+  of the file for nothing. og.png is the largest asset the site serves and
+  Slack, X and LinkedIn refetch it on every unfurl. Preserve the sRGB, gAMA and
+  pHYs chunks while converting, because a plain convert('RGB').save() drops
+  them. Do NOT use a 256-colour palette: the image has 267 distinct colours, so
+  palette mode alters pixels on the glyph edges.
 -->
 <html lang="en"><head><meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow">

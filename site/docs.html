@@ -51,6 +51,49 @@ li{margin:4px 0}
 .toc a{display:block;padding:3px 0;color:var(--dim)}
 @media(max-width:640px){.toc{columns:1}nav .links{flex-wrap:wrap;row-gap:6px;justify-content:flex-end}table{display:block;overflow-x:auto}}
 </style>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "APIReference",
+ "@id": "https://statcite.com/docs#reference",
+ "name": "StatCite API and MCP reference",
+ "headline": "StatCite API and MCP reference",
+ "description": "Complete reference for the StatCite MCP server and REST API: twelve tools, three prompts, three resources, the citation object, the 48-key indicator registry, country resolution, source precedence and licensing.",
+ "url": "https://statcite.com/docs",
+ "image": "https://statcite.com/og.png",
+ "datePublished": "2026-07-14",
+ "dateModified": "2026-08-31",
+ "inLanguage": "en",
+ "author": {
+  "@type": "Organization",
+  "name": "StatCite",
+  "url": "https://statcite.com",
+  "logo": {
+   "@type": "ImageObject",
+   "url": "https://statcite.com/og.png"
+  }
+ },
+ "publisher": {
+  "@type": "Organization",
+  "name": "StatCite",
+  "url": "https://statcite.com",
+  "logo": {
+   "@type": "ImageObject",
+   "url": "https://statcite.com/og.png"
+  }
+ },
+ "programmingModel": "REST",
+ "assemblyVersion": "1.12.0",
+ "about": {
+  "@type": "SoftwareApplication",
+  "@id": "https://statcite.com/#app"
+ },
+ "isPartOf": {
+  "@type": "WebSite",
+  "@id": "https://statcite.com/#website"
+ }
+}
+</script>
 </head>
 <body>
 <div class="wrap">
@@ -110,17 +153,17 @@ li{margin:4px 0}
 
   <h2 id="tools">4. MCP tools reference</h2>
 
-  <h3>get_indicator</h3>
+  <h3 id="get_indicator">get_indicator</h3>
   <p>Official values for a registry indicator, any country. Params: <code>indicator</code> (required), <code>country</code> (required, ISO3/ISO2/name), <code>start_year</code>, <code>end_year</code>, <code>transform</code> (<code>none|yoy|pct_change|index</code>), <code>latest_only</code> (bool), <code>strict_source</code> (bool, reproducibility mode: if the primary source fails, error instead of serving the fallback source). Returns observations + citation + notes. When a transient primary failure did trigger fallback, the response carries <code>fallback_used: true</code>, a disclosure note naming both sources, and is served <code>no-store</code> so it never lingers in shared caches after the primary recovers.</p>
 
-  <h3>verify_stat</h3>
+  <h3 id="verify_stat">verify_stat</h3>
   <p>Verdict on a claimed figure vs. the official series. Params: <code>indicator</code> (registry key or series id), <code>country</code>, <code>period</code> (usually a year, "2024"; quarters accepted as "2024-Q1", "2024Q1", or "2024 Q1", months as "2024-05" or "202405"), <code>claimed_value</code> (number), optional <code>tolerance_abs</code> (series units) / <code>tolerance_pct</code> (relative %) / <code>strict_source</code> (bool, never verify against a fallback source; error instead). Without <code>strict_source</code>, a fallback-sourced verify returns <code>cannot_verify</code> with the fallback value as indicative (<code>fallback_used: true</code>) rather than a match/mismatch verdict. Responses also carry <code>observation_status</code> (<code>actual | modeled_estimate | estimate_or_actual | projection | unknown</code>) and <code>status_method</code>. For IMF series the actual/estimate boundary is a horizon heuristic, so <code>estimate_or_actual</code> means exactly that, never a confirmed outturn; <code>modeled_estimate</code> flags series that are model outputs rather than direct measurements (e.g. ILO-modelled unemployment), for which "actual" would overclaim.</p>
   <p>Verdicts: <code>match</code> (within rounding: ≤0.06 pp <em>or</em> ≤0.5% relative for percent-kind series, ≤0.5% relative for levels), <code>close</code> (≤0.3 pp <em>or</em> ≤2% relative for percent-kind, ≤5% relative for levels), <code>mismatch</code>, <code>cannot_verify</code> (no observation for that period, response lists the available range and nearby values, or the value was served from a transient-failure fallback and is reported as indicative, see §2). When the official observation is a zero, only the absolute band applies. Responses include <code>is_projection</code>: <code>true</code> when the matched official observation is an IMF WEO/Fiscal Monitor estimate/projection, in which case the explanation is qualified accordingly, plus the finer-grained <code>observation_status</code>/<code>status_method</code> fields (see the OpenAPI schema). Diagnostics flag year misattribution (claim matches an adjacent year), percent-vs-decimal slips (~100× ratio), scale confusion (10³/10⁶/10⁹/10¹² ratios), and sign flips (claim ≈ −official, the classic fiscal-balance sign-convention slip). Live verification responses repeat the revision caveat that the official value is the source's currently published figure; historical <code>as_of</code> results instead carry a vintage-specific caveat naming the WEO edition the verdict was judged against (see below).</p>
   <p><strong>Historical IMF-vintage verification (<code>as_of</code>).</strong> Pass an optional <code>as_of</code> date (e.g. <code>"2019-04"</code>, <code>"2019"</code>) to check a claim against a dated IMF WEO edition instead of today's live data. Two honesty bounds, both disclosed in every response. <em>First, resolution is a conservative month calendar, not the IMF's exact release days:</em> editions flip on 1 May and 1 November, but the IMF publishes in early-to-mid April and October (the April 2019 WEO was released 9 April 2019), so an <code>as_of</code> date inside a release month resolves to the <em>previous</em> edition even if the new one already existed. The response says so (<code>as_of.resolution: "conservative_month_calendar"</code> plus a note), and the exact-pinning escape hatch is <code>get_series</code> with a dated id like <code>dbnomics/IMF/WEO:2019-04/…</code>. <em>Second, the source may change:</em> only IMF WEO editions carry dated vintages, so <code>as_of</code> always verifies against WEO even for indicators whose live primary is World Bank WDI (<code>gdp_growth</code>, <code>current_account_gdp</code>) or the IMF Fiscal Monitor database (<code>govt_revenue_gdp</code>, <code>govt_expenditure_gdp</code>). A claim originally made from the live primary can differ from the WEO edition for methodological reasons, not only because of revisions, and <code>as_of.source_changed_for_as_of</code> flags exactly this. Since 1.9.0 the dated-vintage chain is IMF-first: editions the IMF publishes as first-party dated dataflows (api.imf.org, SDMX 3.0) are served from the IMF directly, with DBnomics's dated WEO editions as the deep archive (confirmed back to at least 2010-04), the citation names which one served. Only the six WEO-dated registry indicators support <code>as_of</code>; anything else rejects with advice, as do impossible calendar dates (<code>2019-02-31</code> is rejected, never silently normalized). <code>observation_status</code>/<code>is_projection</code> are computed against that historical edition's own vintage year, not today's.</p>
 
   <p><strong>Revision probe (automatic).</strong> On a <code>mismatch</code> for any of the six WEO-dated indicators, the response also carries <code>revision_check</code>: the claim is re-judged against the <em>previous</em> IMF WEO edition. <code>matches_previous_vintage: true</code> means the figure was likely accurate when written and has since been revised. A revision event, not necessarily an author error. When the previous edition cannot be retrieved, <code>status: "unavailable"</code> is returned and no judgment is offered. <code>next_edition_expected</code> carries the calendar-expected next WEO release ("expected" phrasing only). Suppressed under <code>as_of</code> and <code>strict_source</code>.</p>
 
-  <h3>verify_claims</h3>
+  <h3 id="verify_claims">verify_claims</h3>
   <p>Batch verification. Fact-check a whole draft in one call instead of calling <code>verify_stat</code> once per figure. Workflow: <strong>extract every checkable macro claim</strong> from the text (indicator + country + period + claimed value), then submit them together. Params: <code>claims</code>. An array of 1–15 objects, each <code>{ indicator, country?, period, claimed_value, tolerance_abs?, tolerance_pct?, as_of? }</code> (the same fields as <code>verify_stat</code>). Plus an optional call-level <code>strict_source</code> that applies verify_stat's reproducibility mode to every claim in the batch. The <strong>15-claim cap</strong> exists because each claim costs upstream subrequests within the free-tier budget; split larger drafts into batches of up to 15 and call once per batch.</p>
   <p>Each claim runs through the same verdict engine as <code>verify_stat</code>, including its optional per-claim <code>as_of</code> field (see §4 verify_stat) for revision-aware verification. The response is <code>{ summary, results, note? }</code>: <code>summary</code> counts verdicts across the batch (<code>total</code>, <code>match</code>, <code>close</code>, <code>mismatch</code>, <code>cannot_verify</code>, <code>error</code>); <code>results</code> come back in input order, each either <code>{ ok: true, claim, verification }</code>. Where <code>verification</code> is the full <code>verify_stat</code> payload (verdict, official value, difference, diagnostics, <code>is_projection</code>, citation). Or <code>{ ok: false, claim, error }</code>. <strong>Errors are isolated per claim:</strong> an unresolvable claim (unknown indicator or country, upstream trouble) reports its error in place and counts under <code>summary.error</code> without sinking the rest of the batch. When any judged claim matched an IMF WEO/Fiscal Monitor projection-period observation, a top-level <code>note</code> says how many.</p>
   <p>Over REST this is the API's only non-GET route, <code>POST /v1/verify_claims</code> with a JSON body:</p>
@@ -132,32 +175,53 @@ li{margin:4px 0}
   ]}'</pre>
   <p>A GET on the endpoint returns <code>405</code> with usage advice; a non-JSON <code>content-type</code> returns <code>415</code>; a malformed body or invalid claims array returns <code>422</code>.</p>
 
-  <h3>get_series</h3>
+  <h3 id="get_series">get_series</h3>
   <p>Raw series by explicit id. Params: <code>series_id</code> (required), <code>country</code> (for worldbank/*), <code>start_year</code>, <code>end_year</code>, <code>transform</code>. <code>fred/…</code> ids are recognized but always declined. FRED is disabled on this server (§8), with cross-country alternatives suggested.</p>
 
-  <h3>policy_rate / euro_area_hicp (SDMX sources)</h3>
+  <h3 id="sdmx-keys">Registry keys served from SDMX sources (not tools): <code>policy_rate</code>, <code>euro_area_hicp</code></h3>
   <p>Two registry keys are served from SDMX APIs rather than the World Bank/IMF chain. <code>policy_rate</code> returns the BIS central-bank policy rate (monthly; the 49 economies the BIS compiles, economies outside that set return an honest no-published-data response rather than a substitute). <code>euro_area_hicp</code> returns monthly euro-area harmonised inflation from the ECB Data Portal, and is a euro-area aggregate only: request it with <code>country="euro area"</code>; a national country is rejected rather than silently answered with the aggregate. Both carry an upstream <strong>freshness check</strong>. If the newest published observation is older than the expectation for its frequency, the response carries a disclosure note, because a stalled dataflow returns HTTP 200 with well-formed but stale data rather than an error.</p>
 
-  <h3>compare_sources</h3>
+  <h3 id="compare_sources">compare_sources</h3>
   <p>One indicator for one country fetched from <em>every</em> official source in its chain independently, e.g. World Bank WDI and the IMF WEO/Fiscal Monitor. Each value with its own citation, plus spread statistics. Params: <code>indicator</code> (registry key), <code>country</code>, optional <code>period</code> (year; default is the latest period every responding source shares). Differences between sources are methodological or vintage differences (central vs general government coverage, calendar vs fiscal years, edition lags), never "source X is wrong". Cite the source whose definition matches your claim. A source that is down reports its error in place without sinking the comparison. REST: <code>GET /v1/compare?indicator=&amp;country=&amp;period=</code>.</p>
 
-  <h3>search_indicators</h3>
+  <h3 id="search_indicators">search_indicators</h3>
   <p>Free-text search over the registry, plus DBnomics dataset discovery (IMF, OECD, Eurostat, BIS…). Param: <code>query</code>.</p>
 
-  <h3>country_snapshot</h3>
+  <h3 id="country_snapshot">country_snapshot</h3>
   <p>Headline picture in one call: GDP, growth, GDP per capita, inflation, unemployment, population, current account, trade, FDI, life expectancy (World Bank, single batched request) + general government debt (IMF WEO). Param: <code>country</code>. Items each carry their own citation; unavailable indicators are listed in <code>missing</code>.</p>
 
-  <h3>inflation_adjust</h3>
+  <h3 id="inflation_adjust">inflation_adjust</h3>
   <p>Params: <code>amount</code>, <code>from_year</code>, <code>to_year</code>, <code>country</code> (default USA). Method: CPI ratio on World Bank <code>FP.CPI.TOTL</code> (base-invariant); formula and both index values are disclosed. Annual-average precision, with the CPI-vs-deflator caveat noted.</p>
 
-  <h3>fx_convert</h3>
+  <h3 id="fx_convert">fx_convert</h3>
   <p>Params: <code>amount</code>, <code>from</code>, <code>to</code> (ISO 4217), <code>date</code> (<code>YYYY-MM-DD</code> daily / <code>YYYY</code> annual / omit for latest). Rails: ECB daily reference rates (~30 currencies, since 1999) via Frankfurter; World Bank official annual-average rates (<code>PA.NUS.FCRF</code>) for ~90 more currencies via a USD bridge. <code>precision</code> field reports <code>daily</code>, <code>annual_average</code>, or <code>mixed</code>; the method string shows the arithmetic.</p>
 
-  <h3>list_sources</h3>
+  <h3 id="list_sources">list_sources</h3>
   <p>Sources, coverage, licenses, required attribution lines. Now a full <strong>licence ledger</strong>: every source carries <code>license_verdict</code> (<code>served | flow_through | refused</code>), <code>license_note</code> (the basis for the verdict), and <code>license_verified_on</code>. Refused sources (FRED, UN Comtrade) are listed with the reason each was declined. The ECCB and the Central Bank of Barbados are served, on written permission obtained by the operator, and their ledger entries state that basis. Human-readable version: <a href="/sources">the sources page</a>.</p>
 
-  <h3>search / fetch</h3>
+  <h3 id="search">search / fetch</h3>
   <p>Deep-research compatibility pair (OpenAI connector schema). <code>search(query)</code> returns <code>{results:[{id,title,url}]}</code> with ids like <code>indicator/inflation_cpi/BRB</code>; <code>fetch(id)</code> returns <code>{id,title,text,url,metadata}</code> where <code>text</code> contains recent observations and the full citation.</p>
+
+  <p><strong>Also on every citation: <code>export_formats</code></strong>, an object with <code>bibtex</code> and <code>apa</code> strings, ready to paste. They are derived from this citation's own fields, so they can never disagree with <code>citation_text</code>. You do not have to build a reference entry by hand:</p>
+  <pre>"export_formats": {
+  "bibtex": "@misc{worldbank_FP.CPI.TOTL.ZG_BRB, title = {{Inflation, consumer prices (annual %)}}, author = {{World Bank}}, ...}",
+  "apa":    "World Bank. (2026). Inflation, consumer prices (annual %) [Data set]. World Development Indicators. Retrieved ..."
+}</pre>
+
+  <h3 id="prompts">Prompts and resources</h3>
+  <p>Beyond the twelve tools, the server exposes three <strong>prompts</strong> and three <strong>resources</strong>. In clients that support them (Claude among them) the prompts appear as slash commands as soon as you connect, so this is usually the quickest way to see the server working:</p>
+  <table>
+    <tr><th>Prompt</th><th>What it does</th></tr>
+    <tr><td><code>fact_check</code></td><td>Paste a draft. Every macro claim in it is extracted and checked against the official series, with a verdict and citation per claim.</td></tr>
+    <tr><td><code>country_brief</code></td><td>A headline economic picture of one country, every figure carrying its own citation.</td></tr>
+    <tr><td><code>cite_this_stat</code></td><td>Turn one figure into a properly formatted, verified citation.</td></tr>
+  </table>
+  <table>
+    <tr><th>Resource URI</th><th>Contents</th></tr>
+    <tr><td><code>statcite://registry/indicators</code></td><td>The full 48-key registry in one read, so an agent never has to page through search results to learn what exists.</td></tr>
+    <tr><td><code>statcite://registry/sources</code></td><td>The licence ledger: verdict, basis and verification date per source.</td></tr>
+    <tr><td><code>statcite://registry/sids</code></td><td>The curated 39-state small-island developing states grouping.</td></tr>
+  </table>
 
   <h2 id="rest">5. REST API</h2>
   <p>Same engine over plain GET. For scripts, notebooks, spreadsheets, and Custom GPT Actions. Machine-readable spec: <a href="/openapi.json">/openapi.json</a>. CORS: open. Responses are cacheable (<code>Cache-Control: public</code>).</p>
@@ -171,12 +235,15 @@ GET /v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=4.1
 POST /v1/verify_claims                    → JSON body { claims: [...] }, 1–15 claims (the only non-GET route)
 GET /v1/inflation?amount=100&from_year=1995&to_year=2024&country=USA
 GET /v1/fx?amount=100&from=USD&to=BBD&date=2024
+GET /v1/compare?indicator=govt_debt_gdp&country=BRB&period=2023
+GET /v1/status                            → version + live upstream probes (for a poller or badge)
+GET /v1/series?id=caribstat/ECCB/total-public-sector-debt/AIA.a#Total Public Sector Debt
 GET /v1/sources
 GET /health</pre>
   <p>Errors: <code>400</code> missing/invalid parameters, <code>422</code> resolvable-but-failed requests (unknown country, out-of-range year, message includes suggestions), <code>502</code> upstream source trouble, <code>404</code> unknown endpoint. On <code>/v1/verify_claims</code>: <code>405</code> for GET (use POST), <code>415</code> for a non-JSON content-type, <code>422</code> for a malformed body.</p>
 
   <h2 id="indicators">6. Indicator registry</h2>
-  <p>42 registry keys, of which <strong>36 are active</strong>. The six US-only FRED-reserved keys are recognized but permanently decline (§8). Machine surfaces say so too: <code>GET /v1/indicators</code> entries and <code>search_indicators</code> results carry <code>active</code> (and <code>disabled_reason</code> on the six disabled keys), so an agent never has to discover a dead key by calling it. Keys are stable; new indicators are added without breaking existing ones.</p>
+  <p>48 registry keys, of which <strong>42 are active</strong>. The six US-only FRED-reserved keys are recognized but permanently decline (§8). Machine surfaces say so too: <code>GET /v1/indicators</code> entries and <code>search_indicators</code> results carry <code>active</code> (and <code>disabled_reason</code> on the six disabled keys), so an agent never has to discover a dead key by calling it. Keys are stable; new indicators are added without breaking existing ones.</p>
   <table>
     <tr><th>Key</th><th>Series</th><th>Unit</th><th>Sources (order = fallback chain)</th></tr>
             <tr><td><code>gdp_growth</code></td><td>GDP growth (annual %)</td><td>% (annual, real)</td><td>World Bank WDI; IMF DataMapper; IMF WEO (DBnomics fallback)</td></tr>
@@ -221,6 +288,12 @@ GET /health</pre>
             <tr><td><code>us_unemployment_monthly</code></td><td>US unemployment rate (monthly, %)</td><td>%</td><td>FRED (US), disabled</td></tr>
             <tr><td><code>us_nonfarm_payrolls</code></td><td>US total nonfarm payrolls (monthly, thousands of persons)</td><td>thousands of persons</td><td>FRED (US), disabled</td></tr>
             <tr><td><code>us_real_gdp</code></td><td>US real GDP (quarterly, chained 2017 dollars, SAAR)</td><td>billions of chained 2017 US$</td><td>FRED (US), disabled</td></tr>
+    <tr><td><code>debt_service_exports_pct</code></td><td>Total debt service (% of exports of goods, services and primary income)</td><td>% of exports</td><td>World Bank WDI</td></tr>
+    <tr><td><code>euro_area_hicp</code></td><td>Euro area HICP inflation (annual rate)</td><td>%</td><td>ECB Data Portal</td></tr>
+    <tr><td><code>external_debt_service_usd</code></td><td>Total debt service on external debt (TDS, current US$)</td><td>current US$</td><td>World Bank WDI</td></tr>
+    <tr><td><code>external_debt_stock_usd</code></td><td>External debt stocks, total (DOD, current US$)</td><td>current US$</td><td>World Bank WDI</td></tr>
+    <tr><td><code>policy_rate</code></td><td>Central bank policy rate</td><td>% per annum</td><td>BIS statistics</td></tr>
+    <tr><td><code>tourism_receipts_exports</code></td><td>International tourism, receipts (% of total exports)</td><td>% of total exports</td><td>World Bank WDI</td></tr>
   </table>
   <div class="note">Fiscal indicators (<code>govt_debt_gdp</code>, <code>fiscal_balance_gdp</code>, <code>govt_revenue_gdp</code>, <code>govt_expenditure_gdp</code>) intentionally use IMF general-government series as primary. The World Bank WDI central-government debt series has far patchier coverage. <code>govt_revenue_gdp</code>/<code>govt_expenditure_gdp</code> are served from the IMF's Fiscal Monitor database (the same general-government concept as the WEO database, at full precision); the other two are served from the WEO database itself (values rounded to one decimal by the DataMapper API). US-prefixed keys are reserved for FRED-backed high-frequency series; FRED is permanently disabled (§8) because its terms of use prohibit AI/ML use and caching/redistribution, so these keys always decline.</div>
 

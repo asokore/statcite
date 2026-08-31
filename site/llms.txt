@@ -4,6 +4,14 @@
 
 Key facts: no API key, no auth, CORS open, read-only. MCP endpoint: https://statcite.com/mcp (Streamable HTTP, stateless). REST base: https://statcite.com/v1. 42 active curated indicators, 200+ economies, ~120 currencies.
 
+Reuse terms. Two different things live here and they carry different rights.
+
+The **data** is not ours. Every figure belongs to the World Bank, IMF, ECB or BIS under their own licences, which each response names. Use it under those terms and attribute it to the publisher, not to StatCite.
+
+The **service** is ours: the tool and endpoint design, the verification logic and the meaning of its verdicts, the citation format, the curated indicator registry, the source-precedence and fallback rules, the licence ledger, and the wording of these pages. Copyright the StatCite operator.
+
+Permitted, no permission needed: read, index, link, call from an agent, ground a live answer on it and cite it. That is what this service is for. Reserved: using this site or its responses as training or fine-tuning data for a model, and reproducing the original work above as your own service.
+
 ## Docs
 
 - [Full documentation](https://statcite.com/docs): tools, parameters, indicator registry, citation spec
@@ -21,13 +29,6 @@ Key facts: no API key, no auth, CORS open, read-only. MCP endpoint: https://stat
 
 ## Reuse terms
 
-Two different things live here and they carry different rights.
-
-The **data** is not ours. Every figure belongs to the World Bank, IMF, ECB or BIS under their own licences, which each response names. Use it under those terms and attribute it to the publisher, not to StatCite.
-
-The **service** is ours: the tool and endpoint design, the verification logic and the meaning of its verdicts, the citation format, the curated indicator registry, the source-precedence and fallback rules, the licence ledger, and the wording of these pages. Copyright the StatCite operator.
-
-- **Permitted, no permission needed**: read, index, link, call from an agent, ground a live answer on it and cite it. That is what this service is for.
-- **Reserved**: using this site or its responses as training or fine-tuning data for a model, and reproducing the original work above as your own service.
-
-Declared machine-readably in [robots.txt](https://statcite.com/robots.txt) via the Content Signals Policy (`search=yes, ai-input=yes, ai-train=no, use=reference`) and in [/.well-known/tdmrep.json](https://statcite.com/.well-known/tdmrep.json) under the TDM Reservation Protocol. Full text: [terms](https://statcite.com/terms#reuse).
+- [robots.txt](https://statcite.com/robots.txt): Content Signals Policy declaration, `search=yes, ai-input=yes, ai-train=no, use=reference`
+- [tdmrep.json](https://statcite.com/.well-known/tdmrep.json): TDM Reservation Protocol declaration
+- [Full reuse terms](https://statcite.com/terms#reuse): the complete text, data rights and service rights stated separately

@@ -61,6 +61,36 @@ footer a{color:var(--dim)}
 .skip:focus{left:0;text-decoration:none}
 @media(max-width:640px){header{padding:40px 0 26px}}
 </style>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "DataCatalog",
+ "@id": "https://statcite.com/#catalog",
+ "name": "StatCite data sources and licence ledger",
+ "description": "Every data source StatCite serves, and every source it evaluated and refused, with the licence verdict, the verbatim basis for it, the attribution each requires, and the date the position was last checked against the source's own terms.",
+ "url": "https://statcite.com/sources",
+ "isAccessibleForFree": true,
+ "keywords": [
+  "data licensing",
+  "attribution",
+  "official statistics",
+  "provenance"
+ ],
+ "publisher": {
+  "@type": "Organization",
+  "name": "StatCite",
+  "url": "https://statcite.com",
+  "logo": {
+   "@type": "ImageObject",
+   "url": "https://statcite.com/og.png"
+  }
+ },
+ "isPartOf": {
+  "@type": "WebSite",
+  "@id": "https://statcite.com/#website"
+ }
+}
+</script>
 </head>
 <body>
 <a class="skip" href="#main-content">Skip to main content</a>
@@ -90,7 +120,94 @@ footer a{color:var(--dim)}
     </p>
     <div id="ledger" aria-live="polite">
       <noscript><p class="lead">This page renders the ledger with JavaScript. Without it, read the same data directly at <a href="/v1/sources">/v1/sources</a>.</p></noscript>
-      <p class="lead" id="ledger-loading">Loading the ledger from /v1/sources…</p>
+<!-- ledger:prerender:start -->
+      <div class="card">
+      <h3>World Bank, World Development Indicators<span class="pill served">served</span></h3>
+      <div class="meta">id: worldbank · licence verified 2026-08-07 · <a href="https://data.worldbank.org/summary-terms-of-use">terms</a></div>
+      <p><strong>Licence:</strong> CC BY 4.0</p>
+      <p>Summary Terms of Use license datasets under CC BY 4.0: free to copy, distribute, adapt and build upon, including commercially, with attribution.</p>
+      <div class="attr">Attribution: The World Bank: World Development Indicators: &lt;series name&gt;</div>
+      <p>~1,400 annual indicators, 200+ economies, many from 1960</p>
+      </div>
+      <div class="card">
+      <h3>IMF. World Economic Outlook &amp; Fiscal Monitor (via the IMF DataMapper API, with DBnomics as fallback)<span class="pill served">served</span></h3>
+      <div class="meta">id: imf_weo · licence verified 2026-08-10 · <a href="https://www.imf.org/en/About/copyright-and-terms">terms</a></div>
+      <p><strong>Licence:</strong> Published IMF statistical data may be copied, redistributed, and used (including in derivative works) with attribution to the IMF as source. Conditions: attribute as &quot;Source: International Monetary Fund, &lt;database&gt;, &lt;link&gt;&quot;; do not alter the data in ways affecting its accuracy, and state explicitly if it is materially transformed; anyone redistributing it downstream must take reasonable efforts to communicate these terms to their own users; and if sold as a standalone product, purchasers must be told the data is available free of charge from the IMF. Some statistical products incorporate third-party information under separate terms</p>
+      <p>The IMF&#39;s SPECIAL TERMS for published statistical data (effective 2024-10-11) expressly permit copying, redistribution, derivative works and use with attribution. A separate, more permissive regime than the general IMF Content terms, opening &quot;Notwithstanding the general prohibition on the commercial use of IMF Content...&quot;. Named datasets include the WEO database, IFS, BOP, DOT, GFS, Primary Commodity Prices and data on the iData Portal. Conditions StatCite must meet: attribute in the IMF&#39;s format (database + link); never alter data in ways affecting accuracy, and declare material transformation; communicate these terms downstream to StatCite&#39;s own users (met via this ledger, /v1/sources and the licence field on every citation); and, where data is sold as a standalone product, tell purchasers it is free from the IMF (met in the Apify actor listing). Corrected 2026-08-10: the previous note claimed commercial reuse &#39;may require IMF permission&#39;, which conflated the Content regime with the Data regime and both understated the permission and overstated the restriction.</p>
+      <div class="attr">Attribution: Source: International Monetary Fund, &lt;database name&gt;, &lt;link to the dataset&gt;</div>
+      <p>Growth, fiscal, external indicators for 190+ economies, incl. estimates/projections; twice-yearly vintages (April/October, plus interim Updates). The primary path is the IMF&#39;s own DataMapper API. The current edition, verbatim edition label passed through unrewritten. If that path is unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF&#39;s release calendar; every response cites the resolved vintage, and a fallback that crosses editions is disclosed (verify_stat demotes such cases to cannot_verify rather than judging a claim against a superseded vintage). The actual/projection boundary is a heuristic derived from each response&#39;s own data horizon, not a per-country authoritative cutoff</p>
+      </div>
+      <div class="card">
+      <h3>IMF. Dated World Economic Outlook vintages (api.imf.org, SDMX 3.0)<span class="pill served">served</span></h3>
+      <div class="meta">id: imf_sdmx_vintage · licence verified 2026-08-10 · <a href="https://www.imf.org/en/About/copyright-and-terms">terms</a></div>
+      <p><strong>Licence:</strong> Published IMF statistical data may be copied, redistributed, and used (including in derivative works) with attribution to the IMF as source. Conditions: attribute as &quot;Source: International Monetary Fund, &lt;database&gt;, &lt;link&gt;&quot;; do not alter the data in ways affecting its accuracy, and state explicitly if it is materially transformed; anyone redistributing it downstream must take reasonable efforts to communicate these terms to their own users; and if sold as a standalone product, purchasers must be told the data is available free of charge from the IMF. Some statistical products incorporate third-party information under separate terms</p>
+      <p>Governed by the same IMF special terms for statistical data as imf_weo. The WEO database is named in them explicitly, and the delivery endpoint does not change the licence on the data. The api.imf.org service itself imposes no additional terms on anonymous use: the API-management terms sit behind the portal sign-in and govern subscription keys, which StatCite does not hold and does not need. Verified by direct anonymous call, 2026-08-10.</p>
+      <div class="attr">Attribution: Source: International Monetary Fund, &lt;database name&gt;, &lt;link to the dataset&gt;</div>
+      <p>Frozen dated WEO editions published as first-party SDMX 3.0 dataflows. Used ONLY by the dated-vintage path (as_of verification and the revision probe), never by the live chain, and only for editions enumerated in IMF_VINTAGE_FLOWS from the live dataflow listing. The IMF exposes a small number of recent vintages, not an archive. DBnomics remains the deep historical fallback back to 2010-04, so this source narrows the newest-edition gap rather than replacing the aggregator</p>
+      </div>
+      <div class="card">
+      <h3>European Central Bank. Euro foreign exchange reference rates (via Frankfurter)<span class="pill served">served</span></h3>
+      <div class="meta">id: ecb_fx · licence verified 2026-07-25 · <a href="https://www.ecb.europa.eu/services/disclaimer/html/index.en.html">terms</a></div>
+      <p><strong>Licence:</strong> Published for information purposes; reuse with attribution; not transaction rates</p>
+      <p>ECB disclaimer permits reproduction with source attribution; the reference rates are explicitly informational, and StatCite labels them as reference (not transaction) rates.</p>
+      <div class="attr">Attribution: Source: European Central Bank euro foreign exchange reference rates</div>
+      <p>~30 major currencies, daily since 1999</p>
+      </div>
+      <div class="card">
+      <h3>Bank for International Settlements, central bank policy rates<span class="pill served">served</span></h3>
+      <div class="meta">id: bis · licence verified 2026-08-08 · <a href="https://www.bis.org/terms_statistics.htm">terms</a></div>
+      <p><strong>Licence:</strong> BIS statistics may be reproduced and redistributed with attribution; see the BIS terms and conditions for statistics</p>
+      <p>The BIS terms for statistics permit reproduction and redistribution with attribution to the BIS. StatCite charges for the audit/convenience layer, never for BIS data standalone, and attributes the BIS on every response.</p>
+      <div class="attr">Attribution: Source: Bank for International Settlements</div>
+      <p>Policy rates for 49 economies (the rate that best captures each monetary authority&#39;s policy stance), monthly and daily, via the BIS SDMX API</p>
+      </div>
+      <div class="card">
+      <h3>European Central Bank, Data Portal (euro-area monetary statistics)<span class="pill served">served</span></h3>
+      <div class="meta">id: ecb_data · licence verified 2026-08-08 · <a href="https://www.ecb.europa.eu/services/disclaimer/html/index.en.html">terms</a></div>
+      <p><strong>Licence:</strong> ECB content may be reproduced with attribution; see the ECB disclaimer and copyright notice</p>
+      <p>The ECB&#39;s copyright notice permits reproduction of its published content with attribution to the ECB as source. Distinct from the ecb_fx entry, which covers the euro reference exchange rates served via Frankfurter.</p>
+      <div class="attr">Attribution: Source: European Central Bank</div>
+      <p>Euro-area harmonised inflation (HICP) and related monetary series via the ECB Data Portal SDMX API</p>
+      </div>
+      <div class="card">
+      <h3>Eastern Caribbean Central Bank statistics<span class="pill served">served</span></h3>
+      <div class="meta">id: eccb · licence verified 2026-08-14 · <a href="https://www.eccb-centralbank.org">terms</a></div>
+      <p><strong>Licence:</strong> ECCB website terms of use, plus written permission granted to the operator</p>
+      <p>The ECCB&#39;s published website terms grant use of the site for personal, non-commercial purposes and reserve reproduction and redistribution unless permission is given. The operator wrote to the ECCB describing exactly this service, including scheduled fetching, storage, and serving each value with attribution and a link back to the source table, and permission was granted. Recorded here on the operator&#39;s confirmation of 2026-08-14; the correspondence itself is held privately rather than published, so this entry states its basis rather than quoting it. The request that was granted is public at github.com/asokore/statcite in caribstat/outreach/.</p>
+      <div class="attr">Attribution: Eastern Caribbean Central Bank, with a link to the source table. Every served value carries both, and the bank&#39;s own &quot;data as at&quot; stamp.</div>
+      <p>ECCU monetary, fiscal, debt, tourism, interest-rate and CPI statistics for the eight ECCB member geographies and the currency union aggregate, annual, quarterly and monthly. Includes Anguilla and Montserrat, which are not World Bank reporting economies and appear in few other machine-readable sources. Collected on a schedule from the ECCB&#39;s published tables and served with the bank&#39;s own data-as-at stamp carried separately from our retrieval time.</p>
+      </div>
+      <div class="card">
+      <h3>Central Bank of Barbados statistics<span class="pill served">served</span></h3>
+      <div class="meta">id: cbb · licence verified 2026-08-14 · <a href="https://www.centralbank.org.bb">terms</a></div>
+      <p><strong>Licence:</strong> Central Bank of Barbados website terms of use, plus written permission granted to the operator</p>
+      <p>The Bank&#39;s published website terms reserve reproduction and redistribution of site content unless permission is given, and the operator requested and obtained that permission. Recorded here on the operator&#39;s confirmation of 2026-08-14; the request that was granted is public at github.com/asokore/statcite in caribstat/outreach/. The Bank publishes no currency stamp, so citations name the source publication and its date rather than asserting how current the Bank considers a figure.</p>
+      <div class="attr">Attribution: Central Bank of Barbados, with a link to the source publication. Every served value carries both, and the publication date.</div>
+      <p>Barbados balance of payments back to 1967, GDP, inflation and retail prices, tourism, and the monetary survey, from the Bank&#39;s published workbooks. The Bank prints no &quot;data as at&quot; stamp, so every value instead names the publication it came from and links that workbook directly, which is a narrower claim than a currency stamp and one a reader can check.</p>
+      </div>
+      <div class="card">
+      <h3>DBnomics (aggregator)<span class="pill flow_through">flow_through</span></h3>
+      <div class="meta">id: dbnomics · licence verified 2026-07-25 · <a href="https://docs.db.nomics.world/">terms</a></div>
+      <p><strong>Licence:</strong> Per underlying provider</p>
+      <p>Aggregator: each served series inherits its underlying provider&#39;s licence, and the citation object names that provider. The CURATED registry routes only IMF series through DBnomics. The raw get_series escape hatch (dbnomics/PROVIDER/... ids) passes any DBnomics-hosted provider through on flow-through terms: the citation names the provider and states that its terms apply, and StatCite has NOT individually verified every provider&#39;s licence. Consumers of non-IMF dbnomics/ series must check the named provider&#39;s own terms before republishing. Corrected 2026-08-10: the previous note claimed only permitted providers were routed, which was true of the registry but overstated the raw-id path.</p>
+      <div class="attr">Attribution: Cite the underlying provider (StatCite citations do this automatically)</div>
+      <p>Tens of millions of series from 90+ official providers (IMF, OECD, Eurostat, ECB, BIS, national statistical offices)</p>
+      </div>
+      <div class="card">
+      <h3>Federal Reserve Bank of St. Louis, FRED (permanently disabled)<span class="pill refused">refused</span></h3>
+      <div class="meta">id: fred · licence verified 2026-07-26 · <a href="https://fred.stlouisfed.org/legal/">terms</a></div>
+      <p><strong>Licence:</strong> FRED Services Terms of Use, clauses (p) and (q), see https://fred.stlouisfed.org/legal/</p>
+      <p>Clauses (p) and (q) of the FRED Services Terms of Use reserve FRED content from AI/ML/LLM-connected use and from storing, caching or archiving it. StatCite does not offer FRED, with or without an operator key: the six US-only registry keys and the fred/ series id are recognised and always decline, naming the reason.</p>
+      <p>Not served. The FRED Services Terms of Use, clauses (p) and (q), reserve FRED content from use in connection with training or running AI/ML/LLM systems, and from storing, caching or archiving it.</p>
+      </div>
+      <div class="card">
+      <h3>UN Comtrade (trade statistics), not served<span class="pill refused">refused</span></h3>
+      <div class="meta">id: un_comtrade · licence verified 2026-08-08 · <a href="https://uncomtrade.org/docs/policy-on-use-and-re-dissemination/">terms</a></div>
+      <p><strong>Licence:</strong> UN Comtrade policy on use and re-dissemination</p>
+      <p>The policy states &quot;To re-disseminate UN Comtrade data, a user must be an active premium subscriber&quot; and prices &quot;for-profit data extraction and/or streaming application[s]&quot; under a licensing fee. StatCite offers a metered surface on Apify, which places it within that fee-bearing category.</p>
+      <p>Not served. UN Comtrade&#39;s policy on use and re-dissemination requires an active premium subscription to re-disseminate its data, and licenses for-profit extraction or streaming applications for a fee.</p>
+      </div>
+      <!-- ledger:prerender:end -->
     </div>
     <p class="note">Licence positions are re-verified when sources are added or terms change. Each entry carries its own verified-on date. If you believe a verdict is wrong, or a refused source's terms have changed, email <a href="mailto:hello@statcite.com">hello@statcite.com</a>. Corrections are welcome and acted on.</p>
   </section>

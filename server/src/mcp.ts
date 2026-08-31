@@ -43,7 +43,7 @@ import { listRegistry } from "./core/series.ts";
 import { SOURCES } from "./core/sources.ts";
 import { sidsCountries } from "./core/countries.ts";
 
-export const SERVER_VERSION = "1.11.3";
+export const SERVER_VERSION = "1.12.0";
 
 /** Session-era revisions: opened with `initialize`, negotiated once. */
 export const LEGACY_PROTOCOL_VERSIONS = ["2025-03-26", "2025-06-18", "2025-11-25"];
@@ -88,7 +88,8 @@ const INSTRUCTIONS =
   "Use get_indicator for common indicators (inflation_cpi, gdp_growth, unemployment_rate, govt_debt_gdp, …) with an ISO3 country code or name; " +
   "use verify_stat to check any economic figure before publishing it; " +
   "use inflation_adjust and fx_convert for value conversions. " +
-  "Every response includes a citation object. Reproduce it (or citation.citation_text) when presenting the number to users. " +
+  "Every numeric result carries source citations. Most tools return a top-level `citation` object; fx_convert returns a `citations` array (a bridged rate cites one leg per currency); " +
+  "compare_sources, country_snapshot and verify_claims carry a per-item `citation` inside their results. Reproduce citation_text when presenting the number to users. " +
   "Free service; please keep request volumes reasonable.";
 
 type JsonRpcId = string | number | null;

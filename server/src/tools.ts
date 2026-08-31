@@ -418,10 +418,22 @@ export const TOOLS: ToolDef[] = [
       required: ["query"],
       additionalProperties: false,
     },
-    handler: async (ctx, args) => ({
-      query: str(args, "query"),
-      results: await searchIndicators(ctx, str(args, "query")),
-    }),
+    handler: async (ctx, args) => {
+      const found = await searchIndicators(ctx, str(args, "query"));
+      // search_indicators is the ONLY MCP path that enumerates the registry, so
+      // a silent cap here makes 40 keys unreachable: an agent searching "gdp"
+      // saw 8 of 20 matches and reasonably concluded there was no
+      // tax_revenue_gdp indicator.
+      return {
+        query: str(args, "query"),
+        results: found.results,
+        total_indicator_matches: found.total_indicator_matches,
+        truncated: found.truncated,
+        ...(found.truncated
+          ? { note: "Registry matches were capped for readability. The full 48-key registry is available as the statcite://registry/indicators resource or GET /v1/indicators." }
+          : {}),
+      };
+    },
   },
   {
     name: "compare_sources",
