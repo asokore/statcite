@@ -46,6 +46,32 @@ change, that is a finding, not a failure.
 From `MONETIZATION.md` Stage 1, any ONE of these firing means it is time to
 consider paid keys:
 
+- [ ] **OWNER ACTION, Cloudflare dashboard.** Cloudflare returns 403 ("error
+      code: 1010", Browser Integrity Check) to any client whose user-agent
+      matches `Python-urllib/*` or `libwww-perl/*`, on EVERY path including
+      `/`, `/robots.txt`, `/v1/*` and both GET and POST `/mcp`. Python's
+      standard library sends that UA by default, so a hand-written stdlib
+      script or an LLM-generated `urllib.request.urlopen` snippet gets a hard
+      403 from a service whose whole pitch is that machines should call it.
+      The block is a pure user-agent string match with no security value:
+      python-requests, httpx, aiohttp, wget, Go, Java, okhttp and an EMPTY
+      user-agent all return 200. It is generated at the edge before the Worker
+      runs, so NO change in this repo can clear it.
+      Fix: Cloudflare dashboard > Security > WAF > Custom rules > Create rule,
+      action **Skip**, skip Browser Integrity Check, matching the machine
+      paths (`/`, `/v1/*`, `/mcp*`, `/llms.txt`, `/llms-full.txt`,
+      `/openapi.json`, `/robots.txt`, `/sitemap.xml`, `/.well-known/*`).
+      Alternatively disable Browser Integrity Check for the zone.
+      `tools/audit-live.py` fails on this today (check
+      `machine/the Python stdlib HTTP client is not blocked`) and is the way to
+      confirm the fix landed. Found 2026-08-31; the wrangler OAuth token has
+      zone READ only, so it cannot be done from the CLI.
+- [ ] After the sweep of 2026-08-31, confirm Google picks up the new signals:
+      `lastmod` now present on all nine sitemap URLs, structured data on all
+      six pages (was homepage only), and /sources server-rendering its ledger
+      so a non-JS crawler can read it. Check the Data sets report still shows
+      the six datasets valid, and whether /docs and /bench start appearing as
+      separate impressions rather than the homepage alone.
 - [ ] Search Console follow-ups (added 2026-08-29, the day the property was
       verified): read Performance for the first real query list from ~31 Aug;
       confirm the Data sets report flips from Invalid 6 to Valid 6 after Google
