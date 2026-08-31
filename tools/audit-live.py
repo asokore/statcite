@@ -641,6 +641,18 @@ def audit_crawlable():
             bad.append(f"{m} is not a date")
     check("crawl", "every lastmod is a real, non-future date", not bad, "; ".join(bad)[:150])
 
+    # A link to a fragment that does not exist does not 404. It silently lands
+    # at the top of the page, so a broken deep link looks exactly like a
+    # working one to anyone not checking. The homepage tool cards were made
+    # into deep links on 2026-08-31 and the anchors they point at are new.
+    st, _, home = get("/")
+    st, _, docs_body = get("/docs")
+    ids = set(re.findall(r'id="([^"]+)"', docs_body))
+    frags = sorted(set(re.findall(r'href="/docs#([^"]+)"', home)))
+    dead = [f for f in frags if f not in ids]
+    check("crawl", "every /docs# link on the homepage hits a real anchor",
+          bool(frags) and not dead, f"{len(frags)} links, dead: {dead}")
+
     # The docs registry table drifted six keys behind the live registry and
     # contradicted the same page two sections earlier.
     st, d = jget("/v1/indicators")
