@@ -206,7 +206,9 @@ def audit_consistency():
     st, d = jget("/v1/indicators")
     inds = (d or {}).get("indicators") or []
     total = len(inds)
-    active = len([i for i in inds if not i.get("disabled")])
+    # `active`, not `disabled`: /v1/indicators emits active:boolean and has
+    # never emitted a `disabled` key, so the old expression collapsed to total.
+    active = len([i for i in inds if i.get("active")])
     check("claims", "/v1/indicators responds", total > 0, f"{total} total")
 
     st, _, home = get("/")
@@ -216,10 +218,21 @@ def audit_consistency():
     # any "N indicators" claim on the site must match the live registry
     bad = []
     for name, body in (("index", home), ("docs", docs), ("llms.txt", llms)):
-        for m in re.finditer(r"(\d+)\s+(?:curated\s+)?indicators", body):
-            n = int(m.group(1))
-            if n not in (total, active):
-                bad.append(f"{name}:{n}")
+        # Broadened to the QUALIFIED forms the site actually ships:
+        # "42 active curated indicators", "48 registry keys", "42 are active".
+        # The old pattern matched none of them, so a wrong number on the page
+        # could never turn this red.
+        pats = [
+            r"(\d+)\s+(?:active\s+)?(?:curated\s+)?indicators",
+            r"(\d+)\s+registry\s+keys",
+            r"(\d+)\s+(?:of\s+which\s+)?are\s+active",
+            r"(\d+)\s+active\b(?!\s+curated)",
+        ]
+        for pat in pats:
+            for m in re.finditer(pat, body):
+                n = int(m.group(1))
+                if n not in (total, active):
+                    bad.append(f"{name}:{n}")
     check("claims", f"indicator counts match live ({total} total / {active} active)", not bad, "; ".join(bad))
 
     st, d = jget("/v1/sources")
@@ -440,11 +453,207 @@ def audit_discovery():
     check("disc", "GET /mcp is 405 with a discovery body", st == 405 and ok_shape, f"status {st} body={body[:60]!r}")
 
 
+
+def audit_machine_clients():
+    """Checks the self-audit was structurally blind to.
+
+    Every request above sets a custom user-agent, so the harness could never
+    see that Cloudflare's Browser Integrity Check 403s Python's standard
+    library client on every path. 124 checks passed while /llms.txt - the file
+    whose entire purpose is being machine-read - returned "error code: 1010"
+    to the plainest possible agent.
+    """
+    print("\n== machine clients ==")
+
+    # Deliberately NOT setting a user-agent: urllib sends Python-urllib/3.x,
+    # which is the case being tested. Do not "fix" this by adding a UA.
+    import urllib.request as _u
+
+    blocked = []
+    for path in ["/", "/llms.txt", "/llms-full.txt", "/openapi.json", "/robots.txt",
+                 "/sitemap.xml", "/v1/sources", "/v1/indicators", "/.well-known/security.txt"]:
+        try:
+            with _u.urlopen(BASE + path, timeout=30) as r:
+                if r.status >= 400:
+                    blocked.append(f"{path}:{r.status}")
+        except urllib.error.HTTPError as e:
+            blocked.append(f"{path}:{e.code}")
+        except Exception as e:
+            blocked.append(f"{path}:{type(e).__name__}")
+    check("machine", "the Python stdlib HTTP client is not blocked", not blocked,
+          ("; ".join(blocked)[:150] + "  <-- FIX IS A CLOUDFLARE ZONE SETTING, NOT A REPO CHANGE: "
+           "the 403 (error 1010) is Browser Integrity Check, generated at the edge before the "
+           "Worker runs, so no code here can clear it. Cloudflare dashboard > Security > WAF > "
+           "Custom rules > Create rule, action 'Skip', skip Browser Integrity Check, matching "
+           "the machine paths (/, /v1/*, /mcp*, /llms*.txt, /openapi.json, /robots.txt, "
+           "/sitemap.xml, /.well-known/*). BIC buys nothing here: it blocks Python-urllib and "
+           "libwww-perl by user-agent string while allowing wget, Go, Java, okhttp and an EMPTY "
+           "user-agent.") if blocked else "")
+
+    # Charset. Workers Static Assets strips it on deploy, and both files carry
+    # multi-byte UTF-8 including the documented verifier tolerances, which a
+    # client applying the RFC 2616 text/* default renders as mojibake.
+    for path in ["/llms.txt", "/llms-full.txt"]:
+        st, h, _ = get(path)
+        ct = (h.get("Content-Type") or h.get("content-type") or "").lower()
+        check("machine", f"{path} declares charset=utf-8", "charset=utf-8" in ct, ct)
+
+    # Vary. Four content-codings are served from one URL under
+    # public, max-age=3600, so a shared cache may replay the wrong one.
+    st, h, _ = get("/v1/sources")
+    vary = (h.get("Vary") or h.get("vary") or "")
+    check("machine", "/v1 responses send Vary: Accept-Encoding", "accept-encoding" in vary.lower(), vary or "(absent)")
+
+    # llms.txt must parse with the REFERENCE implementation, not just look
+    # right. Prose under an H2 crashed it outright, taking the correctly
+    # formatted Docs and Quick use link lists down with it.
+    try:
+        from llms_txt import parse_llms_file
+        st, _, body = get("/llms.txt")
+        d = parse_llms_file(body)
+        names = list((d.get("sections") or {}).keys())
+        check("machine", "llms.txt parses with the reference llms.txt parser", bool(names), f"sections: {names}")
+        check("machine", "llms.txt section names carry no stray CR", not any("\r" in n for n in names), str(names))
+    except ImportError:
+        check("machine", "llms.txt parser check available (pip install llms-txt)", False, "llms-txt not installed")
+
+
+def audit_contracts():
+    """API contracts that silently produced a WRONG ANSWER rather than an error."""
+    print("\n== api contracts ==")
+
+    # The worst defect this sweep found. Against the official BRB inflation_cpi
+    # 2024 value of 1.4464366430616 and a claimed 1.4, tolerance_abs=0.001
+    # returns mismatch, but a MISSPELLED tolerance was silently dropped and the
+    # lenient default applied, so the caller who asked for a strict check was
+    # told "match" at HTTP 200. That is the exact failure this service exists
+    # to prevent.
+    v = "/v1/verify?indicator=inflation_cpi&country=BRB&period=2024&value=1.4"
+    st, d = jget(v + "&tolerance_abs=0.001")
+    check("contract", "a strict tolerance is honoured", (d or {}).get("verdict") == "mismatch", str((d or {}).get("verdict")))
+    for typo in ["tolerance", "toleranceAbs", "tolerence_abs", "startYear"]:
+        st, d = jget(f"{v}&{typo}=0.001")
+        check("contract", f"unknown parameter '{typo}' is refused, not ignored", st == 400, f"http {st}")
+
+    # A boolean flag read with `=== "true"` does not fail on strict_source=1,
+    # it SILENTLY DOWNGRADES: the caller asked for a primary-source-only
+    # guarantee and quietly received a fallback value with a 200.
+    st, _, _ = get(v + "&strict_source=bogus")
+    check("contract", "an unparseable boolean is refused", st == 400, f"http {st}")
+
+    # An inverted window used to run the full fetch and return a message whose
+    # own available_range CONTAINED both requested years.
+    st, d = jget("/v1/indicator/inflation_cpi?country=BRB&start_year=2024&end_year=2015")
+    msg = json.dumps(d or {})
+    check("contract", "an inverted year window is refused by name", st == 422 and "start_year" in msg and "swap" in msg.lower(), f"http {st}: {msg[:120]}")
+    st, d = jget("/v1/indicator/inflation_cpi?country=BRB&start_year=2015&end_year=2024")
+    check("contract", "a correct year window still works", st == 200 and len((d or {}).get("observations") or []) > 0, f"http {st}")
+
+    # Truncation was silent: "gdp" returned 8 of 20 registry matches and looked
+    # complete, so an agent concluded there was no tax_revenue_gdp indicator.
+    st, d = jget("/v1/search?q=gdp")
+    d = d or {}
+    check("contract", "search discloses the total match count", isinstance(d.get("total_indicator_matches"), int), str(d.get("total_indicator_matches")))
+    check("contract", "search flags truncation", d.get("truncated") is True and bool(d.get("note")), f"truncated={d.get('truncated')}")
+
+    # verify could not round-trip its own response body: it RETURNS
+    # claimed_value and used to 400 on being given one.
+    st, d = jget(v.replace("value=1.4", "claimed_value=1.4"))
+    check("contract", "/v1/verify accepts claimed_value as an alias", st == 200, f"http {st}")
+
+    # Paste-ready BibTeX/APA is the strongest thing this product offers a
+    # researcher, and it was documented only in openapi.json.
+    st, d = jget("/v1/indicator/inflation_cpi?country=BRB&latest_only=true")
+    ef = ((d or {}).get("citation") or {}).get("export_formats") or {}
+    check("contract", "citations carry export_formats (bibtex + apa)", bool(ef.get("bibtex") and ef.get("apa")), str(list(ef)))
+
+    st, _, docs = get("/docs")
+    # Anchored on the section boundary, NOT on the word "changelog": the table
+    # of contents links to #changelog near the top of the page, so splitting on
+    # that word truncated the body before the citation section and reported a
+    # false failure against correct content.
+    cite_section = docs.split('<h2 id="rest">')[0].split('<h2 id="citation">')[-1]
+    check("contract", "the docs citation spec documents export_formats", "export_formats" in cite_section, "absent from the citation section")
+
+    # openapi.json promised only "an object" for 8 of 14 operations, so a
+    # generated client had to call the endpoint blind to learn field names.
+    st, spec = jget("/openapi.json")
+    untyped = []
+    for path_, ops in (spec or {}).get("paths", {}).items():
+        for verb, op in ops.items():
+            if not isinstance(op, dict):
+                continue
+            sch = (((op.get("responses") or {}).get("200") or {}).get("content") or {}).get("application/json", {}).get("schema")
+            if sch is None:
+                continue
+            if sch == {} or (list(sch.keys()) == ["type"] and sch.get("type") == "object"):
+                untyped.append(f"{verb.upper()} {path_}")
+    check("contract", "every OpenAPI 200 response declares a real schema", not untyped, "; ".join(untyped)[:220])
+
+
+def audit_crawlable():
+    """What a crawler that does not run JavaScript actually receives."""
+    print("\n== crawlable content ==")
+
+    # /sources is the page the homepage JSON-LD names as the DataCatalog's url,
+    # and llms-full.txt sends machine readers to it as "Human-readable". Its
+    # whole ledger was written by fetch() into innerHTML, so GPTBot, ClaudeBot
+    # and PerplexityBot - the audience this service is built for - saw
+    # "Loading the ledger from /v1/sources...".
+    st, d = jget("/v1/sources")
+    names = [x.get("name") for x in (d or {}).get("sources") or []]
+    st, _, page = get("/sources")
+    missing = [n for n in names if n and n.split(",")[0].split(".")[0][:28] not in page]
+    check("crawl", "/sources server-renders every source in the ledger", not missing, f"{len(missing)} missing: {'; '.join(missing)[:150]}")
+    for verdict in ["served", "flow_through", "refused"]:
+        check("crawl", f"/sources server-renders the '{verdict}' verdict", verdict in page, "")
+
+    # Structured data existed only on the homepage; /docs and /bench were
+    # unclassified despite schema.org having exact types for both.
+    for path in PAGES:
+        st, _, body = get(path)
+        blocks = re.findall(r'<script type="application/ld\+json">(.*?)</script>', body, re.S)
+        ok = False
+        types = []
+        try:
+            for b in blocks:
+                obj = json.loads(b)
+                nodes = obj.get("@graph", [obj])
+                types += [n.get("@type") for n in nodes]
+                ok = bool(nodes)
+        except Exception as e:
+            types = [f"UNPARSEABLE {e}"]
+        check("crawl", f"{path} serves parseable JSON-LD", ok, str(types)[:110])
+
+    # A lastmod that stops tracking real edits is worse than none, so check the
+    # dates are present, real, and not in the future.
+    from datetime import date
+    st, _, sm = get("/sitemap.xml")
+    locs = re.findall(r"<loc>([^<]+)</loc>", sm)
+    mods = re.findall(r"<lastmod>([^<]+)</lastmod>", sm)
+    check("crawl", "every sitemap URL carries a lastmod", len(locs) == len(mods) and len(locs) > 0, f"{len(locs)} locs, {len(mods)} lastmods")
+    bad = []
+    for m in mods:
+        try:
+            if date.fromisoformat(m.strip()[:10]) > date.today():
+                bad.append(f"{m} is in the future")
+        except ValueError:
+            bad.append(f"{m} is not a date")
+    check("crawl", "every lastmod is a real, non-future date", not bad, "; ".join(bad)[:150])
+
+    # The docs registry table drifted six keys behind the live registry and
+    # contradicted the same page two sections earlier.
+    st, d = jget("/v1/indicators")
+    keys = [i["key"] for i in (d or {}).get("indicators") or []]
+    st, _, docs = get("/docs")
+    absent = [k for k in keys if f"<code>{k}</code>" not in docs]
+    check("crawl", "the docs registry table lists every live registry key", not absent, f"{len(absent)} absent: {', '.join(absent)[:120]}")
+
 def main():
     only = None
     if "--only" in sys.argv:
         only = sys.argv[sys.argv.index("--only") + 1]
-    for name, fn in [("api", audit_api), ("seo", audit_seo), ("links", audit_links), ("claims", audit_consistency), ("mcp", audit_mcp), ("a11y", audit_a11y), ("disc", audit_discovery)]:
+    for name, fn in [("api", audit_api), ("seo", audit_seo), ("links", audit_links), ("claims", audit_consistency), ("mcp", audit_mcp), ("a11y", audit_a11y), ("disc", audit_discovery), ("machine", audit_machine_clients), ("contract", audit_contracts), ("crawl", audit_crawlable)]:
         if only and only != name:
             continue
         try:

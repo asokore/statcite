@@ -17,6 +17,29 @@ import { isTransientUpstreamError } from "./upstream.ts";
 export { expectedWeoEdition } from "./weo-calendar.ts";
 import { expectedWeoEdition } from "./weo-calendar.ts";
 
+/**
+ * Refuse an inverted year window before any upstream fetch.
+ *
+ * Without this the request runs to completion and fails with the generic
+ * out-of-window error, whose own evidence refutes its stated reason: it says
+ * "no observations in the requested window 2024-2015 ... published data exists
+ * for 1967-2025, adjust the year range" while returning an available_range
+ * that CONTAINS both requested years. An agent checking whether its years fall
+ * inside available_range gets true and is sent to fix the wrong thing. On a
+ * multi-source indicator it also burns the whole fallback chain first and
+ * concatenates three copies of the wrong message.
+ */
+function assertYearWindow(opts: SeriesOpts): void {
+  const { start, end } = opts;
+  if (!start || !end) return;
+  if (Number(start) > Number(end)) {
+    throw new ToolError(
+      `start_year (${start}) is after end_year (${end}). Swap them: the window runs from the earlier year to the later one.`,
+      { start_year: start, end_year: end },
+    );
+  }
+}
+
 export interface SeriesOpts {
   start?: string;
   end?: string;
@@ -471,6 +494,7 @@ function buildSourceAttempts(
 }
 
 export async function getIndicator(ctx: Ctx, key: string, countryInput: string, opts: SeriesOpts = {}): Promise<SeriesResult> {
+  assertYearWindow(opts);
   const def = getIndicatorDef(key);
   if (!def) {
     // Suggestions must be actionable. Offering a permanently-disabled
@@ -836,6 +860,7 @@ export async function getSeries(
   seriesId: string,
   opts: SeriesOpts & { country?: string } = {},
 ): Promise<SeriesResult> {
+  assertYearWindow(opts);
   const id = seriesId.trim();
   const lower = id.toLowerCase();
 
@@ -1063,8 +1088,23 @@ function countryNamedIn(query: string): Country | undefined {
   return undefined;
 }
 
-export async function searchIndicators(ctx: Ctx, query: string, opts: { includeDbnomics?: boolean } = {}): Promise<SearchResultItem[]> {
-  const matches = searchIndicatorDefs(query, 8)
+export interface SearchResults {
+  results: SearchResultItem[];
+  /** Registry indicators matching the query BEFORE the display cap. */
+  total_indicator_matches: number;
+  /** True when the registry matches were cut; the caller is told where to get the rest. */
+  truncated: boolean;
+}
+
+const INDICATOR_RESULT_CAP = 8;
+
+export async function searchIndicators(ctx: Ctx, query: string, opts: { includeDbnomics?: boolean } = {}): Promise<SearchResults> {
+  // Filter BEFORE the cap, then cap. The other order let a fixed-geography
+  // series that was going to be dropped consume one of the eight slots, so
+  // "rate" returned seven results while four equally-scored registry keys
+  // (lending_rate, deposit_rate, real_interest_rate, official_fx_rate) went
+  // unreturned.
+  const eligible = searchIndicatorDefs(query, Number.MAX_SAFE_INTEGER)
     // Drop a fixed-geography series when the query names a country it cannot
     // serve. "barbados inflation" ranked euro_area_hicp third, and following
     // that suggestion returns 422, because the series is euro-area only. A
@@ -1075,6 +1115,8 @@ export async function searchIndicators(ctx: Ctx, query: string, opts: { includeD
       if (!c) return true;
       return c.iso3 === "EMU" || c.iso3 === "XM";
     });
+  const matches = eligible.slice(0, INDICATOR_RESULT_CAP);
+  const truncated = eligible.length > matches.length;
   const items: SearchResultItem[] = matches.map((m) => {
     const disabled = isDisabledDef(m.def);
     return {
@@ -1136,7 +1178,7 @@ export async function searchIndicators(ctx: Ctx, query: string, opts: { includeD
       // Secondary search is best-effort.
     }
   }
-  return items;
+  return { results: items, total_indicator_matches: eligible.length, truncated };
 }
 
 export function listRegistry(): Array<{
