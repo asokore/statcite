@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StatCite API",
-    "version": "1.11.3",
+    "version": "1.12.0",
     "description": "Official economic statistics with full citations, built for AI agents. Every numeric response includes a citation object (source, dataset, series_id, source_url, license, attribution, retrieved_at, citation_text). Free, no auth, read-only. MCP endpoint at https://statcite.com/mcp.",
     "contact": {
       "email": "hello@statcite.com",
@@ -29,7 +29,39 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "required": [
+                    "service",
+                    "version",
+                    "endpoints"
+                  ],
+                  "properties": {
+                    "service": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "mcp_endpoint": {
+                      "type": "string"
+                    },
+                    "openapi": {
+                      "type": "string"
+                    },
+                    "docs": {
+                      "type": "string"
+                    },
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Human-readable endpoint list, one line per route."
+                    }
+                  }
                 }
               }
             }
@@ -315,7 +347,61 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "required": [
+                    "query",
+                    "results"
+                  ],
+                  "properties": {
+                    "query": {
+                      "type": "string"
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "indicator",
+                              "caribstat_series",
+                              "dbnomics_dataset"
+                            ]
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "usage": {
+                            "type": "string"
+                          },
+                          "active": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    },
+                    "total_indicator_matches": {
+                      "type": "integer",
+                      "description": "Registry indicators matching the query BEFORE the display cap."
+                    },
+                    "truncated": {
+                      "type": "boolean",
+                      "description": "True when registry matches were capped; see note for where to get the rest."
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             }
@@ -349,7 +435,71 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "required": [
+                    "country",
+                    "indicators"
+                  ],
+                  "properties": {
+                    "country": {
+                      "type": "object",
+                      "properties": {
+                        "iso3": {
+                          "type": "string"
+                        },
+                        "iso2": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "as_of": {
+                      "type": "string"
+                    },
+                    "indicators": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "number"
+                          },
+                          "period": {
+                            "type": "string"
+                          },
+                          "unit": {
+                            "type": "string"
+                          },
+                          "citation": {
+                            "$ref": "#/components/schemas/Citation"
+                          }
+                        }
+                      }
+                    },
+                    "missing": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "fallback_used": {
+                      "type": "boolean"
+                    }
+                  }
                 }
               }
             }
@@ -676,7 +826,47 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "required": [
+                    "original_amount",
+                    "adjusted_amount",
+                    "citation"
+                  ],
+                  "properties": {
+                    "original_amount": {
+                      "type": "number"
+                    },
+                    "from_year": {
+                      "type": "integer"
+                    },
+                    "to_year": {
+                      "type": "integer"
+                    },
+                    "adjusted_amount": {
+                      "type": "number"
+                    },
+                    "factor": {
+                      "type": "number"
+                    },
+                    "country": {
+                      "type": "string"
+                    },
+                    "index_used": {
+                      "type": "string"
+                    },
+                    "method": {
+                      "type": "string"
+                    },
+                    "citation": {
+                      "$ref": "#/components/schemas/Citation"
+                    },
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -740,7 +930,53 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "required": [
+                    "amount",
+                    "from",
+                    "to",
+                    "converted_amount",
+                    "citations"
+                  ],
+                  "properties": {
+                    "amount": {
+                      "type": "number"
+                    },
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "converted_amount": {
+                      "type": "number"
+                    },
+                    "rate": {
+                      "type": "number"
+                    },
+                    "rate_date": {
+                      "type": "string"
+                    },
+                    "method": {
+                      "type": "string"
+                    },
+                    "precision": {
+                      "type": "string"
+                    },
+                    "citations": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Citation"
+                      },
+                      "description": "An ARRAY, not the singular `citation` object other endpoints return: a bridged rate legitimately cites one source per currency leg. Identical-currency conversions return an empty array."
+                    },
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -767,7 +1003,52 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "required": [
+                    "sources"
+                  ],
+                  "properties": {
+                    "sources": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "license_verdict": {
+                            "type": "string",
+                            "enum": [
+                              "served",
+                              "flow_through",
+                              "refused"
+                            ]
+                          },
+                          "license": {
+                            "type": "string"
+                          },
+                          "license_note": {
+                            "type": "string"
+                          },
+                          "license_verified_on": {
+                            "type": "string"
+                          },
+                          "terms_url": {
+                            "type": "string"
+                          },
+                          "attribution_required": {
+                            "type": "string"
+                          },
+                          "coverage": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -815,7 +1096,83 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "required": [
+                    "indicator",
+                    "country",
+                    "results"
+                  ],
+                  "properties": {
+                    "indicator": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "country": {
+                      "type": "object",
+                      "properties": {
+                        "iso3": {
+                          "type": "string"
+                        },
+                        "iso2": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "period": {
+                      "type": "string"
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "source": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "number"
+                          },
+                          "period": {
+                            "type": "string"
+                          },
+                          "definition": {
+                            "type": "string"
+                          },
+                          "error": {
+                            "type": "string"
+                          },
+                          "citation": {
+                            "$ref": "#/components/schemas/Citation"
+                          }
+                        }
+                      }
+                    },
+                    "comparison": {
+                      "type": "object",
+                      "properties": {
+                        "spread": {
+                          "type": "number"
+                        },
+                        "agree": {
+                          "type": "boolean"
+                        },
+                        "note": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -892,7 +1249,30 @@
         "summary": "Service health",
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "service",
+                    "version"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "service": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           },
           "405": {
             "$ref": "#/components/responses/MethodNotAllowed"

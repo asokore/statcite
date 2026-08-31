@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>StatCite: Economic statistics your AI can actually cite</title>
-<meta name="description" content="Free remote MCP server + REST API serving official economic statistics from the World Bank, IMF and ECB, where every number ships with a full citation. Includes verify_stat: check any claimed figure against the official series.">
+<meta name="description" content="Free remote MCP server + REST API serving official economic statistics from the World Bank, IMF, BIS, ECB and Caribbean central banks (ECCB, Central Bank of Barbados), where every number ships with a full citation. Includes verify_stat: check any claimed figure against the official series.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="canonical" href="https://statcite.com/">
 <meta property="og:title" content="StatCite: Economic statistics your AI can actually cite">
@@ -25,6 +25,23 @@
 {
  "@context": "https://schema.org",
  "@graph": [
+  {
+   "@type": "WebSite",
+   "@id": "https://statcite.com/#website",
+   "name": "StatCite",
+   "url": "https://statcite.com",
+   "description": "Official economic statistics with full citations, over MCP and a REST API.",
+   "inLanguage": "en",
+   "publisher": {
+    "@type": "Organization",
+    "name": "StatCite",
+    "url": "https://statcite.com",
+    "logo": {
+     "@type": "ImageObject",
+     "url": "https://statcite.com/og.png"
+    }
+   }
+  },
   {
    "@type": "SoftwareApplication",
    "name": "StatCite",
@@ -59,7 +76,7 @@
    "@id": "https://statcite.com/#catalog",
    "name": "StatCite data catalog",
    "url": "https://statcite.com/sources",
-   "description": "Registry of 48 curated indicators plus explicit series access. The figures belong to their publishers and carry the publishers' own licences, stated per source at /sources and inside every API response.",
+   "description": "Registry of 48 curated indicators, 42 of them active, plus explicit series access. The figures belong to their publishers and carry the publishers' own licences, stated per source at /sources and inside every API response.",
    "isAccessibleForFree": true,
    "usageInfo": "https://statcite.com/terms#reuse",
    "dataset": [
@@ -227,6 +244,62 @@
      }
     }
    ]
+  },
+  {
+   "@type": "FAQPage",
+   "@id": "https://statcite.com/#faq",
+   "mainEntity": [
+    {
+     "@type": "Question",
+     "name": "Is it really free? What's the catch?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Yes. The service runs on near-zero-cost infrastructure and free official data APIs, so a generous free tier is sustainable. The long-term plan is boring and honest: keep the free tier, add paid convenience (keys, volume, bulk) for heavy users. No ads, no data resale."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "How accurate is the data?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "StatCite does not originate the underlying statistical observations. It relays the official series and tells you exactly which one, fetched live from the source or its aggregator and cached briefly. Derived values (YoY, inflation adjustment, FX bridging) and verification verdicts are calculated transparently, with the method and inputs disclosed. Macro data gets revised, and aggregators can lag the source's newest release. Every citation states the exact series and vintage served, and responses flag when a vintage trails the expected current release."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Can I redistribute the numbers?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "It depends on the source, and every response tells you exactly which applies. World Bank data is CC BY 4.0, so reuse including commercial use is allowed with attribution. Published IMF statistical data may be copied, redistributed and used in derivative works under the IMF's data terms: attribute in the IMF's format (\"Source: International Monetary Fund, <database>, <link>\", and every StatCite citation supplies this line ready-made), don't alter the data in ways affecting accuracy, tell your own downstream users these terms apply, and if you sell it as a standalone product, disclose that the data is free from the IMF. ECB reference rates are informational, reused with attribution. Every response includes the exact attribution line and license for that number, which is precisely the point of StatCite."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Who built this?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "A professional economist who got tired of AI drafts with unverifiable numbers. The indicator registry, source fallbacks, and verification thresholds are economist-curated. For example, government debt defaults to the IMF's general government gross debt series (current vintage via the DataMapper API), not the patchier World Bank central-government series."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "How should agents cite StatCite itself?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Cite the original source (the citation object gives you everything). Mentioning \u201cvia StatCite\u201d is appreciated but never required."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "What about rate limits?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Fair use, no hard published limit. Responses are cache-friendly, so identical queries are served from edge cache. If your use case needs guarantees, email hello@statcite.com."
+     }
+    }
+   ],
+   "name": "StatCite: frequently asked questions",
+   "description": "Common questions about StatCite: whether it is really free, how accurate the data is, whether the numbers may be redistributed, how agents should cite the service, and what the rate limits are."
   }
  ]
 }
@@ -390,19 +463,21 @@ footer a{color:var(--dim)}
       <tr><td>claude-haiku-4-5</td><td>33.3%</td><td>32.5%</td><td>49.4%*</td></tr>
     </table>
     <p style="color:var(--faint);font-size:12.5px;margin-top:10px">*claude-haiku-4-5's Answer Rate falls below the 70% threshold the pre-registered methodology requires for a model's result to be interpreted at all. It is reported for completeness, not as a headline finding, per the methodology's own pre-committed rule.</p>
-    <p style="color:var(--dim);font-size:14px;margin-top:14px">Within-Tolerance Rate, Confabulation Rate, and Answer Rate are a single unit by our own publication covenant, never quoted apart from one another. At this sample size (Wilson 95% CIs, minimum detectable model-to-model difference ~12–15pp) this is not a league table. Full methodology, pre-registration, raw model outputs, and scoring code: <a href="https://github.com/asokore/statcite/blob/main/bench/runs/R1/REPORT.md">the R1 report</a>. Post-publication sensitivity analyses and the logged protocol deviations for this run: <a href="https://github.com/asokore/statcite/blob/main/bench/runs/R1/ADDENDA.md">the R1 addenda</a>.</p>
+    <p style="color:var(--dim);font-size:14px;margin-top:14px">Within-Tolerance Rate, Confabulation Rate, and Answer Rate are a single unit by our own publication covenant, never quoted apart from one another. At this sample size (Wilson 95% CIs, minimum detectable model-to-model difference ~12–15pp) this is not a league table. How the benchmark is built, why it is hard to game, and what is pre-registered for the next run: <a href="/bench">the benchmark page</a>. Full methodology, pre-registration, raw model outputs, and scoring code: <a href="https://github.com/asokore/statcite/blob/main/bench/runs/R1/REPORT.md">the R1 report</a>. Post-publication sensitivity analyses and the logged protocol deviations for this run: <a href="https://github.com/asokore/statcite/blob/main/bench/runs/R1/ADDENDA.md">the R1 addenda</a>.</p>
   </section>
 
   <section id="connect">
     <h2>Connect your agent</h2>
     <p class="lead">One URL. No signup, no API key, no OAuth. Works in every major MCP client.</p>
     <div class="mcpurl"><span id="mcp-url">https://statcite.com/mcp</span><button onclick="copyText('mcp-url',this)">copy</button></div>
+    <p style="color:var(--dim);font-size:14px;margin:-4px 0 14px">Once connected, three ready-made prompts appear in clients that support them: <code>fact_check</code> (paste a draft, every macro claim in it gets checked), <code>country_brief</code> and <code>cite_this_stat</code>. <a href="/docs#prompts">What they do</a>.</p>
     <div class="tabs" role="tablist" aria-label="Choose your MCP client">
       <button class="active" id="tab-claude" role="tab" aria-selected="true" aria-controls="t-claude" onclick="tab(event,'t-claude')">Claude</button>
       <button id="tab-chatgpt" role="tab" aria-selected="false" tabindex="-1" aria-controls="t-chatgpt" onclick="tab(event,'t-chatgpt')">ChatGPT</button>
       <button id="tab-cursor" role="tab" aria-selected="false" tabindex="-1" aria-controls="t-cursor" onclick="tab(event,'t-cursor')">Cursor</button>
       <button id="tab-vscode" role="tab" aria-selected="false" tabindex="-1" aria-controls="t-vscode" onclick="tab(event,'t-vscode')">VS Code</button>
       <button id="tab-code" role="tab" aria-selected="false" tabindex="-1" aria-controls="t-code" onclick="tab(event,'t-code')">Claude Code</button>
+      <button id="tab-gemini" role="tab" aria-selected="false" tabindex="-1" aria-controls="t-gemini" onclick="tab(event,'t-gemini')">Gemini CLI</button>
       <button id="tab-stdio" role="tab" aria-selected="false" tabindex="-1" aria-controls="t-stdio" onclick="tab(event,'t-stdio')">Other (stdio)</button>
       <button id="tab-rest" role="tab" aria-selected="false" tabindex="-1" aria-controls="t-rest" onclick="tab(event,'t-rest')">REST</button>
     </div>
@@ -435,8 +510,16 @@ Authentication:  No authentication</pre>
 }</pre>
     </div>
     <div id="t-code" class="tabpanel" role="tabpanel" aria-labelledby="tab-code" tabindex="0">
-      <p>One command:</p>
+      <p><strong>Recommended, the plugin.</strong> It connects the server <em>and</em> installs the verify-then-cite skill, so the model reaches for <code>verify_stat</code> before publishing a number rather than only having the tool available:</p>
+      <pre>/plugin marketplace add asokore/statcite
+/plugin install statcite@statcite</pre>
+      <p style="margin-top:10px">Or connect the server on its own, without the skill:</p>
       <pre>claude mcp add --transport http statcite https://statcite.com/mcp</pre>
+      <p style="margin-top:10px">Then confirm it works with a test prompt: <em>“Using StatCite, verify that US inflation was 4.1% in 2023 and cite the official source.”</em></p>
+    </div>
+    <div id="t-gemini" class="tabpanel" role="tabpanel" aria-labelledby="tab-gemini" tabindex="0">
+      <p>StatCite ships a Gemini CLI extension:</p>
+      <pre>gemini extensions install https://github.com/asokore/statcite</pre>
       <p style="margin-top:10px">Then confirm it works with a test prompt: <em>“Using StatCite, verify that US inflation was 4.1% in 2023 and cite the official source.”</em></p>
     </div>
     <div id="t-stdio" class="tabpanel" role="tabpanel" aria-labelledby="tab-stdio" tabindex="0">
@@ -528,17 +611,17 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
     <h2>Twelve tools, one contract: every number carries its receipt</h2>
     <p class="lead">Available over MCP and mirrored as a REST API. All read-only.</p>
     <div class="grid">
-      <div class="card"><h3>verify_stat</h3><p>Check a claimed figure against the official series → match / close / mismatch / cannot_verify, with diagnostics and the correct citation.</p></div>
-      <div class="card"><h3>verify_claims</h3><p>Fact-check a whole draft in one call: extract every macro claim, submit up to 15 together (also <code>POST /v1/verify_claims</code>). Verdict summary + per-claim results. One bad claim never sinks the batch.</p></div>
-      <div class="card"><h3>get_indicator</h3><p>42 active curated indicators: inflation, GDP growth, unemployment, government debt, current account, FDI and more, for 200+ economies, with source fallback (World Bank → IMF DataMapper, current vintage → IMF WEO via DBnomics).</p></div>
-      <div class="card"><h3>country_snapshot</h3><p>Headline economic picture of any country in one call, every indicator carrying its own citation. Coverage varies by economy, from a full headline set down to what a small state's central bank publishes. Built for country briefs.</p></div>
-      <div class="card"><h3>inflation_adjust</h3><p>“What is $100 (1995) worth in 2024 money?” CPI-ratio method with the exact index values and formula disclosed. Any country with CPI data.</p></div>
-      <div class="card"><h3>fx_convert</h3><p>ECB daily reference rates for ~30 majors since 1999, plus official annual-average rates for ~90 more currencies (BBD, XCD, JMD, KES…). Method always stated.</p></div>
-      <div class="card"><h3>get_series</h3><p>Raw access by explicit id: <code>worldbank/…</code>, <code>imf/…</code>, <code>dbnomics/IMF/WEO:latest/…</code>. Transforms: YoY, % change, index rebase.</p></div>
-      <div class="card"><h3>compare_sources</h3><p>The same indicator from every source that publishes it, side by side, with the spread, the agreement and one citation per source. For when "what does the official data say?" has more than one official answer.</p></div>
-      <div class="card"><h3>search_indicators</h3><p>Free-text search over the curated registry plus DBnomics dataset discovery (IMF, OECD, Eurostat, BIS…).</p></div>
-      <div class="card"><h3>list_sources</h3><p>Exactly which official sources power each answer, their licenses, and the attribution lines you're required to use.</p></div>
-      <div class="card"><h3>search + fetch</h3><p>The deep-research compatibility pair, so StatCite plugs into ChatGPT connectors and similar research pipelines out of the box.</p></div>
+      <div class="card"><h3><a href="/docs#verify_stat">verify_stat</a></h3><p>Check a claimed figure against the official series → match / close / mismatch / cannot_verify, with diagnostics and the correct citation.</p></div>
+      <div class="card"><h3><a href="/docs#verify_claims">verify_claims</a></h3><p>Fact-check a whole draft in one call: extract every macro claim, submit up to 15 together (also <code>POST /v1/verify_claims</code>). Verdict summary + per-claim results. One bad claim never sinks the batch.</p></div>
+      <div class="card"><h3><a href="/docs#get_indicator">get_indicator</a></h3><p>42 active curated indicators: inflation, GDP growth, unemployment, government debt, current account, FDI and more, for 200+ economies, with source fallback (World Bank → IMF DataMapper, current vintage → IMF WEO via DBnomics).</p></div>
+      <div class="card"><h3><a href="/docs#country_snapshot">country_snapshot</a></h3><p>Headline economic picture of any country in one call, every indicator carrying its own citation. Coverage varies by economy, from a full headline set down to what a small state's central bank publishes. Built for country briefs.</p></div>
+      <div class="card"><h3><a href="/docs#inflation_adjust">inflation_adjust</a></h3><p>“What is $100 (1995) worth in 2024 money?” CPI-ratio method with the exact index values and formula disclosed. Any country with CPI data.</p></div>
+      <div class="card"><h3><a href="/docs#fx_convert">fx_convert</a></h3><p>ECB daily reference rates for ~30 majors since 1999, plus official annual-average rates for ~90 more currencies (BBD, XCD, JMD, KES…). Method always stated.</p></div>
+      <div class="card"><h3><a href="/docs#get_series">get_series</a></h3><p>Raw access by explicit id: <code>worldbank/…</code>, <code>imf/…</code>, <code>dbnomics/IMF/WEO:latest/…</code>, and <code>caribstat/…</code> for the Caribbean central bank tables. Transforms: YoY, % change, index rebase.</p></div>
+      <div class="card"><h3><a href="/docs#compare_sources">compare_sources</a></h3><p>The same indicator from every source that publishes it, side by side, with the spread, the agreement and one citation per source. For when "what does the official data say?" has more than one official answer.</p></div>
+      <div class="card"><h3><a href="/docs#search_indicators">search_indicators</a></h3><p>Free-text search over the curated registry plus DBnomics dataset discovery (IMF, OECD, Eurostat, BIS…).</p></div>
+      <div class="card"><h3><a href="/docs#list_sources">list_sources</a></h3><p>Exactly which official sources power each answer, their licenses, and the attribution lines you're required to use.</p></div>
+      <div class="card"><h3><a href="/docs#search">search + fetch</a></h3><p>The deep-research compatibility pair, so StatCite plugs into ChatGPT connectors and similar research pipelines out of the box.</p></div>
     </div>
   </section>
 
@@ -553,6 +636,8 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
       <tr><td>Bank for International Settlements</td><td>Central bank policy rates, 49 economies (daily/monthly)</td><td>Reproduction &amp; redistribution with attribution</td></tr>
       <tr><td>European Central Bank, Data Portal</td><td>Euro-area HICP inflation and euro-area aggregates</td><td>Reproduction with attribution</td></tr>
       <tr><td>European Central Bank (via Frankfurter)</td><td>Daily euro reference FX rates, ~30 currencies, since 1999</td><td>Attribution, informational rates</td></tr>
+      <tr><td>Eastern Caribbean Central Bank</td><td>ECCU monetary, fiscal, debt, tourism, interest-rate and CPI statistics across the eight member geographies and the currency-union aggregate. <strong>Includes Anguilla and Montserrat, which are not World Bank reporting economies</strong>, so for several of these series this is the only citable machine-readable source anywhere</td><td>ECCB website terms of use, plus written permission granted to the operator</td></tr>
+      <tr><td>Central Bank of Barbados</td><td>16 tables: balance of payments back to 1967, GDP, retail prices and inflation, labour, wages, industrial production, tourism, trade in goods, exchange rates, interest rates, international reserves, the depository-corporations surveys and financial soundness indicators</td><td>Central Bank of Barbados website terms of use, plus written permission granted to the operator</td></tr>
       <tr><td>FRED, St. Louis Fed</td><td>Not served. Six US-only registry keys are reserved for it but always decline. FRED's terms of use reserve its content from AI/ML use and from caching or redistribution</td><td>n/a</td></tr>
       <tr><td>DBnomics (aggregator)</td><td>90+ official providers (OECD, Eurostat, BIS, national offices)</td><td>Per provider, named in each citation</td></tr>
     </table>

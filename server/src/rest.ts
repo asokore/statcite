@@ -21,6 +21,13 @@ function json(status: number, body: unknown, cacheSeconds = 3600): Response {
     headers: {
       "content-type": "application/json; charset=utf-8",
       "cache-control": status === 200 && cacheSeconds > 0 ? `public, max-age=${cacheSeconds}` : "no-store",
+      // These responses are public, max-age=3600 and CORS-open, and the edge
+      // serves four content-codings from one URL. Without Vary a shared cache
+      // may hand a brotli body to a client that asked for identity.
+      vary: "Accept-Encoding",
+      // The static pages get HSTS from site/_headers, which does not reach the
+      // Worker routes, so the API had no upgrade policy at all.
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
       ...corsHeaders(),
     },
   });
@@ -45,6 +52,13 @@ function toHead(r: Response): Response {
 
 /** Parameter-format error (thrown to produce a 400 with the parameter named). */
 class ParamError extends Error {}
+
+/** Accepted query parameters for GET /v1/verify. `claimed_value` is an alias
+ *  for `value`, matching verify_claims and the verify_stat MCP tool. */
+const VERIFY_PARAMS = [
+  "indicator", "country", "period", "value", "claimed_value",
+  "tolerance_abs", "tolerance_pct", "strict_source", "as_of",
+] as const;
 
 /**
  * Query booleans, parsed properly.
@@ -86,6 +100,35 @@ function qYear(q: URLSearchParams, name: string): string | undefined {
   if (raw == null || raw === "") return undefined;
   if (!/^\d{4}$/.test(raw)) throw new ParamError(`Query parameter '${name}' must be a 4-digit year (got '${raw}').`);
   return raw;
+}
+
+/**
+ * Reject query parameters this route does not accept.
+ *
+ * The service already refuses rather than guesses for unknown VALUES
+ * (transform=bogus is a 422 naming the valid list) and for unknown indicators.
+ * Names were the one place silence won, and silence is worst exactly where it
+ * costs most: `tolerance=0.001` on /v1/verify is dropped, the lenient default
+ * applies, and the caller who asked for a strict check is told "match".
+ *
+ * Suggestion uses the same closest-match idiom as the unknown-indicator error,
+ * because a caller who typo'd `tolerence_abs` needs the real name, not a list.
+ */
+function rejectUnknownParams(q: URLSearchParams, allowed: readonly string[]): void {
+  const unknown = [...q.keys()].filter((k) => !allowed.includes(k));
+  if (!unknown.length) return;
+  const near = (name: string): string => {
+    const lower = name.toLowerCase().replace(/[^a-z]/g, "");
+    const hit = allowed.find((a) => a.toLowerCase().replace(/[^a-z]/g, "") === lower);
+    return hit ? ` Did you mean '${hit}'?` : "";
+  };
+  const first = unknown[0];
+  throw new ParamError(
+    `Unknown query parameter '${first}'.${near(first)}` +
+      (unknown.length > 1 ? ` Also unknown: ${unknown.slice(1).join(", ")}.` : "") +
+      ` This route accepts: ${allowed.join(", ")}.` +
+      " Parameters are rejected rather than ignored, because a dropped tolerance or filter silently changes the answer.",
+  );
 }
 
 /** Mutable slot for dimensions only the route body knows (currently the verdict). */
@@ -191,6 +234,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
     }
 
     if (path === "/v1/compare") {
+      rejectUnknownParams(q, ["indicator", "country", "period"]);
       const indicator = q.get("indicator");
       const country = q.get("country");
       if (!indicator || !country) return errJson(400, "Query parameters 'indicator' and 'country' are required, e.g. /v1/compare?indicator=govt_debt_gdp&country=BRB&period=2023.");
@@ -267,6 +311,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
 
     const indMatch = path.match(/^\/v1\/indicator\/([a-z0-9_]+)$/);
     if (indMatch) {
+      rejectUnknownParams(q, ["country", "latest_only", "start_year", "end_year", "transform", "strict_source"]);
       const country = q.get("country");
       if (!country) return errJson(400, "Query parameter 'country' is required (ISO3 code or name).");
       const latestOnly = qBool(q, "latest_only");
@@ -283,6 +328,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
     }
 
     if (path === "/v1/series") {
+      rejectUnknownParams(q, ["id", "country", "start_year", "end_year", "transform", "strict_source"]);
       const id = q.get("id");
       if (!id) return errJson(400, "Query parameter 'id' is required, e.g. id=worldbank/NY.GDP.MKTP.KD.ZG.");
       const result = await getSeries(ctx, id, {
@@ -297,9 +343,19 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
     }
 
     if (path === "/v1/search") {
+      rejectUnknownParams(q, ["q"]);
       const query = q.get("q");
       if (!query) return errJson(400, "Query parameter 'q' is required.");
-      return json(200, { query, results: await searchIndicators(ctx, query) });
+      const found = await searchIndicators(ctx, query);
+      return json(200, {
+        query,
+        results: found.results,
+        total_indicator_matches: found.total_indicator_matches,
+        truncated: found.truncated,
+        ...(found.truncated
+          ? { note: `Showing the top ${found.results.filter((r) => r.type === "indicator").length} of ${found.total_indicator_matches} matching registry indicators. GET /v1/indicators returns the complete registry (48 keys, 42 active) in one 14 KB response.` }
+          : {}),
+      });
     }
 
     const snapMatch = path.match(/^\/v1\/snapshot\/([^/]+)$/);
@@ -311,19 +367,27 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
     }
 
     if (path === "/v1/verify") {
+      rejectUnknownParams(q, VERIFY_PARAMS);
       const indicator = q.get("indicator");
       const period = q.get("period");
       if (!indicator || !period) {
-        return errJson(400, "Required: indicator, period, value. Optional: country, tolerance_abs, tolerance_pct, as_of.");
+        return errJson(400, "Required: indicator, period, value. Optional: country, tolerance_abs, tolerance_pct, strict_source, as_of.");
       }
+      // `claimed_value` is what verify_claims and the verify_stat MCP tool both
+      // require, and it is the name this endpoint returns in its OWN response
+      // body, so without the alias /v1/verify cannot round-trip its own output.
+      const valueParam = q.has("value") ? "value" : "claimed_value";
       const result = await verifyStat(ctx, {
         indicator,
         country: q.get("country") ?? undefined,
         period,
-        claimed_value: qNum(q, "value", true)!,
+        claimed_value: qNum(q, valueParam, true)!,
         tolerance_abs: qNum(q, "tolerance_abs", false),
         tolerance_pct: qNum(q, "tolerance_pct", false),
-        strict_source: q.get("strict_source") === "true",
+        // qBool, not `=== "true"`: strict_source=1 read as false does not fail,
+        // it silently downgrades a reproducibility guarantee the caller asked
+        // for. This route was the last one still using the raw comparison.
+        strict_source: qBool(q, "strict_source"),
         as_of: q.get("as_of") ?? undefined,
       });
       usage.verdict = result.verdict;
@@ -331,6 +395,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
     }
 
     if (path === "/v1/inflation") {
+      rejectUnknownParams(q, ["amount", "from_year", "to_year", "country"]);
       return json(
         200,
         await inflationAdjust(ctx, qNum(q, "amount", true)!, qNum(q, "from_year", true)!, qNum(q, "to_year", true)!, q.get("country") ?? "USA"),
@@ -338,6 +403,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
     }
 
     if (path === "/v1/fx") {
+      rejectUnknownParams(q, ["amount", "from", "to", "date"]);
       const from = q.get("from");
       const to = q.get("to");
       if (!from || !to) return errJson(400, "Required: amount, from, to. Optional: date (YYYY-MM-DD or YYYY).");

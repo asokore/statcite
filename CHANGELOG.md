@@ -5,6 +5,144 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.12.0
+
+A 34-agent adversarial sweep of the live service found 30 confirmed defects.
+Every one was re-verified against the running service before being acted on,
+and two of the reported claims did not survive that check (a `displayName` key
+said to fail plugin validation passes it, and the /sources evidence was a
+methodology error). One defect the sweep missed was found while reading the
+code it pointed at.
+
+**Wrong answers, silently.** These are the ones that mattered.
+
+- `GET /v1/verify` silently dropped unknown parameter NAMES, so a misspelled
+  tolerance turned a mismatch into a match. Against the official Barbados 2024
+  inflation figure of 1.4464366430616 and a claimed 1.4, `tolerance_abs=0.001`
+  returns `mismatch`, while `tolerance=0.001`, `toleranceAbs=0.001` and
+  `tolerence_abs=0.001` all returned `match` at HTTP 200 — falling back to the
+  lenient rounding default rather than the stricter rule the caller asked for.
+  That is the exact failure this service exists to prevent. Unknown parameter
+  names are now refused with a closest-match suggestion, on every /v1 route.
+- `strict_source` on `/v1/verify` used the raw `=== "true"` comparison that the
+  `qBool` helper was written to replace, so `strict_source=1` did not fail, it
+  SILENTLY DOWNGRADED: the caller asked for a primary-source-only guarantee and
+  quietly got a fallback value with a 200. The three sibling routes had been
+  migrated and this one was missed. Found by reading the helper's own docstring
+  against its call sites, not by the sweep.
+- An inverted year window ran the full fetch and then failed with a message
+  whose own evidence refuted it: "no observations in the requested window
+  2024-2015 ... published data exists for 1967-2025, adjust the year range",
+  while returning an `available_range` that CONTAINS both requested years. An
+  agent checking its years against that range got `true` and was sent to fix
+  the wrong thing. On a multi-source indicator it burned the whole fallback
+  chain first. Now refused by name before any upstream fetch, on REST and MCP.
+- `search` capped registry matches at 8 with no total and no flag. "gdp"
+  matched 20 and served 8, and ranks 2-20 were ALL tied on score, so the 12
+  dropped were excluded by declaration order rather than relevance. An agent
+  concluded there was no `tax_revenue_gdp` indicator. The response now carries
+  `total_indicator_matches` and `truncated`, and the geography filter runs
+  BEFORE the cap so a dropped euro-area series no longer wastes a slot.
+- The MCP instruction served to every connecting agent asserted "Every response
+  includes a citation object", which was false for 7 of 12 tools: `fx_convert`
+  returns a `citations` ARRAY (correct — a bridged rate cites one leg per
+  currency), three tools nest it per result, three carry none. An agent
+  following the instruction literally raised KeyError on every FX conversion.
+- `GET /v1/verify` 400'd on `claimed_value`, the name both `verify_claims` and
+  the `verify_stat` MCP tool require, and the name it returns in its own
+  response body. It could not round-trip its own output. Now an alias.
+
+**The guard that could not fail.** The live audit's indicator-count check read
+`i.get("disabled")`, a key `/v1/indicators` has never emitted, so its "active"
+count collapsed to the total and the PASS line printed "48 total / 48 active"
+when 42 are active. Its regex also required the digits to be followed
+immediately by "indicators", so it never matched the site's actual wording,
+"42 active curated indicators" — mutating that to 99 left the check green. It
+validated exactly one substring site-wide while stating a falsehood. Fixed, and
+the harness grew three sections (157 checks, up from 124) covering every defect
+in this release, each one confirmed to fail before the fix landed.
+
+**Machine readability.**
+
+- `llms.txt` crashed the reference llms.txt parser. The spec allows free prose
+  only before the first H2; `## Reuse terms` was six paragraphs of it, and the
+  parser raises rather than degrading, so the whole file was unreadable —
+  including the correctly formatted Docs and Quick use lists. Restructured as a
+  file list with the licence wording relocated above the first heading, verbatim
+  and complete. Verified parsing with the reference implementation.
+- `llms.txt` and `llms-full.txt` served as bare `text/plain`, and both carry
+  multi-byte UTF-8. Under the RFC 2616 text/* default a client renders the
+  documented tolerance "match ≤0.06pp" as mojibake. Both now declare charset.
+- `/sources` rendered its entire licence ledger client-side, so the page
+  carrying StatCite's whole licensing argument was blank to GPTBot, ClaudeBot
+  and PerplexityBot — the audience robots.txt explicitly invites and that
+  llms-full.txt points there. The ledger is now server-rendered by
+  `tools/gen-sources-prerender.py`, with the existing fetch still overwriting
+  it, so the page keeps the "cannot drift from the API" property it claims.
+- Structured data on all six pages, not just the homepage: APIReference on
+  /docs, Dataset on /bench, DataCatalog on /sources sharing the homepage's
+  `@id`, WebPage on /privacy and /terms, plus WebSite and FAQPage nodes. Every
+  node carries name and description explicitly, because a missing `description`
+  is what Search Console rejected as CRITICAL two days ago.
+- `sitemap.xml` carried no `lastmod` on any of its nine URLs. Now generated by
+  `tools/gen-sitemap.py` from git history — not file mtime, which would have
+  published a false date on its first run.
+- 8 of 14 OpenAPI operations declared a bare `type: object` 200 schema, so a
+  generated client learned nothing and the `citations` array on /v1/fx stayed
+  hidden. All 14 now carry real schemas.
+- `Vary: Accept-Encoding` and HSTS on API responses. Four content-codings were
+  served from one URL under `public, max-age=3600` with no Vary, so a cache
+  between a client and Cloudflare could replay the wrong one.
+
+**Accuracy and discoverability of what already exists.**
+
+- Docs §6 said "42 registry keys, of which 36 are active" while §5 of the same
+  page said "48 keys, 42 active". The live registry is 48/42. Six active keys
+  were missing from the table entirely, four of them the external-debt and
+  tourism series a small-state analyst would search for. Rows are now generated
+  from the live registry, and the audit asserts every key appears.
+- The Caribbean central bank data — the one thing here not available from the
+  World Bank API directly — appeared in no human-readable copy. The sources
+  table showed FRED, which is refused, and omitted the ECCB and the Central
+  Bank of Barbados, both served. Both now have rows, the `caribstat/` id form is
+  documented, and the meta description (the string Google renders as the
+  snippet) names them.
+- The Claude Code plugin and Gemini CLI extension, both published and versioned
+  in lockstep with the service, were advertised nowhere. The plugin does more
+  than the documented `claude mcp add`: it also installs the verify-then-cite
+  skill, which is what makes a model reach for `verify_stat` before publishing
+  a number. Both now have install instructions on the homepage and in /docs.
+- Three MCP prompts and three resources were live and undocumented for humans.
+  Prompts appear as slash commands the moment a client connects.
+- `export_formats` (paste-ready BibTeX and APA on every citation) was declared
+  in openapi.json and absent from the human citation spec, which claimed to
+  enumerate the payload. It is the strongest thing this product offers a
+  researcher and it was mentioned only in a changelog line.
+- /docs gained per-tool anchors, so the twelve homepage tool cards now link
+  somewhere and a colleague can be sent "the verify_claims docs".
+- The `policy_rate / euro_area_hicp` heading sat at tool level inside the tools
+  reference while `tools/list` returns neither, inviting a `tools/call` that
+  would fail. Retitled.
+- /v1/status and /v1/compare, both live and both advertised by the service's own
+  /v1 index, were missing from the human endpoint list.
+- og.png shipped a fully opaque alpha channel: 37,359 bytes where a
+  pixel-identical RGB re-encode is 27,000. Verified 0 of 756,000 pixels differ
+  and the sRGB/gAMA/pHYs chunks survive. The regeneration note now says to
+  convert, since a browser screenshot reintroduces the channel every time.
+- HTML pages inherited `max-age=0, must-revalidate`, paying a blocking
+  revalidation round trip on every repeat navigation. Now a short bounded
+  window, per page rather than under `/*` so a stale 404 cannot be cached.
+
+**Known defect, not fixed here.** Cloudflare returns 403 ("error code: 1010",
+Browser Integrity Check) to any client whose user-agent matches
+`Python-urllib/*` or `libwww-perl/*`, on every path including `/mcp` and
+`/robots.txt`. Python's standard library sends that UA by default. The block is
+a pure user-agent string match with no security value: wget, Go, Java, okhttp
+and an EMPTY user-agent all pass. It is generated at the edge before the Worker
+runs, so no code in this repo can clear it — it needs a WAF skip rule in the
+Cloudflare dashboard. The audit now fails loudly on it rather than being blind
+to it, which it was: every previous check set a custom user-agent.
+
 ## 1.11.3
 
 Registry metadata only, no behaviour change. The MCP registry description, the

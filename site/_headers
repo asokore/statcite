@@ -11,6 +11,7 @@
 # Reading, indexing and citing stay open, which robots.txt states explicitly.
 /*
   TDM-Reservation: 1
+  Vary: Accept-Encoding
   TDM-Policy: https://statcite.com/terms#reuse
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
@@ -25,10 +26,12 @@
   Cache-Control: public, max-age=3600
 
 /llms.txt
+  Content-Type: text/plain; charset=utf-8
   Access-Control-Allow-Origin: *
   Cache-Control: public, max-age=3600
 
 /llms-full.txt
+  Content-Type: text/plain; charset=utf-8
   Access-Control-Allow-Origin: *
   Cache-Control: public, max-age=3600
 
@@ -51,3 +54,25 @@
   Cache-Control: public, max-age=604800
 /favicon.ico
   Cache-Control: public, max-age=604800
+
+# HTML pages. Short, bounded freshness window: long enough to kill the blocking
+# 304 on repeat navigation, short enough that a published correction reaches a
+# returning reader quickly. Deliberately per-page rather than /*, so a stale
+# 404 can never be cached for a path that later becomes a real page.
+/
+  Cache-Control: public, max-age=300
+
+/docs
+  Cache-Control: public, max-age=300
+
+/bench
+  Cache-Control: public, max-age=300
+
+/sources
+  Cache-Control: public, max-age=300
+
+/privacy
+  Cache-Control: public, max-age=300
+
+/terms
+  Cache-Control: public, max-age=300

@@ -70,6 +70,79 @@ footer a{color:var(--dim)}
 .skip:focus{left:0;text-decoration:none}
 @media(max-width:640px){header{padding:40px 0 26px}table{display:block;overflow-x:auto}}
 </style>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "Dataset",
+ "@id": "https://statcite.com/bench#r1",
+ "name": "StatCite benchmark Run 1: economic-statistics recall without tools",
+ "description": "Pre-registered benchmark of six large language models across three vendors, answering 100 real economic-statistics questions from memory with no tools and no retrieval. Reports Within-Tolerance Rate, Confabulation Rate and Answer Rate together as a single indivisible unit, with Wilson 95% confidence intervals. Question draws were seeded from the NIST randomness beacon, and the ground truth was independently audited.",
+ "url": "https://statcite.com/bench",
+ "license": "https://opensource.org/licenses/MIT",
+ "isAccessibleForFree": true,
+ "keywords": [
+  "LLM benchmark",
+  "confabulation",
+  "economic statistics",
+  "hallucination rate",
+  "model evaluation"
+ ],
+ "creator": {
+  "@type": "Organization",
+  "name": "StatCite",
+  "url": "https://statcite.com",
+  "logo": {
+   "@type": "ImageObject",
+   "url": "https://statcite.com/og.png"
+  }
+ },
+ "publisher": {
+  "@type": "Organization",
+  "name": "StatCite",
+  "url": "https://statcite.com",
+  "logo": {
+   "@type": "ImageObject",
+   "url": "https://statcite.com/og.png"
+  }
+ },
+ "measurementTechnique": "Closed-book prompting with a pre-registered scoring rubric and tolerance bands",
+ "variableMeasured": [
+  {
+   "@type": "PropertyValue",
+   "name": "Within-Tolerance Rate",
+   "description": "Share of answers falling inside the pre-registered tolerance band around the official figure."
+  },
+  {
+   "@type": "PropertyValue",
+   "name": "Confabulation Rate",
+   "description": "Share of answers stated confidently but outside tolerance."
+  },
+  {
+   "@type": "PropertyValue",
+   "name": "Answer Rate",
+   "description": "Share of questions the model attempted at all. Below 70% a model's result is not interpreted, per the pre-registered rule."
+  }
+ ],
+ "distribution": [
+  {
+   "@type": "DataDownload",
+   "encodingFormat": "text/markdown",
+   "name": "Run 1 report",
+   "contentUrl": "https://github.com/asokore/statcite/blob/main/bench/runs/R1/REPORT.md"
+  },
+  {
+   "@type": "DataDownload",
+   "encodingFormat": "text/markdown",
+   "name": "Run 1 addenda and logged protocol deviations",
+   "contentUrl": "https://github.com/asokore/statcite/blob/main/bench/runs/R1/ADDENDA.md"
+  }
+ ],
+ "isPartOf": {
+  "@type": "WebSite",
+  "@id": "https://statcite.com/#website"
+ }
+}
+</script>
 </head>
 <body>
 <a class="skip" href="#main-content">Skip to main content</a>

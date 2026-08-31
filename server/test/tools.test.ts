@@ -211,7 +211,7 @@ test("a euro-area-only series is not suggested for a non-euro country", async ()
   const ctx = { now: () => new Date("2026-08-16T00:00:00Z") } as any;
   for (const q of ["barbados inflation", "jamaica inflation", "trinidad inflation"]) {
     const out = await searchIndicators(ctx, q);
-    const ids = out.map((r: any) => String(r.id));
+    const ids = out.results.map((r: any) => String(r.id));
     assert.ok(
       !ids.includes("euro_area_hicp"),
       `${q} must not suggest euro_area_hicp; got ${ids.slice(0, 5).join(", ")}`,
@@ -226,14 +226,34 @@ test("a euro-area query still finds the euro-area series", async () => {
   const { searchIndicators } = await import("../src/core/series.ts");
   const ctx = { now: () => new Date("2026-08-16T00:00:00Z") } as any;
   for (const q of ["euro area inflation", "hicp"]) {
-    const ids = (await searchIndicators(ctx, q)).map((r: any) => String(r.id));
+    const ids = (await searchIndicators(ctx, q)).results.map((r: any) => String(r.id));
     assert.ok(ids.includes("euro_area_hicp"), `${q} should surface euro_area_hicp; got ${ids.slice(0, 5).join(", ")}`);
   }
+});
+
+test("search discloses when registry matches are capped", async () => {
+  // The cap cut through a score tie: "gdp" matched 20 registry indicators, 8
+  // were served, and ranks 2-20 were ALL tied at the same score, so the 12
+  // dropped were excluded by declaration order rather than relevance - with
+  // nothing in the response saying so. An agent concluded there was no
+  // tax_revenue_gdp indicator.
+  const { searchIndicators } = await import("../src/core/series.ts");
+  const ctx = { now: () => new Date("2026-08-16T00:00:00Z") } as any;
+  const out = await searchIndicators(ctx, "gdp", { includeDbnomics: false });
+  assert.ok(out.total_indicator_matches > 8, `expected >8 gdp matches, got ${out.total_indicator_matches}`);
+  assert.equal(out.truncated, true, "a capped result must say it was capped");
+  const indicators = out.results.filter((r: any) => r.type === "indicator");
+  assert.ok(indicators.length <= 8, `cap must hold, got ${indicators.length}`);
+
+  // An uncapped query must NOT claim truncation. Without this the flag could
+  // be hardcoded true and the test above would still pass.
+  const few = await searchIndicators(ctx, "nonsense_zzz_query", { includeDbnomics: false });
+  assert.equal(few.truncated, false, "an uncapped result must not claim truncation");
 });
 
 test("a country-free query is unaffected by the geography filter", async () => {
   const { searchIndicators } = await import("../src/core/series.ts");
   const ctx = { now: () => new Date("2026-08-16T00:00:00Z") } as any;
-  const ids = (await searchIndicators(ctx, "inflation")).map((r: any) => String(r.id));
+  const ids = (await searchIndicators(ctx, "inflation")).results.map((r: any) => String(r.id));
   assert.ok(ids.length > 0, "bare 'inflation' must still return results");
 });

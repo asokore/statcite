@@ -118,3 +118,39 @@ test("/mcp/ with trailing slash reaches the MCP handler", async () => {
   });
   assert.equal(res.status, 200);
 });
+
+test("an inverted year window is refused by name, before any upstream fetch", async () => {
+  // Live before this guard: start_year=2024&end_year=2015 ran the full fetch
+  // and failed with "No observations available in the requested window
+  // 2024-2015. Published data exists for 1967-2025, adjust the year range."
+  // while returning available_range 1967-2025, which CONTAINS both requested
+  // years. An agent checking its years against available_range got true and
+  // was sent to fix the wrong thing. On a multi-source indicator it burned
+  // the whole fallback chain first.
+  const { payload, isError } = await mcpTool("get_indicator", {
+    indicator: "inflation_cpi",
+    country: "Barbados",
+    start_year: 2024,
+    end_year: 2015,
+  });
+  assert.equal(isError, true, `expected refusal, got ${JSON.stringify(payload).slice(0, 200)}`);
+  const text = JSON.stringify(payload);
+  assert.match(text, /start_year/, "the error must name the inverted parameter");
+  assert.match(text, /end_year/, "the error must name both bounds");
+  assert.match(text, /[Ss]wap/, "the error must state the recovery, not just the symptom");
+  // The old message is the thing being fixed. If it comes back, this fails.
+  assert.doesNotMatch(text, /adjust the year range/, "must not fall through to the out-of-window message");
+});
+
+test("a correctly-ordered year window is untouched by the inversion guard", async () => {
+  // Without this the guard could reject every windowed request and the test
+  // above would still pass.
+  const { payload, isError } = await mcpTool("get_indicator", {
+    indicator: "inflation_cpi",
+    country: "Barbados",
+    start_year: 2015,
+    end_year: 2024,
+  });
+  assert.equal(isError, false, JSON.stringify(payload).slice(0, 200));
+  assert.ok(payload.observations.length > 0, "a valid window must still return data");
+});
