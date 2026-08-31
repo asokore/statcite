@@ -4,6 +4,10 @@
 
 [![CI](https://github.com/asokore/statcite/actions/workflows/ci.yml/badge.svg)](https://github.com/asokore/statcite/actions/workflows/ci.yml) · [Live status](https://statcite.com/v1/status) · [AI accuracy benchmark](https://statcite.com/bench.html) · [Licence ledger](https://statcite.com/sources.html)
 
+![StatCite catching a wrong statistic and citing the correction](docs/assets/statcite-demo.gif)
+
+*Every figure, verdict and citation above is real output from a live call, captured by `tools/make-demo-gif.py` at build time. A model recalling 98% is not a strawman: it was roughly right a few years earlier, which is exactly how stale recall sounds.*
+
 Free remote MCP server + REST API serving official economic statistics from the World Bank, IMF WEO and Fiscal Monitor (current vintage via the IMF DataMapper API, with a DBnomics fallback) and ECB reference rates, where **every number ships with its full citation**: source, dataset, series ID, canonical URL, licence, retrieval date, a ready-to-paste citation sentence, and BibTeX/APA export formats.
 
 The differentiator is **verification, not lookup**: `verify_stat` checks a claimed figure against the official series and returns `match / close / mismatch / cannot_verify` with diagnostics for the classic errors (wrong year, percent-vs-decimal, millions-vs-billions, sign flips). On a mismatch it re-judges the claim against the previous IMF vintage, so "was right when written, since revised" is never confused with "wrong". When the source cannot support a verdict, it says `cannot_verify` with the reason. It never guesses.

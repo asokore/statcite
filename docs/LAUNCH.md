@@ -20,7 +20,7 @@ Deployment runbook lives in ../HANDOFF.md. This file is the go-to-market sequenc
 
 ## T+4–10 (launch wave)
 
-- [ ] Record a 30–60s GIF: Claude catching a wrong stat via verify_stat and citing the correction (this GIF is the whole pitch)
+- [x] Record a 30–60s GIF: Claude catching a wrong stat via verify_stat and citing the correction (this GIF is the whole pitch). **Done 2026-08-31**: `docs/assets/statcite-demo.gif`, 32s, 1.3 MB, embedded at the top of README.md. Built by `tools/make-demo-gif.py`, which fetches the verify_stat response LIVE at build time and refuses to render if the verdict is no longer a mismatch, so the demo cannot drift into showing something the service does not do. The claim is US government debt at 98% of GDP in 2023 against an official 120%: a 22-point error, and realistic rather than a strawman, because 98% was roughly right a few years earlier. Re-run the script to refresh it after a data revision.
 - [ ] Show HN. Post from distribution/social-copy.md, morning US time, mid-week; stay online 4–6 hours answering every comment
 - [ ] r/mcp same day (different copy, same demo)
 - [ ] LinkedIn post (your professional network is unusually right for this product)
