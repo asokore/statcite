@@ -46,6 +46,12 @@ change, that is a finding, not a failure.
 From `MONETIZATION.md` Stage 1, any ONE of these firing means it is time to
 consider paid keys:
 
+- [ ] Search Console follow-ups (added 2026-08-29, the day the property was
+      verified): read Performance for the first real query list from ~31 Aug;
+      confirm the Data sets report flips from Invalid 6 to Valid 6 after Google
+      re-crawls; confirm Sitemaps "Last read" populates, since it showed
+      "Couldn't fetch" with an empty Last read minutes after submission, which
+      is the known pre-first-read placeholder
 - [ ] Sustained >5,000 requests/day
 - [ ] >500 GitHub stars
 - [ ] ≥3 inbound volume enquiries at hello@statcite.com
