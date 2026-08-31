@@ -60,3 +60,9 @@ caribstat/.publish/
 # (tools/eccb/capture.mjs). It is the publishers' material, not ours, and has
 # no place in a public repository. The VERIFIER is committed; its input is not.
 .capture/
+
+# Scratch probes written by audit/workflow agents into the repo tree. They are
+# temporary by construction and must never be committed: a blanket `git add -A`
+# swept two of them into a pushed commit on 2026-08-29.
+zz_*.ts
+zz_*.mjs
