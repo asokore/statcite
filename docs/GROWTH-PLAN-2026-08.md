@@ -30,6 +30,22 @@ it says so.
   pattern asokore.com showed). CHECK BACK in about a week: Sitemaps "Last
   read" should be populated and the homepage indexing state should move. Do
   not keep re-measuring crawl counts looking for this signal.
+- *First search impressions, 2026-08-29.* Google confirmed by email the same
+  day that it "started collecting Google Search impressions" for statcite.com,
+  meaning pages now appear in results for some queries. That is the first
+  search-visibility signal this property has ever produced, and it followed
+  within hours of verification, sitemap submission and the indexing request.
+  Performance data lags about two days, so the first real query list should be
+  readable from roughly 31 August.
+- *Dataset structured data, 2026-08-29.* Google immediately flagged the new
+  DataCatalog: "Missing field 'description'" (CRITICAL, 6 items) and "Missing
+  field 'license'" (non-critical, 6 items). Both were defects in markup added
+  the same morning, and both are fixed: every dataset now carries a description
+  and its OWN publisher's licence, taken from the live ledger. Re-validation
+  requested for the critical issue and confirmed Started. Note the harness
+  passed 124 checks while that markup was invalid, because it tested that
+  datasets existed rather than that they carried the fields Google requires; it
+  now tests the fields.
 - *AI-native confirmation stands.* Across every measured day, AI crawlers
   outnumber search engines except on the very quietest days (e.g. 611 vs 24 on
   22 Aug, 215 vs 48 on 26 Aug). Distribution effort belongs on agent surfaces,
