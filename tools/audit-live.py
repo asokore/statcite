@@ -402,6 +402,24 @@ def audit_discovery():
         if st2 != 200:
             bad.append(f"{url[:60]}:{st2}")
     check("disc", "datasets are publisher-attributed and every contentUrl resolves", not bad, "; ".join(bad)[:180])
+
+    # Google's Dataset schema, checked field by field. The harness passed
+    # 122/122 on 2026-08-29 while Search Console was reporting the markup as
+    # invalid, because it only checked that datasets EXISTED and that their
+    # URLs resolved. "Missing field 'description'" is CRITICAL: it stops the
+    # page appearing as a rich result at all, so a structural check that does
+    # not test the required fields is checking the wrong thing.
+    incomplete = []
+    for ds in dsets:
+        for field in ("name", "description", "license", "keywords"):
+            if not ds.get(field):
+                incomplete.append(f"{str(ds.get('name', '?'))[:28]}:{field}")
+    check("disc", "every dataset has name, description, license and keywords", not incomplete, "; ".join(incomplete)[:180])
+
+    # The licence must be the PUBLISHER's, never one blanket claim over six
+    # publishers' data. Distinct licences are the evidence of that.
+    licences = {str(ds.get("license") or "") for ds in dsets}
+    check("disc", "licences are per-publisher, not one blanket claim", len(licences) >= 5, f"{len(licences)} distinct across {len(dsets)} datasets")
     # The publication boundary applies to markup too: no person, no employer.
     lower = (blocks[0] if blocks else "").lower()
     check("disc", "JSON-LD names no person or ministry", "beckles" not in lower and "ministry" not in lower, "")
