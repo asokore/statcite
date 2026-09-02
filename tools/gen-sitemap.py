@@ -25,6 +25,7 @@ BASE = "https://statcite.com"
 ENTRIES = [
     ("/", "site/index.html"),
     ("/docs", "site/docs.html"),
+    ("/guide", "site/guide.html"),
     ("/bench", "site/bench.html"),
     ("/sources", "site/sources.html"),
     ("/privacy", "site/privacy.html"),

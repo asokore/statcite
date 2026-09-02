@@ -135,7 +135,7 @@ def audit_api():
 
 
 # ------------------------------------------------------------------ SEO/meta
-PAGES = ["/", "/docs", "/sources", "/bench", "/privacy", "/terms"]
+PAGES = ["/", "/docs", "/guide", "/sources", "/bench", "/privacy", "/terms"]
 
 
 def audit_seo():
@@ -275,6 +275,77 @@ def audit_consistency():
         if s2 >= 400:
             bad_ex.append(f"{e}:{s2}")
     check("claims", "/v1 index examples work", not bad_ex, "; ".join(bad_ex)[:180])
+
+    # ---- /guide prints real numbers, or it refutes itself.
+    #
+    # The page argues that a figure in a draft is a liability until you know
+    # where it came from. Every value it shows is a captured live response, so
+    # a drift between the page and the service turns the page into an example
+    # of the thing it warns about. Official values also legitimately CHANGE on
+    # revision, which is exactly why this is a standing check and not a
+    # one-time verification at authoring time.
+    st, _, guide = get("/guide")
+    if st != 200:
+        check("claims", "/guide loads", False, f"status {st}")
+    else:
+        drift = []
+
+        def guide_figure(path, expect, label):
+            """Assert the page PRINTS what the endpoint currently returns.
+
+            `expect` is (api_key, api_value, exact_page_fragment). The fragment
+            must be the rendered line, not the bare number: an earlier version
+            tested `str(value) in guide`, and "120" is also inside
+            `og:image:width content="1200"`, so rewriting the figure in the
+            worked example left the check green. A substring search over a
+            whole page is not a test of the value it names.
+            """
+            _, d = jget(path)
+            d = d or {}
+            for key, want, fragment in expect:
+                got = d.get(key)
+                if str(got) != str(want):
+                    drift.append(f"{label}.{key}: page says {want}, live says {got}")
+                elif fragment not in guide:
+                    drift.append(f"{label}.{key}: page no longer prints {fragment!r}")
+
+        guide_figure("/v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=8.0",
+                     [("official_value", "4.11633838374488", '"official_value": 4.11633838374488'),
+                      ("verdict", "mismatch", '"verdict": "mismatch"')], "wrong-year")
+        guide_figure("/v1/verify?indicator=govt_debt_gdp&country=USA&period=2023&value=98",
+                     [("official_value", "120", '"official_value": 120,'),
+                      ("verdict", "mismatch", '"verdict": "mismatch"')], "stale-recall")
+        guide_figure("/v1/verify?indicator=inflation_cpi&country=BRB&period=2024&value=1.45",
+                     [("verdict", "match", '"verdict": "match"'),
+                      ("official_value", "1.4464366430616", "1.4464")], "rounding")
+        # The revision-check figures are the point of that example.
+        _, rv = jget("/v1/verify?indicator=govt_debt_gdp&country=USA&period=2023&value=98")
+        rc = (rv or {}).get("revision_check") or {}
+        for key, fragment in [("previous_edition", '"previous_edition": "WEO 2025-10"'),
+                              ("previous_value", '"previous_value": 119.836')]:
+            val = str(rc.get(key))
+            if val not in fragment:
+                drift.append(f"revision.{key}: live says {val}, page prints {fragment!r}")
+            elif fragment not in guide:
+                drift.append(f"revision.{key}: page no longer prints {fragment!r}")
+        check("claims", "/guide figures match the live service", not drift, "; ".join(drift)[:200])
+
+        # Quoted verbatim, so a reworded upstream message must not be left
+        # sitting on the page inside quotation marks.
+        _, d = jget("/v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=8.0")
+        diag = " ".join((d or {}).get("diagnostics") or [])
+        quoted = "matches the 2022 figure (8.0028), the year may be misattributed"
+        check("claims", "/guide quotes the diagnostic verbatim",
+              quoted in diag and quoted in guide, "the quoted diagnostic no longer matches the API")
+
+        # The benchmark's own publication covenant: the three rates are never
+        # quoted apart from one another. A later edit that trims the sentence
+        # to just the flattering number would breach it silently.
+        plain = re.sub(r"<[^>]+>", " ", guide)
+        sentence = next((x for x in re.split(r"\.\s", plain) if "82.0%" in x), "")
+        check("claims", "/guide keeps the three benchmark rates in one sentence",
+              bool(sentence) and "15.5%" in sentence and "97.0%" in sentence,
+              "the accuracy figure has been separated from confabulation/answer rates")
 
 
 # ----------------------------------------------------------------- MCP surface
