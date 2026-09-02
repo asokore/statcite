@@ -155,6 +155,22 @@ test("plugin manifests stay in sync with the served server version and the real 
   assert.equal(plugin.version, SERVER_VERSION, ".claude-plugin/plugin.json version must match SERVER_VERSION");
   assert.equal(marketplace.plugins[0].version, SERVER_VERSION, "marketplace plugin entry version must match SERVER_VERSION");
 
+  // distribution/server.json is the MCP REGISTRY manifest, and it is the one
+  // consumers of the registry read. The publish workflow refuses to ship when
+  // it disagrees with SERVER_VERSION, but that fires only at publish time, so
+  // the 1.12.0 bump left it on 1.11.3 in the tree for days without anything
+  // going red. gemini-extension.json had the same gap.
+  const registryManifest = JSON.parse(readFileSync(new URL("../../distribution/server.json", import.meta.url), "utf8"));
+  assert.equal(registryManifest.version, SERVER_VERSION, "distribution/server.json version must match SERVER_VERSION");
+  const gemini = JSON.parse(readFileSync(new URL("../../gemini-extension.json", import.meta.url), "utf8"));
+  assert.equal(gemini.version, SERVER_VERSION, "gemini-extension.json version must match SERVER_VERSION");
+
+  // The registry caps the description at 100 characters and silently rejects
+  // longer ones, and this string is the single line every registry consumer
+  // sees before deciding whether to connect.
+  assert.ok(registryManifest.description.length <= 100,
+    `distribution/server.json description is ${registryManifest.description.length} chars, registry caps at 100`);
+
   // The plugin must point at the live remote endpoint, not a stdio command.
   assert.equal(plugin.mcpServers.statcite.type, "http");
   assert.equal(plugin.mcpServers.statcite.url, "https://statcite.com/mcp");
