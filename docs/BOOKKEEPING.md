@@ -72,12 +72,15 @@ consider paid keys:
       so a non-JS crawler can read it. Check the Data sets report still shows
       the six datasets valid, and whether /docs and /bench start appearing as
       separate impressions rather than the homepage alone.
-- [ ] Search Console follow-ups (added 2026-08-29, the day the property was
-      verified): read Performance for the first real query list from ~31 Aug;
-      confirm the Data sets report flips from Invalid 6 to Valid 6 after Google
-      re-crawls; confirm Sitemaps "Last read" populates, since it showed
-      "Couldn't fetch" with an empty Last read minutes after submission, which
-      is the known pre-first-read placeholder
+- [x] Search Console follow-ups (added 2026-08-29, **all three closed
+      2026-09-02**). Data sets: Invalid 0, "Missing field 'description'" shows
+      Validation **Passed**, and URL inspection reports **6 valid items
+      detected**. Sitemap: **Success**, last read 1 Sept, 9 pages discovered.
+      Performance: 9 impressions, 0 clicks, avg position 7.1, and the only
+      attributed query is `statcite` itself. Also confirmed: the page **is
+      indexed** per URL inspection, even though the aggregate Pages report
+      still reads "Indexed 0" with a 27 Aug stamp - that report lags, so use
+      URL inspection for the current answer, never the summary tile.
 - [ ] Sustained >5,000 requests/day
 - [ ] >500 GitHub stars
 - [ ] ≥3 inbound volume enquiries at hello@statcite.com
