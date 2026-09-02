@@ -46,6 +46,18 @@ change, that is a finding, not a failure.
 From `MONETIZATION.md` Stage 1, any ONE of these firing means it is time to
 consider paid keys:
 
+- [ ] Run the data-integrity check: `python tools/verify-against-source.py --full`.
+      This is the only thing that verifies the NUMBERS rather than the service
+      surface. Every unit test runs against recorded fixtures, so nothing else
+      would catch a value served from the wrong series, a stale one, or one
+      attributed to a publisher that does not carry it. It re-fetches each
+      series from the World Bank and IMF directly, resolving the upstream code
+      from StatCite's OWN citation, so it tests the real claim: that the number
+      is what the cited series actually contains. Expect ~85% coverage and 0
+      mismatches; investigate any mismatch before anything else on this list,
+      and treat a sudden drop in COVERAGE as a finding too, since a check that
+      silently stops comparing looks identical to one that passes.
+      First full run 2026-09-02: 215 verified, 0 mismatches.
 - [ ] **OWNER ACTION, Cloudflare dashboard.** Cloudflare returns 403 ("error
       code: 1010", Browser Integrity Check) to any client whose user-agent
       matches `Python-urllib/*` or `libwww-perl/*`, on EVERY path including
