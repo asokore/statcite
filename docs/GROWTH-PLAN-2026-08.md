@@ -37,6 +37,29 @@ it says so.
   within hours of verification, sitemap submission and the indexing request.
   Performance data lags about two days, so the first real query list should be
   readable from roughly 31 August.
+- *Indexing CONFIRMED, checked 2026-09-02.* URL inspection on
+  https://statcite.com/ reports "URL is on Google", "Page is indexed", served
+  over HTTPS, and **6 valid Data sets items detected**. That closes the
+  "Crawled - currently not indexed" problem that had stood since 25 July, and
+  it closes the Dataset structured-data defects flagged on 29 August: the
+  Data sets report shows Invalid 0 with "Missing field 'description'" marked
+  **Validation: Passed**, and the sitemap now reads Success, last read
+  1 September, 9 pages discovered (it was "Couldn't fetch" with an empty Last
+  read). Note the trap: the aggregate **Pages report still said "Indexed 0"**
+  with a last-update stamp of 27 August, because that report lags. The
+  per-URL inspection is the current answer and the aggregate is not. Reading
+  the summary tile alone would have produced a confident, wrong "still not
+  indexed".
+- *The discovery problem is now the REAL problem, 2026-09-02.* Three months of
+  Performance data: 9 impressions, **0 clicks**, average position 7.1, and
+  exactly one attributed query - `statcite`, the brand name itself. There is
+  no non-brand discovery at all. Being indexed was necessary and is now done;
+  it bought brand-name visibility and nothing else, and position 7.1 is weak
+  even for one's own name. Nobody is finding this service by searching for
+  what it DOES. The next lever is therefore on-domain content that can rank
+  for the questions the target audience actually types, not further technical
+  SEO: the technical surface is now clean (158 audit checks, structured data
+  on all six pages, sitemap with lastmod, llms.txt spec-conformant).
 - *Dataset structured data, 2026-08-29.* Google immediately flagged the new
   DataCatalog: "Missing field 'description'" (CRITICAL, 6 items) and "Missing
   field 'license'" (non-critical, 6 items). Both were defects in markup added

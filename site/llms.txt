@@ -15,6 +15,7 @@ Permitted, no permission needed: read, index, link, call from an agent, ground a
 ## Docs
 
 - [Full documentation](https://statcite.com/docs): tools, parameters, indicator registry, citation spec
+- [Verification guide](https://statcite.com/guide): how to check an economic statistic and cite it, the four failure modes with worked examples
 - [llms-full.txt](https://statcite.com/llms-full.txt): complete agent-readable reference
 - [OpenAPI spec](https://statcite.com/openapi.json): REST API machine spec
 

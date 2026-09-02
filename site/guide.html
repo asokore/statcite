@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to check an economic statistic before you publish it: StatCite</title>
+<meta name="description" content="A practical guide to verifying an economic statistic and citing it properly. The four ways a number goes wrong, how to check one by hand against the primary source, and how to do the same check in one API call. With worked examples on real World Bank and IMF data.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="canonical" href="https://statcite.com/guide">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="How to check an economic statistic before you publish it">
+<meta name="twitter:description" content="The four ways a number goes wrong, how to check one by hand, and how to do it in one call. Worked examples on real World Bank and IMF data.">
+<meta property="og:image" content="https://statcite.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="StatCite: economic statistics your AI can actually cite. Every number ships with its source, dataset, series id and licence.">
+<meta name="twitter:image" content="https://statcite.com/og.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta property="og:title" content="How to check an economic statistic before you publish it">
+<meta property="og:description" content="A practical guide to verifying an economic statistic and citing it properly, with worked examples on real World Bank and IMF data.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://statcite.com/guide">
+<style>
+:root{
+  --bg:#0b0f14;--bg2:#10161d;--card:#141c25;--line:#22303d;
+  --text:#dbe4ec;--dim:#8fa1b0;--faint:#6b7f8e;
+  --accent:#4cc38a;--accent2:#7cb8ff;--warn:#e5b567;--err:#e0716f;
+  --mono:ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6;font-size:16px}
+a{color:var(--accent2);text-decoration:none}
+a:hover{text-decoration:underline}
+p a,li a,td a{text-decoration:underline;text-underline-offset:2px}
+.wrap{max-width:1060px;margin:0 auto;padding:0 24px}
+nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0;border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px;color:var(--text)}
+nav .links{display:flex;gap:22px;font-size:14.5px;flex-wrap:wrap;row-gap:6px;justify-content:flex-end}
+nav .links a{color:var(--dim)}
+nav .links a:hover{color:var(--text);text-decoration:none}
+header{padding:56px 0 34px}
+.badge{display:inline-block;font-size:12.5px;font-family:var(--mono);color:var(--accent);border:1px solid #2a4a3a;background:#12241c;border-radius:20px;padding:3px 12px;margin-bottom:18px}
+h1{font-size:clamp(26px,4.5vw,40px);line-height:1.15;letter-spacing:-.02em;max-width:880px}
+.sub{margin-top:14px;font-size:17.5px;color:var(--dim);max-width:800px}
+section{padding:42px 0;border-top:1px solid var(--line)}
+h2{font-size:23px;letter-spacing:-.01em;margin-bottom:8px}
+h3{font-size:16.5px;margin:22px 0 6px}
+.lead{color:var(--dim);margin-bottom:20px;max-width:800px}
+p{max-width:800px}
+section p{color:var(--dim);font-size:15px;margin-bottom:12px}
+ol,ul{color:var(--dim);font-size:15px;max-width:800px;margin:0 0 14px 20px}
+li{margin-bottom:8px}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0 4px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-weight:600;font-size:13px}
+code{font-family:var(--mono);font-size:13.5px;background:var(--bg2);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+:not(pre) > code{overflow-wrap:anywhere;word-break:break-word}
+pre{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.55;margin:10px 0 14px;color:var(--text)}
+pre code{background:none;border:0;padding:0;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px}
+.card h3{font-size:15.5px;margin:0 0 6px;font-family:var(--mono);color:var(--accent)}
+.card p{font-size:14px;color:var(--dim);margin:0}
+.note{font-size:13px;color:var(--faint);max-width:800px;margin-top:8px}
+blockquote{border-left:3px solid var(--line);padding:6px 0 6px 18px;margin:14px 0;color:var(--dim);font-size:15.5px;max-width:760px}
+.verdict{font-family:var(--mono);font-size:12.5px;border-radius:5px;padding:2px 8px;font-weight:600}
+.v-bad{color:var(--err);border:1px solid #4a2a2a;background:#241416}
+.v-ok{color:var(--accent);border:1px solid #2a4a3a;background:#12241c}
+.toc{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 22px;margin-top:22px;max-width:800px}
+.toc ol{margin:8px 0 0 18px;font-size:14.5px}
+.toc li{margin-bottom:4px}
+.cta{margin-top:24px;display:flex;gap:12px;flex-wrap:wrap}
+.btn{display:inline-block;padding:11px 20px;border-radius:8px;font-weight:600;font-size:15px}
+.btn.primary{background:var(--accent);color:#08130d}
+.btn.primary:hover{filter:brightness(1.1);text-decoration:none}
+.btn.ghost{border:1px solid var(--line);color:var(--text)}
+.btn.ghost:hover{border-color:var(--faint);text-decoration:none}
+footer{border-top:1px solid var(--line);padding:32px 0 44px;color:var(--faint);font-size:13.5px}
+footer a{color:var(--dim)}
+.skip{position:absolute;left:-9999px;top:0;background:var(--accent);color:#08130d;padding:10px 18px;border-radius:0 0 8px 0;font-weight:600;z-index:10}
+.skip:focus{left:0;text-decoration:none}
+@media(max-width:640px){header{padding:40px 0 26px}table{display:block;overflow-x:auto}}
+</style>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "@id": "https://statcite.com/guide#article",
+ "name": "How to check an economic statistic before you publish it",
+ "headline": "How to check an economic statistic before you publish it",
+ "description": "A practical guide to verifying an economic statistic and citing it properly: the four ways a number goes wrong, how to check one by hand against the primary source, and how to run the same check in a single API call. Worked examples on real World Bank, IMF and Eastern Caribbean Central Bank data.",
+ "url": "https://statcite.com/guide",
+ "image": "https://statcite.com/og.png",
+ "datePublished": "2026-09-02",
+ "dateModified": "2026-09-02",
+ "inLanguage": "en",
+ "keywords": [
+  "fact-checking statistics",
+  "verify economic data",
+  "citing World Bank data",
+  "AI hallucination",
+  "data provenance"
+ ],
+ "author": {
+  "@type": "Organization",
+  "name": "StatCite",
+  "url": "https://statcite.com"
+ },
+ "publisher": {
+  "@type": "Organization",
+  "name": "StatCite",
+  "url": "https://statcite.com",
+  "logo": {
+   "@type": "ImageObject",
+   "url": "https://statcite.com/og.png"
+  }
+ },
+ "isPartOf": {
+  "@type": "WebSite",
+  "@id": "https://statcite.com/#website"
+ },
+ "mentions": [
+  {"@type": "Organization", "name": "World Bank"},
+  {"@type": "Organization", "name": "International Monetary Fund"},
+  {"@type": "Organization", "name": "Eastern Caribbean Central Bank"}
+ ]
+}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="wrap">
+  <nav>
+    <a class="logo" href="/">StatCite</a>
+    <div class="links">
+      <a href="/docs">Docs</a>
+      <a href="/sources">Sources</a>
+      <a href="/bench">Benchmark</a>
+      <a href="/#tools">Tools</a>
+      <a href="/#try">Try it</a>
+    </div>
+  </nav>
+
+  <header>
+    <div class="badge">guide</div>
+    <h1>How to check an economic statistic before you publish it</h1>
+    <p class="sub">A number in a draft is a liability until you know where it came from. This is the check itself: the four ways a figure goes wrong, how to run it by hand against the primary source, and how to run it in one call. Every example below is a real response from live official data, not an illustration.</p>
+    <div class="toc">
+      <strong style="font-size:14.5px">On this page</strong>
+      <ol>
+        <li><a href="#why">Why the old habit stopped working</a></li>
+        <li><a href="#four">The four ways a number goes wrong</a></li>
+        <li><a href="#byhand">Checking one by hand, in five steps</a></li>
+        <li><a href="#onecall">The same check in one call</a></li>
+        <li><a href="#absent">When the honest answer is "nobody publishes this"</a></li>
+        <li><a href="#cite">Citing it so a reader can reproduce it</a></li>
+        <li><a href="#checklist">The checklist</a></li>
+      </ol>
+    </div>
+  </header>
+
+  <main id="main">
+
+  <section id="why">
+    <h2>1. Why the old habit stopped working</h2>
+    <p>The old habit was to trust a number that sounded right, because a wrong one usually looked wrong. That stopped being true. A language model will produce a figure with the right magnitude, the right units and a plausible source attached, and be confidently wrong about it, because a number that fits the pattern of the training data is exactly what the model is built to produce.</p>
+    <p>We measured this rather than asserting it. In a pre-registered benchmark of six models across three vendors, answering 100 real economic-statistics questions from memory with no tools, the strongest model scored a Within-Tolerance Rate of 82.0%, a Confabulation Rate of 15.5% and an Answer Rate of 97.0%. Those three are quoted together here because the benchmark's own publication covenant requires it: an accuracy figure without the confabulation and answer rates beside it is misleading, since a model can raise one by declining to answer. The point is not the ranking. It is that the best result still means roughly one confidently-stated figure in six is outside tolerance, and nothing in the output marks which one.</p>
+    <p>Retrieval does not remove the problem either. A model that reads a page can still attach the number to the wrong year, or quote a revised figure against an old definition. The fix is not better recall. It is checking the specific claim against the specific series, and keeping the pointer that lets someone else repeat the check.</p>
+    <p class="note">Full method, pre-registration and raw outputs: <a href="/bench">the benchmark page</a>.</p>
+  </section>
+
+  <section id="four">
+    <h2>2. The four ways a number goes wrong</h2>
+    <p class="lead">Almost every wrong economic statistic in a published draft is one of these four. They are worth knowing by name, because each has a different tell and a different fix.</p>
+
+    <h3>Right number, wrong year</h3>
+    <p>The commonest one, and the hardest to spot, because the figure is genuine. It is simply attached to the wrong period. US consumer price inflation was 8.0% — in 2022. Claim it for 2023 and the check catches it:</p>
+    <pre><code>GET /v1/verify?indicator=inflation_cpi&amp;country=USA&amp;period=2023&amp;value=8.0
+
+"verdict": "mismatch",
+"official_value": 4.11633838374488,
+"diagnostics": [
+  "The claimed value matches the 2022 figure (8.0028), the year may be misattributed."
+]</code></pre>
+    <p>The diagnostic is the useful part. "Wrong" tells you to delete the sentence; "this is last year's figure" tells you to change one character.</p>
+
+    <h3>Stale recall: right once, revised since</h3>
+    <p>US general government gross debt was about 98% of GDP a few years ago, so a model stating 98% for 2023 is not inventing anything, it is remembering an older world. The official figure is 120%:</p>
+    <pre><code>GET /v1/verify?indicator=govt_debt_gdp&amp;country=USA&amp;period=2023&amp;value=98
+
+"verdict": "mismatch",
+"official_value": 120,
+"revision_check": {
+  "previous_edition": "WEO 2025-10",
+  "previous_value": 119.836,
+  "matches_previous_vintage": false
+}</code></pre>
+    <p>The revision check matters more than it looks. Official statistics are revised, so "wrong" and "was right when it was written" are different findings that deserve different corrections. Here the claim does not match the previous vintage either, so this is not a revision story — it is simply out of date by several years.</p>
+
+    <h3>Percent versus decimal</h3>
+    <p>A unit slip, usually introduced by a spreadsheet or a chart library rather than by a person. Barbados inflation in 2024 was 1.4464%, not 0.014:</p>
+    <pre><code>GET /v1/verify?indicator=inflation_cpi&amp;country=BRB&amp;period=2024&amp;value=0.014
+
+"verdict": "mismatch",
+"explanation": "Claimed 0.014 vs official 1.4464 % (annual average) for 2024,
+  materially different (difference of 1.43 percentage points (99.0% relative))."</code></pre>
+    <p>The same family includes millions read as billions, and index points read as percentages. Always check that the unit in the response is the unit in your sentence.</p>
+
+    <h3>Rounding, which is not an error</h3>
+    <p>A check that flags everything is a check nobody uses. Writing Barbados 2024 inflation as 1.45% is not wrong, it is rounded:</p>
+    <pre><code>GET /v1/verify?indicator=inflation_cpi&amp;country=BRB&amp;period=2024&amp;value=1.45
+
+"verdict": "match",
+"explanation": "... consistent (difference of 0.004 pp is within normal rounding)."</code></pre>
+    <p>Know which of the four you are looking at before you rewrite anything. Three of them mean the sentence is wrong. The fourth means it is fine.</p>
+  </section>
+
+  <section id="byhand">
+    <h2>3. Checking one by hand, in five steps</h2>
+    <p class="lead">You do not need this service to do this. If you take nothing else from the page, take these five steps, which are what any careful analyst does and what the API automates.</p>
+    <ol>
+      <li><strong>Name the series, not the topic.</strong> "Inflation" is not a series. "Consumer price inflation, annual average, %" is. Most disagreements about a number are actually two people quoting two different series correctly. Debt is the classic case: general government gross debt and central government debt are both real, both official, and different by a wide margin for the same country and year.</li>
+      <li><strong>Go to the publisher, not to an aggregator.</strong> The World Bank, the IMF, the relevant central bank or national statistics office. An aggregator inherits its provider's revisions on its own schedule, so it can be internally consistent and still behind.</li>
+      <li><strong>Match the period exactly.</strong> Calendar year or fiscal year, annual average or end of period, quarter or year. This is where the "right number, wrong year" error is born, and it is also where fiscal-year reporting quietly shifts a figure by a year.</li>
+      <li><strong>Check whether it is an outturn or a projection.</strong> IMF WEO tables carry projection years alongside actuals and they look identical in a table. Publishing a projection as a historical fact is a specific, avoidable error.</li>
+      <li><strong>Write down the series identifier and the retrieval date.</strong> Not the topic and not the URL of a chart. The series id and the date are what make the number reproducible after the next revision, and they are the difference between a citation and a gesture.</li>
+    </ol>
+    <p>That is the whole method. It takes a few minutes per figure, which is fine for one number and impossible for a draft with forty.</p>
+  </section>
+
+  <section id="onecall">
+    <h2>4. The same check in one call</h2>
+    <p class="lead">StatCite is those five steps as an API, free and without a key. Two ways to use it.</p>
+
+    <h3>From a script or a spreadsheet</h3>
+    <pre><code>curl "https://statcite.com/v1/verify?indicator=inflation_cpi&amp;country=BRB&amp;period=2024&amp;value=1.4"</code></pre>
+    <p>The response carries the verdict, the official value, the difference, diagnostics for the classic errors above, and a full citation. To check a whole draft at once, <code>POST /v1/verify_claims</code> takes up to 15 claims in one call and returns a verdict per claim; one bad claim never sinks the batch.</p>
+
+    <h3>From an AI assistant</h3>
+    <p>StatCite is an MCP server, so an assistant can run the check itself while it drafts, instead of you checking afterwards. There is no key and no signup:</p>
+    <pre><code>https://statcite.com/mcp</code></pre>
+    <p>In Claude Code the plugin is the better install, because it adds the verify-then-cite skill as well as the tools, which is what makes the model reach for the check before it publishes a number rather than only having the ability to:</p>
+    <pre><code>/plugin marketplace add asokore/statcite
+/plugin install statcite@statcite</code></pre>
+    <p>Connection instructions for Claude, ChatGPT, Cursor, VS Code, Gemini CLI and plain stdio are on <a href="/#connect">the home page</a>, and the full tool reference is in <a href="/docs">the docs</a>.</p>
+  </section>
+
+  <section id="absent">
+    <h2>5. When the honest answer is "nobody publishes this"</h2>
+    <p>A verification tool that always produces a number is worse than useless, because the one time it invents something is the time you will not catch it. Sometimes the correct answer is that the series does not exist for that country.</p>
+    <p>Anguilla is a real example. Ask the World Bank and IMF chain for its government debt and there is nothing to return — Anguilla is not a World Bank reporting economy and is absent from the IMF WEO payload for that series. The response says so rather than substituting a neighbour or an aggregate.</p>
+    <p>But the number does exist. It is published by the regional central bank, which is a different source with a different definition and its own units:</p>
+    <pre><code>GET /v1/series?id=caribstat/ECCB/total-public-sector-debt/AIA.a
+
+"name": "Total Public Sector Debt: Central Government Debt",
+"unit": "EC$M",
+"citation": "Eastern Caribbean Central Bank, Total Public Sector Debt,
+  Central Government Debt, Anguilla (annual), data as at 08 June 2026."</code></pre>
+    <p>Note what changed with the source: this is central government debt in millions of Eastern Caribbean dollars, not general government debt as a share of GDP. It answers a related question, not the same one, and saying so is the point. For several Eastern Caribbean series, including Anguilla and Montserrat, the regional central banks are the only citable machine-readable publisher there is — which is why StatCite carries them alongside the World Bank and the IMF. The full list, with each publisher's licence and the basis for it, is on <a href="/sources">the sources page</a>.</p>
+  </section>
+
+  <section id="cite">
+    <h2>6. Citing it so a reader can reproduce it</h2>
+    <p>A citation is not an acknowledgement, it is an instruction for repeating the measurement. It needs the publisher, the dataset, the series identifier and the date you retrieved it, because the value can legitimately change after you publish and the reader needs to know which vintage you saw.</p>
+    <p>Every StatCite response carries those fields, plus ready-made BibTeX and APA strings derived from the same fields, so the reference and the prose cannot drift apart:</p>
+    <pre><code>"citation": {
+  "source":       "International Monetary Fund",
+  "dataset":      "World Economic Outlook (April 2026)",
+  "series_id":    "imf/GGXWDG_NGDP",
+  "series_name":  "General government gross debt (% of GDP)",
+  "retrieved_at": "2026-08-31",
+  "export_formats": { "bibtex": "@misc{...}", "apa": "..." }
+}</code></pre>
+    <p>The figures belong to their publishers and carry the publishers' own licences, which each response names. Attribute the number to the publisher, never to StatCite. The <a href="/terms#reuse">reuse terms</a> set out the split.</p>
+  </section>
+
+  <section id="checklist">
+    <h2>7. The checklist</h2>
+    <p class="lead">For the last read-through before anything goes out.</p>
+    <ul>
+      <li>Every figure names its <strong>publisher</strong> and its <strong>series</strong>, not just its topic.</li>
+      <li>The <strong>period</strong> in the sentence matches the period of the observation, and you know whether it is annual average or end of period.</li>
+      <li>Projections are <strong>labelled as projections</strong>, never presented as outturns.</li>
+      <li>The <strong>unit</strong> in your sentence is the unit in the source: percent, percentage points, index, or currency, and the right order of magnitude.</li>
+      <li>Where two sources disagree you have said <strong>which definition</strong> you are using, rather than picking the number that suits the argument.</li>
+      <li>A figure with no published source is <strong>cut or attributed as an estimate</strong>, not rounded into confidence.</li>
+      <li>The <strong>retrieval date</strong> is recorded, so a later revision does not make you look wrong for something that was right when you wrote it.</li>
+    </ul>
+    <div class="cta">
+      <a class="btn primary" href="/#try">Try a verification</a>
+      <a class="btn ghost" href="/docs">Read the docs</a>
+      <a class="btn ghost" href="/bench">See the benchmark</a>
+    </div>
+  </section>
+
+  </main>
+
+  <footer>
+    <p>StatCite. Official economic statistics with full citations. <a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/sources">Sources</a> · <a href="/bench">Benchmark</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
+  </footer>
+</div>
+</body>
+</html>
