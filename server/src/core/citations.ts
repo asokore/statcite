@@ -23,6 +23,22 @@ export const FRED_NOTICE =
 export const IMF_LICENSE =
   "Published IMF statistical data may be copied, redistributed, and used (including in derivative works) with attribution to the IMF as source. Conditions: attribute as \"Source: International Monetary Fund, <database>, <link>\"; do not alter the data in ways affecting its accuracy, and state explicitly if it is materially transformed; anyone redistributing it downstream must take reasonable efforts to communicate these terms to their own users; and if sold as a standalone product, purchasers must be told the data is available free of charge from the IMF. Some statistical products incorporate third-party information under separate terms";
 
+/**
+ * The "retrieved via" clause, in one place.
+ *
+ * Every citation_text ends with this clause and the publisher's own URL. The
+ * link to statcite.com is here so a reader of a pasted citation can find the
+ * service that produced it; the publisher stays the cited source, named first
+ * and linked. Passing `through` names an intermediary the data actually came
+ * through (DBnomics, the IMF DataMapper API), because saying "via StatCite"
+ * alone there would understate the chain.
+ */
+export const STATCITE_URL = "https://statcite.com";
+export function retrievedVia(date: string, through?: string): string {
+  const chain = through ? `${through} and StatCite` : "StatCite";
+  return `Retrieved ${date} via ${chain} (${STATCITE_URL}).`;
+}
+
 /** Escape the BibTeX-special characters that actually occur in series names
  * (%, &, _, #, $). Braces are structural and never appear in our field data. */
 function bibtexEscape(s: string): string {
@@ -43,7 +59,7 @@ export function withExports(c: Citation): Citation {
     `  title = {{${bibtexEscape(c.dataset)}: ${bibtexEscape(c.series_name)}}},\n` +
     `  year = {${year}},\n` +
     `  url = {${c.source_url}},\n` +
-    `  note = {Series ${bibtexEscape(c.series_id)}. Retrieved ${c.retrieved_at} via StatCite. ${bibtexEscape(c.attribution)}}\n` +
+    `  note = {Series ${bibtexEscape(c.series_id)}. ${retrievedVia(c.retrieved_at)} ${bibtexEscape(c.attribution)}}\n` +
     `}`;
   const apa = `${c.source}. (n.d.). ${c.series_name} [Data set]. ${c.dataset}. Retrieved ${c.retrieved_at}, from ${c.source_url}`;
   return { ...c, export_formats: { bibtex, apa } };
@@ -68,7 +84,7 @@ export function worldBankCitation(
     retrieved_at: date,
     citation_text: `World Bank, World Development Indicators, series ${opts.indicatorId} (${opts.indicatorName})${
       opts.lastUpdated ? `, data last updated ${opts.lastUpdated}` : ""
-    }. Retrieved ${date} via StatCite. ${sourceUrl}`,
+    }. ${retrievedVia(date)} ${sourceUrl}`,
   });
 }
 
@@ -99,7 +115,7 @@ export function dbnomicsCitation(
       ? `Source: International Monetary Fund, ${opts.datasetName}, ${sourceUrl}`
       : `Source: ${opts.providerName} (via DBnomics)`,
     retrieved_at: date,
-    citation_text: `${opts.providerName}, ${opts.datasetName}, series ${opts.seriesCode} (${opts.seriesName}). Retrieved ${date} via DBnomics/StatCite. ${sourceUrl}`,
+    citation_text: `${opts.providerName}, ${opts.datasetName}, series ${opts.seriesCode} (${opts.seriesName}). ${retrievedVia(date, "DBnomics")} ${sourceUrl}`,
   });
 }
 
@@ -136,7 +152,7 @@ export function imfDataMapperCitation(
     // A bare "Source: IMF" omits the database and link the terms ask for.
     attribution: `Source: International Monetary Fund, ${opts.editionLabel}, ${opts.sourceUrl}`,
     retrieved_at: date,
-    citation_text: `International Monetary Fund, ${opts.editionLabel}${datasetSuffix}, ${opts.seriesName}, series ${opts.code}. Retrieved ${date} via the IMF DataMapper API/StatCite. ${opts.sourceUrl}`,
+    citation_text: `International Monetary Fund, ${opts.editionLabel}${datasetSuffix}, ${opts.seriesName}, series ${opts.code}. ${retrievedVia(date, "the IMF DataMapper API")} ${opts.sourceUrl}`,
     ...(opts.lastModified ? { notices: [`IMF data load timestamp: ${opts.lastModified} UTC.`] } : {}),
   });
 }
@@ -157,7 +173,7 @@ export function fredCitation(
     license: "FRED® API Terms of Use; check series page for third-party data owners",
     attribution: `Federal Reserve Bank of St. Louis, FRED series ${opts.seriesId}`,
     retrieved_at: date,
-    citation_text: `Federal Reserve Bank of St. Louis, FRED, series ${opts.seriesId} (${opts.seriesName}). Retrieved ${date} via StatCite. ${sourceUrl}`,
+    citation_text: `Federal Reserve Bank of St. Louis, FRED, series ${opts.seriesId} (${opts.seriesName}). ${retrievedVia(date)} ${sourceUrl}`,
     notices: [FRED_NOTICE],
   });
 }
@@ -175,7 +191,7 @@ export function ecbFxCitation(ctx: Ctx, opts: { base: string; quote: string; rat
     license: "ECB reference rates are published for information purposes; reuse with attribution",
     attribution: "Source: European Central Bank euro foreign exchange reference rates",
     retrieved_at: date,
-    citation_text: `European Central Bank, euro foreign exchange reference rates, ${opts.base}/${opts.quote} as of ${opts.rateDate} (via Frankfurter). Retrieved ${date} via StatCite. ${sourceUrl}`,
+    citation_text: `European Central Bank, euro foreign exchange reference rates, ${opts.base}/${opts.quote} as of ${opts.rateDate} (via Frankfurter). ${retrievedVia(date)} ${sourceUrl}`,
     notices: [
       "ECB reference rates are indicative and 'for information purposes'; they are not transaction rates.",
     ],
@@ -233,7 +249,7 @@ export function sdmxCitation(
             `Source: International Monetary Fund, ${dataset}, ${opts.sourceUrl}`
           : "Source: European Central Bank",
     retrieved_at: date,
-    citation_text: `${source}, ${dataset}, series ${opts.key} (${opts.seriesName}). Retrieved ${date} via StatCite. ${opts.sourceUrl}`,
+    citation_text: `${source}, ${dataset}, series ${opts.key} (${opts.seriesName}). ${retrievedVia(date)} ${opts.sourceUrl}`,
   });
 }
 
@@ -290,7 +306,7 @@ export function caribstatCitation(
     citation_text:
       `${opts.source}, ${opts.publicationTitle ?? opts.tableTitle}, ${opts.rowLabel}, ${opts.countryName} (${freqWord})` +
       (asAt ? `, data as at ${asAt}` : opts.publishedAt ? `, published ${opts.publishedAt}` : "") +
-      `. Retrieved ${date} via StatCite. ${opts.attachmentUrl ?? opts.sourceUrl}`,
+      `. ${retrievedVia(date)} ${opts.attachmentUrl ?? opts.sourceUrl}`,
     ...(asAt
       ? {
           notices: [
