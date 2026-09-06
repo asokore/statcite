@@ -14,6 +14,8 @@ Do it on the first working day of each month.
 # 1. Traffic sample (run for a few minutes during a busy hour; Workers
 #    observability retains only a few days, so this is a sample, not a total)
 cd server && npx wrangler tail --format pretty --search STATCITE_USAGE
+#    (captured nothing in 150s on 2026-09-05; prefer: node tools/analytics.mjs --days 7,
+#     which now prints the outcome mix per caller class)
 
 # 2. Is the service actually healthy right now
 curl -s https://statcite.com/v1/status | head -20
@@ -58,6 +60,22 @@ consider paid keys:
       and treat a sudden drop in COVERAGE as a finding too, since a check that
       silently stops comparing looks identical to one that passes.
       First full run 2026-09-02: 215 verified, 0 mismatches.
+- [ ] **OWNER ACTION, Smithery.** smithery.ai/servers/asokore-beckles/statcite is
+      serving a scan from early August: the old "World Bank, IMF WEO, ECB"
+      description, 10 of the 12 tools, and a get_series blurb that still
+      advertises the FRED path. The live tools/list is correct (12 tools, FRED
+      described as permanently disabled), so this is their cache. Sign in to
+      the Smithery dashboard and trigger a re-scan of the repo. Found
+      2026-09-05; the Chrome extension was down so it could not be done then.
+      The listings inventory URL is also stale: their path moved from
+      /server/ to /servers/ (the old one 308-redirects).
+- [ ] Measurement note, 2026-09-05: the documented traffic-sample command
+      `npx wrangler tail --format pretty --search STATCITE_USAGE` connected
+      and captured ZERO lines in 150 seconds at ~2 requests a minute, twice.
+      The GraphQL path in `tools/analytics.mjs` works and now prints the
+      outcome mix (2xx/4xx/5xx per caller class), so use that for the monthly
+      pass and treat the tail as unreliable until someone works out why it is
+      silent.
 - [ ] **OWNER ACTION, Cloudflare dashboard.** Cloudflare returns 403 ("error
       code: 1010", Browser Integrity Check) to any client whose user-agent
       matches `Python-urllib/*` or `libwww-perl/*`, on EVERY path including

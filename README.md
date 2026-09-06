@@ -2,13 +2,13 @@
 
 **Economic statistics your AI can actually cite, with a verifier that catches the ones it invents.**
 
-[![CI](https://github.com/asokore/statcite/actions/workflows/ci.yml/badge.svg)](https://github.com/asokore/statcite/actions/workflows/ci.yml) · [Live status](https://statcite.com/v1/status) · [AI accuracy benchmark](https://statcite.com/bench.html) · [Licence ledger](https://statcite.com/sources.html)
+[![CI](https://github.com/asokore/statcite/actions/workflows/ci.yml/badge.svg)](https://github.com/asokore/statcite/actions/workflows/ci.yml) · [Live status](https://statcite.com/v1/status) · [AI accuracy benchmark](https://statcite.com/bench) · [Licence ledger](https://statcite.com/sources) · [Verification guide](https://statcite.com/guide)
 
 ![StatCite catching a wrong statistic and citing the correction](docs/assets/statcite-demo.gif)
 
 *Every figure, verdict and citation above is real output from a live call, captured by `tools/make-demo-gif.py` at build time. A model recalling 98% is not a strawman: it was roughly right a few years earlier, which is exactly how stale recall sounds.*
 
-Free remote MCP server + REST API serving official economic statistics from the World Bank, IMF WEO and Fiscal Monitor (current vintage via the IMF DataMapper API, with a DBnomics fallback) and ECB reference rates, where **every number ships with its full citation**: source, dataset, series ID, canonical URL, licence, retrieval date, a ready-to-paste citation sentence, and BibTeX/APA export formats.
+Free remote MCP server + REST API serving official economic statistics from the World Bank, IMF WEO and Fiscal Monitor (current vintage via the IMF DataMapper API, with a DBnomics fallback), BIS policy rates, ECB reference rates, and two regional central banks (the Eastern Caribbean Central Bank and the Central Bank of Barbados, covering Anguilla and Montserrat, which the World Bank does not report), where **every number ships with its full citation**: source, dataset, series ID, canonical URL, licence, retrieval date, a ready-to-paste citation sentence, and BibTeX/APA export formats.
 
 The differentiator is **verification, not lookup**: `verify_stat` checks a claimed figure against the official series and returns `match / close / mismatch / cannot_verify` with diagnostics for the classic errors (wrong year, percent-vs-decimal, millions-vs-billions, sign flips). On a mismatch it re-judges the claim against the previous IMF vintage, so "was right when written, since revised" is never confused with "wrong". When the source cannot support a verdict, it says `cannot_verify` with the reason. It never guesses.
 
@@ -23,9 +23,9 @@ The differentiator is **verification, not lookup**: `verify_stat` checks a claim
 | Client | How |
 |---|---|
 | Claude (web/desktop) | Settings → Connectors → Add custom connector → `https://statcite.com/mcp` |
-| Claude Code | `claude mcp add --transport http statcite https://statcite.com/mcp` |
+| Claude Code | `/plugin marketplace add asokore/statcite` then `/plugin install statcite@statcite` (also installs the verify-then-cite skill), or just the server: `claude mcp add --transport http statcite https://statcite.com/mcp` |
 | Cursor | [**Install in Cursor**](cursor://anysphere.cursor-deeplink/mcp/install?name=statcite&config=eyJ1cmwiOiJodHRwczovL3N0YXRjaXRlLmNvbS9tY3AifQ==) (deeplink) or `{"mcpServers":{"statcite":{"url":"https://statcite.com/mcp"}}}` |
-| VS Code | `code --add-mcp '{"name":"statcite","type":"http","url":"https://statcite.com/mcp"}'` or `{"servers":{"statcite":{"type":"http","url":"https://statcite.com/mcp"}}}` |
+| VS Code | [**Install in VS Code**](https://vscode.dev/redirect/mcp/install?name=statcite&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fstatcite.com%2Fmcp%22%7D) · [Insiders](https://insiders.vscode.dev/redirect/mcp/install?name=statcite&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fstatcite.com%2Fmcp%22%7D&quality=insiders) · or `code --add-mcp '{"name":"statcite","type":"http","url":"https://statcite.com/mcp"}'` |
 | ChatGPT | Developer mode → add MCP server, No Authentication (implements the deep-research `search`/`fetch` pair) |
 | Cline / stdio-only | `npx -y mcp-remote@latest https://statcite.com/mcp` (see [llms-install.md](llms-install.md)) |
 
@@ -43,7 +43,7 @@ curl -X POST "https://statcite.com/v1/verify_claims" -H "content-type: applicati
 
 ## Tools
 
-`get_indicator` · `verify_stat` · `verify_claims` · `compare_sources` · `get_series` · `search_indicators` · `country_snapshot` · `inflation_adjust` · `fx_convert` · `list_sources` · `search` · `fetch`, plus 3 MCP prompts (`fact_check`, `country_brief`, `cite_this_stat`) and 3 resources (registry, licence ledger, SIDS list). 42 active curated indicators, 200+ economies, ~120 currencies. All read-only. Details: [docs](https://statcite.com/docs.html).
+`get_indicator` · `verify_stat` · `verify_claims` · `compare_sources` · `get_series` · `search_indicators` · `country_snapshot` · `inflation_adjust` · `fx_convert` · `list_sources` · `search` · `fetch`, plus 3 MCP prompts (`fact_check`, `country_brief`, `cite_this_stat`) and 3 resources (registry, licence ledger, SIDS list). 42 active curated indicators, 200+ economies, ~120 currencies. All read-only. Details: [docs](https://statcite.com/docs), and the [verification guide](https://statcite.com/guide) for the method.
 
 ## Repo layout
 
