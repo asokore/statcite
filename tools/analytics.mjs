@@ -240,6 +240,41 @@ if (callers.length) {
     console.log(`  ${String(n).padStart(6)}  ${classify(ua).padEnd(10)} ${ua}`);
   }
 
+  // Outcomes per caller class. The query has always returned the edge status
+  // next to the user-agent; until 2026-09-05 this tool discarded it, so it
+  // could say who called and never whether the call worked. A rising 4xx share
+  // among USER callers is the earliest retention signal there is, and a 5xx
+  // share above zero is an outage that the status page will not show because
+  // the status page probes upstreams, not our own handler.
+  const outcomes = {};
+  for (const r of mcp) {
+    const k = classify(r.dimensions.userAgent);
+    const st = Number(r.dimensions.edgeResponseStatus) || 0;
+    const band = st >= 500 ? "5xx" : st >= 400 ? "4xx" : st >= 200 ? "2xx" : "other";
+    outcomes[k] = outcomes[k] || { "2xx": 0, "4xx": 0, "5xx": 0, other: 0 };
+    outcomes[k][band] += r.count;
+  }
+  console.log(`\n  outcomes by caller class (edge status)`);
+  console.log(`  ${"class".padEnd(11)}${"2xx".padStart(7)}${"4xx".padStart(7)}${"5xx".padStart(7)}   4xx+5xx share`);
+  for (const [k, o] of Object.entries(outcomes).sort((a, b) => b[1]["2xx"] - a[1]["2xx"])) {
+    const n = o["2xx"] + o["4xx"] + o["5xx"] + o.other;
+    const bad = n ? (100 * (o["4xx"] + o["5xx"]) / n).toFixed(1) : "0.0";
+    console.log(`  ${k.padEnd(11)}${String(o["2xx"]).padStart(7)}${String(o["4xx"]).padStart(7)}${String(o["5xx"]).padStart(7)}   ${bad}%` +
+      (k === "user" && o["5xx"] > 0 ? "   <- users saw server errors" : ""));
+  }
+  // Which 4xx, specifically, for USER callers: a 405 is a client probing GET,
+  // a 400 is a malformed call, a 429 means we rate-limited a real person.
+  const userCodes = {};
+  for (const r of mcp) {
+    if (classify(r.dimensions.userAgent) !== "user") continue;
+    const st = Number(r.dimensions.edgeResponseStatus) || 0;
+    if (st >= 400) userCodes[st] = (userCodes[st] || 0) + r.count;
+  }
+  if (Object.keys(userCodes).length) {
+    console.log(`  user-class error codes: ` +
+      Object.entries(userCodes).sort((a, b) => b[1] - a[1]).map(([c, n]) => `${c}x${n}`).join("  "));
+  }
+
   // Crawl mix on the SITE paths, which is a different population from the /mcp
   // callers above and answers a different question: not "who uses this" but
   // "who can find it".
@@ -272,6 +307,7 @@ if (callers.length) {
       pageviews: daily.find((r) => r.dimensions.date === day)?.sum.pageViews ?? null,
       uniques: daily.find((r) => r.dimensions.date === day)?.uniq.uniques ?? null,
       mcp_total: total,
+      outcomes,
       mcp: buckets,
       crawl,
       crawl_agents: crawlAgents,
