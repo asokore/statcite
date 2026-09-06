@@ -70,3 +70,28 @@ test("period filtering and latest non-null", () => {
   assert.equal(filterPeriodRange(obs, "2020", undefined).length, 2);
   assert.equal(latestNonNull(obs)?.period, "2020");
 });
+
+test("every citation links back to statcite.com without displacing the publisher", async () => {
+  // ~3,000 citations a day leave the service and get pasted into documents.
+  // Each named StatCite in words and linked only the publisher, so nothing in
+  // a pasted citation led back here. The publisher must STAY first and keep
+  // its own link: this adds a pointer, it does not move the credit.
+  const cit = await import("../src/core/citations.ts");
+  const ctx = { now: () => new Date("2026-09-05T00:00:00Z"), baseUrl: "https://statcite.com" } as any;
+  const all = [
+    cit.worldBankCitation(ctx, { indicatorId: "FP.CPI.TOTL.ZG", indicatorName: "Inflation", iso3: "BRB" }),
+    cit.dbnomicsCitation(ctx, { providerName: "IMF", providerCode: "IMF", datasetCode: "WEO:2025-04", datasetName: "WEO", seriesCode: "BRB.NGDP_RPCH", seriesName: "GDP growth" } as any),
+    cit.imfDataMapperCitation(ctx, { code: "GGXWDG_NGDP", dataset: "WEO", seriesName: "Debt", editionLabel: "World Economic Outlook (April 2026)", sourceUrl: "https://www.imf.org/x", apiUrl: "https://www.imf.org/api" }),
+    cit.ecbFxCitation(ctx, { base: "USD", quote: "EUR", rateDate: "2026-09-04" }),
+    cit.sdmxCitation(ctx, { provider: "BIS", flow: "WS_CBPOL", key: "M.US", seriesName: "Policy rate", sourceUrl: "https://data.bis.org/x", apiUrl: "https://stats.bis.org/api" }),
+    cit.caribstatCitation(ctx, { source: "Eastern Caribbean Central Bank", sourceUrl: "https://www.eccb-centralbank.org/x", tableTitle: "Debt", rowLabel: "Central Government Debt", countryName: "Anguilla", frequency: "a", dataAsAt: "08 June 2026", apiUrl: "https://statcite.com/v1/series?id=x", seriesId: "caribstat/ECCB/x/AIA.a" }),
+  ];
+  for (const c of all) {
+    assert.match(c.citation_text, /via [^.]*StatCite \(https:\/\/statcite\.com\)\./, `${c.source}: citation_text must link statcite.com`);
+    assert.ok(c.citation_text.startsWith(c.source), `${c.source}: the publisher must come first`);
+    assert.ok(c.citation_text.endsWith(c.source_url) || c.citation_text.includes(c.source_url), `${c.source}: the publisher keeps its own link`);
+    assert.ok(c.citation_text.indexOf(c.source) < c.citation_text.indexOf("statcite.com"), `${c.source}: publisher before StatCite`);
+    assert.match(c.export_formats!.bibtex, /StatCite \(https:\/\/statcite\.com\)/, `${c.source}: bibtex note must link statcite.com`);
+    assert.match(c.export_formats!.bibtex, new RegExp("url = \\{" + c.source_url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${c.source}: bibtex url stays the publisher's`);
+  }
+});
