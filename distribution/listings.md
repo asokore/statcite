@@ -14,7 +14,7 @@ registry entry and stop.
 | 1 | Official MCP Registry | `io.github.asokore/statcite` | `cd distribution && ../.tools/mcp-publisher.exe login github` then `../.tools/mcp-publisher.exe publish` | No. Push per release | 2026-08-08 (v1.8.1); 2026-08-10 (v1.10.0 published, isLatest confirmed via API). NOTE: the registry JWT expires in well under an hour. Run `login github` immediately before `publish`, never earlier in the session |
 | 2 | GitHub repo | github.com/asokore/statcite | Push to main | n/a | continuous |
 | 3 | Claude Connectors Directory | claude.ai directory (community) | Admin portal → edit listing (editing an unpublished listing sends it back to review) | No | 2026-07-29 (published) |
-| 4 | Smithery | smithery.ai/server/asokore-beckles/statcite | Re-scan from repo | Partly | 2026-07-25 |
+| 4 | Smithery | smithery.ai/servers/asokore-beckles/statcite (path moved; /server/ 308-redirects) | Re-scan from repo | Partly | 2026-07-25 |
 | 5 | Glama | glama.ai/mcp/servers/asokore/statcite | Auto-scans repo; quality score updates itself | Yes | 2026-07-29 (scored A) |
 | 6 | Apify Store | apify.com actor `statcite` | `apify push` **then move the `latest` build tag** (see below) | No | 2026-08-05 (build 1.0.6+) |
 | 7 | mcpmarket | mcpmarket.com | Paid listing, edit in dashboard | No | 2026-07-26 |

@@ -50,6 +50,37 @@ it says so.
   per-URL inspection is the current answer and the aggregate is not. Reading
   the summary tile alone would have produced a confident, wrong "still not
   indexed".
+- *Usage review, 2026-09-05.* The MCP side has real traction and the website
+  side has none, and those are different problems. Claude-User calls to /mcp
+  went from about 1,000 a day on 8 August to **3,125 on 5 September**, tripling
+  in a month, with 61% of all MCP traffic now user-driven. The outcome mix for
+  user-class callers that day was 3,181 x 2xx, 7 x 4xx (all 405, a client
+  probing GET), 0 x 5xx: a 0.2% error share, so retention is not being lost to
+  failures. Pageviews stayed flat at ~140 a day and search-engine crawl at
+  5 to 48 pages a day, and the only attributed Google query is still the
+  brand name.
+- *The biggest organic channel was carrying nothing, fixed 2026-09-05.* Every
+  one of those ~3,000 daily responses ends its citation_text with "Retrieved
+  <date> via StatCite." and then links only the publisher. The words were
+  there and the link was not, so citations pasted into reports and papers led
+  nowhere. citation_text and the BibTeX note now read "via StatCite
+  (https://statcite.com)", built in one helper across all seven templates,
+  with the publisher still first and still carrying its own URL. That is the
+  standard form for a retrieval intermediary and the FAQ already said it was
+  appreciated. Verified live on the World Bank, IMF DataMapper and ECCB paths.
+- *Listings, checked 2026-09-05.* Glama auto-synced to 1.12.0, grade A.
+  Smithery is serving a month-old scan: old description, 10 of 12 tools, and
+  a get_series blurb that advertises the FRED path (the live tool description
+  says FRED is permanently disabled, so this is their cache, not our code).
+  Needs a rescan from their dashboard. PulseMCP is still not listed and their
+  submissions are still paused ("while we rework how we ingest"); nothing to
+  do but wait. The three directory PRs (docker/mcp-registry#4538,
+  awesome-mcp-servers#10881, awesome-remote-mcp-servers#527) are all
+  mergeable and clean and all awaiting their maintainers since July.
+- *Search Console not re-read, 2026-09-05.* The Chrome extension was down for
+  the whole session and the in-app browser has no Google session, so the
+  three-day-old impressions figures above are the latest. The 2 September
+  numbers stand.
 - *The discovery problem is now the REAL problem, 2026-09-02.* Three months of
   Performance data: 9 impressions, **0 clicks**, average position 7.1, and
   exactly one attributed query - `statcite`, the brand name itself. There is
