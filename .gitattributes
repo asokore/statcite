@@ -8,3 +8,19 @@
 # tracked hook exists to prevent.
 .githooks/* text eol=lf
 *.sh text eol=lf
+
+# Everything under site/ is served as bytes by Workers Static Assets, so the
+# checked-out line endings ARE the published line endings. With
+# core.autocrlf=true a plain checkout rewrote site/llms.txt to CRLF, the next
+# deploy shipped it, and every section name the reference llms.txt parser
+# returned carried a trailing "\r" again, three days after it had been fixed
+# by hand. A by-hand fix cannot survive a branch switch; this can.
+site/** text eol=lf
+# Images are bytes. The site/** text rule above must never touch them: the
+# first attempt at that rule staged og.png, favicon.ico and
+# apple-touch-icon.png as "modified", which is what a corrupting rewrite looks
+# like one step before it happens.
+site/**/*.png binary
+site/**/*.ico binary
+site/**/*.gif binary
+site/**/*.jpg binary
