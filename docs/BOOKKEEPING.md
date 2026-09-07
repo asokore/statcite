@@ -60,6 +60,14 @@ consider paid keys:
       and treat a sudden drop in COVERAGE as a finding too, since a check that
       silently stops comparing looks identical to one that passes.
       First full run 2026-09-02: 215 verified, 0 mismatches.
+- [ ] **OWNER ACTION, Claude Connectors Directory.** The listing at
+      claude.ai/directory/connectors/statcite still describes the sources as
+      "World Bank WDI, IMF WEO/Fiscal Monitor ... and ECB reference rates",
+      with no BIS and no Caribbean central banks, the same stale line fixed
+      everywhere else. Editing needs the admin portal, and the inventory notes
+      that editing sends the listing back to review, so do it once with the
+      current one-line description from distribution/server.json. Seen
+      2026-09-07 while verifying the homepage listings block.
 - [ ] **OWNER ACTION, Smithery.** smithery.ai/servers/asokore-beckles/statcite is
       serving a scan from early August: the old "World Bank, IMF WEO, ECB"
       description, 10 of the 12 tools, and a get_series blurb that still

@@ -50,6 +50,17 @@ it says so.
   per-URL inspection is the current answer and the aggregate is not. Reading
   the summary tile alone would have produced a confident, wrong "still not
   indexed".
+- *"Where StatCite is listed" on the homepage, 2026-09-07.* Seven independent
+  surfaces, each verified live the same day and each stated with the claim it
+  actually supports: the Claude Connectors Directory is a Community listing
+  under automated review ("aren't verified by Anthropic", in their words), the
+  official registry does no human review so it is "listed", and only Glama,
+  which runs its own quality scan, gets "scored". The audit now fetches every
+  link in that block on each run and checks the registry's isLatest version
+  against the served version, so the section cannot advertise a listing that
+  has gone or gone stale. The guard was mutation-tested against the live
+  origin by breaking one link; the first attempt reported a false green
+  because the page is cached for 300 seconds, which is recorded in memory.
 - *First directory backlink, 2026-09-07.* punkpeye/awesome-mcp-servers merged
   PR #10881 after six weeks open (verified on GitHub, not from the email:
   MERGED 04:02 UTC by punkpeye). The entry is live in their README with the

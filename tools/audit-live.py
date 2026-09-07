@@ -29,6 +29,15 @@ def get(path, headers=None, method="GET", timeout=45):
     url = path if path.startswith("http") else BASE + path
     req = urllib.request.Request(url, method=method)
     req.add_header("user-agent", UA)
+    # Read the ORIGIN, not the edge cache. HTML pages are served with
+    # max-age=300, so for five minutes after a deploy a plain fetch returns the
+    # previous version, and every page check here would pass against a page
+    # that is no longer deployed. On 2026-09-07 a deliberately broken listing
+    # link was live at the origin and this audit still reported it fine,
+    # because it was reading the cached copy. This audit's job is what is
+    # deployed; the cache is a separate concern with its own checks.
+    req.add_header("cache-control", "no-cache")
+    req.add_header("pragma", "no-cache")
     for k, v in (headers or {}).items():
         req.add_header(k, v)
     try:
@@ -723,6 +732,54 @@ def audit_crawlable():
     dead = [f for f in frags if f not in ids]
     check("crawl", "every /docs# link on the homepage hits a real anchor",
           bool(frags) and not dead, f"{len(frags)} links, dead: {dead}")
+
+    # "Where StatCite is listed" on the homepage names third-party surfaces.
+    # A listing that has gone, or that shows an older version than the
+    # service serves, turns a trust signal into a false claim on the one page
+    # that argues numbers should be checkable. So: every link resolves, and
+    # the registry entry flagged isLatest carries the served version.
+    st, _, home = get("/")
+    block = re.search(r'<div id="listings".*?</div>', home, re.S)
+    check("crawl", "homepage carries the listings block", bool(block), "missing")
+    if block:
+        links = re.findall(r'href="(https?://[^"]+)"', block.group(0))
+        dead = []
+        for u in links:
+            st_u, _, body_u = get(u, timeout=30)
+            # claude.ai answers scripted fetches with 403 (bot block), which is
+            # not "gone": the page renders in a browser. Only a 404/410/5xx or
+            # a transport failure counts as dead there.
+            if "claude.ai" in u:
+                ok = st_u in (200, 403)
+            elif re.fullmatch(r"https://github\.com/[^/]+/[^/]+/?", u) and "asokore/statcite" not in u:
+                # A repo landing page truncates a long README, so the entry at
+                # line ~2306 of awesome-mcp-servers never appears in the HTML
+                # and a body check reports a false red (2026-09-07). Check the
+                # raw README instead, which also proves the entry is really in
+                # the list rather than merely that the repo exists.
+                owner_repo = u.rstrip("/").split("github.com/")[1]
+                st_raw, _, raw = get(f"https://raw.githubusercontent.com/{owner_repo}/main/README.md", timeout=30)
+                ok = st_raw == 200 and "statcite" in raw.lower()
+            else:
+                # Status alone is not enough. Smithery returns 200 with a
+                # "not found" body for a server that does not exist (verified
+                # 2026-09-07), so a delisting would pass a status-only check.
+                # Every genuine listing page names the product; a soft-404
+                # does not.
+                ok = st_u == 200 and "statcite" in body_u.lower()
+            if not ok:
+                dead.append(f"{u.split('//')[1][:44]}:{st_u}{'' if st_u != 200 else ':no-name'}")
+        check("crawl", "every listing link resolves", links and not dead, "; ".join(dead)[:180])
+
+        st_r, reg = jget("/v1")
+        served = (reg or {}).get("version")
+        st_l, lst = jget("https://registry.modelcontextprotocol.io/v0/servers?search=statcite")
+        latest = None
+        for e in (lst or {}).get("servers", []):
+            meta = (e.get("_meta") or {}).get("io.modelcontextprotocol.registry/official") or {}
+            if meta.get("isLatest") and (e.get("server") or {}).get("name") == "io.github.asokore/statcite":
+                latest = (e.get("server") or {}).get("version")
+        check("crawl", "registry isLatest matches the served version", bool(served) and latest == served, f"registry={latest} served={served}")
 
     # The docs registry table drifted six keys behind the live registry and
     # contradicted the same page two sections earlier.
