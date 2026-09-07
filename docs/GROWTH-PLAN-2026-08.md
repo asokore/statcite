@@ -50,6 +50,16 @@ it says so.
   per-URL inspection is the current answer and the aggregate is not. Reading
   the summary tile alone would have produced a confident, wrong "still not
   indexed".
+- *First directory backlink, 2026-09-07.* punkpeye/awesome-mcp-servers merged
+  PR #10881 after six weeks open (verified on GitHub, not from the email:
+  MERGED 04:02 UTC by punkpeye). The entry is live in their README with the
+  Glama score badge. That list is one of the most-crawled MCP index pages, so
+  this is the first external link of any weight pointing at the repo, and it
+  arrived the same week the citation backlink shipped. The bot's follow-up
+  (list the remote at glama.ai/mcp/connectors) was already satisfied:
+  io.github.asokore/statcite is there at grade A with the current description.
+  Two PRs remain open and clean: docker/mcp-registry#4538 and
+  awesome-remote-mcp-servers#527.
 - *Usage review, 2026-09-05.* The MCP side has real traction and the website
   side has none, and those are different problems. Claude-User calls to /mcp
   went from about 1,000 a day on 8 August to **3,125 on 5 September**, tripling
