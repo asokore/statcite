@@ -15,13 +15,13 @@ registry entry and stop.
 | 2 | GitHub repo | github.com/asokore/statcite | Push to main | n/a | continuous |
 | 3 | Claude Connectors Directory | claude.ai directory (community) | Admin portal → edit listing (editing an unpublished listing sends it back to review) | No | 2026-07-29 (published) |
 | 4 | Smithery | smithery.ai/servers/asokore-beckles/statcite (path moved; /server/ 308-redirects) | Re-scan from repo | Partly | 2026-07-25 |
-| 5 | Glama | glama.ai/mcp/servers/asokore/statcite | Auto-scans repo; quality score updates itself | Yes | 2026-07-29 (scored A) |
+| 5 | Glama | glama.ai/mcp/servers/asokore/statcite and the remote-connectors directory at glama.ai/mcp/connectors/io.github.asokore/statcite | Auto-scans repo; quality score updates itself. Connectors entry is fed from the official registry | Yes | 2026-09-07 (both show 1.12.0, grade A, the current description) |
 | 6 | Apify Store | apify.com actor `statcite` | `apify push` **then move the `latest` build tag** (see below) | No | 2026-08-05 (build 1.0.6+) |
 | 7 | mcpmarket | mcpmarket.com | Paid listing, edit in dashboard | No | 2026-07-26 |
 | 8 | mcp.so | listing id `ea8b3345-51f0-4395-8d31-48cb2fc390b5` | Dashboard edit (their React form drops fast-typed characters, set values via JS native setter) | No | 2026-07-26 (queued review) |
 | 9 | PulseMCP | pulsemcp.com | **NOT LISTED as of 2026-08-15.** Submissions paused on their side, see note below | Yes | auto |
 | 10 | Docker MCP Catalog | PR docker/mcp-registry#4538 | PR (open, awaiting Docker review) | No | 2026-07-26 |
-| 11 | awesome-mcp-servers | PR #10881 | PR (open, Glama badge added per maintainer precondition) | No | 2026-07-26 |
+| 11 | awesome-mcp-servers | github.com/punkpeye/awesome-mcp-servers (Finance & Fintech, README line ~2306) | **MERGED 2026-09-07** by punkpeye. Entry carries the Glama score badge. Discord username sent to the bot for server-author flair | n/a | 2026-09-07 |
 | 12 | awesome-remote-mcp-servers | PR #527 | PR (open, clean) | No | 2026-07-26 |
 
 ## Checked 2026-08-15
