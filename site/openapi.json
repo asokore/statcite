@@ -1560,15 +1560,61 @@
             }
           }
         }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "invalid_parameter",
+                  "invalid_body",
+                  "invalid_request",
+                  "unknown_endpoint",
+                  "method_not_allowed",
+                  "unsupported_media_type",
+                  "unknown_indicator",
+                  "unknown_country",
+                  "no_published_data",
+                  "out_of_range",
+                  "data_gap",
+                  "primary_source_unavailable",
+                  "upstream_unavailable",
+                  "internal_error"
+                ],
+                "description": "Stable machine-readable code. Branch on this, not on the message."
+              },
+              "message": {
+                "type": "string",
+                "description": "What went wrong and what to do instead, written for a person or an agent."
+              },
+              "details": {
+                "type": "object",
+                "additionalProperties": true,
+                "description": "Structured context, e.g. suggestions, available_range, no_published_data, related_series."
+              }
+            }
+          }
+        }
       }
     },
     "responses": {
       "BadRequest": {
-        "description": "Malformed or missing query parameter. The message names the parameter.",
+        "description": "Malformed, missing, unknown or repeated query parameter. The message names the parameter and lists what the route accepts.",
         "content": {
           "application/json": {
             "schema": {
-              "type": "object"
+              "$ref": "#/components/schemas/Error"
             }
           }
         }
@@ -1578,7 +1624,7 @@
         "content": {
           "application/json": {
             "schema": {
-              "type": "object"
+              "$ref": "#/components/schemas/Error"
             }
           }
         }
@@ -1588,7 +1634,7 @@
         "content": {
           "application/json": {
             "schema": {
-              "type": "object"
+              "$ref": "#/components/schemas/Error"
             }
           }
         }
@@ -1598,7 +1644,7 @@
         "content": {
           "application/json": {
             "schema": {
-              "type": "object"
+              "$ref": "#/components/schemas/Error"
             }
           }
         }

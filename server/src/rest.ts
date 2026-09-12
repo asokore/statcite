@@ -2,7 +2,7 @@
 // spreadsheets, notebooks, and Custom GPT Actions (see /openapi.json).
 
 import type { Ctx } from "./core/types.ts";
-import { ToolError } from "./core/types.ts";
+import { ToolError, toolErrorCode, type ErrorCode } from "./core/types.ts";
 import { UpstreamError, fetchJson, isMemCached } from "./core/upstream.ts";
 import { getIndicator, getSeries, searchIndicators, listRegistry, compareSources } from "./core/series.ts";
 import { countrySnapshot } from "./core/snapshot.ts";
@@ -37,8 +37,21 @@ function json(status: number, body: unknown, cacheSeconds = 3600): Response {
   });
 }
 
-function errJson(status: number, message: string, details?: unknown): Response {
-  return json(status, { error: { message, ...(details !== undefined ? { details } : {}) } });
+const STATUS_CODE: Record<number, ErrorCode> = {
+  400: "invalid_parameter",
+  404: "unknown_endpoint",
+  405: "method_not_allowed",
+  415: "unsupported_media_type",
+  422: "invalid_request",
+  502: "upstream_unavailable",
+  500: "internal_error",
+};
+
+/** Error envelope: { error: { code, message, details? } }. `code` is from the
+ * closed ERROR_CODES list, so a client can branch without parsing the prose. */
+function errJson(status: number, message: string, details?: unknown, code?: ErrorCode): Response {
+  const c = code ?? STATUS_CODE[status] ?? "invalid_request";
+  return json(status, { error: { code: c, message, ...(details !== undefined ? { details } : {}) } });
 }
 
 /** A 405 that names the methods it will accept, as RFC 9110 requires. */
@@ -469,7 +482,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
     return errJson(404, `Unknown endpoint '${path}'. See ${ctx.baseUrl}/v1 for the endpoint list.`);
   } catch (e) {
     if (e instanceof ParamError) return errJson(400, e.message);
-    if (e instanceof ToolError) return errJson(422, e.message, e.details);
+    if (e instanceof ToolError) return errJson(422, e.message, e.details, toolErrorCode(e));
     if (e instanceof UpstreamError) return errJson(502, `Upstream data source problem: ${e.message}`, { upstream_url: e.url });
     // Log the closed-set op name, not the raw path: /v1/snapshot/{country}
     // carries arbitrary user text in the path segment, and privacy.html
@@ -495,10 +508,10 @@ async function verifyClaimsRoute(request: Request, ctx: Ctx): Promise<Response> 
   try {
     body = await request.json();
   } catch {
-    return errJson(422, 'Malformed JSON body. Send: { "claims": [{ "indicator": ..., "country": ..., "period": ..., "claimed_value": ... }] }.');
+    return errJson(422, 'Malformed JSON body. Send: { "claims": [{ "indicator": ..., "country": ..., "period": ..., "claimed_value": ... }] }.', undefined, "invalid_body");
   }
   if (body === null || typeof body !== "object" || Array.isArray(body)) {
-    return errJson(422, 'Body must be a JSON object with a \'claims\' array — wrap the claims as { "claims": [...] }.');
+    return errJson(422, 'Body must be a JSON object with a \'claims\' array — wrap the claims as { "claims": [...] }.', undefined, "invalid_body");
   }
   const b = body as Record<string, unknown>;
   // The same refusal the claim objects and the GET routes apply. A dropped
@@ -513,6 +526,7 @@ async function verifyClaimsRoute(request: Request, ctx: Ctx): Promise<Response> 
         (unknownTop.length > 1 ? ` Also unknown: ${unknownTop.slice(1).join(", ")}.` : "") +
         " The body accepts: claims, strict_source. Per-claim settings such as tolerance_abs go inside each claim object.",
       { unknown_keys: unknownTop, accepted_keys: BODY_KEYS },
+      "invalid_body",
     );
   }
   if (b.strict_source !== undefined && typeof b.strict_source !== "boolean") {
@@ -521,7 +535,7 @@ async function verifyClaimsRoute(request: Request, ctx: Ctx): Promise<Response> 
   try {
     return json(200, await runVerifyClaims(ctx, b.claims, b.strict_source === true), 0);
   } catch (e) {
-    if (e instanceof ToolError) return errJson(422, e.message, e.details);
+    if (e instanceof ToolError) return errJson(422, e.message, e.details, toolErrorCode(e));
     if (e instanceof UpstreamError) return errJson(502, `Upstream data source problem: ${e.message}`, { upstream_url: e.url });
     console.error("rest crash", "/v1/verify_claims", e);
     return errJson(500, "Internal error. Please retry; if persistent, report an issue.");

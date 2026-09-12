@@ -185,6 +185,7 @@ function parseClaims(raw: unknown): ClaimSpec[] {
           (unknown.length > 1 ? ` Also unknown: ${unknown.slice(1).join(", ")}.` : "") +
           ` Accepted keys: ${CLAIM_KEYS.join(", ")}. Keys are refused rather than ignored, because a dropped tolerance silently changes the verdict.`,
         { claim_index: i, unknown_keys: unknown, accepted_keys: CLAIM_KEYS },
+        "invalid_parameter",
       );
     }
     const claim: ClaimSpec = {
@@ -780,6 +781,7 @@ export function checkToolArgs(tool: ToolDef, args: unknown): void {
           ` Accepted: ${names.length ? names.join(", ") : "no arguments"}.` +
           " Arguments are refused rather than ignored, because a dropped tolerance or flag silently changes the answer.",
         { unknown_arguments: unknown, accepted_arguments: names },
+        "invalid_parameter",
       );
     }
   }
@@ -788,6 +790,7 @@ export function checkToolArgs(tool: ToolDef, args: unknown): void {
       throw new ToolError(
         `Argument '${k}' for ${tool.name} must be a JSON boolean, true or false, not ${JSON.stringify(a[k])}.`,
         { argument: k, received: a[k] },
+        "invalid_parameter",
       );
     }
   }

@@ -122,14 +122,50 @@ export interface IndicatorDef {
   notes?: string;
 }
 
+/** Every error code StatCite returns. A closed list, documented in
+ * openapi.json components.schemas.Error, and asserted equal to it by a test. */
+export const ERROR_CODES = [
+  "invalid_parameter",
+  "invalid_body",
+  "invalid_request",
+  "unknown_endpoint",
+  "method_not_allowed",
+  "unsupported_media_type",
+  "unknown_indicator",
+  "unknown_country",
+  "no_published_data",
+  "out_of_range",
+  "data_gap",
+  "primary_source_unavailable",
+  "upstream_unavailable",
+  "internal_error",
+] as const;
+export type ErrorCode = (typeof ERROR_CODES)[number];
+
 /** Error meant to surface to the calling agent as a helpful tool error (not a crash). */
 export class ToolError extends Error {
   details?: Record<string, unknown>;
-  constructor(message: string, details?: Record<string, unknown>) {
+  code?: ErrorCode;
+  constructor(message: string, details?: Record<string, unknown>, code?: ErrorCode) {
     super(message);
     this.name = "ToolError";
     this.details = details;
+    this.code = code;
   }
+}
+
+/** The code for a ToolError: set explicitly where the thrower knows it, else
+ * read from the honest-absence details every data path already emits. */
+export function toolErrorCode(e: ToolError): ErrorCode {
+  if (e.code) return e.code;
+  const d = (e.details ?? {}) as Record<string, unknown>;
+  if (d.unknown_indicator === true) return "unknown_indicator";
+  if (d.unknown_country === true) return "unknown_country";
+  if (d.gap_in_published_range === true) return "data_gap";
+  if (d.no_published_data === true) return "no_published_data";
+  if (d.available_range) return "out_of_range";
+  if (d.strict_source === true) return "primary_source_unavailable";
+  return "invalid_request";
 }
 
 export function nowIso(ctx: Ctx): string {
