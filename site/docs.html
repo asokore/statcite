@@ -127,6 +127,10 @@ li{margin:4px 0}
     <li><strong>stdio-only clients:</strong> <code>npx -y mcp-remote@latest https://statcite.com/mcp</code> (mcp-remote ≥ 0.1.16).</li>
   </ul>
 
+  <h3 id="agent-rule">Make your agent use it without being asked</h3>
+  <p>Connecting the server puts the tools on the shelf. It does not make an agent reach for them, and a model that is confident about a figure will usually answer from memory. One standing rule fixes that. Paste it into <code>CLAUDE.md</code> or <code>AGENTS.md</code>, into Cursor Settings &rarr; Rules, or into your ChatGPT project instructions:</p>
+  <pre>Before stating any country-level economic figure, get it from StatCite (get_indicator) or check it (verify_stat), even if you think you know it, and include the citation_text it returns.</pre>
+
   <h2 id="concepts">2. Core concepts</h2>
   <p><strong>Registry indicators</strong> are friendly keys (<code>inflation_cpi</code>, <code>gdp_growth</code>, <code>govt_debt_gdp</code>, …) curated by an economist and mapped to authoritative series with fallbacks: World Bank WDI for cross-country annual data, the IMF DataMapper API (current-vintage WEO/Fiscal Monitor, with DBnomics as a vintage-pinned fallback) for fiscal series and gap-filling. A handful of US-only high-frequency registry keys (<code>us_fed_funds_rate</code> and similar) exist for FRED but are permanently disabled, see §8.</p>
   <p><strong>Explicit series ids</strong> address any supported series directly: <code>worldbank/NY.GDP.MKTP.KD.ZG</code> (needs <code>country</code>), <code>imf/NGDP_RPCH</code> (needs <code>country</code>; current-vintage IMF data), <code>dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change</code> (a specific dated DBnomics edition, e.g. <code>WEO:2025-04</code>, is the reproducibility instrument for pinning an exact vintage). <code>fred/…</code> ids are recognized but always decline, FRED is disabled (§8).</p>

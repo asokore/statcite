@@ -5,6 +5,90 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.12.1
+
+Three correctness fixes, a change to what agents are told, and the housekeeping
+that makes the version honest.
+
+**The country resolver no longer serves one country's statistics for another.**
+Verified live before the fix: "American Samoa" was served Samoa's figures and
+"Northern Ireland" was served Ireland's, each under a real citation. For a
+service whose product is numbers you can cite, a wrong country is worse than no
+answer. Two causes. American Samoa and the US Virgin Islands were missing from
+the country list, so their names fell through to a substring match and landed
+on a different economy that shares a word. And that substring match accepted
+any input containing a known name, which is how "Northern Ireland" found
+"Ireland". It now accepts the extra words only when every one is a same-state
+qualifier such as "republic of", so "Republic of Ireland" still works and a
+modifier naming a different place refuses instead. A bare "Virgin Islands",
+which names both the US and the British territory, now refuses with suggestions
+rather than guessing. All 245 official country names were re-checked and each
+still resolves to itself.
+
+**A misspelled tolerance in verify_claims no longer turns a mismatch into a
+match.** 1.12.0 made GET /v1/verify refuse unknown query-parameter names for
+exactly this reason, but the batch path was never given the same check: a claim
+carrying "tolerence_abs" was dropped, the lenient default applied, and a strict
+check came back as a pass. Claim objects now refuse unknown keys with a
+suggestion for the one you meant, on both the REST route and the MCP tool.
+
+**Series ids now work the way the service describes them.** search_indicators
+told agents to call get_series(id=...), but the tool's parameter is series_id,
+so following the instruction failed, and it failed on the Caribbean path in
+particular. get_series also never mentioned that it accepts caribstat/ ids. And
+the ids that policy_rate and euro_area_hicp return, beginning bis/ and ecb/,
+were rejected with a bare error when passed back in. Those now name the call
+that does serve them.
+
+**Agents are now told when to call StatCite, not only how.** The instructions
+served on every connection used to describe the tools and stop there. A model
+that is confident about a number answers from memory, and recalled statistics
+are routinely a vintage out of date or attached to the wrong year, so a server
+that only explains itself is called when the model happens to think of it. The
+instructions now lead with the case for calling: call StatCite whenever an
+answer states or relies on a country-level economic figure, do it even for
+figures you believe you already know, prefer it over web search for these
+figures, and do not use it for company financials, stock or crypto prices,
+commodity prices, or subnational and city data. They also name the sources,
+including the two regional central banks, so an agent asked about Anguilla or
+Montserrat learns that the figure it wants is here. That boundary was checked
+against the live registry before it was written, so it excludes nothing the
+server serves. The get_indicator and verify_stat descriptions carry the same
+guidance, because not every client surfaces server instructions. A test now
+asserts each clause by name, replacing a check that only required the
+instructions to be longer than 50 characters.
+
+**Every citation links back to statcite.com.** Shipped to production on
+5 September and dated here. citation_text and the BibTeX note now end
+"Retrieved <date> via StatCite (https://statcite.com).", and where data came
+through an intermediary the chain is named, as in "via the IMF DataMapper API
+and StatCite". The publisher is still named first and keeps its own URL. No
+values, verdicts or response schema changed.
+
+**Also in this release**
+
+- A one-sentence rule users can paste into CLAUDE.md, AGENTS.md, Cursor Rules
+  or ChatGPT project instructions so their agent calls StatCite unprompted,
+  published in the README and at /docs#agent-rule.
+- The Eastern Caribbean Central Bank and the Central Bank of Barbados are named
+  on every agent-facing surface: the Gemini CLI extension, GEMINI.md and the
+  skill. The ledger has served both for weeks and these surfaces had not caught
+  up, the second time this list drifted, so a test now holds them to it.
+- The README's Cursor install button used a cursor:// link, which GitHub
+  strips, so it rendered as plain text. It now uses the https install route in
+  the same format Exa's official server ships, and a test fails on any README
+  link scheme GitHub would strip.
+- The homepage lists where StatCite is independently listed, and the live audit
+  re-checks every one of those links on each run.
+- Everything served from site/ is pinned to LF line endings, after a branch
+  switch reintroduced CRLF into llms.txt.
+- A data-integrity check re-derives served values from the World Bank and IMF
+  directly, resolving each series from StatCite's own citation. First full run:
+  215 verified, 0 mismatches.
+- SECURITY.md said production always runs the latest tagged release, which had
+  stopped being true. It now says production runs the latest version recorded
+  here, which /v1/status reports.
+
 ## 1.12.0
 
 A 34-agent adversarial sweep of the live service found 30 confirmed defects.

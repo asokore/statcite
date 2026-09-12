@@ -191,7 +191,7 @@ fetch); LAUNCH.md checkboxes have drifted from reality.
    (https://rapidclaw.dev/blog/mcp-servers-dead-what-it-means-2026).
 6. **Licence ledger as product surface**: per-source licence name, verdict,
    verbatim quote, terms URL, verified-on date, exposed via list_sources,
-   /v1/sources and a public page, including refused sources (FRED, ECCB, CBB,
+   /v1/sources and a public page, including refused sources (FRED,
    UN Comtrade). Gates all later source additions; pre-answers DPG/grant
    diligence (https://www.digitalpublicgoods.net/standard).
 7. **Verification depth** (the moat): unit/scale advisory notes on verify
@@ -309,9 +309,10 @@ fetch); LAUNCH.md checkboxes have drifted from reality.
 - Any Run 2 number before the vendor preview window passes.
 - Free-text paste-a-claim demo / NLP claim extraction in the Worker (the
   structured /try page + fact_check prompt are the compliant forms).
-- CaribStat / any ECCB or CBB ingestion (terms + unattended-operation).
-- The Caribbean fiscal/SOE monitor (operator clearance gate; depends on
-  blocked CaribStat).
+- CaribStat as a separate standalone product (ECCB and CBB values themselves
+  are served under their licence-ledger entries, see /sources).
+- The Caribbean fiscal/SOE monitor (depends on the separate CaribStat
+  product, out of scope here).
 - FRED in any form (ToU: AI/ML use and redistribution prohibited).
 - UN Comtrade even "just the free tier" (for-profit trigger is the
   application itself).

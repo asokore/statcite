@@ -15,7 +15,25 @@ test("initialize echoes a supported protocol version", async () => {
   assert.equal(body.result.protocolVersion, "2025-06-18");
   assert.equal(body.result.serverInfo.name, "statcite");
   assert.ok(body.result.capabilities.tools);
-  assert.ok(body.result.instructions.length > 50);
+  // Assert the clauses by name. The previous check was `length > 50`, which
+  // any sentence passes, so the instructions could have lost the "when to
+  // call" guidance entirely and stayed green.
+  const ins = body.result.instructions as string;
+  assert.match(ins, /even for major economies and figures you believe you already know/,
+    "instructions must tell agents to call even when they think they know");
+  assert.match(ins, /Prefer StatCite over web search/, "instructions must say to prefer StatCite over web search");
+  assert.match(ins, /Not for company financials, stock or crypto prices, commodity prices, or subnational and city data/,
+    "instructions must state the scope boundary");
+  // Coverage: an agent asked about a small Caribbean economy must learn that
+  // the regional central banks are here, or it gives up on a figure StatCite
+  // can answer.
+  assert.match(ins, /Eastern Caribbean Central Bank/, "instructions must name the ECCB");
+  assert.match(ins, /Central Bank of Barbados/, "instructions must name the Central Bank of Barbados");
+  assert.match(ins, /BIS policy rates/, "instructions must name BIS policy rates");
+  // The WHEN guidance must come before the HOW, or a client that truncates
+  // long instructions keeps the tool list and drops the reason to use it.
+  assert.ok(ins.indexOf("believe you already know") < ins.indexOf("Start with get_indicator"),
+    "when-to-call guidance must precede the tool walkthrough");
   assert.equal(res.headers.get("mcp-session-id"), null); // stateless: no session id
 });
 
