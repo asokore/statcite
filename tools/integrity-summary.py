@@ -25,6 +25,9 @@ def main(path):
     print("|---|---|---|---|---|---|")
     print(f"| {d['checked_at']} | {d['ok']} | {d['skipped']} | {d['coverage_pct']}% "
           f"| {len(d['mismatches'])} | {d['network_fault']} |")
+    if d.get("stopped_early"):
+        print()
+        print(f"Stopped early: {d['stopped_early']}. This is a network or runner fault, not a data finding.")
     for m in d["mismatches"]:
         print(f"- MISMATCH {m[1]} {m[2]}: {m[3]}")
     if d.get("skip_reasons"):

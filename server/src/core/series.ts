@@ -1,7 +1,7 @@
 // Series orchestration: friendly indicators with source fallback, raw series ids,
 // and cross-source search.
 
-import type { Citation, Ctx, IndicatorDef, Observation, SeriesResult } from "./types.ts";
+import type { Citation, Ctx, ErrorCode, IndicatorDef, Observation, SeriesResult } from "./types.ts";
 import { ToolError } from "./types.ts";
 import { integratedTerritoryNote, INTEGRATED_TERRITORIES, resolveCountry, suggestCountries, type Country } from "./countries.ts";
 import { getIndicatorDef, searchIndicatorDefs, INDICATORS } from "./indicators.ts";
@@ -13,7 +13,7 @@ import { fetchDataMapperSeries, fetchDataMapperMetadata, computeBoundaryYear, pa
 import { worldBankCitation, dbnomicsCitation, fredCitation, imfDataMapperCitation, sdmxCitation, caribstatCitation } from "./citations.ts";
 import { fetchSdmxSeries, BIS_POLICY_RATE_AREAS } from "../adapters/sdmx.ts";
 import { fetchCaribstatSeries, inferFrequency, searchCaribstat, searchUnctadGap, CARIBSTAT_ENABLED } from "../adapters/caribstat.ts";
-import { isTransientUpstreamError } from "./upstream.ts";
+import { isTransientUpstreamError, UpstreamError } from "./upstream.ts";
 import { eccbRelated } from "./eccb-related.ts";
 export { expectedWeoEdition } from "./weo-calendar.ts";
 import { expectedWeoEdition } from "./weo-calendar.ts";
@@ -136,13 +136,14 @@ function finishSeries(result: SeriesResult, opts: SeriesOpts): SeriesResult {
     // source publishes those periods as missing. Telling the caller to adjust
     // the year range to a range that already contains their window sends them
     // round in a circle, so name the gap and the values either side instead.
+    // It is a gap only when published values exist on BOTH sides of the
+    // window. A one-sided window (start only, or end only) that came back empty
+    // lies wholly outside the published range, which is the other message.
     const y = (p: string) => p.slice(0, 4);
-    const insideRange = (opts.start || opts.end) &&
-      (!opts.start || opts.start >= y(availStart)) &&
-      (!opts.end || opts.end <= y(availEnd));
+    const before = opts.start ? [...allValued].reverse().find((o) => y(o.period) < opts.start!) : undefined;
+    const after = opts.end ? allValued.find((o) => y(o.period) > opts.end!) : undefined;
+    const insideRange = Boolean(before && after);
     if (insideRange) {
-      const before = [...allValued].reverse().find((o) => !opts.start || y(o.period) < opts.start);
-      const after = allValued.find((o) => !opts.end || y(o.period) > opts.end);
       const win = opts.start && opts.end && opts.start === opts.end ? opts.start : `${opts.start ?? "…"}–${opts.end ?? "…"}`;
       const near = [before, after].filter(Boolean).map((o) => `${o!.period} (${o!.value})`);
       throw new ToolError(
@@ -554,6 +555,13 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
   const tried = opts.strictSource ? attempts.slice(0, 1) : attempts;
 
   const errors: string[] = [];
+  // Each tried source's structured details, in order, so the final answer can
+  // be judged on every source rather than on the first one to report.
+  const attemptDetails: Array<Record<string, unknown> | undefined> = [];
+  // Whether each tried source positively reported that it publishes nothing:
+  // its own no_published_data flag, or a 404 for the exact series requested.
+  // A declined request (400, 401, 403) is not an absence.
+  const attemptAbsent: boolean[] = [];
   let absenceDetails: Record<string, unknown> | undefined;
   let firstErrorWasTransient = false;
   // A same-query-different-answer risk exists if ANY skipped source failed
@@ -595,6 +603,11 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
       if (i === 0) firstErrorWasTransient = transient;
       if (transient) anyErrorWasTransient = true;
       errors.push(e instanceof Error ? e.message : String(e));
+      attemptDetails.push(e instanceof ToolError && e.details && typeof e.details === "object" ? (e.details as Record<string, unknown>) : undefined);
+      attemptAbsent.push(
+        (e instanceof ToolError && (e.details as Record<string, unknown> | undefined)?.no_published_data === true) ||
+          (e instanceof UpstreamError && e.status === 404),
+      );
       // Preserve the structured honest-absence details through the fallback
       // loop: when every source ends up failing, the combined error should
       // still tell an agent machine-readably whether data exists elsewhere in
@@ -633,10 +646,13 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
   // once, in plain words, and keep each source's reason in details rather than
   // gluing upstream error strings (one of them raw DBnomics JSON) into the
   // message an agent will quote.
-  const definitiveAbsence = absenceDetails?.no_published_data === true && !anyErrorWasTransient;
+  // Definitive only when EVERY tried source said so. One source's absence next
+  // to another's window miss, 403 or config error is not "none publishes it".
+  const definitiveAbsence = !anyErrorWasTransient && attemptAbsent.length === tried.length &&
+    attemptAbsent.every(Boolean);
   if (definitiveAbsence) {
     const labels = tried.map((t) => t.label);
-    const sources = tried.map((t, i) => ({ source: t.label, reason: cleanReason(errors[i]) }));
+    const sources = tried.map((t, i) => ({ source: t.label, no_published_data: true, reason: cleanReason(errors[i]) }));
     const related = eccbRelated(def.key, country.iso3);
     if (related) {
       throw new ToolError(
@@ -645,9 +661,9 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
           related.series.map((s) => `'${s.id}'`).join(" and ") +
           `. ${related.definition} Fetch it with get_series and state that definition when you cite it. It is not substituted here because the measures differ.`,
         {
+          ...absenceDetails,
           indicator: def.key,
           country: country.iso3,
-          ...absenceDetails,
           no_published_data: true,
           publisher: "Eastern Caribbean Central Bank",
           publisher_url: "https://www.eccb-centralbank.org/statistics",
@@ -659,12 +675,34 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
     }
     throw new ToolError(
       `None of the sources for '${def.key}' (${labels.join(", ")}) publishes it for ${country.name}. This is a statement about what those sources publish, not a lookup failure. Some economies are not covered by every series.`,
-      { indicator: def.key, country: country.iso3, ...absenceDetails, sources },
+      { ...absenceDetails, indicator: def.key, country: country.iso3, no_published_data: true, sources },
+      "no_published_data",
     );
   }
+  // Not a definitive absence. If a source failed transiently, the honest
+  // advice is to retry. Otherwise carry the most useful structured answer a
+  // source gave (a window miss or a gap), and never one source's absence flag,
+  // which would tell the caller the data does not exist when another source
+  // could not be read.
+  const windowMiss = attemptDetails.find((d) => d?.no_published_data === false && d.available_range);
+  const code: ErrorCode = anyErrorWasTransient
+    ? "upstream_unavailable"
+    : windowMiss
+      ? (windowMiss.gap_in_published_range ? "data_gap" : "out_of_range")
+      : "upstream_unavailable";
   throw new ToolError(
     `Could not retrieve '${def.key}' for ${country.name}: ${errors.map(cleanReason).join(" | ")}`,
-    { indicator: def.key, country: country.iso3, ...(absenceDetails ?? {}) },
+    {
+      ...(anyErrorWasTransient ? {} : (windowMiss ?? {})),
+      indicator: def.key,
+      country: country.iso3,
+      sources: tried.map((t, i) => ({
+        source: t.label,
+        ...(attemptAbsent[i] ? { no_published_data: true } : {}),
+        reason: cleanReason(errors[i]),
+      })),
+    },
+    code,
   );
 }
 
@@ -769,6 +807,7 @@ export async function getIndicatorAtEdition(
       `Could not retrieve the ${dataset} vintage of '${def.key}' for ${country.name}: ${msg} ` +
         `DBnomics's dated WEO editions have been confirmed to exist back to 2010-04; a date far outside that range, or a future date past the current edition, may not have a matching edition ingested.`,
       { indicator: def.key, country: country.iso3, edition },
+      isTransientUpstreamError(e) ? "upstream_unavailable" : undefined,
     );
   }
 }
@@ -856,6 +895,7 @@ export async function getIndicatorAsOf(
     throw new ToolError(
       `Unknown indicator '${key}'.` + (near.length ? ` Closest matches: ${near.join(", ")}.` : ""),
       { input: key, suggestions: near },
+      "unknown_indicator",
     );
   }
   if (!def.dbnomics) {
@@ -976,6 +1016,7 @@ export async function getSeries(
       throw new ToolError(
         `Unrecognized IMF DataMapper code '${code}'. Known codes: ${[...DM_CODE_INFO.keys()].join(", ")}.`,
         { series_id: id },
+        "unknown_indicator",
       );
     }
     if (!opts.country) {
@@ -1015,7 +1056,7 @@ export async function getSeries(
     const freq = c.doc.frequency ?? inferFrequency(c.doc.periods);
     // When no row was named, the id that reproduces this answer includes the
     // row, so the citation and series_id carry it rather than the bare table.
-    const resolvedId = c.defaultRow ? `${id}#${c.defaultRow.selector}` : id;
+    const resolvedId = c.defaultRow ? `${id.replace(/#\s*$/, "")}#${c.defaultRow.selector}` : id;
     const caribNotes: string[] = [];
     if (c.defaultRow) {
       const shown = c.defaultRow.rows.slice(0, 12);
@@ -1135,6 +1176,7 @@ export async function getSeries(
     `Unrecognized series id '${id}'. Expected 'worldbank/CODE', 'imf/CODE', 'caribstat/BANK/TABLE/SERIES', 'dbnomics/PROVIDER/DATASET/SERIES', or a registry indicator key (see search_indicators). 'fred/' ids are recognised but permanently disabled.` +
       (hints.length ? " " + hints.join(" ") : ""),
     { series_id: id, ...(near.length ? { suggestions: near } : {}) },
+    "unknown_indicator",
   );
 }
 
@@ -1381,6 +1423,7 @@ export async function compareSources(ctx: Ctx, key: string, countryInput: string
     throw new ToolError(
       `Unknown indicator '${key}'.` + (near.length ? ` Closest matches: ${near.join(", ")}.` : ""),
       { input: key, suggestions: near },
+      "unknown_indicator",
     );
   }
   const country = requireCountry(countryInput);
@@ -1515,7 +1558,14 @@ export async function compareSources(ctx: Ctx, key: string, countryInput: string
         return;
       }
       const valued = x.value.observations.filter((o) => o.value != null);
-      const pick = (comparePeriod ? valued.find((o) => o.period === comparePeriod) : undefined) ?? valued[valued.length - 1];
+      const atCompared = comparePeriod ? valued.find((o) => o.period === comparePeriod) : undefined;
+      const pick = atCompared ?? valued[valued.length - 1];
+      // When the compared year is missing from the ECCB series, show its latest
+      // year and say so, rather than letting it read as the comparator for a
+      // year it does not cover.
+      const offPeriod = comparePeriod && pick && !atCompared
+        ? ` The ECCB does not publish ${comparePeriod} in this series, so its latest year, ${pick.period}, is shown.`
+        : "";
       results.push({
         source: s.label,
         ok: true,
@@ -1523,7 +1573,7 @@ export async function compareSources(ctx: Ctx, key: string, countryInput: string
         value: pick ? pick.value : null,
         unit: x.value.unit,
         citation: x.value.citation,
-        note: related.definition,
+        note: related.definition + offPeriod,
         excluded_from_comparison: true,
       });
     });

@@ -41,6 +41,17 @@ test("every REST route's accepted query parameters match the OpenAPI spec exactl
   }
 });
 
+test("/v1/verify's value alias has a spec-conformant use, and verify_claims declares its 400", () => {
+  // value was required:true while the server refuses value plus claimed_value,
+  // so a spec-driven client could never use the alias.
+  const params = SPEC.paths["/v1/verify"].get.parameters;
+  const value = params.find((p: any) => p.name === "value");
+  const alias = params.find((p: any) => p.name === "claimed_value");
+  assert.notEqual(value.required, true, "value cannot be required while claimed_value alone is accepted");
+  assert.match(alias.description, /exactly one of value or claimed_value/);
+  assert.ok(SPEC.paths["/v1/verify_claims"].post.responses["400"], "verify_claims returns 400 for body errors and must declare it");
+});
+
 test("the verify_claims request schema lists only request fields and refuses extras", () => {
   const body = SPEC.paths["/v1/verify_claims"].post.requestBody.content["application/json"].schema;
   assert.equal(body.additionalProperties, false);
