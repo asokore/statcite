@@ -207,7 +207,9 @@ export async function fetchDataMapperSeries(
   if (!countrySeries) {
     throw new ToolError(
       `Country '${countryIso3}' is not present in the IMF DataMapper ${dataset} payload for series '${code}'.`,
-      { code, country: countryIso3 },
+      // The payload lists every economy the IMF publishes for this series, so
+      // a missing country is a coverage fact, not a lookup failure.
+      { code, country: countryIso3, no_published_data: true },
     );
   }
 

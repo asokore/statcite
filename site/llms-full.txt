@@ -33,7 +33,7 @@ Returns: {summary, results, note?}.
 - summary: {total, match, close, mismatch, cannot_verify, error}, verdict counts across the batch.
 - results: in input order; each item is {ok:true, claim, verification} where verification is the full verify_stat payload (verdict, official_value, difference, diagnostics, is_projection, citation), or {ok:false, claim, error} when that claim could not be resolved (unknown indicator/country, upstream trouble). Per-claim errors never sink the rest of the batch; they count under summary.error.
 - note: present when some claims were verified against IMF WEO/Fiscal Monitor projection-period observations (pre-boundary values are "estimate_or_actual", not confirmed outturns).
-REST: POST /v1/verify_claims with JSON body {"claims":[...]}, the API's only non-GET route. GET → 405 advice; non-JSON content-type → 415; malformed body → 422.
+REST: POST /v1/verify_claims with JSON body {"claims":[...]}, the API's only non-GET route. GET → 405 advice; non-JSON content-type → 415; unknown top-level body key or non-boolean strict_source → 400; malformed body → 422.
 
 ### get_series
 Raw series by explicit id: "worldbank/<WDI code>" (+country), "imf/<CODE>" (+country; current-vintage IMF WEO/Fiscal Monitor via DataMapper, e.g. "imf/NGDP_RPCH"), "dbnomics/<PROVIDER>/<DATASET>/<SERIES>" e.g. "dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change" (a dated edition like "WEO:2025-04" pins an exact vintage for reproducibility). "fred/<ID>" is recognized but always declines, FRED is permanently disabled.
@@ -84,7 +84,7 @@ Resources (resources/list, resources/read): statcite://registry/indicators (all 
 - /v1/compare?indicator=&country=&period=
 - /health
 
-Errors: 400 missing params, 422 helpful failure (suggestions included), 502 upstream trouble. /v1/verify_claims: 405 on GET, 415 on non-JSON content-type, 422 on malformed body.
+Errors: 400 missing params, 422 helpful failure (suggestions included), 502 upstream trouble. /v1/verify_claims: 405 on GET, 415 on non-JSON content-type, 400 on an unknown top-level body key or non-boolean strict_source, 422 on malformed body. Every error body carries error.code, the field to branch on.
 
 ## Indicator registry (48 keys, 42 active; the six FRED-reserved US keys always decline)
 

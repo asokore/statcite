@@ -206,7 +206,9 @@ export async function handleRest(request: Request, ctx: Ctx): Promise<Response> 
       const q = url.searchParams;
       const indMatch = indicatorPathKey(path);
       const snapMatch = path.match(/^\/v1\/snapshot\/([^/]+)$/);
-      let country: string | undefined = q.get("country") ?? undefined;
+      // The snapshot route takes its country from the path. A stray ?country=
+      // must not be logged as the country that was served.
+      let country: string | undefined = snapMatch ? undefined : (q.get("country") ?? undefined);
       if (!country && snapMatch) {
         try {
           country = decodeURIComponent(snapMatch[1]);
@@ -529,7 +531,7 @@ async function verifyClaimsRoute(request: Request, ctx: Ctx): Promise<Response> 
       "invalid_body",
     );
   }
-  if (b.strict_source !== undefined && typeof b.strict_source !== "boolean") {
+  if (b.strict_source != null && typeof b.strict_source !== "boolean") {
     return errJson(400, `'strict_source' must be a JSON boolean, true or false, not ${JSON.stringify(b.strict_source)}.`);
   }
   try {

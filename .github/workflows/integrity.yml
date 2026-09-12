@@ -16,7 +16,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
@@ -31,6 +31,7 @@ jobs:
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           exit 0
       - name: Summarise
+        if: always()
         run: python tools/integrity-summary.py integrity.json >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
@@ -39,6 +40,7 @@ jobs:
           path: integrity.json
           retention-days: 90
       - name: Fail on a mismatch, weak coverage, or a network fault
+        if: always()
         env:
           CODE: ${{ steps.verify.outputs.exit_code }}
         run: |
@@ -46,6 +48,7 @@ jobs:
             0) echo "All compared values agree with their cited sources." ;;
             1) echo "::error::A served value disagrees with its own cited source."; exit 1 ;;
             2) echo "::warning::Coverage fell below 60 percent, so the clean result is weak evidence."; exit 1 ;;
-            3) echo "::warning::Most checks could not connect. This is a runner or network fault, not a data finding."; exit 1 ;;
+            3) echo "::warning::Checks could not connect or stalled. This is a runner or network fault, not a data finding."; exit 1 ;;
+            4) echo "::error::The verifier crashed. See the traceback in the verify step. This is not a data finding."; exit 1 ;;
             *) echo "::error::verify-against-source.py exited with $CODE"; exit 1 ;;
           esac

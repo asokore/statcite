@@ -803,11 +803,17 @@ function outcomeOf(e: unknown): Outcome {
  * Only names and boolean types are checked here. Handlers already validate
  * values, and duplicating that would let the two drift apart.
  */
+const CLIENT_TRANSPORT_KEYS = ["toolCallId"];
+
 export function checkToolArgs(tool: ToolDef, args: unknown): void {
   if (args === null || typeof args !== "object" || Array.isArray(args)) {
     throw new ToolError(`Arguments for '${tool.name}' must be a JSON object.`);
   }
   const a = args as Json;
+  // Keys some MCP clients inject into arguments for their own bookkeeping.
+  // n8n's MCP Client Tool sent toolCallId on releases before 2.3.1. None of
+  // them is any tool's parameter, so removing them cannot change an answer.
+  for (const k of CLIENT_TRANSPORT_KEYS) if (Object.prototype.hasOwnProperty.call(a, k)) delete a[k];
   const schema = tool.inputSchema as { properties?: Record<string, { type?: unknown }>; additionalProperties?: unknown };
   const props = schema.properties ?? {};
   const names = Object.keys(props);
@@ -833,7 +839,8 @@ export function checkToolArgs(tool: ToolDef, args: unknown): void {
     }
   }
   for (const k of names) {
-    if (props[k]?.type === "boolean" && a[k] !== undefined && typeof a[k] !== "boolean") {
+    // null means absent, as it does for every other optional argument.
+    if (props[k]?.type === "boolean" && a[k] != null && typeof a[k] !== "boolean") {
       throw new ToolError(
         `Argument '${k}' for ${tool.name} must be a JSON boolean, true or false, not ${JSON.stringify(a[k])}.`,
         { argument: k, received: a[k] },

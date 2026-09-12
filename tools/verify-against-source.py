@@ -48,8 +48,10 @@ Exit status:
   0  every compared value agrees with its cited source, and coverage met --min-coverage
   1  at least one value disagrees with its own cited source
   2  no mismatch, but coverage fell below --min-coverage, so a clean result is weak
-  3  most checks could not reach StatCite or the upstream, which is a network or
-     runner fault rather than a statement about the data
+  3  most checks could not reach StatCite or the upstream, or too many in a row
+     stalled, which is a network or runner fault rather than a statement about
+     the data
+  4  the verifier itself crashed; see the traceback
 """
 import argparse
 import json
@@ -70,7 +72,9 @@ REL_TOL = 1e-9
 IMF_ABS_TOL = 0.051
 
 
-def fetch(url, ua="statcite-source-verify/1.0", timeout=45):
+# A healthy check takes about 2 s. 15 s per socket operation still allows a
+# slow upstream while keeping a stall from eating the job's time budget.
+def fetch(url, ua="statcite-source-verify/1.0", timeout=15):
     req = urllib.request.Request(url)
     if ua is not None:
         req.add_header("user-agent", ua)
@@ -105,7 +109,12 @@ def check_one(key, iso3, results):
     try:
         served = statcite(f"/v1/indicator/{key}?country={iso3}")
     except urllib.error.HTTPError as e:
-        body = e.read().decode("utf8", "replace")[:120]
+        # Reading the error body can itself fail on a cut connection. That is a
+        # transport problem, so it must not escape and crash the run.
+        try:
+            body = e.read().decode("utf8", "replace")[:120]
+        except Exception:
+            body = "(error body unreadable)"
         results.append(("skip", key, iso3, f"StatCite {e.code}: {body}"))
         return
     except Exception as e:
@@ -178,6 +187,10 @@ def main():
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--min-coverage", type=float, default=0.0,
                     help="exit 2 when the compared share of the sample is below this percent")
+    ap.add_argument("--max-consecutive-unreachable", type=int, default=12,
+                    help="stop and report a network fault after this many unreachable checks in a row")
+    ap.add_argument("--budget-seconds", type=int, default=1200,
+                    help="stop and report a network fault once this much time has passed")
     args = ap.parse_args()
 
     try:
@@ -209,7 +222,15 @@ def main():
     results = []
     total = len(keys) * len(countries)
     n = 0
+    # Stop early on a run of unreachable checks or when the time budget is
+    # spent, so a stall ends as a classified network fault inside the job's
+    # timeout instead of a bare cancellation with no result.
+    started = time.monotonic()
+    consecutive_unreachable = 0
+    stopped_early = None
     for key in keys:
+        if stopped_early:
+            break
         for iso3 in countries:
             n += 1
             if not args.json:
@@ -217,6 +238,17 @@ def main():
             check_one(key, iso3, results)
             if not args.json:
                 print(results[-1][0])
+            last = results[-1]
+            if last[0] == "skip" and (last[3].startswith("upstream unreachable") or last[3].startswith("StatCite 5")):
+                consecutive_unreachable += 1
+            else:
+                consecutive_unreachable = 0
+            if consecutive_unreachable >= args.max_consecutive_unreachable:
+                stopped_early = f"{consecutive_unreachable} consecutive checks could not connect"
+                break
+            if time.monotonic() - started > args.budget_seconds:
+                stopped_early = f"time budget of {args.budget_seconds} s spent after {n} of {total} checks"
+                break
             time.sleep(0.15)   # be polite to the upstreams
 
     mism = [r for r in results if r[0] == "MISMATCH"]
@@ -226,7 +258,7 @@ def main():
     # Many checks failing to connect at once is the runner, not the data.
     unreachable = [r for r in skips if r[3].startswith("upstream unreachable")
                    or r[3].startswith("StatCite 5") or r[3].startswith("StatCite 403")]
-    network_fault = len(unreachable) > max(1, len(results)) / 2
+    network_fault = bool(stopped_early) or len(unreachable) > max(1, len(results)) / 2
 
     if args.json:
         reasons = {}
@@ -239,6 +271,8 @@ def main():
             "mismatches": [list(m) for m in mism],
             "skip_reasons": {k: {"count": len(v), "examples": v[:6]} for k, v in sorted(reasons.items())},
             "network_fault": network_fault,
+            "stopped_early": stopped_early,
+            "checks_run": len(results), "checks_planned": total,
         }, indent=1))
     else:
         print(f"\n{'=' * 66}")
@@ -273,4 +307,12 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except SystemExit:
+        raise
+    except BaseException:
+        # A crash is not a mismatch. Exit 4 so nothing downstream reads it as 1.
+        import traceback
+        traceback.print_exc()
+        sys.exit(4)

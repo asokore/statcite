@@ -554,11 +554,11 @@
           {
             "name": "value",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "number"
             },
-            "description": "The claimed value"
+            "description": "The claimed value Required unless claimed_value is sent instead. Send exactly one of value or claimed_value."
           },
           {
             "name": "claimed_value",
@@ -567,7 +567,7 @@
             "schema": {
               "type": "number"
             },
-            "description": "Alias of value, the name verify_claims and the verify_stat MCP tool use and the name this endpoint returns. Send value or claimed_value, not both."
+            "description": "Alias of value, the name verify_claims and the verify_stat MCP tool use and the name this endpoint returns. Send exactly one of value or claimed_value."
           },
           {
             "name": "tolerance_abs",
@@ -760,10 +760,20 @@
             "description": "Method not allowed \u2014 this endpoint accepts POST only; GET returns usage advice"
           },
           "415": {
-            "description": "Unsupported media type \u2014 set content-type: application/json"
+            "description": "Unsupported media type \u2014 set content-type: application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "422": {
             "$ref": "#/components/responses/Unprocessable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
           }
         }
       }
