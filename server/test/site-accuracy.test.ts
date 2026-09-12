@@ -66,3 +66,26 @@ test("the /sources prerender carries every ledger name as the ledger states it",
   const missing = SOURCES.filter((s) => !page.includes(`<h3>${esc(s.name)}<span`)).map((s) => s.id);
   assert.deepEqual(missing, [], `site/sources.html prerender is stale for: ${missing.join(", ")}. Re-render it.`);
 });
+
+// --- the public changelog leads with the version the server reports -------
+//
+// On 2026-09-12 /docs#changelog opened with 1.11.3 while the server reported
+// 1.12.1, two releases behind. The version is read from mcp.ts as text rather
+// than imported, so this guard does not depend on the module graph behind it.
+
+test("the /docs changelog opens with the SERVER_VERSION in mcp.ts", () => {
+  const mcp = read("server/src/mcp.ts");
+  const m = mcp.match(/export\s+const\s+SERVER_VERSION\s*=\s*"(\d+\.\d+\.\d+)"/);
+  assert.ok(m, "could not read SERVER_VERSION from server/src/mcp.ts");
+  const version = m[1];
+  const docs = read("site/docs.html");
+  const at = docs.indexOf('<h2 id="changelog">');
+  assert.ok(at >= 0, 'site/docs.html has no <h2 id="changelog">');
+  const first = docs.slice(at).match(/<li>\s*<strong>([^<]+)<\/strong>/);
+  assert.ok(first, "no changelog entry found under #changelog");
+  assert.equal(
+    first[1].trim(),
+    version,
+    `the first /docs changelog entry is ${first[1]} but the server reports ${version}. Add the release to site/docs.html#changelog.`,
+  );
+});
