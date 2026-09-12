@@ -20,7 +20,7 @@
 // decision and not one a scheduled script should make by default.
 
 import { readFileSync, existsSync, mkdirSync, appendFileSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { execFileSync } from "node:child_process";
@@ -147,7 +147,42 @@ export function classify(ua) {
 // budget. Tracked over time so that ratio stays honest.
 
 const SEARCH_CRAWLERS = /googlebot|bingbot|slurp|duckduckbot|yandex|baidu|applebot|petalbot|seznam/i;
-const AI_CRAWLERS = /gptbot|oai-searchbot|chatgpt-user|claudebot|claude-web|anthropic|perplexity|google-extended|amazonbot|amzn-searchbot|bytespider|meta-external|ccbot|cohere|diffbot|youbot/i;
+const AI_CRAWLERS = /gptbot|oai-searchbot|chatgpt-user|claudebot|claude-web|claude-searchbot|claude-user|anthropic|perplexity|google-extended|amazonbot|amzn-searchbot|bytespider|meta-external|ccbot|cohere|diffbot|youbot|duckassistbot|mistralai-user/i;
+
+/**
+ * Public paths a genuine crawler fetches. Built from the files this site
+ * actually serves, so a new page is covered the day it ships. Anything else
+ * (/wp-admin, /.env, /xmlrpc.php) is a probe, whatever its user-agent claims.
+ */
+const SITE_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "site");
+const PUBLIC_PATHS = (() => {
+  const paths = new Set(["/", "/v1", "/robots.txt", "/sitemap.xml"]);
+  try {
+    for (const f of readdirSync(SITE_DIR)) {
+      if (f.startsWith("_") || f.startsWith("google")) continue;
+      paths.add(`/${f}`);
+      if (f.endsWith(".html")) paths.add(`/${f.slice(0, -5)}`);
+    }
+  } catch {
+    // Without the site directory only the fixed entries count, which
+    // under-counts crawling rather than over-counting it.
+  }
+  return paths;
+})();
+
+export function isPublicPath(path) {
+  const p = String(path || "");
+  return PUBLIC_PATHS.has(p) || p.startsWith("/v1/") || p.startsWith("/.well-known/");
+}
+
+/** "ai" or "search" for a genuine crawl hit, "ai_probe" or "search_probe" for
+ * a crawler user-agent on a path that failed or is not public, else null. */
+export function siteRowKind(ua, path, status) {
+  const k = crawlerKind(ua);
+  if (!k) return null;
+  const st = Number(status) || 0;
+  return st > 0 && st < 400 && isPublicPath(path) ? k : `${k}_probe`;
+}
 
 export function crawlerKind(ua) {
   const s = ua || "";
@@ -177,8 +212,8 @@ const CALLERS = `query($zone:String!,$from:Time!,$to:Time!){
 
 const SITE = `query($zone:String!,$from:Time!,$to:Time!){
   viewer{zones(filter:{zoneTag:$zone}){
-    httpRequestsAdaptiveGroups(limit:100,filter:{datetime_geq:$from,datetime_lt:$to,clientRequestPath_neq:"/mcp"},orderBy:[count_DESC]){
-      count dimensions{userAgent}}}}}`;
+    httpRequestsAdaptiveGroups(limit:2000,filter:{datetime_geq:$from,datetime_lt:$to,clientRequestPath_neq:"/mcp"},orderBy:[count_DESC]){
+      count dimensions{userAgent clientRequestPath edgeResponseStatus}}}}}`;
 
 const iso = (d) => d.toISOString().slice(0, 10);
 const daysAgo = (n) => { const d = new Date(); d.setUTCDate(d.getUTCDate() - n); return iso(d); };
@@ -307,17 +342,27 @@ if (isMain) {
     // callers above and answers a different question: not "who uses this" but
     // "who can find it".
     const site = siteRows;
+    if (site.length >= 2000) console.log("\n  site rows hit the 2000-row query limit, so crawl counts are a lower bound");
     const crawl = { search: 0, ai: 0 };
+    const crawlProbes = { search_probe: 0, ai_probe: 0 };
     const crawlAgents = {};
+    const crawlPaths = {};
     for (const r of site) {
-      const k = crawlerKind(r.dimensions.userAgent);
+      const k = siteRowKind(r.dimensions.userAgent, r.dimensions.clientRequestPath, r.dimensions.edgeResponseStatus);
       if (!k) continue;
+      if (k.endsWith("_probe")) {
+        // Counted, never stored: a probe's path is attacker-chosen text.
+        crawlProbes[k] += r.count;
+        continue;
+      }
       crawl[k] += r.count;
       const ua = scrubUserAgent(r.dimensions.userAgent || "").slice(0, 44);
       crawlAgents[ua] = (crawlAgents[ua] || 0) + r.count;
+      crawlPaths[r.dimensions.clientRequestPath] = (crawlPaths[r.dimensions.clientRequestPath] || 0) + r.count;
     }
     console.log(`\n  site crawl on ${day}`);
-    console.log(`  ${String(crawl.ai).padStart(6)}  AI crawlers`);
+    console.log(`  ${String(crawl.ai).padStart(6)}  AI crawlers on public pages` +
+      `   (${crawlProbes.ai_probe} more hits used an AI crawler user-agent to probe for vulnerabilities)`);
     console.log(`  ${String(crawl.search).padStart(6)}  search engines` +
       (crawl.search < 20 ? "   <- barely crawled: this is why the domain does not rank" : ""));
 
@@ -338,6 +383,8 @@ if (isMain) {
         outcomes,
         mcp: buckets,
         crawl,
+        crawl_probes: crawlProbes,
+        crawl_paths: Object.fromEntries(Object.entries(crawlPaths).sort((a, b) => b[1] - a[1]).slice(0, 20)),
         crawl_agents: crawlAgents,
         top_agents: Object.fromEntries(Object.entries(named).sort((a, b) => b[1] - a[1]).slice(0, 20)),
       }) + "\n", "utf8");
