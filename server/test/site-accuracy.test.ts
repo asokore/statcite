@@ -89,3 +89,76 @@ test("the /docs changelog opens with the SERVER_VERSION in mcp.ts", () => {
     `the first /docs changelog entry is ${first[1]} but the server reports ${version}. Add the release to site/docs.html#changelog.`,
   );
 });
+
+// --- one nav, on every page, and it reaches Connect ------------------------
+//
+// Before 2026-09-12 the seven pages carried five different navs, /privacy and
+// /terms had none, and not one linked to the connect instructions, which are
+// the step that turns a visitor into a user. The Google verification file is
+// not a page and is exempt.
+
+const NAV = ["/guide", "/docs", "/bench", "/sources", "/#connect"];
+
+function idsIn(html: string): Set<string> {
+  return new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
+}
+
+test("every site page carries the one shared nav, ending in Connect", () => {
+  const pages = sitePages().filter((p) => !/google[0-9a-f]+\.html$/.test(p));
+  assert.ok(pages.length >= 8, `page sweep looks too small to be real: ${pages.length}`);
+  const offences: string[] = [];
+  for (const rel of pages) {
+    const html = read(rel);
+    const navs = [...html.matchAll(/<nav\b[^>]*>([\s\S]*?)<\/nav>/g)];
+    if (navs.length !== 1) {
+      offences.push(`${rel}: ${navs.length} <nav> elements, expected 1`);
+      continue;
+    }
+    const links = navs[0][1].match(/<div class="links">([\s\S]*?)<\/div>/);
+    const hrefs = links ? [...links[1].matchAll(/href="([^"]+)"/g)].map((m) => m[1]) : [];
+    if (JSON.stringify(hrefs) !== JSON.stringify(NAV)) offences.push(`${rel}: nav links ${JSON.stringify(hrefs)}`);
+    if (/llms(-full)?\.txt/.test(navs[0][1])) offences.push(`${rel}: llms.txt belongs in the footer, not the nav`);
+  }
+  assert.deepEqual(offences, [], `nav drift:\n${offences.join("\n")}`);
+  assert.ok(idsIn(read("site/index.html")).has("connect"), "the nav links /#connect but index.html has no id=\"connect\"");
+});
+
+// --- redirects: only for paths the asset server handles, only to real targets
+
+test("site/_redirects sends only asset-served paths, to pages and anchors that exist", () => {
+  const rules = read("site/_redirects")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("#"))
+    .map((l) => l.split(/\s+/));
+  assert.ok(rules.length >= 5, `expected at least 5 redirect rules, found ${rules.length}`);
+
+  // A rule on a Worker-routed path never fires, because Workers Static Assets
+  // does not apply _redirects to requests the Worker serves. Read the routing
+  // list from the config rather than restating it here.
+  const wrangler = read("server/wrangler.jsonc");
+  const rwf = wrangler.match(/"run_worker_first"\s*:\s*\[([^\]]*)\]/);
+  assert.ok(rwf, "could not read run_worker_first from server/wrangler.jsonc");
+  const workerRoutes = [...rwf[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  const workerOwns = (p: string) =>
+    workerRoutes.some((r) => (r.endsWith("/*") ? p.startsWith(r.slice(0, -1)) : p === r));
+
+  const pageFor: Record<string, string> = { "/": "site/index.html" };
+  const offences: string[] = [];
+  for (const [from, to, code] of rules) {
+    if (code !== "301") offences.push(`${from}: status ${code}, expected 301`);
+    if (workerOwns(from)) offences.push(`${from}: the Worker routes this path, so the rule would never fire`);
+    const [target, frag] = to.split("#");
+    if (workerOwns(target)) continue; // a Worker route is a valid destination, e.g. /v1/status
+    const rel = pageFor[target] ?? `site${target}.html`;
+    let html: string;
+    try {
+      html = read(rel);
+    } catch {
+      offences.push(`${from} -> ${to}: no page at ${rel}`);
+      continue;
+    }
+    if (frag && !idsIn(html).has(frag)) offences.push(`${from} -> ${to}: ${rel} has no id="${frag}"`);
+  }
+  assert.deepEqual(offences, [], `bad redirects:\n${offences.join("\n")}`);
+});

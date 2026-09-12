@@ -1,0 +1,10 @@
+# Workers Static Assets redirects (same mechanism as site/_headers, which this
+# deployment already honours). Rules apply only to requests the asset server
+# handles. Never add a path the Worker routes itself (/mcp, /v1, /health; see
+# run_worker_first in server/wrangler.jsonc): the rule would silently not fire.
+# Every target must be a page or anchor that exists: site-accuracy.test.ts checks.
+/benchmark /bench 301
+/changelog /docs#changelog 301
+/connect /#connect 301
+/faq /#faq 301
+/status /v1/status 301
