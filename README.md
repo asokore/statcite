@@ -22,7 +22,7 @@ The differentiator is **verification, not lookup**: `verify_stat` checks a claim
 
 | Client | How |
 |---|---|
-| Claude (web/desktop) | Settings → Connectors → Add custom connector → `https://statcite.com/mcp` |
+| Claude (web/desktop) | Open [StatCite in Claude's connector directory](https://claude.ai/directory/connectors/statcite) and click Connect. Fallback: Settings → Connectors → Add custom connector → `https://statcite.com/mcp` |
 | Claude Code | `/plugin marketplace add asokore/statcite` then `/plugin install statcite@statcite` (also installs the verify-then-cite skill), or just the server: `claude mcp add --transport http statcite https://statcite.com/mcp` |
 | Cursor | [**Install in Cursor**](https://cursor.com/en/install-mcp?name=statcite&config=eyJ1cmwiOiJodHRwczovL3N0YXRjaXRlLmNvbS9tY3AifQ==) · or `{"mcpServers":{"statcite":{"url":"https://statcite.com/mcp"}}}` |
 | VS Code | [**Install in VS Code**](https://vscode.dev/redirect/mcp/install?name=statcite&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fstatcite.com%2Fmcp%22%7D) · [Insiders](https://insiders.vscode.dev/redirect/mcp/install?name=statcite&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fstatcite.com%2Fmcp%22%7D&quality=insiders) · or `code --add-mcp '{"name":"statcite","type":"http","url":"https://statcite.com/mcp"}'` |
