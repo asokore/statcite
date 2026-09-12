@@ -34,7 +34,7 @@ export const SOURCES = [
   },
   {
     id: "imf_weo",
-    name: "IMF. World Economic Outlook & Fiscal Monitor (via the IMF DataMapper API, with DBnomics as fallback)",
+    name: "IMF, World Economic Outlook & Fiscal Monitor (via the IMF DataMapper API, with DBnomics as fallback)",
     coverage:
       "Growth, fiscal, external indicators for 190+ economies, incl. estimates/projections; twice-yearly vintages (April/October, plus interim Updates). The primary path is the IMF's own DataMapper API. The current edition, verbatim edition label passed through unrewritten. If that path is unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF's release calendar; every response cites the resolved vintage, and a fallback that crosses editions is disclosed (verify_stat demotes such cases to cannot_verify rather than judging a claim against a superseded vintage). The actual/projection boundary is a heuristic derived from each response's own data horizon, not a per-country authoritative cutoff",
     access: "No key; queried live from www.imf.org/external/datamapper (primary) and api.db.nomics.world v22 (fallback)",
@@ -49,7 +49,7 @@ export const SOURCES = [
   },
   {
     id: "imf_sdmx_vintage",
-    name: "IMF. Dated World Economic Outlook vintages (api.imf.org, SDMX 3.0)",
+    name: "IMF, dated World Economic Outlook vintages (api.imf.org, SDMX 3.0)",
     coverage:
       "Frozen dated WEO editions published as first-party SDMX 3.0 dataflows. Used ONLY by the dated-vintage path (as_of verification and the revision probe), never by the live chain, and only for editions enumerated in IMF_VINTAGE_FLOWS from the live dataflow listing. The IMF exposes a small number of recent vintages, not an archive. DBnomics remains the deep historical fallback back to 2010-04, so this source narrows the newest-edition gap rather than replacing the aggregator",
     access: "No key and no account; api.imf.org serves this data anonymously (verified 2026-08-10). The sign-in wall on portal.api.imf.org guards the developer console, not the data. Rate limits are undocumented outside that console and no RateLimit/Retry-After headers are returned; a 31-request unpaced burst was accepted without throttling (2026-08-10), which establishes headroom rather than an absence of limits. StatCite issues one upstream call per as_of/revision-probe lookup, cached one hour",
@@ -64,7 +64,7 @@ export const SOURCES = [
   },
   {
     id: "ecb_fx",
-    name: "European Central Bank. Euro foreign exchange reference rates (via Frankfurter)",
+    name: "European Central Bank, euro foreign exchange reference rates (via Frankfurter)",
     coverage: "~30 major currencies, daily since 1999",
     access: "No key; queried live from api.frankfurter.dev",
     license: "Published for information purposes; reuse with attribution; not transaction rates",
