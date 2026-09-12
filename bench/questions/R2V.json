@@ -1,0 +1,672 @@
+{
+  "run": "R2V",
+  "seed": "54550f867ffc65a2df6fdab76018c38d2bc7d81fd5e72ef8d28afc637e387050",
+  "generated_at": "2026-08-05T22:11:34.698Z",
+  "template_version": "questions_v1",
+  "counts": {
+    "headline": 30,
+    "recency": 0,
+    "null_probe": 0,
+    "total": 30
+  },
+  "questions": [
+    {
+      "segment": "headline",
+      "template_id": "reserves_total_usd_v1",
+      "indicator": "reserves_total_usd",
+      "revision_class": "B",
+      "kind": "level",
+      "iso3": "FRA",
+      "country_name": "France",
+      "tier": "T1",
+      "year": 2020,
+      "text": "What were France's total international reserves, including gold, at the end of 2020, in current US dollars (World Bank WDI definition)? Note: total reserves including gold, not foreign-exchange holdings only and not months of import cover. Answer in billions of US dollars.",
+      "expected_unit": "billions of US dollars",
+      "unit_scale": {
+        "label": "billions of US dollars",
+        "factor": 1000000000
+      },
+      "strata": {
+        "revision_class": "B",
+        "tier": "T1",
+        "year": 2020
+      },
+      "core": true,
+      "source_qid": "P0-063",
+      "qid": "R2-005"
+    },
+    {
+      "segment": "headline",
+      "template_id": "reserves_total_usd_v1",
+      "indicator": "reserves_total_usd",
+      "revision_class": "B",
+      "kind": "level",
+      "iso3": "VNM",
+      "country_name": "Viet Nam",
+      "tier": "T2",
+      "year": 2022,
+      "text": "What were Viet Nam's total international reserves, including gold, at the end of 2022, in current US dollars (World Bank WDI definition)? Note: total reserves including gold, not foreign-exchange holdings only and not months of import cover. Answer in billions of US dollars.",
+      "expected_unit": "billions of US dollars",
+      "unit_scale": {
+        "label": "billions of US dollars",
+        "factor": 1000000000
+      },
+      "strata": {
+        "revision_class": "B",
+        "tier": "T2",
+        "year": 2022
+      },
+      "qid": "R2-008"
+    },
+    {
+      "segment": "headline",
+      "template_id": "inflation_cpi_v1",
+      "indicator": "inflation_cpi",
+      "revision_class": "A",
+      "kind": "percent",
+      "iso3": "USA",
+      "country_name": "United States",
+      "tier": "T1",
+      "year": 2018,
+      "text": "What was consumer price inflation in United States in 2018, measured as the annual average change in the consumer price index, in percent (World Bank WDI definition)? Note: annual average, not December-over-December. Answer in percent.",
+      "expected_unit": "percent",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "A",
+        "tier": "T1",
+        "year": 2018
+      },
+      "qid": "R2-014"
+    },
+    {
+      "segment": "headline",
+      "template_id": "life_expectancy_v1",
+      "indicator": "life_expectancy",
+      "revision_class": "B",
+      "kind": "level",
+      "iso3": "MYS",
+      "country_name": "Malaysia",
+      "tier": "T2",
+      "year": 2020,
+      "text": "What was life expectancy at birth in Malaysia in 2020, total for both sexes combined (World Bank WDI definition)? Note: total population, not male-only or female-only. Answer in years.",
+      "expected_unit": "years",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "B",
+        "tier": "T2",
+        "year": 2020
+      },
+      "qid": "R2-015"
+    },
+    {
+      "segment": "headline",
+      "template_id": "gdp_growth_v1",
+      "indicator": "gdp_growth",
+      "revision_class": "C",
+      "kind": "percent",
+      "iso3": "CHL",
+      "country_name": "Chile",
+      "tier": "T2",
+      "year": 2018,
+      "text": "What was Chile's real GDP growth in 2018, measured as the annual percentage change in GDP at constant prices (World Bank WDI / IMF WEO definition)? Note: real (inflation-adjusted) growth, not nominal growth. Answer in percent.",
+      "expected_unit": "percent",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "C",
+        "tier": "T2",
+        "year": 2018
+      },
+      "core": true,
+      "source_qid": "P0-035",
+      "qid": "R2-021"
+    },
+    {
+      "segment": "headline",
+      "template_id": "inflation_cpi_v1",
+      "indicator": "inflation_cpi",
+      "revision_class": "A",
+      "kind": "percent",
+      "iso3": "NAM",
+      "country_name": "Namibia",
+      "tier": "T4",
+      "year": 2018,
+      "text": "What was consumer price inflation in Namibia in 2018, measured as the annual average change in the consumer price index, in percent (World Bank WDI definition)? Note: annual average, not December-over-December. Answer in percent.",
+      "expected_unit": "percent",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "A",
+        "tier": "T4",
+        "year": 2018
+      },
+      "qid": "R2-022"
+    },
+    {
+      "segment": "headline",
+      "template_id": "fiscal_balance_gdp_v1",
+      "indicator": "fiscal_balance_gdp",
+      "revision_class": "C",
+      "kind": "percent",
+      "iso3": "BEL",
+      "country_name": "Belgium",
+      "tier": "T2",
+      "year": 2022,
+      "text": "What was Belgium's general government net lending/borrowing (overall fiscal balance) in 2022, as a percentage of GDP (IMF World Economic Outlook definition)? Note: general government, not central government only; a deficit is a negative number. Answer in percent of GDP.",
+      "expected_unit": "percent of GDP",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "C",
+        "tier": "T2",
+        "year": 2022
+      },
+      "core": true,
+      "source_qid": "P0-007",
+      "qid": "R2-025"
+    },
+    {
+      "segment": "headline",
+      "template_id": "govt_debt_gdp_v1",
+      "indicator": "govt_debt_gdp",
+      "revision_class": "C",
+      "kind": "percent",
+      "iso3": "MKD",
+      "country_name": "North Macedonia",
+      "tier": "T4",
+      "year": 2019,
+      "text": "What was North Macedonia's general government gross debt in 2019, as a percentage of GDP (IMF World Economic Outlook definition)? Answer in percent of GDP.",
+      "expected_unit": "percent of GDP",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "C",
+        "tier": "T4",
+        "year": 2019
+      },
+      "core": true,
+      "source_qid": "P0-056",
+      "qid": "R2-026"
+    },
+    {
+      "segment": "headline",
+      "template_id": "gdp_growth_v1",
+      "indicator": "gdp_growth",
+      "revision_class": "C",
+      "kind": "percent",
+      "iso3": "BRB",
+      "country_name": "Barbados",
+      "tier": "T4",
+      "year": 2019,
+      "text": "What was Barbados's real GDP growth in 2019, measured as the annual percentage change in GDP at constant prices (World Bank WDI / IMF WEO definition)? Note: real (inflation-adjusted) growth, not nominal growth. Answer in percent.",
+      "expected_unit": "percent",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "C",
+        "tier": "T4",
+        "year": 2019
+      },
+      "qid": "R2-031"
+    },
+    {
+      "segment": "headline",
+      "template_id": "inflation_cpi_v1",
+      "indicator": "inflation_cpi",
+      "revision_class": "A",
+      "kind": "percent",
+      "iso3": "NAM",
+      "country_name": "Namibia",
+      "tier": "T4",
+      "year": 2022,
+      "text": "What was consumer price inflation in Namibia in 2022, measured as the annual average change in the consumer price index, in percent (World Bank WDI definition)? Note: annual average, not December-over-December. Answer in percent.",
+      "expected_unit": "percent",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "A",
+        "tier": "T4",
+        "year": 2022
+      },
+      "core": true,
+      "source_qid": "P0-008",
+      "qid": "R2-033"
+    },
+    {
+      "segment": "headline",
+      "template_id": "population_v1",
+      "indicator": "population",
+      "revision_class": "B",
+      "kind": "level",
+      "iso3": "NZL",
+      "country_name": "New Zealand",
+      "tier": "T2",
+      "year": 2020,
+      "text": "What was the total population of New Zealand in 2020 (World Bank definition, mid-year estimate)? Answer in millions of people.",
+      "expected_unit": "millions of people",
+      "unit_scale": {
+        "label": "millions of people",
+        "factor": 1000000
+      },
+      "strata": {
+        "revision_class": "B",
+        "tier": "T2",
+        "year": 2020
+      },
+      "core": true,
+      "source_qid": "P0-048",
+      "qid": "R2-041"
+    },
+    {
+      "segment": "headline",
+      "template_id": "fiscal_balance_gdp_v1",
+      "indicator": "fiscal_balance_gdp",
+      "revision_class": "C",
+      "kind": "percent",
+      "iso3": "NOR",
+      "country_name": "Norway",
+      "tier": "T2",
+      "year": 2019,
+      "text": "What was Norway's general government net lending/borrowing (overall fiscal balance) in 2019, as a percentage of GDP (IMF World Economic Outlook definition)? Note: general government, not central government only; a deficit is a negative number. Answer in percent of GDP.",
+      "expected_unit": "percent of GDP",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "C",
+        "tier": "T2",
+        "year": 2019
+      },
+      "qid": "R2-047"
+    },
+    {
+      "segment": "headline",
+      "template_id": "fdi_inflows_gdp_v1",
+      "indicator": "fdi_inflows_gdp",
+      "revision_class": "C",
+      "kind": "percent",
+      "iso3": "CMR",
+      "country_name": "Cameroon",
+      "tier": "T3",
+      "year": 2022,
+      "text": "What were net inflows of foreign direct investment into Cameroon in 2022, as a percentage of GDP (World Bank WDI definition)? Note: net inflows into the country (new investment less disinvestment), not outflows and not the accumulated FDI stock. Answer in percent of GDP.",
+      "expected_unit": "percent of GDP",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "C",
+        "tier": "T3",
+        "year": 2022
+      },
+      "core": true,
+      "source_qid": "P0-102",
+      "qid": "R2-048"
+    },
+    {
+      "segment": "headline",
+      "template_id": "current_account_gdp_v1",
+      "indicator": "current_account_gdp",
+      "revision_class": "C",
+      "kind": "percent",
+      "iso3": "OMN",
+      "country_name": "Oman",
+      "tier": "T3",
+      "year": 2018,
+      "text": "What was Oman's current account balance in 2018, as a percentage of GDP (balance-of-payments definition, World Bank WDI / IMF WEO)? Note: the current account, not the trade balance or the fiscal balance; a deficit is a negative number. Answer in percent of GDP.",
+      "expected_unit": "percent of GDP",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "C",
+        "tier": "T3",
+        "year": 2018
+      },
+      "core": true,
+      "source_qid": "P0-089",
+      "qid": "R2-054"
+    },
+    {
+      "segment": "headline",
+      "template_id": "trade_gdp_v1",
+      "indicator": "trade_gdp",
+      "revision_class": "B",
+      "kind": "percent",
+      "iso3": "PRT",
+      "country_name": "Portugal",
+      "tier": "T2",
+      "year": 2020,
+      "text": "What was Portugal's trade openness in 2020, measured as exports plus imports of goods and services as a percentage of GDP (World Bank WDI 'Trade (% of GDP)' definition)? Note: the sum of exports and imports, not the trade balance and not exports alone. Answer in percent of GDP.",
+      "expected_unit": "percent of GDP",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "B",
+        "tier": "T2",
+        "year": 2020
+      },
+      "qid": "R2-055"
+    },
+    {
+      "segment": "headline",
+      "template_id": "gdp_growth_v1",
+      "indicator": "gdp_growth",
+      "revision_class": "C",
+      "kind": "percent",
+      "iso3": "BGR",
+      "country_name": "Bulgaria",
+      "tier": "T3",
+      "year": 2019,
+      "text": "What was Bulgaria's real GDP growth in 2019, measured as the annual percentage change in GDP at constant prices (World Bank WDI / IMF WEO definition)? Note: real (inflation-adjusted) growth, not nominal growth. Answer in percent.",
+      "expected_unit": "percent",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "C",
+        "tier": "T3",
+        "year": 2019
+      },
+      "qid": "R2-056"
+    },
+    {
+      "segment": "headline",
+      "template_id": "fdi_inflows_gdp_v1",
+      "indicator": "fdi_inflows_gdp",
+      "revision_class": "C",
+      "kind": "percent",
+      "iso3": "ITA",
+      "country_name": "Italy",
+      "tier": "T1",
+      "year": 2022,
+      "text": "What were net inflows of foreign direct investment into Italy in 2022, as a percentage of GDP (World Bank WDI definition)? Note: net inflows into the country (new investment less disinvestment), not outflows and not the accumulated FDI stock. Answer in percent of GDP.",
+      "expected_unit": "percent of GDP",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "C",
+        "tier": "T1",
+        "year": 2022
+      },
+      "qid": "R2-067"
+    },
+    {
+      "segment": "headline",
+      "template_id": "population_v1",
+      "indicator": "population",
+      "revision_class": "B",
+      "kind": "level",
+      "iso3": "TUR",
+      "country_name": "Turkiye",
+      "tier": "T1",
+      "year": 2021,
+      "text": "What was the total population of Turkiye in 2021 (World Bank definition, mid-year estimate)? Answer in millions of people.",
+      "expected_unit": "millions of people",
+      "unit_scale": {
+        "label": "millions of people",
+        "factor": 1000000
+      },
+      "strata": {
+        "revision_class": "B",
+        "tier": "T1",
+        "year": 2021
+      },
+      "qid": "R2-072"
+    },
+    {
+      "segment": "headline",
+      "template_id": "gdp_current_usd_v1",
+      "indicator": "gdp_current_usd",
+      "revision_class": "C",
+      "kind": "level",
+      "iso3": "CHE",
+      "country_name": "Switzerland",
+      "tier": "T1",
+      "year": 2019,
+      "text": "What was Switzerland's nominal GDP in 2019, in current US dollars converted at official market exchange rates (World Bank WDI definition)? Note: current US$ at market exchange rates, not PPP international dollars. Answer in billions of US dollars.",
+      "expected_unit": "billions of US dollars",
+      "unit_scale": {
+        "label": "billions of US dollars",
+        "factor": 1000000000
+      },
+      "strata": {
+        "revision_class": "C",
+        "tier": "T1",
+        "year": 2019
+      },
+      "qid": "R2-078"
+    },
+    {
+      "segment": "headline",
+      "template_id": "population_v1",
+      "indicator": "population",
+      "revision_class": "B",
+      "kind": "level",
+      "iso3": "TUN",
+      "country_name": "Tunisia",
+      "tier": "T3",
+      "year": 2022,
+      "text": "What was the total population of Tunisia in 2022 (World Bank definition, mid-year estimate)? Answer in millions of people.",
+      "expected_unit": "millions of people",
+      "unit_scale": {
+        "label": "millions of people",
+        "factor": 1000000
+      },
+      "strata": {
+        "revision_class": "B",
+        "tier": "T3",
+        "year": 2022
+      },
+      "core": true,
+      "source_qid": "P0-011",
+      "qid": "R2-080"
+    },
+    {
+      "segment": "headline",
+      "template_id": "life_expectancy_v1",
+      "indicator": "life_expectancy",
+      "revision_class": "B",
+      "kind": "level",
+      "iso3": "TUN",
+      "country_name": "Tunisia",
+      "tier": "T3",
+      "year": 2019,
+      "text": "What was life expectancy at birth in Tunisia in 2019, total for both sexes combined (World Bank WDI definition)? Note: total population, not male-only or female-only. Answer in years.",
+      "expected_unit": "years",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "B",
+        "tier": "T3",
+        "year": 2019
+      },
+      "qid": "R2-088"
+    },
+    {
+      "segment": "headline",
+      "template_id": "unemployment_rate_v1",
+      "indicator": "unemployment_rate",
+      "revision_class": "B",
+      "kind": "percent",
+      "iso3": "KHM",
+      "country_name": "Cambodia",
+      "tier": "T3",
+      "year": 2022,
+      "text": "What was the unemployment rate in Cambodia in 2022, as a percentage of the total labor force (ILO modeled estimate, World Bank WDI definition)? Note: the ILO modeled estimate, which can differ from nationally published survey rates. Answer in percent.",
+      "expected_unit": "percent",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "B",
+        "tier": "T3",
+        "year": 2022
+      },
+      "qid": "R2-090"
+    },
+    {
+      "segment": "headline",
+      "template_id": "population_v1",
+      "indicator": "population",
+      "revision_class": "B",
+      "kind": "level",
+      "iso3": "MWI",
+      "country_name": "Malawi",
+      "tier": "T4",
+      "year": 2021,
+      "text": "What was the total population of Malawi in 2021 (World Bank definition, mid-year estimate)? Answer in millions of people.",
+      "expected_unit": "millions of people",
+      "unit_scale": {
+        "label": "millions of people",
+        "factor": 1000000
+      },
+      "strata": {
+        "revision_class": "B",
+        "tier": "T4",
+        "year": 2021
+      },
+      "core": true,
+      "source_qid": "P0-065",
+      "qid": "R2-091"
+    },
+    {
+      "segment": "headline",
+      "template_id": "gdp_current_usd_v1",
+      "indicator": "gdp_current_usd",
+      "revision_class": "C",
+      "kind": "level",
+      "iso3": "RUS",
+      "country_name": "Russian Federation",
+      "tier": "T1",
+      "year": 2021,
+      "text": "What was Russian Federation's nominal GDP in 2021, in current US dollars converted at official market exchange rates (World Bank WDI definition)? Note: current US$ at market exchange rates, not PPP international dollars. Answer in billions of US dollars.",
+      "expected_unit": "billions of US dollars",
+      "unit_scale": {
+        "label": "billions of US dollars",
+        "factor": 1000000000
+      },
+      "strata": {
+        "revision_class": "C",
+        "tier": "T1",
+        "year": 2021
+      },
+      "qid": "R2-094"
+    },
+    {
+      "segment": "headline",
+      "template_id": "inflation_cpi_v1",
+      "indicator": "inflation_cpi",
+      "revision_class": "A",
+      "kind": "percent",
+      "iso3": "RUS",
+      "country_name": "Russian Federation",
+      "tier": "T1",
+      "year": 2021,
+      "text": "What was consumer price inflation in Russian Federation in 2021, measured as the annual average change in the consumer price index, in percent (World Bank WDI definition)? Note: annual average, not December-over-December. Answer in percent.",
+      "expected_unit": "percent",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "A",
+        "tier": "T1",
+        "year": 2021
+      },
+      "qid": "R2-096"
+    },
+    {
+      "segment": "headline",
+      "template_id": "reserves_total_usd_v1",
+      "indicator": "reserves_total_usd",
+      "revision_class": "B",
+      "kind": "level",
+      "iso3": "WSM",
+      "country_name": "Samoa",
+      "tier": "T4",
+      "year": 2022,
+      "text": "What were Samoa's total international reserves, including gold, at the end of 2022, in current US dollars (World Bank WDI definition)? Note: total reserves including gold, not foreign-exchange holdings only and not months of import cover. Answer in millions of US dollars.",
+      "expected_unit": "millions of US dollars",
+      "unit_scale": {
+        "label": "millions of US dollars",
+        "factor": 1000000
+      },
+      "strata": {
+        "revision_class": "B",
+        "tier": "T4",
+        "year": 2022
+      },
+      "qid": "R2-098"
+    },
+    {
+      "segment": "headline",
+      "template_id": "fiscal_balance_gdp_v1",
+      "indicator": "fiscal_balance_gdp",
+      "revision_class": "C",
+      "kind": "percent",
+      "iso3": "SAU",
+      "country_name": "Saudi Arabia",
+      "tier": "T1",
+      "year": 2018,
+      "text": "What was Saudi Arabia's general government net lending/borrowing (overall fiscal balance) in 2018, as a percentage of GDP (IMF World Economic Outlook definition)? Note: general government, not central government only; a deficit is a negative number. Answer in percent of GDP.",
+      "expected_unit": "percent of GDP",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "C",
+        "tier": "T1",
+        "year": 2018
+      },
+      "core": true,
+      "source_qid": "P0-117",
+      "qid": "R2-117"
+    },
+    {
+      "segment": "headline",
+      "template_id": "reserves_total_usd_v1",
+      "indicator": "reserves_total_usd",
+      "revision_class": "B",
+      "kind": "level",
+      "iso3": "GAB",
+      "country_name": "Gabon",
+      "tier": "T4",
+      "year": 2022,
+      "text": "What were Gabon's total international reserves, including gold, at the end of 2022, in current US dollars (World Bank WDI definition)? Note: total reserves including gold, not foreign-exchange holdings only and not months of import cover. Answer in millions of US dollars.",
+      "expected_unit": "millions of US dollars",
+      "unit_scale": {
+        "label": "millions of US dollars",
+        "factor": 1000000
+      },
+      "strata": {
+        "revision_class": "B",
+        "tier": "T4",
+        "year": 2022
+      },
+      "core": true,
+      "source_qid": "P0-077",
+      "qid": "R2-118"
+    },
+    {
+      "segment": "headline",
+      "template_id": "reserves_total_usd_v1",
+      "indicator": "reserves_total_usd",
+      "revision_class": "B",
+      "kind": "level",
+      "iso3": "ARM",
+      "country_name": "Armenia",
+      "tier": "T3",
+      "year": 2020,
+      "text": "What were Armenia's total international reserves, including gold, at the end of 2020, in current US dollars (World Bank WDI definition)? Note: total reserves including gold, not foreign-exchange holdings only and not months of import cover. Answer in millions of US dollars.",
+      "expected_unit": "millions of US dollars",
+      "unit_scale": {
+        "label": "millions of US dollars",
+        "factor": 1000000
+      },
+      "strata": {
+        "revision_class": "B",
+        "tier": "T3",
+        "year": 2020
+      },
+      "qid": "R2-130"
+    },
+    {
+      "segment": "headline",
+      "template_id": "life_expectancy_v1",
+      "indicator": "life_expectancy",
+      "revision_class": "B",
+      "kind": "level",
+      "iso3": "MAR",
+      "country_name": "Morocco",
+      "tier": "T2",
+      "year": 2020,
+      "text": "What was life expectancy at birth in Morocco in 2020, total for both sexes combined (World Bank WDI definition)? Note: total population, not male-only or female-only. Answer in years.",
+      "expected_unit": "years",
+      "unit_scale": null,
+      "strata": {
+        "revision_class": "B",
+        "tier": "T2",
+        "year": 2020
+      },
+      "qid": "R2-132"
+    }
+  ],
+  "sibling_of": "R2"
+}
