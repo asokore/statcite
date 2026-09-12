@@ -123,6 +123,20 @@ test("every site page carries the one shared nav, ending in Connect", () => {
   assert.ok(idsIn(read("site/index.html")).has("connect"), "the nav links /#connect but index.html has no id=\"connect\"");
 });
 
+// --- the benchmark tables say which run they show, and when it was scored --
+
+test("both benchmark tables are captioned with the R1 scoring date from the run itself", () => {
+  const summary = JSON.parse(read("bench/runs/R1/scores/summary.json"));
+  const d = new Date(summary.scored_at);
+  assert.ok(!Number.isNaN(d.getTime()), `bench/runs/R1/scores/summary.json scored_at is not a date: ${summary.scored_at}`);
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const expected = `Run 1, scored ${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  for (const rel of ["site/index.html", "site/bench.html"]) {
+    const captions = [...read(rel).matchAll(/<caption>([^<]*)<\/caption>/g)].map((m) => m[1].trim());
+    assert.ok(captions.includes(expected), `${rel}: no caption "${expected}" (found ${JSON.stringify(captions)})`);
+  }
+});
+
 // --- redirects: only for paths the asset server handles, only to real targets
 
 test("site/_redirects sends only asset-served paths, to pages and anchors that exist", () => {
