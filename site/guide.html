@@ -175,7 +175,7 @@ footer a{color:var(--dim)}
     <p class="lead">Almost every wrong economic statistic in a published draft is one of these four. They are worth knowing by name, because each has a different tell and a different fix.</p>
 
     <h3>Right number, wrong year</h3>
-    <p>The commonest one, and the hardest to spot, because the figure is genuine. It is simply attached to the wrong period. US consumer price inflation was 8.0% — in 2022. Claim it for 2023 and the check catches it:</p>
+    <p>The commonest one, and the hardest to spot, because the figure is genuine. It is simply attached to the wrong period. US consumer price inflation was 8.0% in 2022. Claim it for 2023 and the check catches it:</p>
     <pre><code>GET /v1/verify?indicator=inflation_cpi&amp;country=USA&amp;period=2023&amp;value=8.0
 
 "verdict": "mismatch",
@@ -196,7 +196,7 @@ footer a{color:var(--dim)}
   "previous_value": 119.836,
   "matches_previous_vintage": false
 }</code></pre>
-    <p>The revision check matters more than it looks. Official statistics are revised, so "wrong" and "was right when it was written" are different findings that deserve different corrections. Here the claim does not match the previous vintage either, so this is not a revision story — it is simply out of date by several years.</p>
+    <p>The revision check matters more than it looks. Official statistics are revised, so "wrong" and "was right when it was written" are different findings that deserve different corrections. Here the claim does not match the previous vintage either, so this is not a revision story. It is simply out of date by several years.</p>
 
     <h3>Percent versus decimal</h3>
     <p>A unit slip, usually introduced by a spreadsheet or a chart library rather than by a person. Barbados inflation in 2024 was 1.4464%, not 0.014:</p>
@@ -249,7 +249,7 @@ footer a{color:var(--dim)}
   <section id="absent">
     <h2>5. When the honest answer is "nobody publishes this"</h2>
     <p>A verification tool that always produces a number is worse than useless, because the one time it invents something is the time you will not catch it. Sometimes the correct answer is that the series does not exist for that country.</p>
-    <p>Anguilla is a real example. Ask the World Bank and IMF chain for its government debt and there is nothing to return — Anguilla is not a World Bank reporting economy and is absent from the IMF WEO payload for that series. The response says so rather than substituting a neighbour or an aggregate.</p>
+    <p>Anguilla is a real example. Ask the World Bank and IMF chain for its government debt and there is nothing to return. Anguilla is not a World Bank reporting economy and is absent from the IMF WEO payload for that series. The response says so rather than substituting a neighbour or an aggregate.</p>
     <p>But the number does exist. It is published by the regional central bank, which is a different source with a different definition and its own units:</p>
     <pre><code>GET /v1/series?id=caribstat/ECCB/total-public-sector-debt/AIA.a
 
@@ -257,7 +257,7 @@ footer a{color:var(--dim)}
 "unit": "EC$M",
 "citation": "Eastern Caribbean Central Bank, Total Public Sector Debt,
   Central Government Debt, Anguilla (annual), data as at 08 June 2026."</code></pre>
-    <p>Note what changed with the source: this is central government debt in millions of Eastern Caribbean dollars, not general government debt as a share of GDP. It answers a related question, not the same one, and saying so is the point. For several Eastern Caribbean series, including Anguilla and Montserrat, the regional central banks are the only citable machine-readable publisher there is — which is why StatCite carries them alongside the World Bank and the IMF. The full list, with each publisher's licence and the basis for it, is on <a href="/sources">the sources page</a>.</p>
+    <p>Note what changed with the source: this is central government debt in millions of Eastern Caribbean dollars, not general government debt as a share of GDP. It answers a related question, not the same one, and saying so is the point. For several Eastern Caribbean series, including Anguilla and Montserrat, the regional central banks are the only citable machine-readable publisher there is. That is why StatCite carries them alongside the World Bank and the IMF. The full list, with each publisher's licence and the basis for it, is on <a href="/sources">the sources page</a>.</p>
   </section>
 
   <section id="cite">
@@ -297,7 +297,7 @@ footer a{color:var(--dim)}
   </main>
 
   <footer>
-    <p>StatCite. Official economic statistics with full citations. <a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/sources">Sources</a> · <a href="/bench">Benchmark</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
+    <p>StatCite: official economic statistics with full citations. <a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/sources">Sources</a> · <a href="/bench">Benchmark</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
   </footer>
 </div>
 </body>
