@@ -34,7 +34,10 @@
   // observability (npx wrangler tail --search STATCITE_USAGE). Uncomment this
   // line only if the account moves to Workers Paid.
   // "analytics_engine_datasets": [{ "binding": "STATCITE_USAGE", "dataset": "statcite_usage" }],
-  "observability": { "enabled": true }
+  // invocation_logs false: an invocation log records each request URL, which
+  // carries claimed values and search text, and privacy.html says the service
+  // keeps neither. Console lines (STATCITE_USAGE, crash logs) are still kept.
+  "observability": { "enabled": true, "logs": { "enabled": true, "invocation_logs": false } }
   // Secrets (set via `wrangler secret put`):
   //   FRED_API_KEY — INERT. FRED is permanently disabled (server/src/adapters/fred.ts
   //                  declines unconditionally per a verified terms-of-use conflict).
