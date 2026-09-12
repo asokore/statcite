@@ -1120,37 +1120,81 @@
                           "source": {
                             "type": "string"
                           },
-                          "value": {
-                            "type": "number"
+                          "ok": {
+                            "type": "boolean"
                           },
                           "period": {
                             "type": "string"
                           },
-                          "definition": {
-                            "type": "string"
+                          "value": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "unit": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "note": {
+                            "type": "string",
+                            "description": "About this observation, e.g. that it is an IMF projection, or the definition of a related series."
                           },
                           "error": {
-                            "type": "string"
+                            "type": "string",
+                            "description": "Present when ok is false: why this source returned nothing."
+                          },
+                          "excluded_from_comparison": {
+                            "type": "boolean",
+                            "description": "A related series on a different definition (for example the Eastern Caribbean Central Bank's own debt measure), shown for context and not counted in the spread."
                           },
                           "citation": {
                             "$ref": "#/components/schemas/Citation"
                           }
-                        }
+                        },
+                        "required": [
+                          "source",
+                          "ok"
+                        ]
                       }
                     },
                     "comparison": {
                       "type": "object",
+                      "description": "Present when two or more sources have a value for the compared period.",
                       "properties": {
-                        "spread": {
+                        "period": {
+                          "type": "string"
+                        },
+                        "n_sources": {
+                          "type": "integer"
+                        },
+                        "min": {
                           "type": "number"
                         },
-                        "agree": {
-                          "type": "boolean"
+                        "max": {
+                          "type": "number"
                         },
-                        "note": {
-                          "type": "string"
+                        "spread_abs": {
+                          "type": "number"
+                        },
+                        "spread_pct": {
+                          "type": [
+                            "number",
+                            "null"
+                          ],
+                          "description": "Spread as a percent of the mid-point, null when the mid-point is about zero."
                         }
-                      }
+                      },
+                      "required": [
+                        "period",
+                        "n_sources",
+                        "min",
+                        "max",
+                        "spread_abs",
+                        "spread_pct"
+                      ]
                     },
                     "notes": {
                       "type": "array",

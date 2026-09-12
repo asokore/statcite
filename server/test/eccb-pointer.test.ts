@@ -45,6 +45,41 @@ test("inflation_cpi for Montserrat points at the ECCB end-of-period series", asy
   assert.match(body.error.message, /end of period/);
 });
 
+test("compare_sources for Anguilla shows the ECCB rows with their definition, outside the spread", async () => {
+  stubAbsentEverywhere();
+  const inner = globalThis.fetch;
+  const eccbDoc = {
+    source: "Eastern Caribbean Central Bank", source_id: "eccb", source_url: "https://www.eccb-centralbank.org/",
+    table_id: "debt-to-gdp", table_title: "Debt to Gross Domestic Product", country: { iso3: "AIA", name: "Anguilla" },
+    frequency: "a", data_as_at: "2026-06-08", retrieved_at: "2026-09-01T00:00:00Z", periods: ["2024", "2025"],
+    series: [
+      { label: "Central Government Debt to GDP", unit: "%", observations: [{ period: "2024", value: 18.1 }, { period: "2025", value: 17.2 }] },
+      { label: "Total Public Sector Debt to GDP", unit: "%", observations: [{ period: "2024", value: 21.0 }, { period: "2025", value: 20.45 }] },
+    ],
+  };
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (url.includes("/data/eccb/debt-to-gdp/a/AIA.json")) {
+      return new Response(JSON.stringify(eccbDoc), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return inner(input, init);
+  }) as typeof fetch;
+  try {
+    const { isError, payload } = await mcpTool("compare_sources", { indicator: "govt_debt_gdp", country: "AIA" });
+    assert.equal(isError, false, JSON.stringify(payload).slice(0, 400));
+    const eccb = payload.results.filter((r: any) => r.excluded_from_comparison);
+    assert.equal(eccb.length, 2, "both ECCB debt ratios must appear: " + JSON.stringify(payload.results));
+    const total = eccb.find((r: any) => /Total public sector/i.test(r.source));
+    assert.equal(total.ok, true);
+    assert.equal(total.value, 20.45);
+    assert.match(total.note, /not the IMF's general government gross debt/);
+    assert.ok(total.citation, "the ECCB row must carry its own citation");
+    assert.equal(payload.comparison, undefined, "ECCB rows must never form a spread on their own");
+  } finally {
+    globalThis.fetch = inner;
+  }
+});
+
 test("an economy outside the ECCU gets the plain absence sentence, with no ECCB pointer", async () => {
   stubAbsentEverywhere();
   const { isError, payload } = await mcpTool("get_indicator", { indicator: "govt_debt_gdp", country: "Nauru" });

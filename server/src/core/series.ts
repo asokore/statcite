@@ -1352,6 +1352,9 @@ export interface CompareSourcesResult {
     citation?: Citation;
     note?: string;
     error?: string;
+    /** A related series on a different definition, shown for context and not
+     * counted in the comparison spread. */
+    excluded_from_comparison?: boolean;
   }>;
   comparison?: {
     period: string;
@@ -1493,6 +1496,38 @@ export async function compareSources(ctx: Ctx, key: string, countryInput: string
     } else if (responded === 0) {
       notes.push("No source returned a value for this indicator and country, so nothing here is corroborated. The per-source error fields say why.");
     }
+  }
+
+  // ECCU members: the Eastern Caribbean Central Bank publishes its own debt
+  // and inflation series. For Anguilla and Montserrat they are the only
+  // figures that exist, and for the other members they are what a local
+  // reader will have seen. Shown with their definition, never in the spread.
+  const related = CARIBSTAT_ENABLED ? eccbRelated(def.key, country.iso3) : undefined;
+  if (related) {
+    const extra = await Promise.allSettled(related.series.map((s) => getSeries(ctx, s.id, { limit: 60 })));
+    extra.forEach((x, k) => {
+      const s = related.series[k];
+      if (x.status === "rejected") {
+        const msg = x.reason instanceof Error ? x.reason.message : String(x.reason);
+        results.push({ source: s.label, ok: false, error: msg, excluded_from_comparison: true });
+        return;
+      }
+      const valued = x.value.observations.filter((o) => o.value != null);
+      const pick = (comparePeriod ? valued.find((o) => o.period === comparePeriod) : undefined) ?? valued[valued.length - 1];
+      results.push({
+        source: s.label,
+        ok: true,
+        period: pick?.period,
+        value: pick ? pick.value : null,
+        unit: x.value.unit,
+        citation: x.value.citation,
+        note: related.definition,
+        excluded_from_comparison: true,
+      });
+    });
+    notes.push(
+      "Rows marked excluded_from_comparison come from the Eastern Caribbean Central Bank on its own definition. They are shown for context and are not part of the comparison spread.",
+    );
   }
 
   return { indicator: def.key, label: def.label, country: { iso3: country.iso3, name: country.name }, period: comparePeriod, results, comparison, notes };
