@@ -57,10 +57,14 @@ function parseEnvelope(
           { api_url: apiUrl, country: ctx.countryCode, unknown_country: true },
         );
       }
-      throw new ToolError(
+      const err = new ToolError(
         `The World Bank does not publish indicator ${ctx.indicatorId ?? "(unknown)"} for '${ctx.countryCode ?? "(unknown)"}'. This is a coverage fact at the source, not a lookup failure, some economies (e.g. Anguilla, Montserrat) are not World Bank reporting economies at all.`,
         { api_url: apiUrl, no_published_data: true, country: ctx.countryCode, indicator: ctx.indicatorId },
       );
+      // The same refusal also comes back for an unknown indicator code, so a
+      // caller that supplied the code can check which one it was.
+      (err as ToolError & { wbParameterRefusal?: boolean }).wbParameterRefusal = true;
+      throw err;
     }
     throw new ToolError(`World Bank API error, ${text}`, { api_url: apiUrl });
   }
@@ -68,17 +72,44 @@ function parseEnvelope(
   return { meta: first ?? {}, rows: Array.isArray(rows) ? rows : [] };
 }
 
+/** True only when the World Bank's indicator endpoint positively refuses the
+ * code. Any other outcome, including a failed check, returns false so the
+ * caller keeps the coverage answer rather than inventing a typo. */
+async function wbIndicatorIsUnknown(indicatorId: string): Promise<boolean> {
+  try {
+    const d = await fetchJson(`${BASE}/indicator/${encodeURIComponent(indicatorId)}?format=json`, { ttlSeconds: 86400 });
+    const first = Array.isArray(d) ? (d[0] as { message?: Array<{ id?: string; key?: string }> } | undefined) : undefined;
+    return Boolean(first?.message?.some((m) => m.id === "120" || /invalid value/i.test(m.key ?? "")));
+  } catch {
+    return false;
+  }
+}
+
 /** Fetch one indicator for one country (ascending observations). */
 export async function fetchWbSeries(
   countryCode: string,
   indicatorId: string,
-  opts: { perPage?: number; mrv?: number; countryUnverified?: boolean } = {},
+  opts: { perPage?: number; mrv?: number; countryUnverified?: boolean; checkIndicatorOnRefusal?: boolean } = {},
 ): Promise<WbSeries> {
   const params = new URLSearchParams({ format: "json", per_page: String(opts.perPage ?? 1000) });
   if (opts.mrv) params.set("mrv", String(opts.mrv));
   const apiUrl = `${BASE}/country/${encodeURIComponent(countryCode)}/indicator/${encodeURIComponent(indicatorId)}?${params}`;
   const data = await fetchJson(apiUrl, { ttlSeconds: 21600 });
-  const { meta, rows } = parseEnvelope(data, apiUrl, { countryCode, indicatorId, countryUnverified: opts.countryUnverified });
+  let parsed: ReturnType<typeof parseEnvelope>;
+  try {
+    parsed = parseEnvelope(data, apiUrl, { countryCode, indicatorId, countryUnverified: opts.countryUnverified });
+  } catch (e) {
+    if (opts.checkIndicatorOnRefusal && (e as { wbParameterRefusal?: boolean }).wbParameterRefusal) {
+      if (await wbIndicatorIsUnknown(indicatorId)) {
+        throw new ToolError(
+          `Unknown World Bank indicator code '${indicatorId}'. The World Bank does not recognise it, so this is not a coverage gap. Check the code at https://data.worldbank.org/indicator, or find a registry key with search_indicators.`,
+          { indicator: indicatorId, unknown_indicator: true, api_url: `${BASE}/indicator/${encodeURIComponent(indicatorId)}?format=json` },
+        );
+      }
+    }
+    throw e;
+  }
+  const { meta, rows } = parsed;
   if (rows.length === 0) {
     throw new ToolError(
       `No World Bank data found for indicator ${indicatorId}, country ${countryCode}. The indicator code or country may be wrong, or the series may not be reported for this economy.`,

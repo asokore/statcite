@@ -938,7 +938,7 @@ export async function getSeries(
       throw new ToolError("World Bank series require a 'country' parameter (ISO3 code or name).", { series_id: id });
     }
     const country = requireCountry(opts.country);
-    const wb = await fetchWbSeries(country.iso3, code, { countryUnverified: country.unverified });
+    const wb = await fetchWbSeries(country.iso3, code, { countryUnverified: country.unverified, checkIndicatorOnRefusal: !country.unverified });
     const citation = worldBankCitation(ctx, {
       indicatorId: wb.indicatorId,
       indicatorName: wb.indicatorName,
