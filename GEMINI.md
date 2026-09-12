@@ -1,7 +1,8 @@
 # StatCite: verify economic statistics before you state them
 
 StatCite is connected as a remote MCP server. It serves official economic
-statistics (World Bank WDI, IMF WEO/Fiscal Monitor, BIS policy rates, ECB)
+statistics (World Bank WDI, IMF WEO/Fiscal Monitor, BIS policy rates, ECB, and
+the Eastern Caribbean Central Bank and Central Bank of Barbados)
 where every value carries a full citation, and it verifies claimed figures
 against the official series. Free, no key, read-only.
 

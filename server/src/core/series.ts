@@ -1024,8 +1024,25 @@ export async function getSeries(
     return getIndicator(ctx, id, opts.country, opts);
   }
 
+  // bis/ and ecb/ ids are EMITTED by the policy_rate and euro_area_hicp
+  // registry keys, so an agent can reasonably pass one back here. They are
+  // served through get_indicator, not this route. Say which call works rather
+  // than returning a bare rejection of an id the service itself handed out.
+  if (lower.startsWith("bis/")) {
+    throw new ToolError(
+      `'${id}' is a BIS policy-rate series, served through get_indicator rather than get_series. Call get_indicator with indicator 'policy_rate' and the country.`,
+      { series_id: id, use_instead: { tool: "get_indicator", indicator: "policy_rate" } },
+    );
+  }
+  if (lower.startsWith("ecb/")) {
+    throw new ToolError(
+      `'${id}' is an ECB Data Portal series, served through get_indicator rather than get_series. Call get_indicator with indicator 'euro_area_hicp' and country 'euro area'.`,
+      { series_id: id, use_instead: { tool: "get_indicator", indicator: "euro_area_hicp" } },
+    );
+  }
+
   throw new ToolError(
-    `Unrecognized series id '${id}'. Expected 'worldbank/CODE', 'fred/ID', 'dbnomics/PROVIDER/DATASET/SERIES', or a registry indicator key (see search_indicators).`,
+    `Unrecognized series id '${id}'. Expected 'worldbank/CODE', 'imf/CODE', 'caribstat/BANK/TABLE/SERIES', 'dbnomics/PROVIDER/DATASET/SERIES', 'fred/ID', or a registry indicator key (see search_indicators).`,
     { series_id: id },
   );
 }
@@ -1144,7 +1161,7 @@ export async function searchIndicators(ctx: Ctx, query: string, opts: { includeD
         id: hit.id,
         title: `${hit.entry.provider}: ${hit.entry.title}${hit.iso3 ? `, ${hit.iso3}` : ""}`,
         description: `${hit.why}. Regional central bank data, not a registry indicator: values are on the publishing bank's own definitions.`,
-        usage: `get_series(id="${hit.id}") — add '#Row Label' to pick a row, e.g. '#${hit.entry.sampleRow}'`,
+        usage: `get_series(series_id="${hit.id}") — add '#Row Label' to pick a row, e.g. '#${hit.entry.sampleRow}'`,
       });
     }
   }
@@ -1158,7 +1175,7 @@ export async function searchIndicators(ctx: Ctx, query: string, opts: { includeD
       id: g.id,
       title: `UNCTAD: GDP growth, ${g.name} (1971-2019)`,
       description: `The World Bank and IMF publish no GDP series for ${g.name}. UNCTAD does, annually from 1971, but it ENDS IN 2019, so it is history rather than a current figure.`,
-      usage: `get_series(id="${g.id}")`,
+      usage: `get_series(series_id="${g.id}")`,
     });
   }
 

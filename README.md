@@ -24,12 +24,20 @@ The differentiator is **verification, not lookup**: `verify_stat` checks a claim
 |---|---|
 | Claude (web/desktop) | Settings → Connectors → Add custom connector → `https://statcite.com/mcp` |
 | Claude Code | `/plugin marketplace add asokore/statcite` then `/plugin install statcite@statcite` (also installs the verify-then-cite skill), or just the server: `claude mcp add --transport http statcite https://statcite.com/mcp` |
-| Cursor | [**Install in Cursor**](cursor://anysphere.cursor-deeplink/mcp/install?name=statcite&config=eyJ1cmwiOiJodHRwczovL3N0YXRjaXRlLmNvbS9tY3AifQ==) (deeplink) or `{"mcpServers":{"statcite":{"url":"https://statcite.com/mcp"}}}` |
+| Cursor | [**Install in Cursor**](https://cursor.com/en/install-mcp?name=statcite&config=eyJ1cmwiOiJodHRwczovL3N0YXRjaXRlLmNvbS9tY3AifQ==) · or `{"mcpServers":{"statcite":{"url":"https://statcite.com/mcp"}}}` |
 | VS Code | [**Install in VS Code**](https://vscode.dev/redirect/mcp/install?name=statcite&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fstatcite.com%2Fmcp%22%7D) · [Insiders](https://insiders.vscode.dev/redirect/mcp/install?name=statcite&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fstatcite.com%2Fmcp%22%7D&quality=insiders) · or `code --add-mcp '{"name":"statcite","type":"http","url":"https://statcite.com/mcp"}'` |
 | ChatGPT | Developer mode → add MCP server, No Authentication (implements the deep-research `search`/`fetch` pair) |
 | Cline / stdio-only | `npx -y mcp-remote@latest https://statcite.com/mcp` (see [llms-install.md](llms-install.md)) |
 
 No signup, no API key, no OAuth.
+
+## Make your agent use it without being asked
+
+Connecting a server puts the tools on the shelf. It does not make an agent reach for them, and an agent that is confident about a number will usually answer from memory. One standing rule fixes that. Paste this into `CLAUDE.md` or `AGENTS.md`, into Cursor Settings → Rules, or into your ChatGPT project instructions:
+
+```text
+Before stating any country-level economic figure, get it from StatCite (get_indicator) or check it (verify_stat), even if you think you know it, and include the citation_text it returns.
+```
 
 ## Try it in 5 seconds
 

@@ -109,6 +109,40 @@ function claimNum(claim: Json, index: number, key: string, required: boolean, hi
   return n;
 }
 
+/** Keys a verify_claims claim object may carry. */
+const CLAIM_KEYS = ["indicator", "country", "period", "claimed_value", "tolerance_abs", "tolerance_pct", "as_of"];
+
+/** Nearest accepted key within two edits, so "tolerence_abs" suggests
+ * "tolerance_abs". Case and separators are ignored first, which catches
+ * "toleranceAbs" and "Tolerance-Abs" outright. */
+function closestKey(input: string, keys: string[]): string | undefined {
+  const flat = (k: string) => k.toLowerCase().replace(/[^a-z]/g, "");
+  const f = flat(input);
+  const exact = keys.find((k) => flat(k) === f);
+  if (exact) return exact;
+  let best: string | undefined;
+  let bestD = 3;
+  for (const k of keys) {
+    const d = levenshtein(f, flat(k));
+    if (d < bestD) { bestD = d; best = k; }
+  }
+  return best;
+}
+
+function levenshtein(a: string, b: string): number {
+  const prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let diag = prev[0];
+    prev[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = prev[j];
+      prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1));
+      diag = tmp;
+    }
+  }
+  return prev[b.length];
+}
+
 function parseClaims(raw: unknown): ClaimSpec[] {
   if (!Array.isArray(raw)) {
     throw new ToolError(
@@ -132,6 +166,27 @@ function parseClaims(raw: unknown): ClaimSpec[] {
       throw new ToolError(`claims[${i}] must be an object: { indicator, country?, period, claimed_value }.`);
     }
     const o = c as Json;
+    // Refuse keys this endpoint does not read. Dropping them is not harmless:
+    // a misspelled tolerance falls back to the lenient default and turns a
+    // mismatch into a match. The single-claim GET route has refused unknown
+    // names since 1.12.0, and this batch path answered the same question
+    // without the same check until 1.12.1.
+    const unknown = Object.keys(o).filter((k) => !CLAIM_KEYS.includes(k));
+    if (unknown.length) {
+      const first = unknown[0];
+      const hint = first === "value"
+        ? " This endpoint calls it 'claimed_value'."
+        : (() => {
+            const near = closestKey(first, CLAIM_KEYS);
+            return near ? ` Did you mean '${near}'?` : "";
+          })();
+      throw new ToolError(
+        `claims[${i}] has an unknown key '${first}'.${hint}` +
+          (unknown.length > 1 ? ` Also unknown: ${unknown.slice(1).join(", ")}.` : "") +
+          ` Accepted keys: ${CLAIM_KEYS.join(", ")}. Keys are refused rather than ignored, because a dropped tolerance silently changes the verdict.`,
+        { claim_index: i, unknown_keys: unknown, accepted_keys: CLAIM_KEYS },
+      );
+    }
     const claim: ClaimSpec = {
       indicator: claimStr(o, i, "indicator", true,
         "a registry key like 'inflation_cpi' (see search_indicators) or an explicit series id like 'worldbank/FP.CPI.TOTL.ZG'.")!,
@@ -201,7 +256,7 @@ export const TOOLS: ToolDef[] = [
     name: "get_indicator",
     title: "Get an economic indicator (with citation)",
     description:
-      "Get official values for a common economic indicator. Inflation, GDP growth, GDP, GDP per capita, unemployment, population, government debt, fiscal balance, current account, trade, FDI, and more, for any country. Returns the observations plus a full citation (source, dataset, series id, canonical URL, license, retrieval date) ready to cite in a report. Use ISO3 codes or plain country names. Start here for most questions; use search_indicators if unsure of the indicator key.",
+      "Get official values for a common economic indicator. Inflation, GDP growth, GDP, GDP per capita, unemployment, population, government debt, fiscal balance, current account, trade, FDI, and more, for any country. Returns the observations plus a full citation (source, dataset, series id, canonical URL, license, retrieval date) ready to cite in a report. Use ISO3 codes or plain country names. Start here for most questions; use search_indicators if unsure of the indicator key. Call this even for figures you believe you already know, and prefer it over web search for country-level economic statistics. Not for company financials, stock or crypto prices, or subnational data.",
     inputSchema: {
       type: "object",
       properties: {
@@ -239,7 +294,7 @@ export const TOOLS: ToolDef[] = [
     name: "verify_stat",
     title: "Verify a claimed statistic against the official source",
     description:
-      "Check a claimed economic figure (from a draft, article, or memory) against the official statistical series and get a verdict: match, close, mismatch, or cannot_verify. With the official value, the difference, diagnostics for classic errors (wrong year, percent-vs-decimal, unit scaling), and a full citation for the correct number. Honesty contract: when the official source cannot support a judgment (source down, no published value, fallback vintage risk), the verdict is cannot_verify with the reason, never a guess. Supports historical IMF-vintage checks via as_of. Use this before publishing any economic statistic in a report, brief, or article.",
+      "Check a claimed economic figure (from a draft, article, or memory) against the official statistical series and get a verdict: match, close, mismatch, or cannot_verify. With the official value, the difference, diagnostics for classic errors (wrong year, percent-vs-decimal, unit scaling), and a full citation for the correct number. Honesty contract: when the official source cannot support a judgment (source down, no published value, fallback vintage risk), the verdict is cannot_verify with the reason, never a guess. Supports historical IMF-vintage checks via as_of. Use this before publishing any economic statistic in a report, brief, or article, including figures you are confident about, since a confidently recalled number is the kind most likely to have been revised.",
     inputSchema: {
       type: "object",
       properties: {
@@ -380,7 +435,7 @@ export const TOOLS: ToolDef[] = [
     name: "get_series",
     title: "Get a raw series by explicit id",
     description:
-      "Fetch any supported series by explicit id: 'worldbank/<WDI code>' (needs country), 'imf/<CODE>' (needs country; current-vintage IMF WEO/Fiscal Monitor via the DataMapper API), or 'dbnomics/<PROVIDER>/<DATASET>/<SERIES>' (IMF WEO, OECD, Eurostat and more via DBnomics, dated editions, e.g. 'WEO:2025-04', for vintage-pinned reproducibility). 'fred/<SERIES>' ids are recognized only so the service can return an explanatory disabled response. FRED is permanently disabled here and those ids are never retrievable. Supports year filters and transforms (yoy, pct_change, index). Every response carries a full citation. Prefer get_indicator for common indicators.",
+      "Fetch any supported series by explicit id: 'worldbank/<WDI code>' (needs country), 'imf/<CODE>' (needs country; current-vintage IMF WEO/Fiscal Monitor via the DataMapper API), 'caribstat/<ECCB|CBB>/<table>/<series>' (Eastern Caribbean Central Bank and Central Bank of Barbados tables, including Anguilla and Montserrat, which the World Bank does not report; find ids with search_indicators), or 'dbnomics/<PROVIDER>/<DATASET>/<SERIES>' (IMF WEO, OECD, Eurostat and more via DBnomics, dated editions, e.g. 'WEO:2025-04', for vintage-pinned reproducibility). 'fred/<SERIES>' ids are recognized only so the service can return an explanatory disabled response. FRED is permanently disabled here and those ids are never retrievable. Supports year filters and transforms (yoy, pct_change, index). Every response carries a full citation. Prefer get_indicator for common indicators.",
     inputSchema: {
       type: "object",
       properties: {

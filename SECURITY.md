@@ -30,6 +30,7 @@ Relevant properties:
 
 ## Supported versions
 
-The production deployment at statcite.com always runs the latest tagged
-release; there are no maintained older branches. If you pin the Apify actor,
+The production deployment at statcite.com runs the latest version recorded
+in CHANGELOG.md, and /v1/status reports that version. There are no
+maintained older branches. If you pin the Apify actor,
 update to the newest build, data-integrity fixes are not backported.

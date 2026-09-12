@@ -154,3 +154,31 @@ test("a correctly-ordered year window is untouched by the inversion guard", asyn
   assert.equal(isError, false, JSON.stringify(payload).slice(0, 200));
   assert.ok(payload.observations.length > 0, "a valid window must still return data");
 });
+
+test("the resolver never serves one country's statistics for another", () => {
+  // Live on 2026-09-12: "American Samoa" was served Samoa and "Northern Ireland"
+  // was served Ireland, each under a real citation. For a citation product a
+  // wrong country is worse than no answer, so each case asserts the correct
+  // economy OR a refusal, never the neighbour.
+  assert.equal(resolveCountry("American Samoa")?.iso3, "ASM");
+  assert.equal(resolveCountry("Samoa")?.iso3, "WSM");
+  assert.equal(resolveCountry("US Virgin Islands")?.iso3, "VIR");
+  assert.equal(resolveCountry("U.S. Virgin Islands")?.iso3, "VIR");
+  assert.equal(resolveCountry("British Virgin Islands")?.iso3, "VGB");
+  assert.equal(resolveCountry("Virgin Islands"), null, "bare 'Virgin Islands' names two economies and must not guess");
+  assert.equal(resolveCountry("Northern Ireland"), null, "Northern Ireland is part of the UK, not Ireland");
+  assert.notEqual(resolveCountry("Northern Ireland")?.iso3, "IRL");
+});
+
+test("same-state qualifiers still resolve, and deliberate aliases are unchanged", () => {
+  // The substring restriction must not break the case it was written for.
+  assert.equal(resolveCountry("Ireland")?.iso3, "IRL");
+  assert.equal(resolveCountry("Republic of Ireland")?.iso3, "IRL");
+  assert.equal(resolveCountry("the Republic of Ireland")?.iso3, "IRL");
+  // Explicit editorial aliases on those rows, deliberately left alone.
+  assert.equal(resolveCountry("Korea")?.iso3, "KOR");
+  assert.equal(resolveCountry("Congo")?.iso3, "COG");
+  // Constituent countries without their own national series still refuse.
+  assert.equal(resolveCountry("Scotland"), null);
+  assert.equal(resolveCountry("Wales"), null);
+});

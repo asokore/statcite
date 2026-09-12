@@ -113,6 +113,9 @@ const ROWS: Row[] = [
   ["MSR", "MS", "Montserrat"],
   ["AIA", "AI", "Anguilla"],
   ["VGB", "VG", "British Virgin Islands", "bvi", "virgin islands british"],
+  // Missing until 2026-09-12: "US Virgin Islands" resolved to nothing and a
+  // bare "Virgin Islands" was silently given the British territory.
+  ["VIR", "VI", "Virgin Islands (U.S.)", "us virgin islands", "u s virgin islands", "united states virgin islands", "usvi"],
   ["TCA", "TC", "Turks and Caicos Islands", "turks and caicos"],
   ["GIB", "GI", "Gibraltar"],
   ["FLK", "FK", "Falkland Islands", "malvinas"],
@@ -287,6 +290,9 @@ const ROWS: Row[] = [
   ["RUS", "RU", "Russian Federation", "russia"],
   ["RWA", "RW", "Rwanda"],
   ["WSM", "WS", "Samoa"],
+  // A US territory, not Samoa. Missing until 2026-09-12, so "American Samoa"
+  // fell through to the substring step and was served Samoa's statistics.
+  ["ASM", "AS", "American Samoa"],
   ["SMR", "SM", "San Marino"],
   ["STP", "ST", "Sao Tome and Principe", "são tomé and príncipe"],
   ["SAU", "SA", "Saudi Arabia"],
@@ -388,6 +394,16 @@ for (const rows of [ROWS, AGGREGATES]) {
   }
 }
 
+/**
+ * Inputs that name more than one economy. Removed from the exact-name index so
+ * they fall through to the ambiguity check and return null, which surfaces
+ * suggestions instead of a silent guess. "virgin islands" is both the US and
+ * the British territory. Do not add a name here that has an established
+ * single meaning: "korea" and "congo" are explicit aliases and stay.
+ */
+const AMBIGUOUS_NAMES = ["virgin islands"];
+for (const a of AMBIGUOUS_NAMES) byName.delete(a);
+
 // Precomputed normalized names (avoids re-normalizing 230+ names per lookup).
 const NORM_NAMES: Array<{ c: Country; n: string }> = COUNTRIES.map((c) => ({ c, n: norm(c.name) }));
 
@@ -397,6 +413,17 @@ const NORM_NAMES: Array<{ c: Country; n: string }> = COUNTRIES.map((c) => ({ c, 
  * code matching only for inputs the caller supplied in UPPERCASE — so English
  * words like "in", "was", "gdp" never resolve to India/WAS/GDP.
  */
+/** Words that qualify a state without naming a different one. Anything else
+ * added to a country's name ("northern", "american", "british") is treated
+ * as naming a different place. An allowlist rather than a denylist, so an
+ * unforeseen modifier refuses instead of silently matching. */
+const SAME_STATE_QUALIFIERS = new Set([
+  "the", "of", "and", "republic", "kingdom", "state", "states", "commonwealth",
+  "federal", "federation", "democratic", "people", "peoples", "s", "islamic",
+  "socialist", "plurinational", "bolivarian", "principality", "grand", "duchy",
+  "sultanate", "independent", "union", "government", "country",
+]);
+
 export function resolveCountry(input: string, opts: { strict?: boolean } = {}): Country | null {
   const raw = input.trim();
   if (!raw) return null;
@@ -406,9 +433,25 @@ export function resolveCountry(input: string, opts: { strict?: boolean } = {}): 
   const n = norm(raw);
   if (byName.has(n)) return byName.get(n)!;
   // Unambiguous substring match ("republic of ireland" -> ireland).
+  //
+  // Two directions, and they are not equally safe. A known name containing
+  // the input ("ireland" inside "republic of ireland") only ever narrows. The
+  // input containing a known name is where the damage was: "northern ireland"
+  // contains "ireland" and "american samoa" contains "samoa", and both were
+  // served the wrong country's official statistics under a real citation.
+  // So that direction now requires every extra word to be a same-state
+  // qualifier. A modifier naming a different place rejects the match and the
+  // caller gets suggestions instead of a confident wrong answer.
   if (n.length >= 4) {
-    const hits = NORM_NAMES.filter(({ n: cn }) => cn.includes(n) || n.includes(cn));
-    if (hits.length === 1) return hits[0].c;
+    const hits = NORM_NAMES.filter(({ n: cn }) => {
+      if (cn.includes(n)) return true;
+      if (!n.includes(cn)) return false;
+      const known = new Set(cn.split(" "));
+      const extra = n.split(" ").filter((t) => t && !known.has(t));
+      return extra.every((t) => SAME_STATE_QUALIFIERS.has(t));
+    });
+    const uniq = [...new Set(hits.map((h) => h.c.iso3))];
+    if (uniq.length === 1) return hits[0].c;
   }
   // Single-typo tolerance (edit distance 1, unique hit only): catches
   // "Jamiaca"/"Barbadoss" without ever guessing between near-neighbours —

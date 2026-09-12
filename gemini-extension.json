@@ -1,7 +1,7 @@
 {
   "name": "statcite",
-  "version": "1.12.0",
-  "description": "Official economic statistics with full citations (World Bank, IMF, BIS, ECB), plus verification of claimed figures against the official series.",
+  "version": "1.12.1",
+  "description": "Official economic statistics with full citations (World Bank, IMF, BIS, ECB, the Eastern Caribbean Central Bank and the Central Bank of Barbados), plus verification of claimed figures against the official series.",
   "contextFileName": "GEMINI.md",
   "mcpServers": {
     "statcite": {

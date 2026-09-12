@@ -257,3 +257,64 @@ test("a country-free query is unaffected by the geography filter", async () => {
   const ids = (await searchIndicators(ctx, "inflation")).results.map((r: any) => String(r.id));
   assert.ok(ids.length > 0, "bare 'inflation' must still return results");
 });
+
+test("verify_claims refuses an unknown claim key instead of silently loosening the verdict", async () => {
+  // Live on 2026-09-12: a claim carrying "tolerence_abs" returned HTTP 200
+  // "match". The misspelling was dropped, the lenient default applied, and a
+  // strict check the caller asked for came back as a pass. GET /v1/verify had
+  // refused unknown names since 1.12.0; this batch path had not.
+  const { payload, isError } = await mcpTool("verify_claims", {
+    claims: [{ indicator: "inflation_cpi", country: "BRB", period: "2024", claimed_value: 1.4, tolerence_abs: 0.001 }],
+  });
+  assert.equal(isError, true, `expected a refusal, got ${JSON.stringify(payload).slice(0, 200)}`);
+  const text = JSON.stringify(payload);
+  assert.match(text, /tolerence_abs/, "the error must name the offending key");
+  assert.match(text, /Did you mean 'tolerance_abs'/, "the error must suggest the real key");
+});
+
+test("verify_claims still accepts every documented claim key", async () => {
+  // Without this the refusal could reject a legitimate key and the test above
+  // would still pass.
+  const { isError, payload } = await mcpTool("verify_claims", {
+    claims: [{ indicator: "inflation_cpi", country: "BRB", period: "2024", claimed_value: 1.4, tolerance_abs: 0.5, tolerance_pct: 5 }],
+  });
+  assert.equal(isError, false, JSON.stringify(payload).slice(0, 200));
+});
+
+test("search usage strings name the real get_series parameter", async () => {
+  // search_indicators told agents to call get_series(id=...), but the MCP
+  // tool's parameter is series_id. An agent following the string failed, and
+  // it failed on the Caribbean path specifically.
+  const { searchIndicators } = await import("../src/core/series.ts");
+  const ctx = { now: () => new Date("2026-09-12T00:00:00Z") } as any;
+  const out = await searchIndicators(ctx, "anguilla debt", { includeDbnomics: false });
+  const usages = out.results.map((r: any) => String(r.usage || "")).filter((u: string) => u.includes("get_series"));
+  assert.ok(usages.length > 0, "expected at least one get_series usage string");
+  for (const u of usages) {
+    assert.doesNotMatch(u, /get_series\(id=/, `usage must not tell agents to pass id=: ${u}`);
+    assert.match(u, /get_series\(series_id=/, `usage must name series_id: ${u}`);
+  }
+  // And the schema really is series_id, so the two cannot drift apart silently.
+  const { TOOLS } = await import("../src/tools.ts");
+  const gs = (TOOLS as any[]).find((x) => x.name === "get_series");
+  assert.ok(gs.inputSchema.required.includes("series_id"));
+});
+
+test("an id the service emits is routed to the call that serves it, not bare-rejected", async () => {
+  // policy_rate and euro_area_hicp hand out bis/ and ecb/ series_ids. Passing
+  // one back to get_series used to 422 with no way forward.
+  for (const [id, key] of [["bis/WS_CBPOL/M.US", "policy_rate"], ["ecb/HICP/M.U2.N.000000.4D0.ANR", "euro_area_hicp"]]) {
+    const { payload, isError } = await mcpTool("get_series", { series_id: id, country: "USA" });
+    assert.equal(isError, true);
+    const text = JSON.stringify(payload);
+    assert.match(text, /get_indicator/, `${id}: the error must name the call that works`);
+    assert.match(text, new RegExp(key), `${id}: the error must name the indicator key`);
+  }
+});
+
+test("get_series advertises the Caribbean id form it accepts", async () => {
+  const { TOOLS } = await import("../src/tools.ts");
+  const gs = (TOOLS as any[]).find((x) => x.name === "get_series");
+  assert.match(gs.description, /caribstat\//, "get_series must tell agents caribstat/ ids exist");
+  assert.match(gs.description, /Eastern Caribbean Central Bank/);
+});

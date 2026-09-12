@@ -449,3 +449,40 @@ test("every openapi example id is a real published series", () => {
     );
   }
 });
+
+test("every agent-facing surface names both Caribbean central banks the ledger serves", () => {
+  // ECCB and CBB went missing from gemini-extension.json, GEMINI.md and
+  // SKILL.md while /v1/sources marked both served, and it was the SECOND time
+  // this source list drifted. These surfaces load straight into agent
+  // sessions, so an omission there is what an agent believes StatCite covers.
+  const surfaces: Record<string, string> = {
+    "gemini-extension.json": readFileSync(new URL("../../gemini-extension.json", import.meta.url), "utf8"),
+    "GEMINI.md": readFileSync(new URL("../../GEMINI.md", import.meta.url), "utf8"),
+    "skill/statcite/SKILL.md": readFileSync(new URL("../../skill/statcite/SKILL.md", import.meta.url), "utf8"),
+    "README.md": readFileSync(new URL("../../README.md", import.meta.url), "utf8"),
+  };
+  for (const [name, body] of Object.entries(surfaces)) {
+    assert.match(body, /Eastern Caribbean Central Bank/, `${name} must name the Eastern Caribbean Central Bank`);
+    assert.match(body, /Central Bank of Barbados/, `${name} must name the Central Bank of Barbados`);
+  }
+});
+
+test("README links carry no scheme GitHub strips", () => {
+  // GitHub's sanitiser removes non-http(s) link targets. The Cursor button was
+  // a cursor:// deeplink and rendered on the repo page as dead bold text.
+  const md = readFileSync(new URL("../../README.md", import.meta.url), "utf8");
+  const targets = [...md.matchAll(/\]\(([^)\s]+)\)/g)].map((m) => m[1]);
+  const stripped = targets.filter((u) => /^[a-z][a-z0-9+.-]*:/i.test(u) && !/^(https?|mailto):/i.test(u));
+  assert.deepEqual(stripped, [], `README link targets GitHub will strip: ${stripped.join(", ")}`);
+});
+
+test("README and docs publish the copy-paste agent rule", () => {
+  // The strongest trigger a user can set. Without it an installed server is
+  // only called when the model happens to think of it.
+  const md = readFileSync(new URL("../../README.md", import.meta.url), "utf8");
+  const docs = readFileSync(new URL("../../site/docs.html", import.meta.url), "utf8");
+  const rule = /Before stating any country-level economic figure, get it from StatCite/;
+  assert.match(md, rule, "README must carry the agent rule");
+  assert.match(docs, rule, "docs must carry the agent rule");
+  assert.match(docs, /id="agent-rule"/, "docs rule needs a linkable anchor");
+});
