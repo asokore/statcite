@@ -137,6 +137,80 @@ test("both benchmark tables are captioned with the R1 scoring date from the run 
   }
 });
 
+// --- structured data --------------------------------------------------------
+//
+// JSON-LD is invisible on the page, so a broken block or a dangling reference
+// ships unnoticed. /docs pointed its "about" at https://statcite.com/#app for
+// weeks while no node on the site declared that @id.
+
+function jsonLd(rel: string): any[] {
+  const html = read(rel);
+  return [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m, i) => {
+    try {
+      return JSON.parse(m[1]);
+    } catch (e) {
+      throw new Error(`${rel}: JSON-LD block ${i + 1} does not parse: ${(e as Error).message}`);
+    }
+  });
+}
+
+test("every JSON-LD block parses, and every @id reference resolves to a declared node", () => {
+  const declared = new Set<string>();
+  const referenced: string[] = [];
+  const walk = (v: any, rel: string) => {
+    if (Array.isArray(v)) return v.forEach((x) => walk(x, rel));
+    if (!v || typeof v !== "object") return;
+    if (typeof v["@id"] === "string") {
+      const keys = Object.keys(v).filter((k) => k !== "@id" && k !== "@type");
+      if (keys.length) declared.add(v["@id"]);
+      else referenced.push(`${rel} -> ${v["@id"]}`);
+    }
+    Object.values(v).forEach((x) => walk(x, rel));
+  };
+  let blocks = 0;
+  for (const rel of sitePages()) {
+    for (const b of jsonLd(rel)) {
+      blocks++;
+      walk(b, rel);
+    }
+  }
+  assert.ok(blocks >= 7, `found only ${blocks} JSON-LD blocks, expected one per content page at least`);
+  const dangling = referenced.filter((r) => !declared.has(r.split(" -> ")[1]));
+  assert.deepEqual(dangling, [], `JSON-LD references to an @id no page declares:\n${dangling.join("\n")}`);
+});
+
+test("homepage Organization: one @id, referenced by WebSite, sameAs only from the listings block", () => {
+  const html = read("site/index.html");
+  const graph = jsonLd("site/index.html").flatMap((b) => b["@graph"] ?? [b]);
+  const org = graph.find((n) => n["@type"] === "Organization" && n["@id"] === "https://statcite.com/#org");
+  assert.ok(org, "no Organization node with @id https://statcite.com/#org");
+  const site = graph.find((n) => n["@type"] === "WebSite");
+  assert.equal(site?.publisher?.["@id"], org["@id"], "WebSite.publisher must reference the Organization @id");
+  assert.deepEqual(org.alternateName, ["StatCite MCP server", "StatCite API"]);
+
+  // sameAs asserts identity, so every URL in it must be a profile the page
+  // itself shows a reader in "Where StatCite is listed".
+  const block = html.match(/<div id="listings"[\s\S]*?<\/div>/);
+  assert.ok(block, "homepage has no #listings block");
+  const listed = new Set([...block[0].matchAll(/href="(https?:\/\/[^"]+)"/g)].map((m) => m[1]));
+  assert.ok(Array.isArray(org.sameAs) && org.sameAs.length >= 3, "Organization.sameAs is missing or too short");
+  const unlisted = org.sameAs.filter((u: string) => !listed.has(u));
+  assert.deepEqual(unlisted, [], `sameAs URLs not shown in #listings: ${unlisted.join(", ")}`);
+  assert.ok(org.sameAs.includes("https://github.com/asokore/statcite"), "sameAs must include the GitHub repository");
+});
+
+test("the visible FAQ and the FAQPage JSON-LD ask the same questions, including the arXiv one", () => {
+  const html = read("site/index.html");
+  const section = html.match(/<section id="faq">([\s\S]*?)<\/section>/);
+  assert.ok(section, "homepage has no #faq section");
+  const visible = [...section[1].matchAll(/<summary>([^<]+)<\/summary>/g)].map((m) => m[1].replace(/&amp;/g, "&").trim());
+  const graph = jsonLd("site/index.html").flatMap((b) => b["@graph"] ?? [b]);
+  const faq = graph.find((n) => n["@type"] === "FAQPage");
+  const structured = (faq?.mainEntity ?? []).map((q: any) => String(q.name).trim());
+  assert.deepEqual([...visible].sort(), [...structured].sort(), "visible FAQ and FAQPage JSON-LD have drifted apart");
+  assert.ok(visible.includes("Is StatCite related to the StatCite dataset on arXiv?"), "the arXiv disambiguation question is missing");
+});
+
 // --- redirects: only for paths the asset server handles, only to real targets
 
 test("site/_redirects sends only asset-served paths, to pages and anchors that exist", () => {
