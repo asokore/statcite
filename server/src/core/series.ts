@@ -62,6 +62,7 @@ export function requireCountry(input: string): Country {
       `Could not resolve country '${input}'. Use an ISO3 code (e.g. USA, BRB, DEU) or a standard English name.` +
         (suggestions.length ? ` Did you mean: ${suggestions.join(", ")}?` : ""),
       { input, suggestions },
+      "unknown_country",
     );
   }
   return c;
@@ -534,6 +535,7 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
         (near.length ? ` Closest matches: ${near.join(", ")}.` : "") +
         " Use search_indicators to browse the registry, or pass an explicit series id like 'worldbank/NY.GDP.MKTP.KD.ZG'.",
       { input: key, suggestions: near },
+      "unknown_indicator",
     );
   }
   const country = requireCountry(countryInput);

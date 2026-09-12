@@ -38,6 +38,7 @@
 import type { Ctx } from "./core/types.ts";
 import { ToolError } from "./core/types.ts";
 import { UpstreamError } from "./core/upstream.ts";
+import { toolErrorCode } from "./core/types.ts";
 import { TOOLS, toolByName, callTool } from "./tools.ts";
 import { listRegistry } from "./core/series.ts";
 import { SOURCES } from "./core/sources.ts";
@@ -527,14 +528,14 @@ async function dispatchCore(
       } catch (e) {
         // Tool-level failures are tool results (isError), not protocol errors (SEP-1303).
         if (e instanceof ToolError) {
-          return { httpStatus: 200, body: toolTextObj(id, { error: e.message, ...(e.details ? { details: e.details } : {}) }, true) };
+          return { httpStatus: 200, body: toolTextObj(id, { error: e.message, code: toolErrorCode(e), ...(e.details ? { details: e.details } : {}) }, true) };
         }
         if (e instanceof UpstreamError) {
           return {
             httpStatus: 200,
             body: toolTextObj(
               id,
-              { error: `Upstream data source problem: ${e.message}`, upstream_url: e.url, hint: "Usually transient, retry shortly." },
+              { error: `Upstream data source problem: ${e.message}`, code: "upstream_unavailable", upstream_url: e.url, hint: "Usually transient, retry shortly." },
               true,
             ),
           };
@@ -542,7 +543,7 @@ async function dispatchCore(
         console.error("tool crash", name, e);
         return {
           httpStatus: 200,
-          body: toolTextObj(id, { error: `Internal error running '${name}'. Please retry; if persistent, report at ${ctx.baseUrl}.` }, true),
+          body: toolTextObj(id, { error: `Internal error running '${name}'. Please retry; if persistent, report at ${ctx.baseUrl}.`, code: "internal_error" }, true),
         };
       }
     }
