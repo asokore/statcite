@@ -189,6 +189,8 @@ test("GUARD THE LAST HOP: every tool advertising outputSchema returns structured
     fetch: { id: "help/indicators" },
     verify_stat: { indicator: "inflation_cpi", country: "BRB", period: "2023", claimed_value: 1.4 },
     verify_claims: { claims: [{ indicator: "inflation_cpi", country: "BRB", period: "2023", claimed_value: 1.4 }] },
+    get_indicator: { indicator: "inflation_cpi", country: "BRB", latest_only: true },
+    get_series: { series_id: "worldbank/FP.CPI.TOTL.ZG", country: "BRB" },
   };
   for (const name of withSchema) {
     assert.ok(argsFor[name], `no test args for tool '${name}' — add them here when adding outputSchema`);
