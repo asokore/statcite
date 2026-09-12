@@ -39,6 +39,10 @@ test("probe paths are never written, only counted", () => {
   const src = read("tools/analytics.mjs");
   const loop = src.slice(src.indexOf("const crawlProbes"), src.indexOf("console.log(`\\n  site crawl on"));
   assert.ok(loop.length > 100, "crawl loop not found");
-  const probeBranch = loop.slice(loop.indexOf('if (k.endsWith("_probe"))'), loop.indexOf("continue;"));
+  const start = loop.indexOf('if (k.endsWith("_probe"))');
+  const end = loop.indexOf("continue;", start);
+  assert.ok(start >= 0 && end > start, "probe branch not found");
+  const probeBranch = loop.slice(start, end);
+  assert.match(probeBranch, /crawlProbes\[k\]/, "the slice must be the probe branch itself");
   assert.doesNotMatch(probeBranch, /clientRequestPath|crawlPaths|crawlAgents/, "a probe branch must not record its path or user-agent");
 });
