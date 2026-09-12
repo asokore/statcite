@@ -12,7 +12,7 @@ import { resolveCountry } from "./core/countries.ts";
 import { INDICATORS, searchIndicatorDefs } from "./core/indicators.ts";
 import { parseTransform } from "./core/transforms.ts";
 import { UpstreamError } from "./core/upstream.ts";
-import { recordUsage, indicatorLabel, countryLabel, verdictLabel, type Outcome } from "./core/analytics.ts";
+import { recordUsage, indicatorLabel, countryLabel, verdictLabel, type Outcome, seriesIdCountry } from "./core/analytics.ts";
 
 type Json = Record<string, unknown>;
 
@@ -441,6 +441,7 @@ export const TOOLS: ToolDef[] = [
       properties: {
         series_id: { type: "string", description: "e.g. 'worldbank/NY.GDP.MKTP.KD.ZG', 'imf/NGDP_RPCH', 'dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change'." },
         country: { type: "string", description: "Required for worldbank/* series." },
+        latest_only: { type: "boolean", description: "Return only the most recent non-null observation." },
         start_year: { type: "integer" },
         end_year: { type: "integer" },
         transform: { type: "string", enum: TRANSFORMS },
@@ -458,7 +459,7 @@ export const TOOLS: ToolDef[] = [
         start: args.start_year != null ? String(num(args, "start_year")) : undefined,
         end: args.end_year != null ? String(num(args, "end_year")) : undefined,
         transform: parseTransform(args.transform),
-        limit: 120,
+        limit: args.latest_only === true ? 1 : 120,
         strictSource: args.strict_source === true,
       }),
   },
@@ -466,7 +467,7 @@ export const TOOLS: ToolDef[] = [
     name: "search_indicators",
     title: "Search available indicators and datasets",
     description:
-      "Search StatCite's curated indicator registry (World Bank WDI + IMF DataMapper/WEO/Fiscal Monitor) by topic, 'inflation', 'debt', 'unemployment', 'poverty', and discover additional DBnomics datasets. Returns indicator keys usable with get_indicator/verify_stat, with units and source notes.",
+      "Search StatCite's curated indicator registry (World Bank WDI, IMF DataMapper/WEO/Fiscal Monitor, BIS policy rates, ECB HICP) and the Eastern Caribbean Central Bank and Central Bank of Barbados tables by topic, such as 'inflation', 'debt', 'unemployment' or 'poverty', and discover additional DBnomics datasets. Returns indicator keys usable with get_indicator/verify_stat, and caribstat series ids usable with get_series, with units and source notes.",
     inputSchema: {
       type: "object",
       properties: { query: { type: "string", description: "Free-text topic, e.g. 'government debt' or 'fx reserves'." } },
@@ -565,7 +566,7 @@ export const TOOLS: ToolDef[] = [
     name: "list_sources",
     title: "List data sources, licenses, and attribution rules",
     description:
-      "The official sources behind StatCite (World Bank WDI, IMF WEO & Fiscal Monitor via the IMF DataMapper API, with DBnomics as a vintage-pinned fallback, ECB reference rates, FRED disabled), what each covers, its license, and the attribution line to use when citing.",
+      "The official sources behind StatCite (World Bank WDI, IMF WEO & Fiscal Monitor via the IMF DataMapper API with DBnomics as a vintage-pinned fallback, BIS central bank policy rates, ECB reference rates and the ECB Data Portal, the Eastern Caribbean Central Bank and the Central Bank of Barbados, FRED disabled), what each covers, its license, and the attribution line to use when citing.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     handler: async () => ({ sources: SOURCES, registry_size: INDICATORS.length }),
   },
@@ -715,6 +716,7 @@ function describeCall(name: string, args: Json, result?: unknown): { indicator?:
   let indicatorRaw: unknown = typeof a?.indicator === "string" ? a.indicator : a?.series_id;
   let countryRaw: unknown = r && typeof r === "object" ? r?.country?.iso3 : undefined;
   if (typeof countryRaw !== "string") countryRaw = a?.country;
+  if (typeof countryRaw !== "string") countryRaw = seriesIdCountry(a?.series_id);
   // Deep-research `fetch` ids have the shape indicator/<key>/<ISO3>.
   if (name === "fetch" && typeof a?.id === "string") {
     const m = a.id.match(/^indicator\/([a-z0-9_]+)\/([A-Za-z0-9]{2,3})$/);
@@ -741,9 +743,60 @@ function outcomeOf(e: unknown): Outcome {
  * calling `tool.handler` directly — errors propagate unchanged, and analytics
  * failures are swallowed inside recordUsage().
  */
+/**
+ * Hold MCP arguments to the input schema each tool advertises.
+ *
+ * Every tool declares additionalProperties: false, but until 1.12.2 nothing
+ * enforced it. A misspelled tolerance on verify_stat was dropped, the lenient
+ * default applied, and a strict check came back "close" instead of "mismatch".
+ * A string "true" for strict_source was read as false, which quietly withdrew
+ * the primary-source guarantee the caller asked for. Both were live.
+ *
+ * Only names and boolean types are checked here. Handlers already validate
+ * values, and duplicating that would let the two drift apart.
+ */
+export function checkToolArgs(tool: ToolDef, args: unknown): void {
+  if (args === null || typeof args !== "object" || Array.isArray(args)) {
+    throw new ToolError(`Arguments for '${tool.name}' must be a JSON object.`);
+  }
+  const a = args as Json;
+  const schema = tool.inputSchema as { properties?: Record<string, { type?: unknown }>; additionalProperties?: unknown };
+  const props = schema.properties ?? {};
+  const names = Object.keys(props);
+  const has = (k: string) => Object.prototype.hasOwnProperty.call(props, k);
+  if (schema.additionalProperties === false) {
+    const unknown = Object.keys(a).filter((k) => !has(k));
+    if (unknown.length) {
+      const first = unknown[0];
+      const hint = first === "value" && has("claimed_value")
+        ? " This tool calls it 'claimed_value'."
+        : (() => {
+            const near = names.length ? closestKey(first, names) : undefined;
+            return near ? ` Did you mean '${near}'?` : "";
+          })();
+      throw new ToolError(
+        `Unknown argument '${first}' for ${tool.name}.${hint}` +
+          (unknown.length > 1 ? ` Also unknown: ${unknown.slice(1).join(", ")}.` : "") +
+          ` Accepted: ${names.length ? names.join(", ") : "no arguments"}.` +
+          " Arguments are refused rather than ignored, because a dropped tolerance or flag silently changes the answer.",
+        { unknown_arguments: unknown, accepted_arguments: names },
+      );
+    }
+  }
+  for (const k of names) {
+    if (props[k]?.type === "boolean" && a[k] !== undefined && typeof a[k] !== "boolean") {
+      throw new ToolError(
+        `Argument '${k}' for ${tool.name} must be a JSON boolean, true or false, not ${JSON.stringify(a[k])}.`,
+        { argument: k, received: a[k] },
+      );
+    }
+  }
+}
+
 export async function callTool(ctx: Ctx, tool: ToolDef, args: Json): Promise<unknown> {
   const started = Date.now();
   try {
+    checkToolArgs(tool, args);
     const result = await tool.handler(ctx, args);
     recordUsage(ctx.analytics, {
       transport: "mcp",

@@ -37,7 +37,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   if (path === "/v1" || path.startsWith("/v1/")) return handleRest(request, ctx);
   if (path === "/health") {
     return new Response(JSON.stringify({ ok: true, service: "statcite", version: SERVER_VERSION }), {
-      headers: { "content-type": "application/json", "cache-control": "no-store", ...corsHeaders() },
+      headers: { "content-type": "application/json", "cache-control": "no-store", "x-robots-tag": "noindex", ...corsHeaders() },
     });
   }
   // Static site (landing page, docs, llms.txt, openapi.json, legal).

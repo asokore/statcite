@@ -268,6 +268,13 @@
             "description": "Required for worldbank/* ids. Not used by caribstat/* ids, which carry their geography in the id."
           },
           {
+            "name": "latest_only",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "start_year",
             "in": "query",
             "schema": {
@@ -554,6 +561,15 @@
             "description": "The claimed value"
           },
           {
+            "name": "claimed_value",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number"
+            },
+            "description": "Alias of value, the name verify_claims and the verify_stat MCP tool use and the name this endpoint returns. Send value or claimed_value, not both."
+          },
+          {
             "name": "tolerance_abs",
             "in": "query",
             "schema": {
@@ -661,50 +677,20 @@
                           "type": "number",
                           "description": "Optional relative tolerance in percent"
                         },
-                        "revision_check": {
-                          "type": "object",
-                          "description": "Present on mismatch verdicts for indicators with a dated IMF WEO source: the claim re-judged against the PREVIOUS WEO edition. matches_previous_vintage=true means the figure was likely accurate when written and has since been revised - a revision event, not necessarily an author error. status 'unavailable' = the previous edition could not be retrieved; no judgment is offered.",
-                          "properties": {
-                            "status": {
-                              "type": "string",
-                              "enum": [
-                                "checked",
-                                "unavailable"
-                              ]
-                            },
-                            "previous_edition": {
-                              "type": "string"
-                            },
-                            "previous_value": {
-                              "type": [
-                                "number",
-                                "null"
-                              ]
-                            },
-                            "matches_previous_vintage": {
-                              "type": "boolean"
-                            },
-                            "next_edition_expected": {
-                              "type": "string",
-                              "description": "Calendar expectation ('October 2026'), not an announced date."
-                            },
-                            "note": {
-                              "type": "string"
-                            }
-                          }
-                        },
                         "as_of": {
                           "type": "string",
                           "description": "Verify this claim against the IMF WEO/Fiscal Monitor edition current as of this date (e.g. '2019-04') instead of today's live data \u2014 only for the 6 WEO-dated registry indicators (served from the IMF's own vintage dataflows first, DBnomics dated editions as the deep archive)."
                         }
-                      }
+                      },
+                      "additionalProperties": false
                     }
                   },
                   "strict_source": {
                     "type": "boolean",
                     "description": "Apply reproducibility mode to every claim in the batch: never verify against a fallback source \u2014 such claims error in place. Without it, a claim served from a transient-failure fallback returns cannot_verify with the fallback value as indicative."
                   }
-                }
+                },
+                "additionalProperties": false
               }
             }
           }

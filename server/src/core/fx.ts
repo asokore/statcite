@@ -101,6 +101,15 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
   if (date && !/^\d{4}(-\d{2}-\d{2})?$/.test(date)) {
     throw new ToolError("'date' must be YYYY-MM-DD (daily rates) or YYYY (annual-average rates).", { date });
   }
+  if (date && date.length === 10) {
+    // 2024-02-30 passes the pattern. Sent upstream it came back as a 502
+    // "upstream problem" on ECB pairs and a silent 200 on pegged pairs.
+    const [y, m, d] = date.split("-").map((x) => parseInt(x, 10));
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    if (dt.getUTCFullYear() !== y || dt.getUTCMonth() + 1 !== m || dt.getUTCDate() !== d) {
+      throw new ToolError(`'date' ${date} is not a real calendar date. Use YYYY-MM-DD or YYYY.`, { date });
+    }
+  }
   if (from === to) {
     return {
       amount, from, to, converted_amount: amount, rate: 1,

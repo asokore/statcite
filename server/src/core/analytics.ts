@@ -55,7 +55,21 @@ export interface UsageEvent {
 
 const VERDICTS = new Set(["match", "close", "mismatch", "cannot_verify"]);
 const OUTCOMES = new Set<string>(["ok", "tool_error", "upstream_error", "crash"]);
-const SERIES_PROVIDERS = new Set(["worldbank", "dbnomics", "fred"]);
+const SERIES_PROVIDERS = new Set(["worldbank", "imf", "caribstat", "dbnomics", "fred", "bis", "ecb"]);
+
+/**
+ * The country a series id names, for ids that carry it inside the id rather
+ * than in a country argument. ECCB ids end '{ISO3}.{freq}' and every CBB id is
+ * Barbados. The result still goes through countryLabel, so only a resolved
+ * ISO3 from the closed country list can ever be stored.
+ */
+export function seriesIdCountry(raw: unknown): string | undefined {
+  if (typeof raw !== "string" || raw.length > 200) return undefined;
+  const eccb = /^caribstat\/eccb\/[^#]*\/([a-z]{3})\.[aqm](?:#|$)/i.exec(raw);
+  if (eccb) return eccb[1].toUpperCase();
+  if (/^caribstat\/cbb\//i.test(raw)) return "BRB";
+  return undefined;
+}
 
 /** REST endpoint names — a closed set keyed off our own routing table. */
 const REST_OPS = new Map<string, string>([
@@ -77,7 +91,7 @@ export function restOp(path: string): string {
   const p = path.replace(/\/+$/, "") || "/v1";
   const known = REST_OPS.get(p);
   if (known) return known;
-  if (/^\/v1\/indicator\/[a-z0-9_]+$/.test(p)) return "indicator";
+  if (/^\/v1\/indicator\/[^/]+$/.test(p)) return "indicator";
   if (/^\/v1\/snapshot\/[^/]+$/.test(p)) return "snapshot";
   return "unknown";
 }
