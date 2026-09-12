@@ -1,0 +1,51 @@
+name: Source integrity
+# Once a week, re-derive the values statcite.com serves straight from the World
+# Bank and IMF APIs, using a second implementation that shares no code with the
+# Worker (tools/verify-against-source.py). Fixture tests prove parsing is stable.
+# Only this proves the served number is what the cited series contains.
+#
+# Not on push: it calls live upstream APIs and would make every push flaky.
+on:
+  schedule:
+    - cron: "43 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Re-derive served values from their cited sources
+        id: verify
+        run: |
+          set +e
+          python tools/verify-against-source.py --full --json --min-coverage 60 > integrity.json
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Summarise
+        run: python tools/integrity-summary.py integrity.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integrity-json
+          path: integrity.json
+          retention-days: 90
+      - name: Fail on a mismatch, weak coverage, or a network fault
+        env:
+          CODE: ${{ steps.verify.outputs.exit_code }}
+        run: |
+          case "$CODE" in
+            0) echo "All compared values agree with their cited sources." ;;
+            1) echo "::error::A served value disagrees with its own cited source."; exit 1 ;;
+            2) echo "::warning::Coverage fell below 60 percent, so the clean result is weak evidence."; exit 1 ;;
+            3) echo "::warning::Most checks could not connect. This is a runner or network fault, not a data finding."; exit 1 ;;
+            *) echo "::error::verify-against-source.py exited with $CODE"; exit 1 ;;
+          esac

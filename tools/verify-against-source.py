@@ -39,12 +39,17 @@ Mutation-tested the same day: shifting the World Bank reader by 1% produced 45
 mismatches and shifting the IMF reader by 0.5 produced 6, so the comparison is
 known to fire rather than merely known to pass.
 
-This hits live upstream APIs, so it is deliberately NOT in CI: it would make CI
-flaky and would hammer the World Bank and IMF on every push. Run it after any
-change to the source-selection or parsing logic, and periodically per
-docs/BOOKKEEPING.md.
+This hits live upstream APIs, so it is NOT in the push CI: it would make CI
+flaky and would hammer the World Bank and IMF on every push. It runs once a
+week from .github/workflows/integrity.yml instead. Run it by hand as well after
+any change to the source-selection or parsing logic.
 
-Exit status is 1 if any value disagrees with its own cited source.
+Exit status:
+  0  every compared value agrees with its cited source, and coverage met --min-coverage
+  1  at least one value disagrees with its own cited source
+  2  no mismatch, but coverage fell below --min-coverage, so a clean result is weak
+  3  most checks could not reach StatCite or the upstream, which is a network or
+     runner fault rather than a statement about the data
 """
 import argparse
 import json
@@ -102,6 +107,9 @@ def check_one(key, iso3, results):
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf8", "replace")[:120]
         results.append(("skip", key, iso3, f"StatCite {e.code}: {body}"))
+        return
+    except Exception as e:
+        results.append(("skip", key, iso3, f"upstream unreachable: StatCite {type(e).__name__}"))
         return
 
     obs = [o for o in served.get("observations", []) if o.get("value") is not None]
@@ -168,9 +176,24 @@ def main():
     ap.add_argument("--full", action="store_true",
                     help="every active indicator, not the default sample")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--min-coverage", type=float, default=0.0,
+                    help="exit 2 when the compared share of the sample is below this percent")
     args = ap.parse_args()
 
-    registry = statcite("/v1/indicators")["indicators"]
+    try:
+        registry = statcite("/v1/indicators")["indicators"]
+    except Exception as e:
+        # Without the registry there is nothing to check. Exit 3, the network
+        # fault code, never 1, which means a value disagreed with its source.
+        msg = f"could not read the StatCite registry: {type(e).__name__}: {e}"
+        if args.json:
+            print(json.dumps({"checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                              "indicators": 0, "economies": [], "ok": 0, "skipped": 0,
+                              "coverage_pct": 0.0, "mismatches": [], "skip_reasons": {},
+                              "network_fault": True, "error": msg}, indent=1))
+        else:
+            print(f"NETWORK FAULT: {msg}")
+        return 3
     active = [i["key"] for i in registry if i.get("active")]
 
     # A spread of economies: large, small, an emerging market, and Caribbean
@@ -199,13 +222,26 @@ def main():
     mism = [r for r in results if r[0] == "MISMATCH"]
     oks = [r for r in results if r[0] == "ok"]
     skips = [r for r in results if r[0] == "skip"]
+    cov = 100.0 * len(oks) / max(1, len(oks) + len(skips))
+    # Many checks failing to connect at once is the runner, not the data.
+    unreachable = [r for r in skips if r[3].startswith("upstream unreachable")
+                   or r[3].startswith("StatCite 5") or r[3].startswith("StatCite 403")]
+    network_fault = len(unreachable) > max(1, len(results)) / 2
 
     if args.json:
-        print(json.dumps({"mismatches": [list(m) for m in mism],
-                          "ok": len(oks), "skipped": len(skips)}, indent=1))
+        reasons = {}
+        for _, key, iso3, msg in skips:
+            reasons.setdefault(msg.split(":")[0], []).append(f"{key}/{iso3}")
+        print(json.dumps({
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "indicators": len(keys), "economies": countries,
+            "ok": len(oks), "skipped": len(skips), "coverage_pct": round(cov, 1),
+            "mismatches": [list(m) for m in mism],
+            "skip_reasons": {k: {"count": len(v), "examples": v[:6]} for k, v in sorted(reasons.items())},
+            "network_fault": network_fault,
+        }, indent=1))
     else:
         print(f"\n{'=' * 66}")
-        cov = 100.0 * len(oks) / max(1, len(oks) + len(skips))
         print(f"verified: {len(oks)}   skipped: {len(skips)}   "
               f"coverage: {cov:.0f}%   MISMATCHES: {len(mism)}")
         for _, key, iso3, msg in mism:
@@ -224,7 +260,16 @@ def main():
         if cov < 50 and not mism:
             print(f"\n   WARNING: only {cov:.0f}% of the sample was actually compared, "
                   f"so a clean result here is weak evidence.")
-    return 1 if mism else 0
+    if mism:
+        return 1
+    if network_fault:
+        if not args.json:
+            print(f"\n   NETWORK FAULT: {len(unreachable)} of {len(results)} checks could not connect. "
+                  f"This says nothing about the data.")
+        return 3
+    if cov < args.min_coverage:
+        return 2
+    return 0
 
 
 if __name__ == "__main__":
