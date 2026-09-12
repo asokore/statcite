@@ -211,6 +211,46 @@ test("the visible FAQ and the FAQPage JSON-LD ask the same questions, including 
   assert.ok(visible.includes("Is StatCite related to the StatCite dataset on arXiv?"), "the arXiv disambiguation question is missing");
 });
 
+// --- the privacy page describes what tools/analytics.mjs actually does ----
+//
+// Until 2026-09-12 /privacy said Cloudflare's logs were not analysed and that
+// user agents were not kept, while tools/analytics.mjs read Cloudflare
+// analytics grouped by user-agent and wrote the top strings to a local file.
+// The page now says so. These tests hold the code to the page's two promises:
+// no IP address is ever requested, and email-shaped text never survives into
+// a stored user-agent string.
+
+test("analytics.mjs requests no IP dimension, as /privacy promises", () => {
+  const privacy = read("site/privacy.html");
+  assert.match(privacy, /We never read or keep IP addresses\./, "the promise this test protects is no longer on /privacy");
+  assert.match(privacy, /grouped by user-agent string/, "/privacy must say analytics are grouped by user-agent string");
+  const src = read("tools/analytics.mjs");
+  const dims = [...src.matchAll(/dimensions\{([^}]*)\}/g)].map((m) => m[1]);
+  assert.ok(dims.length >= 3, `expected the GraphQL queries' dimension lists, found ${dims.length}`);
+  const ipish = dims.filter((d) => /ip|address|asn|coloCode|clientCountry/i.test(d));
+  assert.deepEqual(ipish, [], `analytics.mjs requests dimensions /privacy does not disclose: ${ipish.join(" | ")}`);
+});
+
+test("analytics.mjs strips email addresses from user-agent strings before keeping them", async () => {
+  const mod = await import("../../tools/analytics.mjs");
+  const scrub = mod.scrubUserAgent as (ua: unknown) => string;
+  assert.equal(
+    scrub("Mozilla/5.0 (compatible; Bytespider; spider-feedback@bytedance.com)"),
+    "Mozilla/5.0 (compatible; Bytespider; [email])",
+  );
+  assert.equal(scrub("MyBot/1.0 (+mailto:jane.doe+bots@mail.example.co.uk)"), "MyBot/1.0 (+mailto:[email])");
+  assert.equal(scrub("Claude-User"), "Claude-User", "an ordinary user-agent must pass through unchanged");
+  assert.equal(scrub("node"), "node");
+  assert.equal(scrub(undefined), "");
+  // Every place a user-agent is cut down for output must go through the scrub,
+  // or the one unscrubbed path is where an address gets written to disk.
+  const src = read("tools/analytics.mjs");
+  const cuts = [...src.matchAll(/^.*userAgent.*\.slice\(0,\s*44\).*$/gm)].map((m) => m[0].trim());
+  assert.ok(cuts.length >= 2, `expected at least two truncated user-agent outputs, found ${cuts.length}`);
+  const raw = cuts.filter((l) => !l.includes("scrubUserAgent("));
+  assert.deepEqual(raw, [], `user-agent strings kept without scrubbing:\n${raw.join("\n")}`);
+});
+
 // --- redirects: only for paths the asset server handles, only to real targets
 
 test("site/_redirects sends only asset-served paths, to pages and anchors that exist", () => {
