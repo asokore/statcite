@@ -200,6 +200,21 @@ test("homepage Organization: one @id, referenced by WebSite, sameAs only from th
   assert.ok(org.sameAs.includes("https://github.com/asokore/statcite"), "sameAs must include the GitHub repository");
 });
 
+test("no structured data on any page names a person or a ministry", () => {
+  // sameAs and other JSON-LD fields are how search engines link entities, so
+  // a profile URL whose slug carries a personal name ties the product to a
+  // person. tools/audit-live.py checks the live homepage for the same terms;
+  // this catches it before deploy, on every page.
+  const pages = readdirSync(new URL("../../site/", import.meta.url)).filter((f: string) => f.endsWith(".html"));
+  for (const page of pages) {
+    const html = read(`site/${page}`);
+    const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => m[1].toLowerCase());
+    for (const b of blocks) {
+      assert.ok(!b.includes("beckles") && !b.includes("ministry"), `${page}: JSON-LD names a person or a ministry`);
+    }
+  }
+});
+
 test("the visible FAQ and the FAQPage JSON-LD ask the same questions, including the arXiv one", () => {
   const html = read("site/index.html");
   const section = html.match(/<section id="faq">([\s\S]*?)<\/section>/);
