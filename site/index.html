@@ -26,6 +26,28 @@
  "@context": "https://schema.org",
  "@graph": [
   {
+   "@type": "Organization",
+   "@id": "https://statcite.com/#org",
+   "name": "StatCite",
+   "alternateName": [
+    "StatCite MCP server",
+    "StatCite API"
+   ],
+   "url": "https://statcite.com",
+   "logo": {
+    "@type": "ImageObject",
+    "url": "https://statcite.com/og.png"
+   },
+   "sameAs": [
+    "https://claude.ai/directory/connectors/statcite",
+    "https://glama.ai/mcp/servers/asokore/statcite",
+    "https://glama.ai/mcp/connectors/io.github.asokore/statcite",
+    "https://smithery.ai/servers/asokore-beckles/statcite",
+    "https://apify.com/asokore/statcite-economic-data",
+    "https://github.com/asokore/statcite"
+   ]
+  },
+  {
    "@type": "WebSite",
    "@id": "https://statcite.com/#website",
    "name": "StatCite",
@@ -33,17 +55,12 @@
    "description": "Official economic statistics with full citations, over MCP and a REST API.",
    "inLanguage": "en",
    "publisher": {
-    "@type": "Organization",
-    "name": "StatCite",
-    "url": "https://statcite.com",
-    "logo": {
-     "@type": "ImageObject",
-     "url": "https://statcite.com/og.png"
-    }
+    "@id": "https://statcite.com/#org"
    }
   },
   {
    "@type": "SoftwareApplication",
+   "@id": "https://statcite.com/#app",
    "name": "StatCite",
    "url": "https://statcite.com/",
    "applicationCategory": "DeveloperApplication",
@@ -296,10 +313,18 @@
       "@type": "Answer",
       "text": "Fair use, no hard published limit. Responses are cache-friendly, so identical queries are served from edge cache. If your use case needs guarantees, email hello@statcite.com."
      }
+    },
+    {
+     "@type": "Question",
+     "name": "Is StatCite related to the StatCite dataset on arXiv?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "No. That is a separate academic dataset of statistics papers. This StatCite serves official economic statistics with citations."
+     }
     }
    ],
    "name": "StatCite: frequently asked questions",
-   "description": "Common questions about StatCite: whether it is really free, how accurate the data is, whether the numbers may be redistributed, how agents should cite the service, and what the rate limits are."
+   "description": "Common questions about StatCite: whether it is really free, how accurate the data is, whether the numbers may be redistributed, how agents should cite the service, what the rate limits are, and whether it is related to the StatCite dataset on arXiv."
   }
  ]
 }
@@ -717,6 +742,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
     <details><summary>Who built this?</summary><p>A professional economist who got tired of AI drafts with unverifiable numbers. The indicator registry, source fallbacks, and verification thresholds are economist-curated. For example, government debt defaults to the IMF's general government gross debt series (current vintage via the DataMapper API), not the patchier World Bank central-government series.</p></details>
     <details><summary>How should agents cite StatCite itself?</summary><p>Cite the original source (the citation object gives you everything). Mentioning “via StatCite” is appreciated but never required.</p></details>
     <details><summary>What about rate limits?</summary><p>Fair use, no hard published limit. Responses are cache-friendly, so identical queries are served from edge cache. If your use case needs guarantees, email <a href="mailto:hello@statcite.com">hello@statcite.com</a>.</p></details>
+    <details><summary>Is StatCite related to the StatCite dataset on arXiv?</summary><p>No. That is a separate academic dataset of statistics papers. This StatCite serves official economic statistics with citations.</p></details>
   </section>
   </main>
 
