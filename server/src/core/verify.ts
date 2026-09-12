@@ -305,19 +305,7 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
 
   // Diagnostics for classic errors.
   const ratio = official !== 0 ? p.claimed_value / official : null;
-  if (ratio != null && ratio > 0) {
-    for (const [factor, label] of [
-      [100, "a percent-vs-decimal mix-up (e.g. 0.05 vs 5%)"],
-      [1000, "a thousands scaling difference"],
-      [1e6, "a millions scaling difference"],
-      [1e9, "a billions scaling difference"],
-      [1e12, "a trillions scaling difference"],
-    ] as Array<[number, string]>) {
-      if (within(ratio, factor, 0.02) || within(ratio, 1 / factor, 0.02)) {
-        diagnostics.push(`The claimed value is ~${factor.toLocaleString("en-US")}× ${ratio > 1 ? "larger" : "smaller"} than the official figure, possibly ${label}.`);
-      }
-    }
-  }
+  diagnostics.push(...scaleDiagnostics(p.claimed_value, official));
   if (ratio != null && ratio < 0 && within(-ratio, 1, 0.02)) {
     diagnostics.push(
       "The claimed value is approximately the official figure with the opposite sign, possibly a sign-convention mix-up (e.g. a fiscal deficit quoted as positive where the source reports net lending as negative).",
@@ -450,6 +438,59 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
     ...(result.fallback_used ? { fallback_used: true } : {}),
     ...(asOfResolved ? { as_of: asOfResolved } : {}),
   };
+}
+
+/** Decimal places a claim was written to, or null for exponent notation. */
+function decimalsOf(x: number): number | null {
+  const s = String(Math.abs(x));
+  if (/e/i.test(s)) return null;
+  const dot = s.indexOf(".");
+  return dot < 0 ? 0 : s.length - dot - 1;
+}
+
+/** Significant digits in a claim as written. */
+function sigDigitsOf(x: number): number {
+  const s = String(Math.abs(x)).replace(/e.*$/i, "").replace(".", "").replace(/^0+/, "");
+  return s.length;
+}
+
+/**
+ * Scale mix-ups: percent written as a decimal, thousands, millions and so on.
+ *
+ * The ratio test alone allows +-2%, which misses a claim rounded to its own
+ * precision. 0.014 for an official 1.37 is a ratio of 0.0102, outside 2%, yet
+ * it is exactly the official figure written as a decimal and rounded to three
+ * places. So a claim also counts when the official figure, rescaled and
+ * rounded to the claim's own decimal places, equals it. That second test needs
+ * at least two significant digits, because at one digit rounding is too coarse
+ * to tell a scale slip from a coincidence.
+ */
+export function scaleDiagnostics(claimed: number, official: number): string[] {
+  const out: string[] = [];
+  if (official === 0) return out;
+  const ratio = claimed / official;
+  if (!(ratio > 0)) return out;
+  const d = decimalsOf(claimed);
+  const roundsTo = (v: number) => {
+    if (d == null || d > 12 || sigDigitsOf(claimed) < 2) return false;
+    const m = 10 ** d;
+    const r = Math.round((Math.abs(v) + 1e-12) * m) / m;
+    return Math.abs(r - Math.abs(claimed)) <= Math.abs(claimed) * 1e-9;
+  };
+  for (const [factor, label] of [
+    [100, "a percent-vs-decimal mix-up (e.g. 0.05 vs 5%)"],
+    [1000, "a thousands scaling difference"],
+    [1e6, "a millions scaling difference"],
+    [1e9, "a billions scaling difference"],
+    [1e12, "a trillions scaling difference"],
+  ] as Array<[number, string]>) {
+    const larger = within(ratio, factor, 0.02) || roundsTo(official * factor);
+    const smaller = within(ratio, 1 / factor, 0.02) || roundsTo(official / factor);
+    if (larger || smaller) {
+      out.push(`The claimed value is ~${factor.toLocaleString("en-US")}× ${larger ? "larger" : "smaller"} than the official figure, possibly ${label}.`);
+    }
+  }
+  return out;
 }
 
 function within(x: number, target: number, tolFrac: number): boolean {

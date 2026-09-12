@@ -34,7 +34,8 @@ const SNAPSHOT_WB_KEYS = [
  * That was the exact gap this service claims to close, failing at the one
  * endpoint an agent reaches for first.
  */
-export const ECCU_ISO3 = new Set(["AIA", "ATG", "DMA", "GRD", "KNA", "LCA", "MSR", "VCT", "XCU"]);
+export { ECCU_ISO3 } from "./eccb-related.ts";
+import { ECCU_ISO3 } from "./eccb-related.ts";
 
 /** Headline rows worth a snapshot slot, in the order they should appear. */
 const ECCU_SUPPLEMENT = [

@@ -46,7 +46,7 @@ import { sidsCountries } from "./core/countries.ts";
 export const SERVER_VERSION = "1.12.1";
 
 /** Session-era revisions: opened with `initialize`, negotiated once. */
-export const LEGACY_PROTOCOL_VERSIONS = ["2025-03-26", "2025-06-18", "2025-11-25"];
+export const LEGACY_PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
 /** Stateless-era revisions: per-request `_meta`, no handshake. */
 export const MODERN_PROTOCOL_VERSIONS = ["2026-07-28"];
 /** Everything the endpoint accepts, newest first — the list `server/discover`
@@ -66,6 +66,19 @@ const ERR_UNSUPPORTED_PROTOCOL_VERSION = -32022;
 /** `_meta` keys the modern era defines. Exact strings; a typo here is silent. */
 const META_PROTOCOL_VERSION = "io.modelcontextprotocol/protocolVersion";
 const META_SERVER_INFO = "io.modelcontextprotocol/serverInfo";
+
+/** Server identity, sent in the legacy initialize result and in every modern
+ * result's _meta. icons and websiteUrl are what clients such as VS Code show
+ * next to the server name. The icon is a PNG on this origin because some
+ * clients do not render SVG. */
+export const SERVER_INFO = {
+  name: "statcite",
+  title: "StatCite, Verified Economic Statistics",
+  version: SERVER_VERSION,
+  description: "Official economic statistics with citations, and verification of claimed figures.",
+  websiteUrl: "https://statcite.com",
+  icons: [{ src: "https://statcite.com/apple-touch-icon.png", mimeType: "image/png", sizes: ["180x180"] }],
+};
 
 /** Freshness hint for cacheable results. Every list this server serves is
  * derived from build-time constants, so it can only change on deploy: one
@@ -383,7 +396,7 @@ function toModernResult(method: string, result: unknown): unknown {
     ...(CACHEABLE_METHODS.has(method) ? { ttlMs: CACHE_TTL_MS, cacheScope: CACHE_SCOPE } : {}),
     _meta: {
       ...existingMeta,
-      [META_SERVER_INFO]: { name: "statcite", title: "StatCite, Verified Economic Statistics", version: SERVER_VERSION },
+      [META_SERVER_INFO]: SERVER_INFO,
     },
   };
 }
@@ -477,11 +490,7 @@ async function dispatchCore(
             prompts: { listChanged: false },
             resources: { listChanged: false, subscribe: false },
           },
-          serverInfo: {
-            name: "statcite",
-            title: "StatCite, Verified Economic Statistics",
-            version: SERVER_VERSION,
-          },
+          serverInfo: SERVER_INFO,
           instructions: INSTRUCTIONS,
         }),
       };
@@ -544,6 +553,10 @@ async function dispatchCore(
           resources: RESOURCES.map((r) => ({ uri: r.uri, name: r.name, title: r.title, description: r.description, mimeType: r.mimeType })),
         }),
       };
+    case "resources/templates/list":
+      // The resources capability is advertised, so clients call this. There
+      // are no parameterised resources, and an empty list is the honest answer.
+      return { httpStatus: 200, body: resultObj(id, { resourceTemplates: [] }) };
     case "resources/read": {
       const uri = typeof params.uri === "string" ? params.uri : "";
       const res = RESOURCES.find((r) => r.uri === uri);
@@ -617,7 +630,7 @@ export async function handleMcp(request: Request, ctx: Ctx): Promise<Response> {
           name: "statcite",
           version: SERVER_VERSION,
           transport: "streamable-http",
-          protocol_versions: ["2025-06-18", "2026-07-28"],
+          protocol_versions: SUPPORTED_PROTOCOL_VERSIONS,
           note: "2026-07-28 requests must also send the Mcp-Method header.",
         },
         service: "Official economic statistics with citations: World Bank, IMF, BIS, ECB, and Caribbean central banks (ECCB, Central Bank of Barbados).",
@@ -638,29 +651,50 @@ export async function handleMcp(request: Request, ctx: Ctx): Promise<Response> {
   // client can retry with a mutually supported version instead of guessing.
   // Missing is still fine: legacy clients before 2025-06-18 never sent it.
   const pv = request.headers.get("mcp-protocol-version");
-  if (pv && !SUPPORTED_PROTOCOL_VERSIONS.includes(pv)) {
-    return json(
-      400,
-      errorObj(null, ERR_UNSUPPORTED_PROTOCOL_VERSION, `Unsupported protocol version '${pv}'.`, {
-        supported: SUPPORTED_PROTOCOL_VERSIONS,
-        requested: pv,
-      }),
-    );
-  }
 
+  // Parse first, so an unsupported-version error can echo the request id. A
+  // client matches the error to its request by id, and with id null the
+  // official client loses the typed error and the supported list inside it.
   let parsed: unknown;
+  let parseError: Record<string, unknown> | null = null;
   try {
     const text = await request.text();
     if (text.length > 262144) return json(400, errorObj(null, -32600, "Request body too large."));
     parsed = JSON.parse(text);
   } catch {
-    return json(400, errorObj(null, -32700, "Parse error: body must be JSON."));
+    parseError = errorObj(null, -32700, "Parse error: body must be JSON.");
   }
+
+  if (pv && !SUPPORTED_PROTOCOL_VERSIONS.includes(pv)) {
+    const single = !parseError && parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as { id?: unknown }).id
+      : null;
+    const echoId: JsonRpcId = typeof single === "string" || typeof single === "number" ? single : null;
+    return json(
+      400,
+      errorObj(echoId, ERR_UNSUPPORTED_PROTOCOL_VERSION, `Unsupported protocol version '${pv}'.`, {
+        supported: SUPPORTED_PROTOCOL_VERSIONS,
+        requested: pv,
+      }),
+    );
+  }
+  if (parseError) return json(400, parseError);
 
   // JSON-RPC batch (2025-03-26 clients). Sequential processing preserves order.
   if (Array.isArray(parsed)) {
     if (parsed.length === 0) {
       return json(400, errorObj(null, -32600, "Invalid Request: empty batch."));
+    }
+    const declaresModernInBatch = (m: unknown) => {
+      const meta = (m as { params?: { _meta?: Record<string, unknown> } })?.params?._meta;
+      const v = meta?.[META_PROTOCOL_VERSION];
+      return typeof v === "string" && MODERN_PROTOCOL_VERSIONS.includes(v);
+    };
+    if ((pv && MODERN_PROTOCOL_VERSIONS.includes(pv)) || parsed.some(declaresModernInBatch)) {
+      return json(
+        400,
+        errorObj(null, -32600, "Invalid Request: JSON-RPC batching is not part of protocol revision 2026-07-28. Send one request per POST."),
+      );
     }
     // A tiny per-message body (e.g. country_snapshot at ~113 bytes) lets ~2,300
     // messages fit the 256KB request cap, each fanning out to multiple upstream

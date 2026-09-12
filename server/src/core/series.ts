@@ -14,6 +14,7 @@ import { worldBankCitation, dbnomicsCitation, fredCitation, imfDataMapperCitatio
 import { fetchSdmxSeries, BIS_POLICY_RATE_AREAS } from "../adapters/sdmx.ts";
 import { fetchCaribstatSeries, inferFrequency, searchCaribstat, searchUnctadGap, CARIBSTAT_ENABLED } from "../adapters/caribstat.ts";
 import { isTransientUpstreamError } from "./upstream.ts";
+import { eccbRelated } from "./eccb-related.ts";
 export { expectedWeoEdition } from "./weo-calendar.ts";
 import { expectedWeoEdition } from "./weo-calendar.ts";
 
@@ -130,6 +131,33 @@ function finishSeries(result: SeriesResult, opts: SeriesOpts): SeriesResult {
     }
     const availStart = allValued[0].period;
     const availEnd = allValued[allValued.length - 1].period;
+    // A window that sits INSIDE the published range found only nulls: the
+    // source publishes those periods as missing. Telling the caller to adjust
+    // the year range to a range that already contains their window sends them
+    // round in a circle, so name the gap and the values either side instead.
+    const y = (p: string) => p.slice(0, 4);
+    const insideRange = (opts.start || opts.end) &&
+      (!opts.start || opts.start >= y(availStart)) &&
+      (!opts.end || opts.end <= y(availEnd));
+    if (insideRange) {
+      const before = [...allValued].reverse().find((o) => !opts.start || y(o.period) < opts.start);
+      const after = allValued.find((o) => !opts.end || y(o.period) > opts.end);
+      const win = opts.start && opts.end && opts.start === opts.end ? opts.start : `${opts.start ?? "…"}–${opts.end ?? "…"}`;
+      const near = [before, after].filter(Boolean).map((o) => `${o!.period} (${o!.value})`);
+      throw new ToolError(
+        `The source publishes ${win} as missing for ${result.series_id}${result.country ? ` (${result.country.name})` : ""}. ` +
+          `This is a gap inside the published range ${availStart}–${availEnd}, not a window outside it.` +
+          (near.length ? ` Nearest published values: ${near.join(" and ")}.` : ""),
+        {
+          series_id: result.series_id,
+          no_published_data: false,
+          gap_in_published_range: true,
+          available_range: { start: availStart, end: availEnd },
+          ...(before ? { nearest_before: before } : {}),
+          ...(after ? { nearest_after: after } : {}),
+        },
+      );
+    }
     throw new ToolError(
       `No observations available for ${result.series_id}${result.country ? ` (${result.country.name})` : ""} in the requested window` +
         (opts.start || opts.end ? ` ${opts.start ?? "…"}–${opts.end ?? "…"}` : "") +
@@ -599,10 +627,50 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
       publisher_url: t.publisherUrl,
     });
   }
+  // Every source said definitively that it publishes nothing here. Say that
+  // once, in plain words, and keep each source's reason in details rather than
+  // gluing upstream error strings (one of them raw DBnomics JSON) into the
+  // message an agent will quote.
+  const definitiveAbsence = absenceDetails?.no_published_data === true && !anyErrorWasTransient;
+  if (definitiveAbsence) {
+    const labels = tried.map((t) => t.label);
+    const sources = tried.map((t, i) => ({ source: t.label, reason: cleanReason(errors[i]) }));
+    const related = eccbRelated(def.key, country.iso3);
+    if (related) {
+      throw new ToolError(
+        `None of the sources for '${def.key}' (${labels.join(", ")}) publishes it for ${country.name}. ` +
+          `The Eastern Caribbean Central Bank publishes a related series on its own definition: ` +
+          related.series.map((s) => `'${s.id}'`).join(" and ") +
+          `. ${related.definition} Fetch it with get_series and state that definition when you cite it. It is not substituted here because the measures differ.`,
+        {
+          indicator: def.key,
+          country: country.iso3,
+          ...absenceDetails,
+          no_published_data: true,
+          publisher: "Eastern Caribbean Central Bank",
+          publisher_url: "https://www.eccb-centralbank.org/statistics",
+          related_series: related.series,
+          definition_note: related.definition,
+          sources,
+        },
+      );
+    }
+    throw new ToolError(
+      `None of the sources for '${def.key}' (${labels.join(", ")}) publishes it for ${country.name}. This is a statement about what those sources publish, not a lookup failure. Some economies are not covered by every series.`,
+      { indicator: def.key, country: country.iso3, ...absenceDetails, sources },
+    );
+  }
   throw new ToolError(
-    `Could not retrieve '${def.key}' for ${country.name}: ${errors.join(" | ")}`,
+    `Could not retrieve '${def.key}' for ${country.name}: ${errors.map(cleanReason).join(" | ")}`,
     { indicator: def.key, country: country.iso3, ...(absenceDetails ?? {}) },
   );
+}
+
+/** An upstream reason fit to show a person: the HTTP status kept, a response
+ * body that was pasted into the error dropped, and the length bounded. */
+function cleanReason(msg: string | undefined): string {
+  const m = String(msg ?? "").replace(/(Upstream returned HTTP \d+):\s*[\[{][\s\S]*$/, "$1");
+  return m.length > 300 ? m.slice(0, 297) + "..." : m;
 }
 
 /** Registry keys with a dated IMF WEO/Fiscal Monitor DBnomics definition — the
@@ -943,6 +1011,18 @@ export async function getSeries(
     }
     const c = await fetchCaribstatSeries(id);
     const freq = c.doc.frequency ?? inferFrequency(c.doc.periods);
+    // When no row was named, the id that reproduces this answer includes the
+    // row, so the citation and series_id carry it rather than the bare table.
+    const resolvedId = c.defaultRow ? `${id}#${c.defaultRow.selector}` : id;
+    const caribNotes: string[] = [];
+    if (c.defaultRow) {
+      const shown = c.defaultRow.rows.slice(0, 12);
+      caribNotes.push(
+        `No row was named, so this is the table's first row, '${c.label}'. The table has ${c.defaultRow.rows.length} rows: ` +
+          shown.join(" | ") + (c.defaultRow.rows.length > shown.length ? " | ..." : "") +
+          `. Add '#Row Label' to the series id to choose one.`,
+      );
+    }
     // The bank's own currency stamp travels separately from our retrieval
     // time all the way into the citation. These two dates differ by weeks and
     // presenting ours as the data's currency would misstate the source.
@@ -961,18 +1041,18 @@ export async function getSeries(
       publishedAt: c.doc.published_at,
       attachmentUrl: c.doc.attachment_url,
       apiUrl: c.apiUrl,
-      seriesId: id,
+      seriesId: resolvedId,
     });
     return finishSeries(
       {
-        series_id: id,
+        series_id: resolvedId,
         name: `${c.doc.table_title ?? c.doc.publication_title ?? c.doc.sheet ?? "CaribStat"}: ${c.label}`,
         country: { iso3: c.doc.country.iso3, name: c.doc.country.name },
         unit: c.unit ?? null,
         frequency: freq,
         observations: c.observations,
         citation,
-        notes: [],
+        notes: caribNotes,
       },
       opts,
     );
@@ -1041,9 +1121,18 @@ export async function getSeries(
     );
   }
 
+  // Point at what the caller most likely meant. A bare World Bank code is the
+  // commonest miss, and a near registry key the next.
+  const hints: string[] = [];
+  if (/^[A-Z]{2,}(\.[A-Z0-9]+)+$/i.test(id)) hints.push(`Did you mean 'worldbank/${id.toUpperCase()}'?`);
+  const near = id.length <= 80
+    ? searchIndicatorDefs(id.replace(/[^A-Za-z0-9]+/g, " "), 8).filter((m) => !isDisabledDef(m.def)).slice(0, 5).map((m) => m.def.key)
+    : [];
+  if (near.length) hints.push(`Registry keys that may match: ${near.join(", ")}.`);
   throw new ToolError(
-    `Unrecognized series id '${id}'. Expected 'worldbank/CODE', 'imf/CODE', 'caribstat/BANK/TABLE/SERIES', 'dbnomics/PROVIDER/DATASET/SERIES', 'fred/ID', or a registry indicator key (see search_indicators).`,
-    { series_id: id },
+    `Unrecognized series id '${id}'. Expected 'worldbank/CODE', 'imf/CODE', 'caribstat/BANK/TABLE/SERIES', 'dbnomics/PROVIDER/DATASET/SERIES', or a registry indicator key (see search_indicators). 'fred/' ids are recognised but permanently disabled.` +
+      (hints.length ? " " + hints.join(" ") : ""),
+    { series_id: id, ...(near.length ? { suggestions: near } : {}) },
   );
 }
 
@@ -1351,8 +1440,27 @@ export async function compareSources(ctx: Ctx, key: string, countryInput: string
           if (at) {
             results[i].period = at.period;
             results[i].value = at.value;
+            // The note belongs to the observation. Keeping the latest-period
+            // note labelled a 2016 outturn "IMF WEO estimate/projection".
             if (at.note) results[i].note = at.note;
+            else delete results[i].note;
           }
+        }
+        // Say why the comparison sits where it does when a source runs later.
+        // Otherwise an old default year reads as the latest data available.
+        const later = okResults
+          .map(({ i, r }) => {
+            const outturns = r.observations.filter((o) => o.value != null && !/projection/i.test(o.note ?? ""));
+            return { source: results[i].source, last: outturns.length ? outturns[outturns.length - 1].period : undefined };
+          })
+          .filter((x) => x.last && x.last > comparePeriod!);
+        if (later.length) {
+          const latestYear = later.map((x) => x.last!).sort().at(-1)!.slice(0, 4);
+          notes.push(
+            `Compared at ${comparePeriod}, the latest period every responding source publishes. ` +
+              later.map((x) => `${x.source} publishes to ${x.last}`).join(", ") +
+              `. Pass period=${latestYear} to compare a later year across the sources that have it.`,
+          );
         }
       } else {
         notes.push("The responding sources share no common period with published values, so per-source latest values are shown and no numeric comparison is made. This reflects the sources' own published ranges, not a truncated lookup.");

@@ -13,7 +13,7 @@ import { runVerifyClaims } from "./tools.ts";
 import { SOURCES } from "./core/sources.ts";
 import { corsHeaders, SERVER_VERSION } from "./mcp.ts";
 import { parseTransform } from "./core/transforms.ts";
-import { recordUsage, restOp, indicatorLabel, countryLabel, type Outcome } from "./core/analytics.ts";
+import { recordUsage, restOp, indicatorLabel, countryLabel, seriesIdCountry, type Outcome } from "./core/analytics.ts";
 
 function json(status: number, body: unknown, cacheSeconds = 3600): Response {
   return new Response(JSON.stringify(body, null, 2), {
@@ -28,6 +28,10 @@ function json(status: number, body: unknown, cacheSeconds = 3600): Response {
       // The static pages get HSTS from site/_headers, which does not reach the
       // Worker routes, so the API had no upgrade policy at all.
       "strict-transport-security": "max-age=31536000; includeSubDomains",
+      // Machine responses are not pages. Raw /v1/ JSON carrying an old version
+      // number was ranking as a brand result on Bing and DuckDuckGo. This does
+      // not block crawling, which robots.txt leaves open for agents.
+      "x-robots-tag": "noindex",
       ...corsHeaders(),
     },
   });
@@ -48,6 +52,27 @@ function json405(message: string, allow: string): Response {
 /** Strip the body from a response, preserving status and every header. */
 function toHead(r: Response): Response {
   return new Response(null, { status: r.status, headers: r.headers });
+}
+
+/**
+ * The indicator key in /v1/indicator/{key}, normalised the way people type it.
+ * '/v1/indicator/GDP-growth' used to fall through to "Unknown endpoint", a 404
+ * that says the route does not exist when only the spelling was off. Case,
+ * hyphens and spaces are folded to the registry form, and a key that still
+ * does not exist reaches getIndicator, which refuses it with suggestions.
+ * Returned as a match-like array so both call sites keep reading [1].
+ */
+function indicatorPathKey(path: string): [string, string] | null {
+  const m = /^\/v1\/indicator\/([^/]+)$/.exec(path);
+  if (!m) return null;
+  let raw = m[1];
+  try {
+    raw = decodeURIComponent(raw);
+  } catch {
+    // leave it as sent
+  }
+  const key = raw.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return key ? [m[0], key] : null;
 }
 
 /** Parameter-format error (thrown to produce a 400 with the parameter named). */
@@ -115,7 +140,17 @@ function qYear(q: URLSearchParams, name: string): string | undefined {
  * because a caller who typo'd `tolerence_abs` needs the real name, not a list.
  */
 function rejectUnknownParams(q: URLSearchParams, allowed: readonly string[]): void {
-  const unknown = [...q.keys()].filter((k) => !allowed.includes(k));
+  // A repeated name is refused too. q.get() reads the first value and drops
+  // the rest, so ?tolerance_abs=0.5&tolerance_abs=0.01 silently checked at 0.5.
+  for (const k of new Set(q.keys())) {
+    const n = q.getAll(k).length;
+    if (n > 1) {
+      throw new ParamError(
+        `Query parameter '${k}' was given ${n} times. Each parameter takes one value. For several countries or indicators, make one call for each.`,
+      );
+    }
+  }
+  const unknown = [...new Set(q.keys())].filter((k) => !allowed.includes(k));
   if (!unknown.length) return;
   const near = (name: string): string => {
     const lower = name.toLowerCase().replace(/[^a-z]/g, "");
@@ -156,7 +191,7 @@ export async function handleRest(request: Request, ctx: Ctx): Promise<Response> 
     const isVerifyClaims = path === "/v1/verify_claims";
     if (request.method === "GET" || (request.method === "POST" && isVerifyClaims)) {
       const q = url.searchParams;
-      const indMatch = path.match(/^\/v1\/indicator\/([a-z0-9_]+)$/);
+      const indMatch = indicatorPathKey(path);
       const snapMatch = path.match(/^\/v1\/snapshot\/([^/]+)$/);
       let country: string | undefined = q.get("country") ?? undefined;
       if (!country && snapMatch) {
@@ -172,7 +207,7 @@ export async function handleRest(request: Request, ctx: Ctx): Promise<Response> 
         transport: "rest",
         op: isVerifyClaims ? "verify_claims" : restOp(path),
         indicator: indicatorLabel(indMatch ? indMatch[1] : (q.get("indicator") ?? q.get("id") ?? undefined)),
-        country: countryLabel(country),
+        country: countryLabel(country ?? seriesIdCountry(q.get("id"))),
         verdict: slot.verdict,
         outcome,
         durationMs: Date.now() - started,
@@ -309,7 +344,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
       }, 120);
     }
 
-    const indMatch = path.match(/^\/v1\/indicator\/([a-z0-9_]+)$/);
+    const indMatch = indicatorPathKey(path);
     if (indMatch) {
       rejectUnknownParams(q, ["country", "latest_only", "start_year", "end_year", "transform", "strict_source"]);
       const country = q.get("country");
@@ -328,7 +363,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
     }
 
     if (path === "/v1/series") {
-      rejectUnknownParams(q, ["id", "country", "start_year", "end_year", "transform", "strict_source"]);
+      rejectUnknownParams(q, ["id", "country", "latest_only", "start_year", "end_year", "transform", "strict_source"]);
       const id = q.get("id");
       if (!id) return errJson(400, "Query parameter 'id' is required, e.g. id=worldbank/NY.GDP.MKTP.KD.ZG.");
       const result = await getSeries(ctx, id, {
@@ -336,7 +371,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
         start: qYear(q, "start_year"),
         end: qYear(q, "end_year"),
         transform: parseTransform(q.get("transform")),
-        limit: 120,
+        limit: qBool(q, "latest_only") ? 1 : 120,
         strictSource: qBool(q, "strict_source"),
       });
       return json(200, result, result.fallback_used ? 0 : 3600);
@@ -376,6 +411,11 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
       // `claimed_value` is what verify_claims and the verify_stat MCP tool both
       // require, and it is the name this endpoint returns in its OWN response
       // body, so without the alias /v1/verify cannot round-trip its own output.
+      if (q.has("value") && q.has("claimed_value")) {
+        // Taking one and dropping the other would judge a number the caller
+        // may not have meant. Refuse, as for any other ambiguous input.
+        return errJson(400, "Send value or claimed_value, not both. They are the same parameter.");
+      }
       const valueParam = q.has("value") ? "value" : "claimed_value";
       const result = await verifyStat(ctx, {
         indicator,
@@ -460,8 +500,25 @@ async function verifyClaimsRoute(request: Request, ctx: Ctx): Promise<Response> 
   if (body === null || typeof body !== "object" || Array.isArray(body)) {
     return errJson(422, 'Body must be a JSON object with a \'claims\' array — wrap the claims as { "claims": [...] }.');
   }
+  const b = body as Record<string, unknown>;
+  // The same refusal the claim objects and the GET routes apply. A dropped
+  // top-level key, or strict_source sent as the string "true", used to change
+  // the result without any sign that it had.
+  const BODY_KEYS = ["claims", "strict_source"];
+  const unknownTop = Object.keys(b).filter((k) => !BODY_KEYS.includes(k));
+  if (unknownTop.length) {
+    return errJson(
+      400,
+      `Unknown body key '${unknownTop[0]}'.` +
+        (unknownTop.length > 1 ? ` Also unknown: ${unknownTop.slice(1).join(", ")}.` : "") +
+        " The body accepts: claims, strict_source. Per-claim settings such as tolerance_abs go inside each claim object.",
+      { unknown_keys: unknownTop, accepted_keys: BODY_KEYS },
+    );
+  }
+  if (b.strict_source !== undefined && typeof b.strict_source !== "boolean") {
+    return errJson(400, `'strict_source' must be a JSON boolean, true or false, not ${JSON.stringify(b.strict_source)}.`);
+  }
   try {
-    const b = body as Record<string, unknown>;
     return json(200, await runVerifyClaims(ctx, b.claims, b.strict_source === true), 0);
   } catch (e) {
     if (e instanceof ToolError) return errJson(422, e.message, e.details);

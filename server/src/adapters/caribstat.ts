@@ -86,6 +86,21 @@ export interface CaribstatSeries {
   unit?: string;
   observations: Observation[];
   apiUrl: string;
+  /** Set when the id named no row and the table has several. The caller got
+   * the first row, and `selector` is the '#...' suffix that reproduces it. */
+  defaultRow?: { selector: string; rows: string[] };
+}
+
+/** Row selectors are written by hand as often as they are URL-encoded, and
+ * real labels contain '%' ("Inflation Rate %"). decodeURIComponent throws on a
+ * bare '%', which surfaced as an internal error. Decode when the text is valid
+ * percent-encoding, and otherwise take it literally. */
+function decodeRow(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
 }
 
 /** Explicit series id: `caribstat/ECCB/{table}/{ISO3}.{freq}[#row label]`.
@@ -104,7 +119,10 @@ export interface ParsedId {
 
 export function parseCaribstatId(id: string): ParsedId {
   const rest = id.replace(/^caribstat\//i, "");
-  const [pathPart, rowPart] = rest.split("#");
+  // Split on the FIRST '#', so a label that itself contains '#' survives.
+  const hashAt = rest.indexOf("#");
+  const pathPart = hashAt >= 0 ? rest.slice(0, hashAt) : rest;
+  const rowPart = hashAt >= 0 ? rest.slice(hashAt + 1) : undefined;
   const bits = pathPart.split("/");
 
   // CBB: `caribstat/CBB/{category}/{sheet}`. Every CBB series is Barbados, so
@@ -125,7 +143,7 @@ export function parseCaribstatId(id: string): ParsedId {
       sheet: bits[bits.length - 1],
       iso3: "BRB",
       freq: "a",
-      ...(rowPart ? { row: decodeURIComponent(rowPart) } : {}),
+      ...(rowPart ? { row: decodeRow(rowPart) } : {}),
     };
   }
 
@@ -314,7 +332,16 @@ export async function fetchCaribstatSeries(id: string, opts: { origin?: string; 
   }
 
   const row = selectRow(doc, parsed.row);
-  return { doc, label: row.label, unit: row.unit, observations: row.observations, apiUrl };
+  // No row named in a multi-row table. The first row is served, but the
+  // caller must be told, because for debt-to-gdp the first row is central
+  // government rather than the headline total, and for the Barbados RPI table
+  // it is the Food index rather than inflation.
+  let defaultRow: CaribstatSeries["defaultRow"];
+  if (!parsed.row && doc.series.length > 1) {
+    const same = doc.series.filter((s) => s.label === row.label).length;
+    defaultRow = { selector: same > 1 ? `${row.label}[1]` : row.label, rows: doc.series.map((s) => s.label) };
+  }
+  return { doc, label: row.label, unit: row.unit, observations: row.observations, apiUrl, ...(defaultRow ? { defaultRow } : {}) };
 }
 
 /**
