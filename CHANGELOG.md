@@ -5,6 +5,89 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.12.2
+
+One verdict-changing fix on the main transport, several Caribbean answers that
+were quietly incomplete, and a contract that now says what the service does.
+
+**MCP tool arguments are held to the schema each tool publishes.** Every tool
+has always declared that extra arguments are invalid, but nothing enforced it.
+Verified live before the fix: verify_stat for US 2023 inflation, claimed 4.3,
+returned "mismatch" with tolerance_abs 0.01 and "close" with the key spelled
+tolerence_abs, because the misspelling was dropped and the lenient default
+applied. strict_source sent as the string "true" was read as false. Unknown
+argument names are now refused with the name you probably meant, and boolean
+arguments must be JSON booleans. REST gained the same stance for repeated
+query parameters, unknown verify_claims body keys, strict_source as a string,
+and value sent together with claimed_value.
+
+**Caribbean series answers say what they are.**
+
+- A caribstat id with no row selected served the table's first row under the
+  table's name. For the Barbados retail price table that is the Food index, not
+  inflation. The response now names the row it served, lists the others, and
+  carries the row in series_id and the citation.
+- A row label containing a percent sign, such as "Inflation Rate %", crashed
+  with an internal error. It now selects the row.
+- get_indicator for Anguilla or Montserrat, which the World Bank and IMF do not
+  report, answered with glued upstream errors including raw JSON. It now points
+  at the Eastern Caribbean Central Bank series and states how its definition
+  differs. Nothing is substituted under the registry key.
+- compare_sources for ECCU members adds the ECCB's own rows, labelled with
+  their definition and kept out of the comparison spread.
+
+**Honest errors.** Every REST error and MCP tool error carries a code from one
+closed list, documented in openapi.json. A year window inside a published gap
+is named as a gap rather than told to adjust a range that already contains it.
+A mistyped worldbank/ code is reported as an unknown code, not as a coverage
+fact. An unrecognised series id suggests the worldbank/ form or the nearest
+registry keys. /v1/indicator accepts keys as people type them, so
+/v1/indicator/GDP-growth no longer returns "Unknown endpoint". /v1/fx refuses
+impossible calendar dates instead of returning a 502. compare_sources no longer
+labels an old outturn as a projection and says why it compared an early year.
+The percent-versus-decimal diagnostic now catches a claim rounded to its own
+precision.
+
+**Protocol accuracy.** serverInfo carries a PNG icon, websiteUrl and a
+description. An unsupported-version error echoes the request id. A JSON-RPC
+batch that declares 2026-07-28 is refused. resources/templates/list answers. The
+GET descriptor lists every accepted protocol version, newest first.
+get_indicator and get_series declare an outputSchema, and a test validates the
+real output of every tool that declares one.
+
+**Contract and discovery.** openapi.json now matches the routes, checked by a
+test that reads both: latest_only on /v1/series, the claimed_value alias on
+/v1/verify, the verify_claims request schema, the compare response schema, and
+the error envelope. list_sources and search_indicators name every served
+source. /v1 JSON responses send x-robots-tag noindex. Caribbean, IMF, BIS and
+ECB series calls are no longer logged as "other" in usage metrics.
+
+**An absence is claimed only when every source says so.** "None of the sources
+publishes it" now requires each source in the chain to report that itself, or
+to return a 404 for the exact series. A declined request, a configuration error
+or another source's data outside the window no longer produces that sentence,
+and outages on registry indicators are coded upstream_unavailable so a client
+knows to retry. These were found by an adversarial review of this release
+before it shipped, along with a one-sided year window misread as a gap, codes
+that differed between routes for the same unknown indicator, and a series_id
+that could not be replayed after a trailing "#".
+
+**Privacy and the website.** Cloudflare invocation logs, which recorded each
+request URL and so the claimed values in it, are switched off. The privacy page
+now describes exactly what the traffic analytics read, and those analytics
+separate genuine crawling from vulnerability probes that borrow crawler names.
+Every page shares one navigation with a Connect link, short paths such as
+/benchmark and /changelog redirect, the Claude instructions lead with the
+connector directory, broken sentences left by an earlier punctuation pass are
+rewritten, the benchmark tables carry their run date, and the sitemap has a
+check that fails when a lastmod date goes stale.
+
+**Source integrity runs weekly.** A GitHub workflow re-derives served values
+from the World Bank and IMF with a second implementation that shares no code
+with the Worker, and reports coverage and skip reasons alongside mismatches. A
+network fault or a stall now has its own exit code, and a crash another, so
+neither can read as a data mismatch.
+
 ## 1.12.1
 
 Three correctness fixes, a change to what agents are told, and the housekeeping

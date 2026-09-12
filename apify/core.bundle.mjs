@@ -1,10 +1,12 @@
 // ../server/src/core/types.ts
 var ToolError = class extends Error {
   details;
-  constructor(message, details) {
+  code;
+  constructor(message, details, code) {
     super(message);
     this.name = "ToolError";
     this.details = details;
+    this.code = code;
   }
 };
 function nowIso(ctx) {
@@ -59,6 +61,9 @@ var ROWS = [
   ["MSR", "MS", "Montserrat"],
   ["AIA", "AI", "Anguilla"],
   ["VGB", "VG", "British Virgin Islands", "bvi", "virgin islands british"],
+  // Missing until 2026-09-12: "US Virgin Islands" resolved to nothing and a
+  // bare "Virgin Islands" was silently given the British territory.
+  ["VIR", "VI", "Virgin Islands (U.S.)", "us virgin islands", "u s virgin islands", "united states virgin islands", "usvi"],
   ["TCA", "TC", "Turks and Caicos Islands", "turks and caicos"],
   ["GIB", "GI", "Gibraltar"],
   ["FLK", "FK", "Falkland Islands", "malvinas"],
@@ -233,6 +238,9 @@ var ROWS = [
   ["RUS", "RU", "Russian Federation", "russia"],
   ["RWA", "RW", "Rwanda"],
   ["WSM", "WS", "Samoa"],
+  // A US territory, not Samoa. Missing until 2026-09-12, so "American Samoa"
+  // fell through to the substring step and was served Samoa's statistics.
+  ["ASM", "AS", "American Samoa"],
   ["SMR", "SM", "San Marino"],
   ["STP", "ST", "Sao Tome and Principe", "s\xE3o tom\xE9 and pr\xEDncipe"],
   ["SAU", "SA", "Saudi Arabia"],
@@ -321,7 +329,37 @@ for (const rows of [ROWS, AGGREGATES]) {
     for (const a of aliases) byName.set(norm(a), c);
   }
 }
+var AMBIGUOUS_NAMES = ["virgin islands"];
+for (const a of AMBIGUOUS_NAMES) byName.delete(a);
 var NORM_NAMES = COUNTRIES.map((c) => ({ c, n: norm(c.name) }));
+var SAME_STATE_QUALIFIERS = /* @__PURE__ */ new Set([
+  "the",
+  "of",
+  "and",
+  "republic",
+  "kingdom",
+  "state",
+  "states",
+  "commonwealth",
+  "federal",
+  "federation",
+  "democratic",
+  "people",
+  "peoples",
+  "s",
+  "islamic",
+  "socialist",
+  "plurinational",
+  "bolivarian",
+  "principality",
+  "grand",
+  "duchy",
+  "sultanate",
+  "independent",
+  "union",
+  "government",
+  "country"
+]);
 function resolveCountry(input, opts = {}) {
   const raw = input.trim();
   if (!raw) return null;
@@ -331,8 +369,15 @@ function resolveCountry(input, opts = {}) {
   const n = norm(raw);
   if (byName.has(n)) return byName.get(n);
   if (n.length >= 4) {
-    const hits = NORM_NAMES.filter(({ n: cn }) => cn.includes(n) || n.includes(cn));
-    if (hits.length === 1) return hits[0].c;
+    const hits = NORM_NAMES.filter(({ n: cn }) => {
+      if (cn.includes(n)) return true;
+      if (!n.includes(cn)) return false;
+      const known = new Set(cn.split(" "));
+      const extra = n.split(" ").filter((t) => t && !known.has(t));
+      return extra.every((t) => SAME_STATE_QUALIFIERS.has(t));
+    });
+    const uniq = [...new Set(hits.map((h) => h.c.iso3))];
+    if (uniq.length === 1) return hits[0].c;
   }
   if (n.length >= 5) {
     const hits = NORM_NAMES.filter(({ n: cn }) => Math.abs(cn.length - n.length) <= 1 && editDistanceLeq1(n, cn));
@@ -1079,22 +1124,47 @@ function parseEnvelope(data, apiUrl, ctx = {}) {
           { api_url: apiUrl, country: ctx.countryCode, unknown_country: true }
         );
       }
-      throw new ToolError(
+      const err = new ToolError(
         `The World Bank does not publish indicator ${ctx.indicatorId ?? "(unknown)"} for '${ctx.countryCode ?? "(unknown)"}'. This is a coverage fact at the source, not a lookup failure, some economies (e.g. Anguilla, Montserrat) are not World Bank reporting economies at all.`,
         { api_url: apiUrl, no_published_data: true, country: ctx.countryCode, indicator: ctx.indicatorId }
       );
+      err.wbParameterRefusal = true;
+      throw err;
     }
     throw new ToolError(`World Bank API error, ${text}`, { api_url: apiUrl });
   }
   const rows = data[1] ?? [];
   return { meta: first ?? {}, rows: Array.isArray(rows) ? rows : [] };
 }
+async function wbIndicatorIsUnknown(indicatorId) {
+  try {
+    const d = await fetchJson(`${BASE}/indicator/${encodeURIComponent(indicatorId)}?format=json`, { ttlSeconds: 86400 });
+    const first = Array.isArray(d) ? d[0] : void 0;
+    return Boolean(first?.message?.some((m) => m.id === "120" || /invalid value/i.test(m.key ?? "")));
+  } catch {
+    return false;
+  }
+}
 async function fetchWbSeries(countryCode, indicatorId, opts = {}) {
   const params = new URLSearchParams({ format: "json", per_page: String(opts.perPage ?? 1e3) });
   if (opts.mrv) params.set("mrv", String(opts.mrv));
   const apiUrl = `${BASE}/country/${encodeURIComponent(countryCode)}/indicator/${encodeURIComponent(indicatorId)}?${params}`;
   const data = await fetchJson(apiUrl, { ttlSeconds: 21600 });
-  const { meta, rows } = parseEnvelope(data, apiUrl, { countryCode, indicatorId, countryUnverified: opts.countryUnverified });
+  let parsed;
+  try {
+    parsed = parseEnvelope(data, apiUrl, { countryCode, indicatorId, countryUnverified: opts.countryUnverified });
+  } catch (e) {
+    if (opts.checkIndicatorOnRefusal && e.wbParameterRefusal) {
+      if (await wbIndicatorIsUnknown(indicatorId)) {
+        throw new ToolError(
+          `Unknown World Bank indicator code '${indicatorId}'. The World Bank does not recognise it, so this is not a coverage gap. Check the code at https://data.worldbank.org/indicator, or find a registry key with search_indicators.`,
+          { indicator: indicatorId, unknown_indicator: true, api_url: `${BASE}/indicator/${encodeURIComponent(indicatorId)}?format=json` }
+        );
+      }
+    }
+    throw e;
+  }
+  const { meta, rows } = parsed;
   if (rows.length === 0) {
     throw new ToolError(
       `No World Bank data found for indicator ${indicatorId}, country ${countryCode}. The indicator code or country may be wrong, or the series may not be reported for this economy.`,
@@ -1364,7 +1434,9 @@ async function fetchDataMapperSeries(ctx, code, dataset, countryIso3, now = /* @
   if (!countrySeries) {
     throw new ToolError(
       `Country '${countryIso3}' is not present in the IMF DataMapper ${dataset} payload for series '${code}'.`,
-      { code, country: countryIso3 }
+      // The payload lists every economy the IMF publishes for this series, so
+      // a missing country is a coverage fact, not a lookup failure.
+      { code, country: countryIso3, no_published_data: true }
     );
   }
   const observations = Object.entries(countrySeries).map(([period, value]) => ({ period, value: typeof value === "number" ? value : null })).sort((a, b) => a.period.localeCompare(b.period));
@@ -1391,6 +1463,11 @@ async function fetchDataMapperSeries(ctx, code, dataset, countryIso3, now = /* @
 // ../server/src/core/citations.ts
 var FRED_NOTICE = "This product uses the FRED\xAE API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.";
 var IMF_LICENSE = 'Published IMF statistical data may be copied, redistributed, and used (including in derivative works) with attribution to the IMF as source. Conditions: attribute as "Source: International Monetary Fund, <database>, <link>"; do not alter the data in ways affecting its accuracy, and state explicitly if it is materially transformed; anyone redistributing it downstream must take reasonable efforts to communicate these terms to their own users; and if sold as a standalone product, purchasers must be told the data is available free of charge from the IMF. Some statistical products incorporate third-party information under separate terms';
+var STATCITE_URL = "https://statcite.com";
+function retrievedVia(date, through) {
+  const chain = through ? `${through} and StatCite` : "StatCite";
+  return `Retrieved ${date} via ${chain} (${STATCITE_URL}).`;
+}
 function bibtexEscape(s) {
   return s.replace(/([&%$#_])/g, "\\$1");
 }
@@ -1402,7 +1479,7 @@ function withExports(c) {
   title = {{${bibtexEscape(c.dataset)}: ${bibtexEscape(c.series_name)}}},
   year = {${year}},
   url = {${c.source_url}},
-  note = {Series ${bibtexEscape(c.series_id)}. Retrieved ${c.retrieved_at} via StatCite. ${bibtexEscape(c.attribution)}}
+  note = {Series ${bibtexEscape(c.series_id)}. ${retrievedVia(c.retrieved_at)} ${bibtexEscape(c.attribution)}}
 }`;
   const apa = `${c.source}. (n.d.). ${c.series_name} [Data set]. ${c.dataset}. Retrieved ${c.retrieved_at}, from ${c.source_url}`;
   return { ...c, export_formats: { bibtex, apa } };
@@ -1421,7 +1498,7 @@ function worldBankCitation(ctx, opts) {
     license: "CC BY 4.0",
     attribution: `The World Bank: World Development Indicators: ${opts.indicatorName}`,
     retrieved_at: date,
-    citation_text: `World Bank, World Development Indicators, series ${opts.indicatorId} (${opts.indicatorName})${opts.lastUpdated ? `, data last updated ${opts.lastUpdated}` : ""}. Retrieved ${date} via StatCite. ${sourceUrl}`
+    citation_text: `World Bank, World Development Indicators, series ${opts.indicatorId} (${opts.indicatorName})${opts.lastUpdated ? `, data last updated ${opts.lastUpdated}` : ""}. ${retrievedVia(date)} ${sourceUrl}`
   });
 }
 function dbnomicsCitation(ctx, opts) {
@@ -1438,7 +1515,7 @@ function dbnomicsCitation(ctx, opts) {
     license: isImf ? IMF_LICENSE : `${opts.providerName} terms apply; retrieved via DBnomics (open aggregator)`,
     attribution: isImf ? `Source: International Monetary Fund, ${opts.datasetName}, ${sourceUrl}` : `Source: ${opts.providerName} (via DBnomics)`,
     retrieved_at: date,
-    citation_text: `${opts.providerName}, ${opts.datasetName}, series ${opts.seriesCode} (${opts.seriesName}). Retrieved ${date} via DBnomics/StatCite. ${sourceUrl}`
+    citation_text: `${opts.providerName}, ${opts.datasetName}, series ${opts.seriesCode} (${opts.seriesName}). ${retrievedVia(date, "DBnomics")} ${sourceUrl}`
   });
 }
 function imfDataMapperCitation(ctx, opts) {
@@ -1459,7 +1536,7 @@ function imfDataMapperCitation(ctx, opts) {
     // A bare "Source: IMF" omits the database and link the terms ask for.
     attribution: `Source: International Monetary Fund, ${opts.editionLabel}, ${opts.sourceUrl}`,
     retrieved_at: date,
-    citation_text: `International Monetary Fund, ${opts.editionLabel}${datasetSuffix}, ${opts.seriesName}, series ${opts.code}. Retrieved ${date} via the IMF DataMapper API/StatCite. ${opts.sourceUrl}`,
+    citation_text: `International Monetary Fund, ${opts.editionLabel}${datasetSuffix}, ${opts.seriesName}, series ${opts.code}. ${retrievedVia(date, "the IMF DataMapper API")} ${opts.sourceUrl}`,
     ...opts.lastModified ? { notices: [`IMF data load timestamp: ${opts.lastModified} UTC.`] } : {}
   });
 }
@@ -1476,7 +1553,7 @@ function fredCitation(ctx, opts) {
     license: "FRED\xAE API Terms of Use; check series page for third-party data owners",
     attribution: `Federal Reserve Bank of St. Louis, FRED series ${opts.seriesId}`,
     retrieved_at: date,
-    citation_text: `Federal Reserve Bank of St. Louis, FRED, series ${opts.seriesId} (${opts.seriesName}). Retrieved ${date} via StatCite. ${sourceUrl}`,
+    citation_text: `Federal Reserve Bank of St. Louis, FRED, series ${opts.seriesId} (${opts.seriesName}). ${retrievedVia(date)} ${sourceUrl}`,
     notices: [FRED_NOTICE]
   });
 }
@@ -1493,7 +1570,7 @@ function ecbFxCitation(ctx, opts) {
     license: "ECB reference rates are published for information purposes; reuse with attribution",
     attribution: "Source: European Central Bank euro foreign exchange reference rates",
     retrieved_at: date,
-    citation_text: `European Central Bank, euro foreign exchange reference rates, ${opts.base}/${opts.quote} as of ${opts.rateDate} (via Frankfurter). Retrieved ${date} via StatCite. ${sourceUrl}`,
+    citation_text: `European Central Bank, euro foreign exchange reference rates, ${opts.base}/${opts.quote} as of ${opts.rateDate} (via Frankfurter). ${retrievedVia(date)} ${sourceUrl}`,
     notices: [
       "ECB reference rates are indicative and 'for information purposes'; they are not transaction rates."
     ]
@@ -1516,7 +1593,7 @@ function sdmxCitation(ctx, opts) {
       `Source: International Monetary Fund, ${dataset}, ${opts.sourceUrl}`
     ) : "Source: European Central Bank",
     retrieved_at: date,
-    citation_text: `${source}, ${dataset}, series ${opts.key} (${opts.seriesName}). Retrieved ${date} via StatCite. ${opts.sourceUrl}`
+    citation_text: `${source}, ${dataset}, series ${opts.key} (${opts.seriesName}). ${retrievedVia(date)} ${opts.sourceUrl}`
   });
 }
 function caribstatCitation(ctx, opts) {
@@ -1533,7 +1610,7 @@ function caribstatCitation(ctx, opts) {
     license: "Reproduced with the publishing central bank's permission; see the source entry in /v1/sources for the scope of that grant",
     attribution: `Source: ${opts.source}`,
     retrieved_at: date,
-    citation_text: `${opts.source}, ${opts.publicationTitle ?? opts.tableTitle}, ${opts.rowLabel}, ${opts.countryName} (${freqWord})` + (asAt ? `, data as at ${asAt}` : opts.publishedAt ? `, published ${opts.publishedAt}` : "") + `. Retrieved ${date} via StatCite. ${opts.attachmentUrl ?? opts.sourceUrl}`,
+    citation_text: `${opts.source}, ${opts.publicationTitle ?? opts.tableTitle}, ${opts.rowLabel}, ${opts.countryName} (${freqWord})` + (asAt ? `, data as at ${asAt}` : opts.publishedAt ? `, published ${opts.publishedAt}` : "") + `. ${retrievedVia(date)} ${opts.attachmentUrl ?? opts.sourceUrl}`,
     ...asAt ? {
       notices: [
         `The publishing bank stamps this table "Data as at ${asAt}". That is the source's own currency claim and is not the same as the retrieval date above.`
@@ -1685,9 +1762,18 @@ function pickRoot(d) {
 // ../server/src/adapters/caribstat.ts
 var CARIBSTAT_ENABLED = true;
 var CARIBSTAT_ORIGIN = "https://asokore.github.io/caribstat";
+function decodeRow(raw) {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
 function parseCaribstatId(id) {
   const rest = id.replace(/^caribstat\//i, "");
-  const [pathPart, rowPart] = rest.split("#");
+  const hashAt = rest.indexOf("#");
+  const pathPart = hashAt >= 0 ? rest.slice(0, hashAt) : rest;
+  const rowPart = hashAt >= 0 ? rest.slice(hashAt + 1) : void 0;
   const bits = pathPart.split("/");
   if (bits[0]?.toLowerCase() === "cbb") {
     if (bits.length < 3) {
@@ -1702,7 +1788,7 @@ function parseCaribstatId(id) {
       sheet: bits[bits.length - 1],
       iso3: "BRB",
       freq: "a",
-      ...rowPart ? { row: decodeURIComponent(rowPart) } : {}
+      ...rowPart ? { row: decodeRow(rowPart) } : {}
     };
   }
   if (bits.length < 3) {
@@ -1819,7 +1905,12 @@ async function fetchCaribstatSeries(id, opts = {}) {
     throw e;
   }
   const row = selectRow(doc, parsed.row);
-  return { doc, label: row.label, unit: row.unit, observations: row.observations, apiUrl };
+  let defaultRow;
+  if (!parsed.row && doc.series.length > 1) {
+    const same = doc.series.filter((s) => s.label === row.label).length;
+    defaultRow = { selector: same > 1 ? `${row.label}[1]` : row.label, rows: doc.series.map((s) => s.label) };
+  }
+  return { doc, label: row.label, unit: row.unit, observations: row.observations, apiUrl, ...defaultRow ? { defaultRow } : {} };
 }
 var CARIBSTAT_CATALOGUE = [
   {
@@ -2091,14 +2182,48 @@ function searchUnctadGap(query) {
   return out;
 }
 
+// ../server/src/core/eccb-related.ts
+var ECCU_ISO3 = /* @__PURE__ */ new Set(["AIA", "ATG", "DMA", "GRD", "KNA", "LCA", "MSR", "VCT", "XCU"]);
+var RELATED = {
+  govt_debt_gdp: (iso3) => ({
+    series: [
+      { id: `caribstat/ECCB/debt-to-gdp/${iso3}.a#Total Public Sector Debt to GDP`, label: "Total public sector debt to GDP (ECCB)" },
+      { id: `caribstat/ECCB/debt-to-gdp/${iso3}.a#Central Government Debt to GDP`, label: "Central government debt to GDP (ECCB)" }
+    ],
+    definition: "The ECCB reports central government and total public sector debt, not the IMF's general government gross debt, so the figures are related but not the same measure."
+  }),
+  inflation_cpi: (iso3) => ({
+    series: [
+      { id: `caribstat/ECCB/consumer-price-index/${iso3}.a#Inflation Rate - end of period`, label: "Inflation, end of period (ECCB)" }
+    ],
+    definition: "The ECCB reports inflation end of period, the change to December, not the annual-average change the World Bank series measures."
+  })
+};
+function eccbRelated(key, iso3) {
+  if (!ECCU_ISO3.has(iso3)) return void 0;
+  const f = RELATED[key];
+  return f ? f(iso3) : void 0;
+}
+
 // ../server/src/core/series.ts
+function assertYearWindow(opts) {
+  const { start, end } = opts;
+  if (!start || !end) return;
+  if (Number(start) > Number(end)) {
+    throw new ToolError(
+      `start_year (${start}) is after end_year (${end}). Swap them: the window runs from the earlier year to the later one.`,
+      { start_year: start, end_year: end }
+    );
+  }
+}
 function requireCountry(input) {
   const c = resolveCountry(input);
   if (!c) {
     const suggestions = suggestCountries(input);
     throw new ToolError(
       `Could not resolve country '${input}'. Use an ISO3 code (e.g. USA, BRB, DEU) or a standard English name.` + (suggestions.length ? ` Did you mean: ${suggestions.join(", ")}?` : ""),
-      { input, suggestions }
+      { input, suggestions },
+      "unknown_country"
     );
   }
   return c;
@@ -2148,6 +2273,25 @@ function finishSeries(result, opts) {
     }
     const availStart = allValued[0].period;
     const availEnd = allValued[allValued.length - 1].period;
+    const y = (p) => p.slice(0, 4);
+    const before = opts.start ? [...allValued].reverse().find((o) => y(o.period) < opts.start) : void 0;
+    const after = opts.end ? allValued.find((o) => y(o.period) > opts.end) : void 0;
+    const insideRange = Boolean(before && after);
+    if (insideRange) {
+      const win = opts.start && opts.end && opts.start === opts.end ? opts.start : `${opts.start ?? "\u2026"}\u2013${opts.end ?? "\u2026"}`;
+      const near = [before, after].filter(Boolean).map((o) => `${o.period} (${o.value})`);
+      throw new ToolError(
+        `The source publishes ${win} as missing for ${result.series_id}${result.country ? ` (${result.country.name})` : ""}. This is a gap inside the published range ${availStart}\u2013${availEnd}, not a window outside it.` + (near.length ? ` Nearest published values: ${near.join(" and ")}.` : ""),
+        {
+          series_id: result.series_id,
+          no_published_data: false,
+          gap_in_published_range: true,
+          available_range: { start: availStart, end: availEnd },
+          ...before ? { nearest_before: before } : {},
+          ...after ? { nearest_after: after } : {}
+        }
+      );
+    }
     throw new ToolError(
       `No observations available for ${result.series_id}${result.country ? ` (${result.country.name})` : ""} in the requested window` + (opts.start || opts.end ? ` ${opts.start ?? "\u2026"}\u2013${opts.end ?? "\u2026"}` : "") + `. Published data exists for ${availStart}\u2013${availEnd}, adjust the year range.`,
       { series_id: result.series_id, no_published_data: false, available_range: { start: availStart, end: availEnd } }
@@ -2433,12 +2577,14 @@ function buildSourceAttempts(ctx, def, country, opts) {
   return attempts;
 }
 async function getIndicator(ctx, key, countryInput, opts = {}) {
+  assertYearWindow(opts);
   const def = getIndicatorDef(key);
   if (!def) {
     const near = searchIndicatorDefs(key, 8).filter((m) => !isDisabledDef(m.def)).slice(0, 5).map((m) => m.def.key);
     throw new ToolError(
       `Unknown indicator '${key}'.` + (near.length ? ` Closest matches: ${near.join(", ")}.` : "") + " Use search_indicators to browse the registry, or pass an explicit series id like 'worldbank/NY.GDP.MKTP.KD.ZG'.",
-      { input: key, suggestions: near }
+      { input: key, suggestions: near },
+      "unknown_indicator"
     );
   }
   const country = requireCountry(countryInput);
@@ -2451,6 +2597,8 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
   const attempts = buildSourceAttempts(ctx, def, country, opts);
   const tried = opts.strictSource ? attempts.slice(0, 1) : attempts;
   const errors = [];
+  const attemptDetails = [];
+  const attemptAbsent = [];
   let absenceDetails;
   let firstErrorWasTransient = false;
   let anyErrorWasTransient = false;
@@ -2472,6 +2620,10 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
       if (i === 0) firstErrorWasTransient = transient;
       if (transient) anyErrorWasTransient = true;
       errors.push(e instanceof Error ? e.message : String(e));
+      attemptDetails.push(e instanceof ToolError && e.details && typeof e.details === "object" ? e.details : void 0);
+      attemptAbsent.push(
+        e instanceof ToolError && e.details?.no_published_data === true || e instanceof UpstreamError && e.status === 404
+      );
       if (e instanceof ToolError && e.details && typeof e.details === "object" && "no_published_data" in e.details) {
         if (!absenceDetails) absenceDetails = e.details;
       }
@@ -2495,10 +2647,53 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
       publisher_url: t.publisherUrl
     });
   }
+  const definitiveAbsence = !anyErrorWasTransient && attemptAbsent.length === tried.length && attemptAbsent.every(Boolean);
+  if (definitiveAbsence) {
+    const labels = tried.map((t) => t.label);
+    const sources = tried.map((t, i) => ({ source: t.label, no_published_data: true, reason: cleanReason(errors[i]) }));
+    const related = eccbRelated(def.key, country.iso3);
+    if (related) {
+      throw new ToolError(
+        `None of the sources for '${def.key}' (${labels.join(", ")}) publishes it for ${country.name}. The Eastern Caribbean Central Bank publishes a related series on its own definition: ` + related.series.map((s) => `'${s.id}'`).join(" and ") + `. ${related.definition} Fetch it with get_series and state that definition when you cite it. It is not substituted here because the measures differ.`,
+        {
+          ...absenceDetails,
+          indicator: def.key,
+          country: country.iso3,
+          no_published_data: true,
+          publisher: "Eastern Caribbean Central Bank",
+          publisher_url: "https://www.eccb-centralbank.org/statistics",
+          related_series: related.series,
+          definition_note: related.definition,
+          sources
+        }
+      );
+    }
+    throw new ToolError(
+      `None of the sources for '${def.key}' (${labels.join(", ")}) publishes it for ${country.name}. This is a statement about what those sources publish, not a lookup failure. Some economies are not covered by every series.`,
+      { ...absenceDetails, indicator: def.key, country: country.iso3, no_published_data: true, sources },
+      "no_published_data"
+    );
+  }
+  const windowMiss = attemptDetails.find((d) => d?.no_published_data === false && d.available_range);
+  const code = anyErrorWasTransient ? "upstream_unavailable" : windowMiss ? windowMiss.gap_in_published_range ? "data_gap" : "out_of_range" : "upstream_unavailable";
   throw new ToolError(
-    `Could not retrieve '${def.key}' for ${country.name}: ${errors.join(" | ")}`,
-    { indicator: def.key, country: country.iso3, ...absenceDetails ?? {} }
+    `Could not retrieve '${def.key}' for ${country.name}: ${errors.map(cleanReason).join(" | ")}`,
+    {
+      ...anyErrorWasTransient ? {} : windowMiss ?? {},
+      indicator: def.key,
+      country: country.iso3,
+      sources: tried.map((t, i) => ({
+        source: t.label,
+        ...attemptAbsent[i] ? { no_published_data: true } : {},
+        reason: cleanReason(errors[i])
+      }))
+    },
+    code
   );
+}
+function cleanReason(msg) {
+  const m = String(msg ?? "").replace(/(Upstream returned HTTP \d+):\s*[\[{][\s\S]*$/, "$1");
+  return m.length > 300 ? m.slice(0, 297) + "..." : m;
 }
 function asOfCapableIndicators() {
   return INDICATORS.filter((d) => d.dbnomics).map((d) => d.key);
@@ -2523,7 +2718,8 @@ async function getIndicatorAtEdition(ctx, def, country, edition, opts = {}) {
     const msg = e instanceof Error ? e.message : String(e);
     throw new ToolError(
       `Could not retrieve the ${dataset} vintage of '${def.key}' for ${country.name}: ${msg} DBnomics's dated WEO editions have been confirmed to exist back to 2010-04; a date far outside that range, or a future date past the current edition, may not have a matching edition ingested.`,
-      { indicator: def.key, country: country.iso3, edition }
+      { indicator: def.key, country: country.iso3, edition },
+      isTransientUpstreamError(e) ? "upstream_unavailable" : void 0
     );
   }
 }
@@ -2571,7 +2767,8 @@ async function getIndicatorAsOf(ctx, key, countryInput, asOfDate, opts = {}) {
     const near = searchIndicatorDefs(key, 8).filter((m) => !isDisabledDef(m.def)).slice(0, 5).map((m) => m.def.key);
     throw new ToolError(
       `Unknown indicator '${key}'.` + (near.length ? ` Closest matches: ${near.join(", ")}.` : ""),
-      { input: key, suggestions: near }
+      { input: key, suggestions: near },
+      "unknown_indicator"
     );
   }
   if (!def.dbnomics) {
@@ -2622,6 +2819,7 @@ for (const d of INDICATORS) {
   if (d.datamapper) DM_CODE_INFO.set(d.datamapper[0], { dataset: d.datamapper[1], def: d });
 }
 async function getSeries(ctx, seriesId, opts = {}) {
+  assertYearWindow(opts);
   const id = seriesId.trim();
   const lower = id.toLowerCase();
   if (lower.startsWith("worldbank/") || lower.startsWith("wb/")) {
@@ -2630,7 +2828,7 @@ async function getSeries(ctx, seriesId, opts = {}) {
       throw new ToolError("World Bank series require a 'country' parameter (ISO3 code or name).", { series_id: id });
     }
     const country = requireCountry(opts.country);
-    const wb = await fetchWbSeries(country.iso3, code, { countryUnverified: country.unverified });
+    const wb = await fetchWbSeries(country.iso3, code, { countryUnverified: country.unverified, checkIndicatorOnRefusal: !country.unverified });
     const citation = worldBankCitation(ctx, {
       indicatorId: wb.indicatorId,
       indicatorName: wb.indicatorName,
@@ -2659,7 +2857,8 @@ async function getSeries(ctx, seriesId, opts = {}) {
     if (!info) {
       throw new ToolError(
         `Unrecognized IMF DataMapper code '${code}'. Known codes: ${[...DM_CODE_INFO.keys()].join(", ")}.`,
-        { series_id: id }
+        { series_id: id },
+        "unknown_indicator"
       );
     }
     if (!opts.country) {
@@ -2695,6 +2894,14 @@ async function getSeries(ctx, seriesId, opts = {}) {
     }
     const c = await fetchCaribstatSeries(id);
     const freq = c.doc.frequency ?? inferFrequency(c.doc.periods);
+    const resolvedId = c.defaultRow ? `${id.replace(/#\s*$/, "")}#${c.defaultRow.selector}` : id;
+    const caribNotes = [];
+    if (c.defaultRow) {
+      const shown = c.defaultRow.rows.slice(0, 12);
+      caribNotes.push(
+        `No row was named, so this is the table's first row, '${c.label}'. The table has ${c.defaultRow.rows.length} rows: ` + shown.join(" | ") + (c.defaultRow.rows.length > shown.length ? " | ..." : "") + `. Add '#Row Label' to the series id to choose one.`
+      );
+    }
     const citation = caribstatCitation(ctx, {
       source: c.doc.source,
       sourceUrl: c.doc.source_url,
@@ -2710,18 +2917,18 @@ async function getSeries(ctx, seriesId, opts = {}) {
       publishedAt: c.doc.published_at,
       attachmentUrl: c.doc.attachment_url,
       apiUrl: c.apiUrl,
-      seriesId: id
+      seriesId: resolvedId
     });
     return finishSeries(
       {
-        series_id: id,
+        series_id: resolvedId,
         name: `${c.doc.table_title ?? c.doc.publication_title ?? c.doc.sheet ?? "CaribStat"}: ${c.label}`,
         country: { iso3: c.doc.country.iso3, name: c.doc.country.name },
         unit: c.unit ?? null,
         frequency: freq,
         observations: c.observations,
         citation,
-        notes: []
+        notes: caribNotes
       },
       opts
     );
@@ -2769,9 +2976,26 @@ async function getSeries(ctx, seriesId, opts = {}) {
     }
     return getIndicator(ctx, id, opts.country, opts);
   }
+  if (lower.startsWith("bis/")) {
+    throw new ToolError(
+      `'${id}' is a BIS policy-rate series, served through get_indicator rather than get_series. Call get_indicator with indicator 'policy_rate' and the country.`,
+      { series_id: id, use_instead: { tool: "get_indicator", indicator: "policy_rate" } }
+    );
+  }
+  if (lower.startsWith("ecb/")) {
+    throw new ToolError(
+      `'${id}' is an ECB Data Portal series, served through get_indicator rather than get_series. Call get_indicator with indicator 'euro_area_hicp' and country 'euro area'.`,
+      { series_id: id, use_instead: { tool: "get_indicator", indicator: "euro_area_hicp" } }
+    );
+  }
+  const hints = [];
+  if (/^[A-Z]{2,}(\.[A-Z0-9]+)+$/i.test(id)) hints.push(`Did you mean 'worldbank/${id.toUpperCase()}'?`);
+  const near = id.length <= 80 ? searchIndicatorDefs(id.replace(/[^A-Za-z0-9]+/g, " "), 8).filter((m) => !isDisabledDef(m.def)).slice(0, 5).map((m) => m.def.key) : [];
+  if (near.length) hints.push(`Registry keys that may match: ${near.join(", ")}.`);
   throw new ToolError(
-    `Unrecognized series id '${id}'. Expected 'worldbank/CODE', 'fred/ID', 'dbnomics/PROVIDER/DATASET/SERIES', or a registry indicator key (see search_indicators).`,
-    { series_id: id }
+    `Unrecognized series id '${id}'. Expected 'worldbank/CODE', 'imf/CODE', 'caribstat/BANK/TABLE/SERIES', 'dbnomics/PROVIDER/DATASET/SERIES', or a registry indicator key (see search_indicators). 'fred/' ids are recognised but permanently disabled.` + (hints.length ? " " + hints.join(" ") : ""),
+    { series_id: id, ...near.length ? { suggestions: near } : {} },
+    "unknown_indicator"
   );
 }
 function isDisabledDef(d) {
@@ -2792,13 +3016,16 @@ function countryNamedIn(query) {
   }
   return void 0;
 }
+var INDICATOR_RESULT_CAP = 8;
 async function searchIndicators(ctx, query, opts = {}) {
-  const matches = searchIndicatorDefs(query, 8).filter((m) => {
+  const eligible = searchIndicatorDefs(query, Number.MAX_SAFE_INTEGER).filter((m) => {
     if (!isFixedGeographyDef(m.def)) return true;
     const c = countryNamedIn(query);
     if (!c) return true;
     return c.iso3 === "EMU" || c.iso3 === "XM";
   });
+  const matches = eligible.slice(0, INDICATOR_RESULT_CAP);
+  const truncated = eligible.length > matches.length;
   const items = matches.map((m) => {
     const disabled = isDisabledDef(m.def);
     return {
@@ -2818,7 +3045,7 @@ async function searchIndicators(ctx, query, opts = {}) {
         id: hit.id,
         title: `${hit.entry.provider}: ${hit.entry.title}${hit.iso3 ? `, ${hit.iso3}` : ""}`,
         description: `${hit.why}. Regional central bank data, not a registry indicator: values are on the publishing bank's own definitions.`,
-        usage: `get_series(id="${hit.id}") \u2014 add '#Row Label' to pick a row, e.g. '#${hit.entry.sampleRow}'`
+        usage: `get_series(series_id="${hit.id}") \u2014 add '#Row Label' to pick a row, e.g. '#${hit.entry.sampleRow}'`
       });
     }
   }
@@ -2828,7 +3055,7 @@ async function searchIndicators(ctx, query, opts = {}) {
       id: g.id,
       title: `UNCTAD: GDP growth, ${g.name} (1971-2019)`,
       description: `The World Bank and IMF publish no GDP series for ${g.name}. UNCTAD does, annually from 1971, but it ENDS IN 2019, so it is history rather than a current figure.`,
-      usage: `get_series(id="${g.id}")`
+      usage: `get_series(series_id="${g.id}")`
     });
   }
   if (opts.includeDbnomics !== false && items.length < 5) {
@@ -2846,7 +3073,7 @@ async function searchIndicators(ctx, query, opts = {}) {
     } catch {
     }
   }
-  return items;
+  return { results: items, total_indicator_matches: eligible.length, truncated };
 }
 function listRegistry() {
   return INDICATORS.map((d) => {
@@ -2888,7 +3115,6 @@ var SNAPSHOT_WB_KEYS = [
   "fdi_inflows_gdp",
   "life_expectancy"
 ];
-var ECCU_ISO3 = /* @__PURE__ */ new Set(["AIA", "ATG", "DMA", "GRD", "KNA", "LCA", "MSR", "VCT", "XCU"]);
 var ECCU_SUPPLEMENT = [
   {
     key: "public_sector_debt_ec",
@@ -3321,6 +3547,13 @@ async function fxConvert(ctx, amount, fromRaw, toRaw, date) {
   if (date && !/^\d{4}(-\d{2}-\d{2})?$/.test(date)) {
     throw new ToolError("'date' must be YYYY-MM-DD (daily rates) or YYYY (annual-average rates).", { date });
   }
+  if (date && date.length === 10) {
+    const [y, m, d] = date.split("-").map((x) => parseInt(x, 10));
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    if (dt.getUTCFullYear() !== y || dt.getUTCMonth() + 1 !== m || dt.getUTCDate() !== d) {
+      throw new ToolError(`'date' ${date} is not a real calendar date. Use YYYY-MM-DD or YYYY.`, { date });
+    }
+  }
   if (from === to) {
     return {
       amount,
@@ -3542,19 +3775,7 @@ async function verifyStat(ctx, p) {
   const diff = p.claimed_value - official;
   const relPct = official !== 0 ? diff / Math.abs(official) * 100 : null;
   const ratio = official !== 0 ? p.claimed_value / official : null;
-  if (ratio != null && ratio > 0) {
-    for (const [factor, label] of [
-      [100, "a percent-vs-decimal mix-up (e.g. 0.05 vs 5%)"],
-      [1e3, "a thousands scaling difference"],
-      [1e6, "a millions scaling difference"],
-      [1e9, "a billions scaling difference"],
-      [1e12, "a trillions scaling difference"]
-    ]) {
-      if (within(ratio, factor, 0.02) || within(ratio, 1 / factor, 0.02)) {
-        diagnostics.push(`The claimed value is ~${factor.toLocaleString("en-US")}\xD7 ${ratio > 1 ? "larger" : "smaller"} than the official figure, possibly ${label}.`);
-      }
-    }
-  }
+  diagnostics.push(...scaleDiagnostics(p.claimed_value, official));
   if (ratio != null && ratio < 0 && within(-ratio, 1, 0.02)) {
     diagnostics.push(
       "The claimed value is approximately the official figure with the opposite sign, possibly a sign-convention mix-up (e.g. a fiscal deficit quoted as positive where the source reports net lending as negative)."
@@ -3649,6 +3870,43 @@ async function verifyStat(ctx, p) {
     ...asOfResolved ? { as_of: asOfResolved } : {}
   };
 }
+function decimalsOf(x) {
+  const s = String(Math.abs(x));
+  if (/e/i.test(s)) return null;
+  const dot = s.indexOf(".");
+  return dot < 0 ? 0 : s.length - dot - 1;
+}
+function sigDigitsOf(x) {
+  const s = String(Math.abs(x)).replace(/e.*$/i, "").replace(".", "").replace(/^0+/, "");
+  return s.length;
+}
+function scaleDiagnostics(claimed, official) {
+  const out = [];
+  if (official === 0) return out;
+  const ratio = claimed / official;
+  if (!(ratio > 0)) return out;
+  const d = decimalsOf(claimed);
+  const roundsTo = (v) => {
+    if (d == null || d > 12 || sigDigitsOf(claimed) < 2) return false;
+    const m = 10 ** d;
+    const r = Math.round((Math.abs(v) + 1e-12) * m) / m;
+    return Math.abs(r - Math.abs(claimed)) <= Math.abs(claimed) * 1e-9;
+  };
+  for (const [factor, label] of [
+    [100, "a percent-vs-decimal mix-up (e.g. 0.05 vs 5%)"],
+    [1e3, "a thousands scaling difference"],
+    [1e6, "a millions scaling difference"],
+    [1e9, "a billions scaling difference"],
+    [1e12, "a trillions scaling difference"]
+  ]) {
+    const larger = within(ratio, factor, 0.02) || roundsTo(official * factor);
+    const smaller = within(ratio, 1 / factor, 0.02) || roundsTo(official / factor);
+    if (larger || smaller) {
+      out.push(`The claimed value is ~${factor.toLocaleString("en-US")}\xD7 ${larger ? "larger" : "smaller"} than the official figure, possibly ${label}.`);
+    }
+  }
+  return out;
+}
 function within(x, target, tolFrac) {
   return Math.abs(x - target) / target <= tolFrac;
 }
@@ -3720,7 +3978,7 @@ var SOURCES = [
   },
   {
     id: "imf_weo",
-    name: "IMF. World Economic Outlook & Fiscal Monitor (via the IMF DataMapper API, with DBnomics as fallback)",
+    name: "IMF, World Economic Outlook & Fiscal Monitor (via the IMF DataMapper API, with DBnomics as fallback)",
     coverage: "Growth, fiscal, external indicators for 190+ economies, incl. estimates/projections; twice-yearly vintages (April/October, plus interim Updates). The primary path is the IMF's own DataMapper API. The current edition, verbatim edition label passed through unrewritten. If that path is unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF's release calendar; every response cites the resolved vintage, and a fallback that crosses editions is disclosed (verify_stat demotes such cases to cannot_verify rather than judging a claim against a superseded vintage). The actual/projection boundary is a heuristic derived from each response's own data horizon, not a per-country authoritative cutoff",
     access: "No key; queried live from www.imf.org/external/datamapper (primary) and api.db.nomics.world v22 (fallback)",
     license: IMF_LICENSE,
@@ -3733,7 +3991,7 @@ var SOURCES = [
   },
   {
     id: "imf_sdmx_vintage",
-    name: "IMF. Dated World Economic Outlook vintages (api.imf.org, SDMX 3.0)",
+    name: "IMF, dated World Economic Outlook vintages (api.imf.org, SDMX 3.0)",
     coverage: "Frozen dated WEO editions published as first-party SDMX 3.0 dataflows. Used ONLY by the dated-vintage path (as_of verification and the revision probe), never by the live chain, and only for editions enumerated in IMF_VINTAGE_FLOWS from the live dataflow listing. The IMF exposes a small number of recent vintages, not an archive. DBnomics remains the deep historical fallback back to 2010-04, so this source narrows the newest-edition gap rather than replacing the aggregator",
     access: "No key and no account; api.imf.org serves this data anonymously (verified 2026-08-10). The sign-in wall on portal.api.imf.org guards the developer console, not the data. Rate limits are undocumented outside that console and no RateLimit/Retry-After headers are returned; a 31-request unpaced burst was accepted without throttling (2026-08-10), which establishes headroom rather than an absence of limits. StatCite issues one upstream call per as_of/revision-probe lookup, cached one hour",
     license: IMF_LICENSE,
@@ -3746,7 +4004,7 @@ var SOURCES = [
   },
   {
     id: "ecb_fx",
-    name: "European Central Bank. Euro foreign exchange reference rates (via Frankfurter)",
+    name: "European Central Bank, euro foreign exchange reference rates (via Frankfurter)",
     coverage: "~30 major currencies, daily since 1999",
     access: "No key; queried live from api.frankfurter.dev",
     license: "Published for information purposes; reuse with attribution; not transaction rates",

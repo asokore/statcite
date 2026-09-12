@@ -66,3 +66,6 @@ caribstat/.publish/
 # swept two of them into a pushed commit on 2026-08-29.
 zz_*.ts
 zz_*.mjs
+
+# Agent worktrees created by the local tooling
+.claude/worktrees/
