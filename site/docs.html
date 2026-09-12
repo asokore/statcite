@@ -41,6 +41,14 @@ p{color:var(--dim);margin:8px 0;max-width:800px}
 p strong, li strong{color:var(--text)}
 pre{background:#0d1319;border:1px solid var(--line);border-radius:8px;padding:13px 15px;overflow-x:auto;font-family:var(--mono);font-size:12.8px;line-height:1.55;color:#c6d5e2;margin:10px 0}
 code{font-family:var(--mono);font-size:.92em;color:var(--accent)}
+/* Inline code must wrap. A long unbreakable token in inline code is not
+   clipped and not scrollable: it widens the PAGE. On 2026-08-16 /docs
+   measured 465px of content in a 375px viewport, so the whole page slid
+   sideways on a phone, from exactly two elements: an MCP config JSON and
+   the series id dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change.
+   Scoped away from `pre`, which already scrolls internally and whose
+   formatting must not be re-wrapped. */
+:not(pre) > code{overflow-wrap:anywhere;word-break:break-word}
 table{width:100%;border-collapse:collapse;font-size:13.5px;margin:14px 0}
 th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 th{color:var(--dim);font-size:12.5px}
