@@ -343,3 +343,26 @@ fetch); LAUNCH.md checkboxes have drifted from reality.
 - The CSV-export free-vs-Pro contradiction (BRIEF 6.8 vs MONETIZATION
   Stage 1) is an open operator decision, do not ship CSV until resolved.
 - Every new source enters the licence ledger BEFORE its adapter is written.
+
+## Decided not to copy (2026-09-12)
+
+Practices seen on comparable MCP servers, considered and not adopted. Do not
+re-propose them without new evidence.
+
+- Toolset scoping, or a smaller tool surface. Revisit only if a client is
+  seen truncating the tool list.
+- Product-suffixed tool names, or any tool rename.
+- MCPB bundles, or npm or OCI packages in the registry entry.
+- Community-health files, GitHub Discussions and translated READMEs.
+
+**Historical `crawl.ai` figures overstate genuine AI crawling.** The
+`crawl.ai` count that `tools/analytics.mjs` records groups site traffic by
+user-agent only, so it includes vulnerability-probe traffic that uses
+AI-crawler user-agents. The review put that at about 92% on the day it
+examined. Re-measured on 12 September from Cloudflare's sampled analytics,
+grouped by user-agent and path: on 7, 8, 9 and 11 September, 86% to 95% of
+requests with AI-crawler user-agents went to paths the site does not serve,
+mostly secret-file probes such as `/.env` and `/@fs/proc/self/environ`. On
+6 and 10 September there was little such traffic and none of it probed.
+Treat any historical `crawl.ai` figure as an upper bound, not a count of
+real crawls.
