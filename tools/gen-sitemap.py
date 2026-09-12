@@ -13,7 +13,14 @@ published a false date on its very first run.
 Run before committing a site change:  python tools/gen-sitemap.py
 Then commit the regenerated sitemap alongside the edit, so the date does not
 trail the content by one commit.
+
+Check without writing:  python tools/gen-sitemap.py --check
+Exits 1 and prints the differing lines when site/sitemap.xml is not what the
+generator would write from the current git history. It never writes. Because
+the dates come from commits, run it after committing: a site edit committed
+without a regenerated sitemap is exactly what it exists to catch.
 """
+import difflib
 import subprocess
 import sys
 from pathlib import Path
@@ -48,12 +55,8 @@ def last_commit_date(path: str) -> str:
     return out
 
 
-def main() -> int:
-    dirty = subprocess.run(
-        ["git", "status", "--porcelain", "--", "site/"],
-        cwd=ROOT, capture_output=True, text=True,
-    ).stdout.strip()
-
+def build() -> str:
+    """The sitemap XML the current git history implies, exactly as written."""
     lines = ['<?xml version="1.0" encoding="UTF-8"?>',
              '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     for url, src in ENTRIES:
@@ -62,9 +65,37 @@ def main() -> int:
             raise SystemExit(f"missing source file {src}")
         lines.append(f"  <url><loc>{BASE}{url}</loc><lastmod>{last_commit_date(src)}</lastmod></url>")
     lines.append("</urlset>")
+    return "\n".join(lines) + "\n"
+
+
+def check() -> int:
+    """Compare without writing. 0 when site/sitemap.xml matches, 1 when not."""
+    expected = build()
+    out = ROOT / "site" / "sitemap.xml"
+    # Normalise line endings: a CRLF checkout of an LF file is not drift.
+    actual = out.read_text(encoding="utf8").replace("\r\n", "\n") if out.exists() else ""
+    if actual == expected:
+        print(f"{out.relative_to(ROOT)} is current ({len(ENTRIES)} entries)")
+        return 0
+    print(f"{out.relative_to(ROOT)} is STALE. Run: python tools/gen-sitemap.py", file=sys.stderr)
+    for line in difflib.unified_diff(actual.splitlines(), expected.splitlines(),
+                                     "site/sitemap.xml (committed)", "site/sitemap.xml (from git history)",
+                                     lineterm=""):
+        print(line, file=sys.stderr)
+    return 1
+
+
+def main() -> int:
+    if "--check" in sys.argv[1:]:
+        return check()
+
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain", "--", "site/"],
+        cwd=ROOT, capture_output=True, text=True,
+    ).stdout.strip()
 
     out = ROOT / "site" / "sitemap.xml"
-    out.write_text("\n".join(lines) + "\n", encoding="utf8", newline="\n")
+    out.write_text(build(), encoding="utf8", newline="\n")
     print(f"wrote {out.relative_to(ROOT)} with {len(ENTRIES)} entries")
 
     if dirty:

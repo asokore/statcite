@@ -9,6 +9,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -249,6 +250,41 @@ test("analytics.mjs strips email addresses from user-agent strings before keepin
   assert.ok(cuts.length >= 2, `expected at least two truncated user-agent outputs, found ${cuts.length}`);
   const raw = cuts.filter((l) => !l.includes("scrubUserAgent("));
   assert.deepEqual(raw, [], `user-agent strings kept without scrubbing:\n${raw.join("\n")}`);
+});
+
+// --- sitemap lastmod dates match git history -------------------------------
+//
+// gen-sitemap.py derives each <lastmod> from the last commit touching the
+// page. On 2026-09-12 the committed sitemap said /docs was last modified on
+// 2 September and openapi.json on 31 August, while both had changed since.
+// A lastmod that lies is worse than none, so the check runs here. It needs
+// Python and full git history: CI's shallow checkout has neither the dates
+// nor, sometimes, python on PATH, and there the test skips rather than lies.
+
+function sitemapCheckEnvironment(): { python: string } | { skip: string } {
+  const git = spawnSync("git", ["rev-parse", "--is-shallow-repository"], { cwd: repoRoot, encoding: "utf8" });
+  if (git.error || git.status !== 0) return { skip: "git is unavailable or this is not a git checkout" };
+  if (git.stdout.trim() === "true") return { skip: "shallow clone: commit dates are not the real history" };
+  for (const python of ["python", "python3"]) {
+    const v = spawnSync(python, ["--version"], { encoding: "utf8" });
+    if (!v.error && v.status === 0) return { python };
+  }
+  return { skip: "python is not on PATH" };
+}
+
+test("site/sitemap.xml lastmod dates match git history (gen-sitemap.py --check)", (t) => {
+  const env = sitemapCheckEnvironment();
+  if ("skip" in env) {
+    t.skip(env.skip);
+    return;
+  }
+  const r = spawnSync(env.python, [path.join(repoRoot, "tools", "gen-sitemap.py"), "--check"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    timeout: 60_000,
+  });
+  assert.ok(!r.error, `could not run gen-sitemap.py: ${r.error?.message}`);
+  assert.equal(r.status, 0, `site/sitemap.xml is stale. Run python tools/gen-sitemap.py and commit it.\n${r.stderr}`);
 });
 
 // --- redirects: only for paths the asset server handles, only to real targets
