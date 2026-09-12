@@ -1,0 +1,308 @@
+{
+  "run": "R2",
+  "snapshot_at": "2026-08-05T22:14:06.235Z",
+  "vintage_edition_used": "2025-04",
+  "edition_probe": {
+    "2025-04": true
+  },
+  "rule": "dated IMF WEO edition nearest to snapshot date minus 18 months (METHODOLOGY §3.3.4); vintage agreement is diagnostic, never scored credit",
+  "n": 20,
+  "rows": [
+    {
+      "qid": "R2-003",
+      "indicator": "govt_debt_gdp",
+      "iso3": "AFG",
+      "year": 2022,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/AFG.GGXWDG_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 10.643,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T22:14:04.542Z"
+    },
+    {
+      "qid": "R2-004",
+      "indicator": "fiscal_balance_gdp",
+      "iso3": "BHR",
+      "year": 2023,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/BHR.GGXCNL_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": -8.455,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T22:14:04.757Z",
+      "vintage_projections": {
+        "2023": {
+          "value": -8.455,
+          "is_projection": false
+        },
+        "2024": {
+          "value": -10.695,
+          "is_projection": false
+        },
+        "2025": {
+          "value": -10.361,
+          "is_projection": true
+        }
+      }
+    },
+    {
+      "qid": "R2-009",
+      "indicator": "govt_debt_gdp",
+      "iso3": "EGY",
+      "year": 2021,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/EGY.GGXWDG_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 89.903,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T22:14:03.945Z"
+    },
+    {
+      "qid": "R2-019",
+      "indicator": "govt_debt_gdp",
+      "iso3": "GBR",
+      "year": 2023,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/GBR.GGXWDG_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 100.354,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T22:14:04.804Z",
+      "vintage_projections": {
+        "2023": {
+          "value": 100.354,
+          "is_projection": false
+        },
+        "2024": {
+          "value": 101.227,
+          "is_projection": false
+        },
+        "2025": {
+          "value": 103.894,
+          "is_projection": true
+        }
+      }
+    },
+    {
+      "qid": "R2-020",
+      "indicator": "fiscal_balance_gdp",
+      "iso3": "MLI",
+      "year": 2018,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/MLI.GGXCNL_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": -4.742,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T22:14:05.126Z"
+    },
+    {
+      "qid": "R2-025",
+      "indicator": "fiscal_balance_gdp",
+      "iso3": "BEL",
+      "year": 2022,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/BEL.GGXCNL_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": -3.613,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T22:14:04.759Z"
+    },
+    {
+      "qid": "R2-026",
+      "indicator": "govt_debt_gdp",
+      "iso3": "MKD",
+      "year": 2019,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/MKD.GGXWDG_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 40.448,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T22:14:04.761Z"
+    },
+    {
+      "qid": "R2-045",
+      "indicator": "gdp_growth",
+      "iso3": "BFA",
+      "year": 2025,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/BFA.NGDP_RPCH.pcent_change",
+      "status": "ok",
+      "vintage_value": 4.335,
+      "vintage_is_projection": true,
+      "retrieved_at": "2026-08-05T22:14:05.318Z",
+      "vintage_projections": {
+        "2023": {
+          "value": 2.96,
+          "is_projection": false
+        },
+        "2024": {
+          "value": 4.45,
+          "is_projection": false
+        },
+        "2025": {
+          "value": 4.335,
+          "is_projection": true
+        }
+      }
+    },
+    {
+      "qid": "R2-047",
+      "indicator": "fiscal_balance_gdp",
+      "iso3": "NOR",
+      "year": 2019,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/NOR.GGXCNL_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 6.522,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T22:14:05.413Z"
+    },
+    {
+      "qid": "R2-049",
+      "indicator": "fiscal_balance_gdp",
+      "iso3": "ALB",
+      "year": 2022,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/ALB.GGXCNL_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": -3.639,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T22:14:05.136Z"
+    },
+    {
+      "qid": "R2-051",
+      "indicator": "govt_debt_gdp",
+      "iso3": "ESP",
+      "year": 2019,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/ESP.GGXWDG_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 97.579,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T22:14:05.141Z"
+    },
+    {
+      "qid": "R2-059",
+      "indicator": "fiscal_balance_gdp",
+      "iso3": "AND",
+      "year": 2018,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/AND.GGXCNL_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 2.671,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T22:14:05.696Z"
+    },
+    {
+      "qid": "R2-062",
+      "indicator": "fiscal_balance_gdp",
+      "iso3": "POL",
+      "year": 2019,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/POL.GGXCNL_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": -0.734,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T22:14:05.329Z"
+    },
+    {
+      "qid": "R2-065",
+      "indicator": "govt_debt_gdp",
+      "iso3": "MEX",
+      "year": 2021,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/MEX.GGXWDG_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 56.695,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T22:14:05.341Z"
+    },
+    {
+      "qid": "R2-071",
+      "indicator": "fiscal_balance_gdp",
+      "iso3": "KAZ",
+      "year": 2019,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/KAZ.GGXCNL_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": -0.57,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T22:14:05.345Z"
+    },
+    {
+      "qid": "R2-097",
+      "indicator": "current_account_gdp",
+      "iso3": "GEO",
+      "year": 2025,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/GEO.BCA_NGDPD.pcent_gdp",
+      "status": "ok",
+      "vintage_value": -4.376,
+      "vintage_is_projection": true,
+      "retrieved_at": "2026-08-05T22:14:06.105Z",
+      "vintage_projections": {
+        "2023": {
+          "value": -5.551,
+          "is_projection": false
+        },
+        "2024": {
+          "value": -4.416,
+          "is_projection": false
+        },
+        "2025": {
+          "value": -4.376,
+          "is_projection": true
+        }
+      }
+    },
+    {
+      "qid": "R2-102",
+      "indicator": "govt_debt_gdp",
+      "iso3": "CHN",
+      "year": 2020,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/CHN.GGXWDG_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 69.035,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T22:14:06.095Z"
+    },
+    {
+      "qid": "R2-105",
+      "indicator": "govt_debt_gdp",
+      "iso3": "BIH",
+      "year": 2018,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/BIH.GGXWDG_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 34.894,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T22:14:06.235Z"
+    },
+    {
+      "qid": "R2-117",
+      "indicator": "fiscal_balance_gdp",
+      "iso3": "SAU",
+      "year": 2018,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/SAU.GGXCNL_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": -5.454,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T22:14:06.097Z"
+    },
+    {
+      "qid": "R2-119",
+      "indicator": "govt_debt_gdp",
+      "iso3": "ARE",
+      "year": 2022,
+      "vintage_edition": "2025-04",
+      "vintage_series_id": "dbnomics/IMF/WEO:2025-04/ARE.GGXWDG_NGDP.pcent_gdp",
+      "status": "ok",
+      "vintage_value": 32.057,
+      "vintage_is_projection": false,
+      "retrieved_at": "2026-08-05T22:14:06.099Z"
+    }
+  ]
+}
