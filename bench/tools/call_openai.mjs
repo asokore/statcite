@@ -26,6 +26,8 @@ Usage: node call_openai.mjs --run R1 --model gpt-5 [--base DIR] [--limit N] [--d
                  must already exist at runs/{RUN}/prompts/<model>/.
   --base DIR     Base directory (default bench/).
   --limit N      Only call the first N batches (cost control / smoke test).
+  --skip-existing  Resume: skip batches whose raw output file already exists,
+                 so finishing a partial leg does not re-pay for completed batches.
   --dry-run      Build requests and print what would be sent; make no API calls,
                  write no files, spend no money.
   --help         Show this help.
@@ -151,7 +153,15 @@ async function callOnce(apiKey, model, system, user, arm = "uniform") {
       // all. Uniform arm keeps the verified per-model minimum.
       ...(arm !== "deployed" && minReasoningEffort(model) ? { reasoning_effort: minReasoningEffort(model) } : {}),
     }),
-    signal: AbortSignal.timeout(60000),
+    // 600s, matching the Responses path. This was 60s and it was a COST bug, not
+    // just a flakiness one (found 2026-08-10 on the R2D as-deployed leg): the
+    // uniform arm pins reasoning_effort to the per-model minimum and answers well
+    // inside a minute, but the as-deployed arm omits that cap by design, so the
+    // model thinks longer and routinely exceeds 60s. An aborted request is still
+    // generated and billed server-side, and 599 is in RETRY_STATUSES, so every
+    // such batch burned FOUR billed attempts and produced no data. gpt-5.5-pro
+    // reasons longer again, so this must stay generous before any pro leg runs.
+    signal: AbortSignal.timeout(600000),
   });
   const text = await res.text();
   let body;
@@ -199,6 +209,7 @@ async function main() {
     retrieval: { type: "boolean" },
     api: { type: "string" },
     "responses-min-effort": { type: "string" },
+    "skip-existing": { type: "boolean" },
     base: { type: "string" },
     limit: { type: "string" },
     "dry-run": { type: "boolean" },
@@ -228,6 +239,13 @@ async function main() {
   for (const file of batchFiles) {
     const prompt = readJson(path.join(promptsDir, file));
     const outPath = path.join(rawDir, file.replace(/\.json$/, ".txt"));
+    // Resume without re-paying. A leg is 14 paid calls; without this, one
+    // failure part-way (or a re-invocation to finish a partial leg) re-charges
+    // for every batch already on disk. Mirrors call_gemini.mjs --skip-existing.
+    if (args["skip-existing"] && fs.existsSync(outPath)) {
+      log(`  skip ${prompt.batch_id} (already have ${outPath})`);
+      continue;
+    }
     if (args["dry-run"]) {
       log(`  [dry-run] would POST batch ${prompt.batch_id} (${prompt.qids.length} qids, system ${prompt.system.length} chars, user ${prompt.user.length} chars) -> ${outPath}`);
       continue;
