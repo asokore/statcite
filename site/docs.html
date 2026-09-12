@@ -91,7 +91,7 @@ li{margin:4px 0}
   }
  },
  "programmingModel": "REST",
- "assemblyVersion": "1.12.1",
+ "assemblyVersion": "1.12.2",
  "about": {
   "@type": "SoftwareApplication",
   "@id": "https://statcite.com/#app"
@@ -325,6 +325,7 @@ GET /health</pre>
 
   <h2 id="changelog">10. Changelog</h2>
   <ul>
+    <li><strong>1.12.2</strong>: MCP tool arguments are checked against each tool's published schema, so a misspelled tolerance can no longer turn a mismatch into a close verdict. Caribbean answers say which table row they served, a row label containing % no longer fails, and Anguilla and Montserrat point to the Eastern Caribbean Central Bank series with its definition. Every error carries a <code>code</code>, an absence is claimed only when every source reports it, and outages are coded <code>upstream_unavailable</code>. Cloudflare invocation logs, which kept request URLs, are switched off.</li>
     <li><strong>1.12.1</strong>: The country resolver no longer serves one country's figures for another. "American Samoa" had been answered with Samoa's data and "Northern Ireland" with Ireland's. <code>verify_claims</code> now refuses unknown claim keys, so a misspelled tolerance can no longer turn a mismatch into a match. Server instructions now say when to call StatCite, not only how, and every citation links back to statcite.com.</li>
     <li><strong>1.12.0</strong>: Fixes from an adversarial sweep of the live service. <code>GET /v1/verify</code> refuses unknown parameter names instead of dropping them, accepts <code>claimed_value</code> as an alias of <code>value</code>, and honours <code>strict_source=1</code>. Search results report <code>total_indicator_matches</code> and <code>truncated</code>, <code>/sources</code> is server-rendered for crawlers, and structured data covers /docs, /bench, /sources, /privacy and /terms as well as the homepage.</li>
     <li><strong>1.11.3</strong>: Registry metadata. The MCP registry description now names the Caribbean central banks; the registry rejects same-version republishes, so the corrected line ships as a version. No behaviour change.</li>
