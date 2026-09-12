@@ -25,6 +25,51 @@ export interface ToolDef {
   handler: (ctx: Ctx, args: Json) => Promise<unknown>;
 }
 
+/** Output shape shared by get_indicator and get_series: SeriesResult in
+ * core/types.ts. Only fields every successful result carries are required. */
+const SERIES_OUTPUT_SCHEMA = {
+  type: "object",
+  properties: {
+    series_id: { type: "string" },
+    name: { type: "string" },
+    country: {
+      type: "object",
+      properties: { iso3: { type: "string" }, name: { type: "string" } },
+      required: ["iso3", "name"],
+      additionalProperties: true,
+    },
+    unit: { type: ["string", "null"] },
+    frequency: { type: "string" },
+    observations: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { period: { type: "string" }, value: { type: ["number", "null"] }, note: { type: "string" } },
+        required: ["period", "value"],
+        additionalProperties: true,
+      },
+    },
+    citation: {
+      type: "object",
+      properties: {
+        source: { type: "string" },
+        series_id: { type: "string" },
+        source_url: { type: "string" },
+        license: { type: "string" },
+        retrieved_at: { type: "string" },
+        citation_text: { type: "string" },
+      },
+      required: ["source", "series_id", "source_url", "license", "retrieved_at", "citation_text"],
+      additionalProperties: true,
+    },
+    notes: { type: "array", items: { type: "string" } },
+    fallback_used: { type: "boolean" },
+    fallback_reason: { type: "string", enum: ["transient", "definitive"] },
+  },
+  required: ["series_id", "name", "observations", "citation", "notes"],
+  additionalProperties: true,
+};
+
 const annotations = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -279,6 +324,7 @@ export const TOOLS: ToolDef[] = [
       required: ["indicator", "country"],
       additionalProperties: false,
     },
+    outputSchema: SERIES_OUTPUT_SCHEMA,
     handler: async (ctx, args) => {
       const latestOnly = args.latest_only === true;
       const result = await getIndicator(ctx, str(args, "indicator"), str(args, "country"), {
@@ -454,6 +500,7 @@ export const TOOLS: ToolDef[] = [
       required: ["series_id"],
       additionalProperties: false,
     },
+    outputSchema: SERIES_OUTPUT_SCHEMA,
     handler: async (ctx, args) =>
       getSeries(ctx, str(args, "series_id"), {
         country: str(args, "country", false) || undefined,
