@@ -25,7 +25,7 @@ import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { execFileSync } from "node:child_process";
 
-const ZONE = "9d183b85f315b73cc41ff0059caac168"; // statcite.com
+export const ZONE = "9d183b85f315b73cc41ff0059caac168"; // statcite.com
 const GQL = "https://api.cloudflare.com/client/v4/graphql";
 const OUT = join(process.cwd(), "analytics");
 
@@ -86,7 +86,7 @@ function token() {
   );
 }
 
-async function gql(query, variables = {}) {
+export async function gql(query, variables = {}) {
   const r = await fetch(GQL, {
     method: "POST",
     headers: { authorization: `Bearer ${token()}`, "content-type": "application/json" },
@@ -149,39 +149,127 @@ export function classify(ua) {
 const SEARCH_CRAWLERS = /googlebot|bingbot|slurp|duckduckbot|yandex|baidu|applebot|petalbot|seznam/i;
 const AI_CRAWLERS = /gptbot|oai-searchbot|chatgpt-user|claudebot|claude-web|claude-searchbot|claude-user|anthropic|perplexity|google-extended|amazonbot|amzn-searchbot|bytespider|meta-external|ccbot|cohere|diffbot|youbot|duckassistbot|mistralai-user/i;
 
-/**
- * Public paths a genuine crawler fetches. Built from the files this site
- * actually serves, so a new page is covered the day it ships. Anything else
- * (/wp-admin, /.env, /xmlrpc.php) is a probe, whatever its user-agent claims.
- */
-const SITE_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "site");
-const PUBLIC_PATHS = (() => {
-  const paths = new Set(["/", "/v1", "/robots.txt", "/sitemap.xml"]);
-  try {
-    for (const f of readdirSync(SITE_DIR)) {
-      if (f.startsWith("_") || f.startsWith("google")) continue;
-      paths.add(`/${f}`);
-      if (f.endsWith(".html")) paths.add(`/${f.slice(0, -5)}`);
-    }
-  } catch {
-    // Without the site directory only the fixed entries count, which
-    // under-counts crawling rather than over-counting it.
-  }
-  return paths;
-})();
+// --- real paths versus probes ---------------------------------------------
+//
+// Measured 2026-09-12: on 7, 8, 9 and 11 September, 86% to 95% of requests
+// carrying AI-crawler user-agents went to paths this site does not serve
+// (/.env, /@fs/proc/self/environ, /firebase-credentials.json and similar
+// secret-file probes). A crawler user-agent is free text, so it proves nothing.
+// The path does: a hit counts as real only when its path is one the site
+// actually serves.
+//
+// The set is derived, never hand-listed, so a new page is covered the day it
+// ships: every file under site/ (dot directories such as .well-known included,
+// config files starting "_" excluded), the extensionless form of each HTML
+// page, the short paths site/_redirects answers, and the /v1 routes that
+// server/src/rest.ts declares.
 
-export function isPublicPath(path) {
-  const p = String(path || "");
-  return PUBLIC_PATHS.has(p) || p.startsWith("/v1/") || p.startsWith("/.well-known/");
+const ROOT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+function listFiles(dir, prefix = "") {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const rel = `${prefix}/${entry.name}`;
+    if (entry.isDirectory()) out.push(...listFiles(join(dir, entry.name), rel));
+    else out.push(rel);
+  }
+  return out;
 }
 
-/** "ai" or "search" for a genuine crawl hit, "ai_probe" or "search_probe" for
- * a crawler user-agent on a path that failed or is not public, else null. */
-export function siteRowKind(ua, path, status) {
+export function derivePublicPaths(rootDir = ROOT_DIR) {
+  const exact = new Set(["/"]);
+  const prefixes = [];
+  try {
+    for (const rel of listFiles(join(rootDir, "site"))) {
+      if (rel.split("/").pop().startsWith("_")) continue; // _headers, _redirects: config, not served
+      exact.add(rel);
+      if (rel.endsWith(".html")) exact.add(rel.slice(0, -5));
+    }
+  } catch {
+    // No site directory: only "/" counts, which under-counts real crawling
+    // rather than letting probes through.
+  }
+  try {
+    for (const line of readFileSync(join(rootDir, "site", "_redirects"), "utf8").split(/\r?\n/)) {
+      const from = line.trim().split(/\s+/)[0];
+      if (from && from.startsWith("/")) exact.add(from);
+    }
+  } catch {
+    // no redirects file
+  }
+  try {
+    const rest = readFileSync(join(rootDir, "server", "src", "rest.ts"), "utf8");
+    for (const m of rest.matchAll(/path === "(\/v1[^"]*)"/g)) exact.add(m[1]);
+    // Routes with one path parameter, written as regexes such as
+    // /^\/v1\/snapshot\/([^/]+)$/. Each becomes a one-segment prefix.
+    for (const m of rest.matchAll(/\/\^\\\/v1\\\/([a-z_]+)\\\/\(\[\^\/\]\+\)\$\//g)) prefixes.push(`/v1/${m[1]}/`);
+  } catch {
+    // no server source: only file paths count
+  }
+  return { exact, prefixes: [...new Set(prefixes)] };
+}
+
+const PUBLIC = derivePublicPaths();
+
+export function isPublicPath(path, publicPaths = PUBLIC) {
+  const p = String(path || "");
+  if (publicPaths.exact.has(p)) return true;
+  // A one-parameter route matches exactly one further segment, so
+  // /v1/snapshot/BRB is real and /v1/snapshot/x/../../.env is not.
+  return publicPaths.prefixes.some((pre) => p.startsWith(pre) && p.length > pre.length && !p.slice(pre.length).includes("/"));
+}
+
+/** "ai" or "search" for a crawler user-agent on a path the site serves,
+ * "ai_probe" or "search_probe" for one on any other path, else null. */
+export function siteRowKind(ua, path, publicPaths = PUBLIC) {
   const k = crawlerKind(ua);
   if (!k) return null;
-  const st = Number(status) || 0;
-  return st > 0 && st < 400 && isPublicPath(path) ? k : `${k}_probe`;
+  return isPublicPath(path, publicPaths) ? k : `${k}_probe`;
+}
+
+/**
+ * Crawl figures for one day of SITE rows. Schema 2 of the daily record.
+ *
+ * - crawl: every hit carrying a crawler user-agent, whatever the path. This is
+ *   the schema-1 meaning, kept so the series continues. Schema-1 days came from
+ *   a 100-row query and can be lower than a schema-2 day for that reason alone.
+ * - crawl_real: hits on paths the site serves.
+ * - crawl_probes: every other crawler-user-agent hit. Probe paths are never
+ *   stored, because they are attacker-chosen text.
+ * - crawl_paths: the 20 most requested real paths.
+ * - crawl_agents: crawler user-agents, scrubbed and cut to 44 characters.
+ */
+export function summariseSiteRows(rows, limit, publicPaths = PUBLIC) {
+  const crawl = { search: 0, ai: 0 };
+  const crawlReal = { search: 0, ai: 0 };
+  const crawlProbes = { search: 0, ai: 0 };
+  const crawlAgents = {};
+  const crawlPaths = {};
+  for (const r of rows) {
+    const kind = siteRowKind(r.dimensions.userAgent, r.dimensions.clientRequestPath, publicPaths);
+    if (!kind) continue;
+    const k = kind.replace(/_probe$/, "");
+    crawl[k] += r.count;
+    const ua = scrubUserAgent(r.dimensions.userAgent || "").slice(0, 44);
+    crawlAgents[ua] = (crawlAgents[ua] || 0) + r.count;
+    if (kind.endsWith("_probe")) {
+      crawlProbes[k] += r.count;
+      continue;
+    }
+    crawlReal[k] += r.count;
+    crawlPaths[r.dimensions.clientRequestPath] = (crawlPaths[r.dimensions.clientRequestPath] || 0) + r.count;
+  }
+  return {
+    crawl_schema: 2,
+    crawl,
+    crawl_real: crawlReal,
+    crawl_probes: crawlProbes,
+    crawl_paths: Object.fromEntries(Object.entries(crawlPaths).sort((a, b) => b[1] - a[1]).slice(0, 20)),
+    crawl_agents: crawlAgents,
+    // True when the query returned as many rows as it asked for, so the
+    // smallest groups, which is where genuine crawls sit, may be missing.
+    site_rows_truncated: rows.length >= limit,
+  };
 }
 
 export function crawlerKind(ua) {
@@ -210,10 +298,20 @@ const CALLERS = `query($zone:String!,$from:Time!,$to:Time!){
     httpRequestsAdaptiveGroups(limit:100,filter:{datetime_geq:$from,datetime_lt:$to,clientRequestPath:"/mcp"},orderBy:[count_DESC]){
       count dimensions{userAgent edgeResponseStatus}}}}}`;
 
-const SITE = `query($zone:String!,$from:Time!,$to:Time!){
+// Grouped by path as well as user-agent, so probes can be told from crawls.
+// That multiplies the group count: one day in September produced well over a
+// thousand groups, and ordering by count means truncation drops the SMALLEST
+// groups first, which is exactly where genuine crawler page fetches sit. So the
+// limit is set from measurement and the record says when it was reached.
+// Measured 2026-09-12 over 5 to 11 September: at most 1,574 groups a day
+// (9 September), so 10,000 leaves about six times headroom. The schema-1 query
+// (userAgent only, limit 100) itself hit its limit on 7, 8 and 9 September and
+// undercounted crawler hits by about half on those days.
+export const SITE_LIMIT = 10000;
+export const SITE = `query($zone:String!,$from:Time!,$to:Time!){
   viewer{zones(filter:{zoneTag:$zone}){
-    httpRequestsAdaptiveGroups(limit:2000,filter:{datetime_geq:$from,datetime_lt:$to,clientRequestPath_neq:"/mcp"},orderBy:[count_DESC]){
-      count dimensions{userAgent clientRequestPath edgeResponseStatus}}}}}`;
+    httpRequestsAdaptiveGroups(limit:${SITE_LIMIT},filter:{datetime_geq:$from,datetime_lt:$to,clientRequestPath_neq:"/mcp"},orderBy:[count_DESC]){
+      count dimensions{userAgent clientRequestPath}}}}}`;
 
 const iso = (d) => d.toISOString().slice(0, 10);
 const daysAgo = (n) => { const d = new Date(); d.setUTCDate(d.getUTCDate() - n); return iso(d); };
@@ -256,7 +354,7 @@ if (isMain) {
   const daily = (await gql(DAILY, { zone: ZONE, since: daysAgo(days), until: iso(new Date()) }))
     .viewer.zones[0].httpRequests1dGroups;
 
-  console.log(`\nstatcite.com — ${daily.length} days of daily totals\n`);
+  console.log(`\nstatcite.com: ${daily.length} days of daily totals\n`);
   console.log(`${"date".padEnd(12)}${"requests".padStart(10)}${"pageviews".padStart(11)}${"uniques".padStart(9)}`);
   for (const r of daily) {
     console.log(
@@ -288,7 +386,7 @@ if (isMain) {
       buckets[k] = (buckets[k] || 0) + r.count;
     }
     const total = Object.values(buckets).reduce((a, b) => a + b, 0);
-    console.log(`\n/mcp callers on ${day} — ${total} requests\n`);
+    console.log(`\n/mcp callers on ${day}: ${total} requests\n`);
     for (const [k, v] of Object.entries(buckets).sort((a, b) => b[1] - a[1])) {
       console.log(`  ${k.padEnd(11)} ${String(v).padStart(6)}  ${(100 * v / total).toFixed(1)}%`);
     }
@@ -341,30 +439,17 @@ if (isMain) {
     // Crawl mix on the SITE paths, which is a different population from the /mcp
     // callers above and answers a different question: not "who uses this" but
     // "who can find it".
-    const site = siteRows;
-    if (site.length >= 2000) console.log("\n  site rows hit the 2000-row query limit, so crawl counts are a lower bound");
-    const crawl = { search: 0, ai: 0 };
-    const crawlProbes = { search_probe: 0, ai_probe: 0 };
-    const crawlAgents = {};
-    const crawlPaths = {};
-    for (const r of site) {
-      const k = siteRowKind(r.dimensions.userAgent, r.dimensions.clientRequestPath, r.dimensions.edgeResponseStatus);
-      if (!k) continue;
-      if (k.endsWith("_probe")) {
-        // Counted, never stored: a probe's path is attacker-chosen text.
-        crawlProbes[k] += r.count;
-        continue;
-      }
-      crawl[k] += r.count;
-      const ua = scrubUserAgent(r.dimensions.userAgent || "").slice(0, 44);
-      crawlAgents[ua] = (crawlAgents[ua] || 0) + r.count;
-      crawlPaths[r.dimensions.clientRequestPath] = (crawlPaths[r.dimensions.clientRequestPath] || 0) + r.count;
+    const crawlSummary = summariseSiteRows(siteRows, SITE_LIMIT);
+    const { crawl_real: real, crawl_probes: probes } = crawlSummary;
+    if (crawlSummary.site_rows_truncated) {
+      console.log(`\n  site rows reached the ${SITE_LIMIT}-row query limit, so real crawl counts are a lower bound`);
     }
-    console.log(`\n  site crawl on ${day}`);
-    console.log(`  ${String(crawl.ai).padStart(6)}  AI crawlers on public pages` +
-      `   (${crawlProbes.ai_probe} more hits used an AI crawler user-agent to probe for vulnerabilities)`);
-    console.log(`  ${String(crawl.search).padStart(6)}  search engines` +
-      (crawl.search < 20 ? "   <- barely crawled: this is why the domain does not rank" : ""));
+    console.log(`\n  site crawl on ${day} (${siteRows.length} path and user-agent groups)`);
+    console.log(`  ${String(real.ai).padStart(6)}  AI crawler hits on pages the site serves` +
+      `   (${probes.ai} more used an AI crawler user-agent on paths it does not serve)`);
+    console.log(`  ${String(real.search).padStart(6)}  search engine hits on pages the site serves` +
+      `   (${probes.search} more on paths it does not serve)` +
+      (real.search < 20 ? "   <- barely crawled: this is why the domain does not rank" : ""));
 
     mkdirSync(OUT, { recursive: true });
     const file = join(OUT, "daily.jsonl");
@@ -372,7 +457,7 @@ if (isMain) {
       ? new Set(readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l).date))
       : new Set();
     if (already.has(day)) {
-      console.log(`\n${day} already recorded — not duplicated.`);
+      console.log(`\n${day} is already recorded, so it was not duplicated.`);
     } else {
       appendFileSync(file, JSON.stringify({
         date: day,
@@ -382,10 +467,7 @@ if (isMain) {
         mcp_total: total,
         outcomes,
         mcp: buckets,
-        crawl,
-        crawl_probes: crawlProbes,
-        crawl_paths: Object.fromEntries(Object.entries(crawlPaths).sort((a, b) => b[1] - a[1]).slice(0, 20)),
-        crawl_agents: crawlAgents,
+        ...crawlSummary,
         top_agents: Object.fromEntries(Object.entries(named).sort((a, b) => b[1] - a[1]).slice(0, 20)),
       }) + "\n", "utf8");
       console.log(`\nRecorded ${day} in analytics/daily.jsonl`);

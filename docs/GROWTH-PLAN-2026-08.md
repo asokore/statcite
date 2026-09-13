@@ -366,3 +366,12 @@ mostly secret-file probes such as `/.env` and `/@fs/proc/self/environ`. On
 6 and 10 September there was little such traffic and none of it probed.
 Treat any historical `crawl.ai` figure as an upper bound, not a count of
 real crawls.
+
+Records from 12 September onward carry `crawl_schema: 2`. They keep `crawl`
+with its old meaning, every hit with a crawler user-agent, and add
+`crawl_real` for hits on paths the site serves and `crawl_probes` for the
+rest. Read `crawl_real` for genuine crawling. Schema-1 records came from a
+100-row query that was itself cut off on 7, 8 and 9 September, so their
+`crawl` totals are low as well as including probes. On 9 September the
+schema-1 query saw 445 AI crawler hits, the full query 906, and only 47 of
+those reached a served page.
