@@ -36,12 +36,12 @@ export const SOURCES = [
     id: "imf_weo",
     name: "IMF, World Economic Outlook & Fiscal Monitor (via the IMF DataMapper API, with DBnomics as fallback)",
     coverage:
-      "Growth, fiscal, external indicators for 190+ economies, incl. estimates/projections; twice-yearly vintages (April/October, plus interim Updates). The primary path is the IMF's own DataMapper API. The current edition, verbatim edition label passed through unrewritten. If that path is unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF's release calendar; every response cites the resolved vintage, and a fallback that crosses editions is disclosed (verify_stat demotes such cases to cannot_verify rather than judging a claim against a superseded vintage). The actual/projection boundary is a heuristic derived from each response's own data horizon, not a per-country authoritative cutoff",
+      "Growth, fiscal and external indicators for 190+ economies, including estimates and projections, in twice-yearly vintages (April and October, plus interim Updates). The primary path is the IMF's own DataMapper API, which serves the current edition and passes its edition label through verbatim. If that path is unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF's release calendar. Every response cites the resolved vintage, and a fallback that crosses editions is disclosed (verify_stat demotes such cases to cannot_verify rather than judging a claim against a superseded vintage). The actual/projection boundary is a heuristic derived from each response's own data horizon, not a per-country authoritative cutoff",
     access: "No key; queried live from www.imf.org/external/datamapper (primary) and api.db.nomics.world v22 (fallback)",
     license: IMF_LICENSE,
     license_verdict: "served" as LicenseVerdict,
     license_note:
-      "The IMF's SPECIAL TERMS for published statistical data (effective 2024-10-11) expressly permit copying, redistribution, derivative works and use with attribution. A separate, more permissive regime than the general IMF Content terms, opening \"Notwithstanding the general prohibition on the commercial use of IMF Content...\". Named datasets include the WEO database, IFS, BOP, DOT, GFS, Primary Commodity Prices and data on the iData Portal. Conditions StatCite must meet: attribute in the IMF's format (database + link); never alter data in ways affecting accuracy, and declare material transformation; communicate these terms downstream to StatCite's own users (met via this ledger, /v1/sources and the licence field on every citation); and, where data is sold as a standalone product, tell purchasers it is free from the IMF (met in the Apify actor listing). Corrected 2026-08-10: the previous note claimed commercial reuse 'may require IMF permission', which conflated the Content regime with the Data regime and both understated the permission and overstated the restriction.",
+      "The IMF's SPECIAL TERMS for published statistical data (effective 2024-10-11) expressly permit copying, redistribution, derivative works and use with attribution. They form a separate regime, more permissive than the general IMF Content terms, and open with \"Notwithstanding the general prohibition on the commercial use of IMF Content...\". Named datasets include the WEO database, IFS, BOP, DOT, GFS, Primary Commodity Prices and data on the iData Portal. StatCite must attribute data in the IMF's format (database and link). It must never alter data in ways affecting accuracy, and must declare any material transformation. It must communicate these terms downstream to its own users, which it does through this ledger, /v1/sources and the licence field on every citation. Where data is sold as a standalone product, it must tell purchasers the data is free from the IMF, which the Apify actor listing does. Corrected 2026-08-10: the previous note claimed commercial reuse 'may require IMF permission', which conflated the Content regime with the Data regime and both understated the permission and overstated the restriction.",
     license_verified_on: "2026-08-10",
     attribution_required: "Source: International Monetary Fund, <database name>, <link to the dataset>",
     url: "https://www.imf.org/en/Publications/WEO",
@@ -51,12 +51,12 @@ export const SOURCES = [
     id: "imf_sdmx_vintage",
     name: "IMF, dated World Economic Outlook vintages (api.imf.org, SDMX 3.0)",
     coverage:
-      "Frozen dated WEO editions published as first-party SDMX 3.0 dataflows. Used ONLY by the dated-vintage path (as_of verification and the revision probe), never by the live chain, and only for editions enumerated in IMF_VINTAGE_FLOWS from the live dataflow listing. The IMF exposes a small number of recent vintages, not an archive. DBnomics remains the deep historical fallback back to 2010-04, so this source narrows the newest-edition gap rather than replacing the aggregator",
+      "Frozen dated WEO editions published as first-party SDMX 3.0 dataflows. StatCite uses them ONLY on the dated-vintage path (as_of verification and the revision probe), never in the live chain, and only for editions enumerated in IMF_VINTAGE_FLOWS from the live dataflow listing. The IMF exposes a small number of recent vintages, not an archive. DBnomics remains the deep historical fallback back to 2010-04, so this source narrows the newest-edition gap rather than replacing the aggregator",
     access: "No key and no account; api.imf.org serves this data anonymously (verified 2026-08-10). The sign-in wall on portal.api.imf.org guards the developer console, not the data. Rate limits are undocumented outside that console and no RateLimit/Retry-After headers are returned; a 31-request unpaced burst was accepted without throttling (2026-08-10), which establishes headroom rather than an absence of limits. StatCite issues one upstream call per as_of/revision-probe lookup, cached one hour",
     license: IMF_LICENSE,
     license_verdict: "served" as LicenseVerdict,
     license_note:
-      "Governed by the same IMF special terms for statistical data as imf_weo. The WEO database is named in them explicitly, and the delivery endpoint does not change the licence on the data. The api.imf.org service itself imposes no additional terms on anonymous use: the API-management terms sit behind the portal sign-in and govern subscription keys, which StatCite does not hold and does not need. Verified by direct anonymous call, 2026-08-10.",
+      "This source is governed by the same IMF special terms for statistical data as imf_weo. The WEO database is named in them explicitly, and the delivery endpoint does not change the licence on the data. The api.imf.org service itself imposes no additional terms on anonymous use: the API-management terms sit behind the portal sign-in and govern subscription keys, which StatCite does not hold and does not need. This was verified by a direct anonymous call on 2026-08-10.",
     license_verified_on: "2026-08-10",
     attribution_required: "Source: International Monetary Fund, <database name>, <link to the dataset>",
     url: "https://data.imf.org/",
@@ -112,7 +112,7 @@ export const SOURCES = [
     license: "ECB content may be reproduced with attribution; see the ECB disclaimer and copyright notice",
     license_verdict: "served" as LicenseVerdict,
     license_note:
-      "The ECB's copyright notice permits reproduction of its published content with attribution to the ECB as source. Distinct from the ecb_fx entry, which covers the euro reference exchange rates served via Frankfurter.",
+      "The ECB's copyright notice permits reproduction of its published content with attribution to the ECB as source. This entry is distinct from ecb_fx, which covers the euro reference exchange rates served via Frankfurter.",
     license_verified_on: "2026-08-08",
     attribution_required: "Source: European Central Bank",
     url: "https://data.ecb.europa.eu",
@@ -127,7 +127,7 @@ export const SOURCES = [
     id: "fred",
     name: "Federal Reserve Bank of St. Louis, FRED (permanently disabled)",
     coverage: "Not served. The FRED Services Terms of Use, clauses (p) and (q), reserve FRED content from use in connection with training or running AI/ML/LLM systems, and from storing, caching or archiving it.",
-    access: "Disabled. The six US-only registry keys and the fred/ series id are recognized but always decline",
+    access: "FRED is disabled. The six US-only registry keys and the fred/ series id are recognised but always decline.",
     license: "FRED Services Terms of Use, clauses (p) and (q), see https://fred.stlouisfed.org/legal/",
     license_verdict: "refused" as LicenseVerdict,
     license_note:
@@ -154,12 +154,12 @@ export const SOURCES = [
   {
     id: "eccb",
     name: "Eastern Caribbean Central Bank statistics",
-    coverage: "ECCU monetary, fiscal, debt, tourism, interest-rate and CPI statistics for the eight ECCB member geographies and the currency union aggregate, annual, quarterly and monthly. Includes Anguilla and Montserrat, which are not World Bank reporting economies and appear in few other machine-readable sources. Collected on a schedule from the ECCB's published tables and served with the bank's own data-as-at stamp carried separately from our retrieval time.",
+    coverage: "ECCU monetary, fiscal, debt, tourism, interest-rate and CPI statistics for the eight ECCB member geographies and the currency union aggregate, annual, quarterly and monthly. It includes Anguilla and Montserrat, which are not World Bank reporting economies and appear in few other machine-readable sources. The figures are collected on a schedule from the ECCB's published tables and served with the bank's own data-as-at stamp, carried separately from our retrieval time.",
     access: "Scheduled collection to static JSON at github.com/asokore/caribstat, fetched and edge-cached like any other upstream",
     license: "ECCB website terms of use, plus written permission granted to the operator",
     license_verdict: "served" as LicenseVerdict,
     license_note:
-      "The ECCB's published website terms grant use of the site for personal, non-commercial purposes and reserve reproduction and redistribution unless permission is given. The operator wrote to the ECCB describing exactly this service, including scheduled fetching, storage, and serving each value with attribution and a link back to the source table, and permission was granted. Recorded here on the operator's confirmation of 2026-08-14; the correspondence itself is held privately rather than published, so this entry states its basis rather than quoting it. The request that was granted is public at github.com/asokore/statcite in caribstat/outreach/.",
+      "The ECCB's published website terms grant use of the site for personal, non-commercial purposes and reserve reproduction and redistribution unless permission is given. The operator wrote to the ECCB describing exactly this service, including scheduled fetching, storage, and serving each value with attribution and a link back to the source table, and permission was granted. This entry was recorded on the operator's confirmation of 2026-08-14. The correspondence itself is held privately rather than published, so the entry states its basis rather than quoting it. The request that was granted is public at github.com/asokore/statcite in caribstat/outreach/.",
     license_verified_on: "2026-08-14",
     attribution_required: "Eastern Caribbean Central Bank, with a link to the source table. Every served value carries both, and the bank's own \"data as at\" stamp.",
     url: "https://www.eccb-centralbank.org",
@@ -173,7 +173,7 @@ export const SOURCES = [
     license: "Central Bank of Barbados website terms of use, plus written permission granted to the operator",
     license_verdict: "served" as LicenseVerdict,
     license_note:
-      "The Bank's published website terms reserve reproduction and redistribution of site content unless permission is given, and the operator requested and obtained that permission. Recorded here on the operator's confirmation of 2026-08-14; the request that was granted is public at github.com/asokore/statcite in caribstat/outreach/. The Bank publishes no currency stamp, so citations name the source publication and its date rather than asserting how current the Bank considers a figure.",
+      "The Bank's published website terms reserve reproduction and redistribution of site content unless permission is given, and the operator requested and obtained that permission. This entry was recorded on the operator's confirmation of 2026-08-14. The request that was granted is public at github.com/asokore/statcite in caribstat/outreach/. The Bank publishes no currency stamp, so citations name the source publication and its date rather than asserting how current the Bank considers a figure.",
     license_verified_on: "2026-08-14",
     attribution_required: "Central Bank of Barbados, with a link to the source publication. Every served value carries both, and the publication date.",
     url: "https://www.centralbank.org.bb",

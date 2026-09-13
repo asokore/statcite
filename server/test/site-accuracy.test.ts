@@ -44,6 +44,57 @@ test("no em dash on any site page, literal, escaped or as an entity", () => {
   assert.deepEqual(offences, [], `em dashes on the site:\n${offences.join("\n")}`);
 });
 
+// The machine-readable files are published prose too: openapi.json feeds
+// generated clients and GPT Actions, and llms.txt and llms-full.txt are what
+// agents read. On 2026-09-12 openapi.json still carried 22 em dashes, all as
+// JSON "\u2014" escapes that a search for the character itself cannot see.
+test("no em dash in openapi.json or the llms files, literal, escaped or as an entity", () => {
+  const files = [
+    "site/openapi.json",
+    ...readdirSync(path.join(repoRoot, "site")).filter((f) => /^llms.*\.txt$/.test(f)).map((f) => `site/${f}`),
+  ];
+  assert.ok(files.includes("site/llms.txt") && files.includes("site/llms-full.txt"), `llms files not found: ${files.join(", ")}`);
+  const offences: string[] = [];
+  for (const rel of files) {
+    const text = read(rel);
+    for (const m of text.matchAll(/\u2014|\\u2014|&mdash;|&#8212;|&#x2014;/gi)) {
+      const at = m.index ?? 0;
+      offences.push(`${rel}: ...${text.slice(Math.max(0, at - 50), at + 20).replace(/\s+/g, " ")}...`);
+    }
+  }
+  assert.deepEqual(offences, [], `em dashes in machine-readable files:\n${offences.join("\n")}`);
+});
+
+// A 2026-08-14 writing pass replaced em dashes in the licence ledger with full
+// stops, which left fragments such as "The current edition, verbatim edition
+// label passed through unrewritten." Those strings are served at /v1/sources
+// and prerendered into /sources. This holds every served ledger string to no
+// em dash and none of the retired fragment openings.
+test("ledger strings carry no em dash and none of the retired sentence fragments", async () => {
+  const { SOURCES } = await import("../src/core/sources.ts");
+  const retired = [
+    /(^|\. )The current edition, verbatim edition label/,
+    /(^|\. )A separate, more permissive regime/,
+    /(^|\. )Disabled\. /,
+    /(^|\. )Used ONLY by/,
+    /(^|\. )Governed by the same/,
+    /(^|\. )Verified by direct/,
+    /(^|\. )Distinct from the/,
+    /(^|\. )Includes Anguilla/,
+    /(^|\. )Collected on a schedule/,
+    /(^|\. )Recorded here on/,
+  ];
+  const offences: string[] = [];
+  for (const s of SOURCES as Array<Record<string, unknown>>) {
+    for (const [field, value] of Object.entries(s)) {
+      if (typeof value !== "string") continue;
+      if (/\u2014/.test(value)) offences.push(`${s.id}.${field}: em dash`);
+      for (const re of retired) if (re.test(value)) offences.push(`${s.id}.${field}: fragment ${re}`);
+    }
+  }
+  assert.deepEqual(offences, [], `ledger fragments:\n${offences.join("\n")}`);
+});
+
 test("ledger source names are one phrase, not two fragments", async () => {
   const { SOURCES } = await import("../src/core/sources.ts");
   assert.ok(SOURCES.length >= 8, `ledger looks too small to be real: ${SOURCES.length}`);

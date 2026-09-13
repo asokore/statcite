@@ -17,6 +17,16 @@ that /sources contains every name /v1/sources returns is what keeps the static
 copy honest between runs.
 
 Run after any change to the licence ledger:  python tools/gen-sources-prerender.py
+
+The live API serves the ledger that is DEPLOYED, so right after editing
+server/src/core/sources.ts it still returns the old text. Render from the local
+ledger instead, before deploying:
+
+    node --import tsx tools/export-sources.mts > sources.json   (from server/)
+    python tools/gen-sources-prerender.py --from-json server/sources.json
+
+/v1/sources returns {"sources": SOURCES} unchanged, so the export is exactly
+what the API will serve after the deploy.
 """
 import json
 import re
@@ -42,10 +52,18 @@ def esc(x) -> str:
 
 
 def main() -> int:
-    req = urllib.request.Request(API)
-    req.add_header("user-agent", "statcite-prerender/1.0")
-    with urllib.request.urlopen(req, timeout=30) as r:
-        sources = json.loads(r.read().decode("utf8"))["sources"]
+    args = sys.argv[1:]
+    if args[:1] == ["--from-json"] and len(args) == 2:
+        with open(args[1], encoding="utf8") as f:
+            sources = json.load(f)["sources"]
+    elif not args:
+        req = urllib.request.Request(API)
+        req.add_header("user-agent", "statcite-prerender/1.0")
+        with urllib.request.urlopen(req, timeout=30) as r:
+            sources = json.loads(r.read().decode("utf8"))["sources"]
+    else:
+        print("usage: gen-sources-prerender.py [--from-json FILE]", file=sys.stderr)
+        return 2
 
     order = {"served": 0, "flow_through": 1, "refused": 2}
     sources.sort(key=lambda s: order.get(s.get("license_verdict"), 3))
