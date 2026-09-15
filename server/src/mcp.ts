@@ -43,8 +43,10 @@ import { TOOLS, toolByName, callTool } from "./tools.ts";
 import { listRegistry } from "./core/series.ts";
 import { SOURCES } from "./core/sources.ts";
 import { sidsCountries } from "./core/countries.ts";
+import { readBodyCapped, MAX_BODY_BYTES } from "./body.ts";
+import { quoteInput } from "./core/text.ts";
 
-export const SERVER_VERSION = "1.12.2";
+export const SERVER_VERSION = "1.12.3";
 
 /** Session-era revisions: opened with `initialize`, negotiated once. */
 export const LEGACY_PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
@@ -365,20 +367,20 @@ export function validateModernHeaders(
   const hdrVersion = headers.protocolVersion ?? undefined;
   if (!hdrVersion) return "MCP-Protocol-Version header is required on 2026-07-28 requests.";
   if (bodyVersion !== undefined && bodyVersion !== hdrVersion) {
-    return `MCP-Protocol-Version header '${hdrVersion}' does not match body _meta['${META_PROTOCOL_VERSION}'] '${bodyVersion}'.`;
+    return `MCP-Protocol-Version header '${quoteInput(hdrVersion, 40)}' does not match body _meta['${META_PROTOCOL_VERSION}'] '${quoteInput(bodyVersion, 40)}'.`;
   }
 
   const hdrMethod = headers.mcpMethod ?? undefined;
   if (!hdrMethod) return "Mcp-Method header is required on 2026-07-28 requests.";
-  if (hdrMethod !== method) return `Mcp-Method header '${hdrMethod}' does not match body method '${method}'.`;
+  if (hdrMethod !== method) return `Mcp-Method header '${quoteInput(hdrMethod, 64)}' does not match body method '${quoteInput(method, 64)}'.`;
 
   const nameSource = mcpNameSource(method, params);
   if (nameSource !== undefined) {
     const rawName = headers.mcpName ?? undefined;
-    if (!rawName) return `Mcp-Name header is required for '${method}' requests.`;
+    if (!rawName) return `Mcp-Name header is required for '${quoteInput(method, 64)}' requests.`;
     const decoded = decodeMcpHeaderValue(rawName);
     if (decoded === undefined) return "Mcp-Name header is not valid Base64-sentinel-encoded UTF-8.";
-    if (decoded !== nameSource) return `Mcp-Name header '${decoded}' does not match the request body value '${nameSource}'.`;
+    if (decoded !== nameSource) return `Mcp-Name header '${quoteInput(decoded, 120)}' does not match the request body value '${quoteInput(nameSource, 120)}'.`;
   }
   return null;
 }
@@ -400,6 +402,25 @@ function toModernResult(method: string, result: unknown): unknown {
       [META_SERVER_INFO]: SERVER_INFO,
     },
   };
+}
+
+/** Upstream work one batched POST may ask for, in claim-equivalents. The same
+ * as one verify_claims call at its 15-claim cap. */
+const BATCH_WORK_BUDGET = 15;
+
+/** Rough upstream cost of one batch message. Non-tool methods cost nothing. */
+function batchWorkWeight(m: unknown): number {
+  const msg = m as { method?: unknown; params?: { name?: unknown; arguments?: { claims?: unknown } } };
+  if (msg?.method !== "tools/call") return 0;
+  const name = msg.params?.name;
+  if (name === "verify_claims") {
+    const claims = msg.params?.arguments?.claims;
+    return Array.isArray(claims) ? Math.max(1, claims.length) : 1;
+  }
+  if (name === "country_snapshot") return 5;
+  if (name === "compare_sources") return 4;
+  if (name === "list_sources") return 0;
+  return 1;
 }
 
 function errorObj(id: JsonRpcId, code: number, message: string, data?: unknown): Record<string, unknown> {
@@ -451,7 +472,7 @@ async function dispatchCore(
   if (era === "modern" && (msg.method === "initialize" || msg.method === "ping")) {
     return {
       httpStatus: 404,
-      body: errorObj(id, -32601, `Method '${msg.method}' does not exist in protocol revision 2026-07-28 (it was removed with the handshake). Send requests directly; call 'server/discover' for identity and supported versions.`),
+      body: errorObj(id, -32601, `Method '${quoteInput(msg.method, 64)}' does not exist in protocol revision 2026-07-28 (it was removed with the handshake). Send requests directly; call 'server/discover' for identity and supported versions.`),
     };
   }
   if (era === "legacy" && msg.method === "server/discover") {
@@ -518,7 +539,7 @@ async function dispatchCore(
       if (!tool) {
         return {
           httpStatus: 200,
-          body: errorObj(id, -32602, `Unknown tool '${name}'. Available: ${TOOLS.map((t) => t.name).join(", ")}.`),
+          body: errorObj(id, -32602, `Unknown tool '${quoteInput(name, 64)}'. Available: ${TOOLS.map((t) => t.name).join(", ")}.`),
         };
       }
       const args = (params.arguments ?? {}) as Record<string, unknown>;
@@ -566,7 +587,7 @@ async function dispatchCore(
         // -32602 (Invalid Params). Legacy clients still get -32002, which is
         // what their revision defines.
         const code = era === "modern" ? -32602 : -32002;
-        return { httpStatus: 200, body: errorObj(id, code, `Unknown resource '${uri}'. Available: ${RESOURCES.map((r) => r.uri).join(", ")}.`) };
+        return { httpStatus: 200, body: errorObj(id, code, `Unknown resource '${quoteInput(uri, 120)}'. Available: ${RESOURCES.map((r) => r.uri).join(", ")}.`) };
       }
       return {
         httpStatus: 200,
@@ -584,7 +605,7 @@ async function dispatchCore(
       const name = typeof params.name === "string" ? params.name : "";
       const prompt = PROMPTS.find((p) => p.name === name);
       if (!prompt) {
-        return { httpStatus: 200, body: errorObj(id, -32602, `Unknown prompt '${name}'. Available: ${PROMPTS.map((p) => p.name).join(", ")}.`) };
+        return { httpStatus: 200, body: errorObj(id, -32602, `Unknown prompt '${quoteInput(name, 64)}'. Available: ${PROMPTS.map((p) => p.name).join(", ")}.`) };
       }
       return { httpStatus: 200, body: resultObj(id, { description: prompt.description, messages: prompt.messages() }) };
     }
@@ -592,7 +613,7 @@ async function dispatchCore(
       // Modern era pairs an unknown method with HTTP 404 so a dual-era client
       // can distinguish "this endpoint exists but not that method" from a
       // legacy server that does not host the modern endpoint at all.
-      return { httpStatus: era === "modern" ? 404 : 200, body: errorObj(id, -32601, `Method '${msg.method}' not found.`) };
+      return { httpStatus: era === "modern" ? 404 : 200, body: errorObj(id, -32601, `Method '${quoteInput(msg.method, 64)}' not found.`) };
   }
 }
 
@@ -613,6 +634,12 @@ export async function dispatchMessage(
 }
 
 export async function handleMcp(request: Request, ctx: Ctx): Promise<Response> {
+  // ORIGIN IS NOT VALIDATED, deliberately. The spec asks servers to check it to
+  // stop DNS rebinding, which protects servers on localhost or a private
+  // network. This endpoint is public, has no login, no cookies and no private
+  // data, and already sends Access-Control-Allow-Origin: *, so a rebinding
+  // page gains nothing a direct request lacks. Rejecting odd values would break
+  // legitimate `Origin: null` callers (sandboxed iframes, file:// pages).
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders() });
   }
@@ -658,10 +685,12 @@ export async function handleMcp(request: Request, ctx: Ctx): Promise<Response> {
   // official client loses the typed error and the supported list inside it.
   let parsed: unknown;
   let parseError: Record<string, unknown> | null = null;
+  const read = await readBodyCapped(request);
+  if (!read.ok) {
+    return json(413, errorObj(null, -32600, `Request body too large (limit ${MAX_BODY_BYTES} bytes). Send fewer messages in one request.`));
+  }
   try {
-    const text = await request.text();
-    if (text.length > 262144) return json(400, errorObj(null, -32600, "Request body too large."));
-    parsed = JSON.parse(text);
+    parsed = JSON.parse(read.text);
   } catch {
     parseError = errorObj(null, -32700, "Parse error: body must be JSON.");
   }
@@ -673,7 +702,7 @@ export async function handleMcp(request: Request, ctx: Ctx): Promise<Response> {
     const echoId: JsonRpcId = typeof single === "string" || typeof single === "number" ? single : null;
     return json(
       400,
-      errorObj(echoId, ERR_UNSUPPORTED_PROTOCOL_VERSION, `Unsupported protocol version '${pv}'.`, {
+      errorObj(echoId, ERR_UNSUPPORTED_PROTOCOL_VERSION, `Unsupported protocol version '${quoteInput(pv, 40)}'.`, {
         supported: SUPPORTED_PROTOCOL_VERSIONS,
         requested: pv,
       }),
@@ -697,16 +726,34 @@ export async function handleMcp(request: Request, ctx: Ctx): Promise<Response> {
         errorObj(null, -32600, "Invalid Request: JSON-RPC batching is not part of protocol revision 2026-07-28. Send one request per POST."),
       );
     }
-    // A tiny per-message body (e.g. country_snapshot at ~113 bytes) lets ~2,300
-    // messages fit the 256KB request cap, each fanning out to multiple upstream
-    // subrequests — one request could exhaust the Worker's subrequest budget.
-    // 20 mirrors the verify_claims per-call cap (tools.ts MAX_CLAIMS) for the
-    // same free-tier-budget reason.
+    // Two limits. The 20-message cap bounds parsing and dispatch cost. It does
+    // not bound upstream work, because one verify_claims message alone may
+    // carry 15 claims, so 20 of them asked for about 300 upstream fetches in a
+    // single request. The work budget below counts claim-equivalents across
+    // the whole batch and answers any message past it with an error telling
+    // the caller to send it separately. Batches are accepted for every legacy
+    // revision (2025-03-26, 2025-06-18, 2025-11-25) and refused above for
+    // 2026-07-28.
     if (parsed.length > 20) {
       return json(400, errorObj(null, -32600, "Invalid Request: batch too large (max 20 messages)."));
     }
     const bodies: Record<string, unknown>[] = [];
+    let workUsed = 0;
     for (const m of parsed) {
+      const weight = batchWorkWeight(m);
+      if (weight > 0 && workUsed + weight > BATCH_WORK_BUDGET) {
+        const mid = (m as JsonRpcMessage)?.id;
+        if (mid !== undefined && mid !== null) {
+          bodies.push(
+            toolTextObj(mid as JsonRpcId, {
+              error: `This batch asks for more upstream work than one request may make (a budget of ${BATCH_WORK_BUDGET} claim-equivalents). Send this call in its own request.`,
+              code: "invalid_request",
+            }, true),
+          );
+        }
+        continue;
+      }
+      workUsed += weight;
       const r = await dispatchMessage(m as JsonRpcMessage, ctx);
       if (r.body) bodies.push(r.body);
     }

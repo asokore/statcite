@@ -8,9 +8,19 @@ const USER_AGENT = "StatCite/1.0 (+https://statcite.com; data API for AI agents)
 interface MemEntry {
   exp: number;
   data: unknown;
+  bytes: number;
 }
 const mem = new Map<string, MemEntry>();
 const MEM_MAX = 400;
+// Entries are also bounded by size. A count alone let attacker-chosen URLs pin
+// up to 400 large bodies in one isolate. Measured 2026-09-15: the largest
+// legitimate upstream body is a 951 KB Central Bank of Barbados trade table.
+const MEM_BYTES_MAX = 32 * 1024 * 1024;
+const MEM_ENTRY_BYTES_MAX = 2 * 1024 * 1024;
+let memBytes = 0;
+
+/** Largest upstream response body read, in bytes. A body past this aborts. */
+export const MAX_UPSTREAM_BYTES = 5 * 1024 * 1024;
 
 /** Strip secrets from URLs before they can appear in any error/response path. */
 export function redactUrl(url: string): string {
@@ -28,24 +38,79 @@ export class UpstreamError extends Error {
   }
 }
 
-async function doFetch(url: string, timeoutMs: number, ttlSeconds: number, accept?: string): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, {
-      // `accept` is overridable because some official APIs content-negotiate
-      // JSON only via a vendor media type: BIS returns SDMX **XML** for a plain
-      // `application/json` Accept, and 200-with-XML is a silent-corruption
-      // class, not an error class.
-      headers: { "user-agent": USER_AGENT, accept: accept ?? "application/json" },
-      redirect: "follow",
-      signal: controller.signal,
-      // Cloudflare edge cache for upstream GETs (effective on custom domains; ignored elsewhere).
-      cf: { cacheTtl: ttlSeconds, cacheEverything: true },
-    } as RequestInit);
-  } finally {
-    clearTimeout(timer);
+function doFetch(url: string, signal: AbortSignal, ttlSeconds: number, accept?: string): Promise<Response> {
+  return fetch(url, {
+    // `accept` is overridable because some official APIs content-negotiate
+    // JSON only via a vendor media type: BIS returns SDMX **XML** for a plain
+    // `application/json` Accept, and 200-with-XML is a silent-corruption
+    // class, not an error class.
+    headers: { "user-agent": USER_AGENT, accept: accept ?? "application/json" },
+    redirect: "follow",
+    signal,
+    // Cloudflare edge cache for upstream GETs (effective on custom domains; ignored elsewhere).
+    cf: { cacheTtl: ttlSeconds, cacheEverything: true },
+  } as RequestInit);
+}
+
+/**
+ * Read a response body as text, refusing to buffer more than maxBytes.
+ * Content-Length is checked first when present, but it can be missing or give
+ * the compressed size, so the counting reader is what actually enforces it.
+ */
+async function readCapped(res: Response, maxBytes: number, url: string): Promise<string> {
+  const declared = Number(res.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    await res.body?.cancel();
+    throw new UpstreamError(`Upstream response too large (${declared} bytes, limit ${maxBytes})`, url, res.status);
   }
+  if (!res.body) return "";
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new UpstreamError(`Upstream response too large (over ${maxBytes} bytes)`, url, res.status);
+    }
+    chunks.push(value);
+  }
+  const buf = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) {
+    buf.set(c, off);
+    off += c.byteLength;
+  }
+  return new TextDecoder().decode(buf);
+}
+
+/** A short, safe excerpt of an upstream error body for the error message:
+ * plain text only, control characters removed, at most 120 characters. JSON
+ * and HTML bodies are dropped, because an agent reads this message and raw
+ * third-party markup is neither useful nor safe to reflect. */
+function errorSnippet(body: string): string {
+  const t = body.replace(/[\u0000-\u001f\u007f-\u009f]+/g, " ").trim();
+  if (!t || /^[<{[]/.test(t)) return "";
+  return t.length > 120 ? t.slice(0, 117) + "..." : t;
+}
+
+function memPut(url: string, entry: MemEntry): void {
+  if (entry.bytes > MEM_ENTRY_BYTES_MAX) return;
+  const old = mem.get(url);
+  if (old) {
+    memBytes -= old.bytes;
+    mem.delete(url);
+  }
+  while (mem.size > 0 && (mem.size >= MEM_MAX || memBytes + entry.bytes > MEM_BYTES_MAX)) {
+    const first = mem.keys().next().value;
+    if (first === undefined) break;
+    memBytes -= mem.get(first)?.bytes ?? 0;
+    mem.delete(first);
+  }
+  mem.set(url, entry);
+  memBytes += entry.bytes;
 }
 
 // Backoff schedule for retryable failures (429/5xx/network-level errors — timeouts,
@@ -104,7 +169,8 @@ export async function fetchJson(
     timeoutMs = 8000,
     validate,
     accept,
-  }: { ttlSeconds?: number; timeoutMs?: number; validate?: (data: unknown) => boolean; accept?: string } = {},
+    maxBytes = MAX_UPSTREAM_BYTES,
+  }: { ttlSeconds?: number; timeoutMs?: number; validate?: (data: unknown) => boolean; accept?: string; maxBytes?: number } = {},
 ): Promise<unknown> {
   const hit = mem.get(url);
   const now = Date.now();
@@ -119,8 +185,13 @@ export async function fetchJson(
   const maxAttempts = RETRY_DELAYS_MS.length + 1;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const isLastAttempt = attempt === maxAttempts - 1;
+    // The timer covers the whole attempt, body read included. It used to be
+    // cleared as soon as headers arrived, so a slow or endless body had no
+    // deadline at all.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await doFetch(url, timeoutMs, ttlSeconds, accept);
+      const res = await doFetch(url, controller.signal, ttlSeconds, accept);
       if (res.status === 429 || res.status >= 500) {
         lastErr = new UpstreamError(`Upstream returned HTTP ${res.status}`, url, res.status);
         await res.body?.cancel();
@@ -131,10 +202,16 @@ export async function fetchJson(
         throw lastErr;
       }
       if (!res.ok) {
-        const body = (await res.text()).slice(0, 300);
-        throw new UpstreamError(`Upstream returned HTTP ${res.status}: ${body}`, url, res.status);
+        let snippet = "";
+        try {
+          snippet = errorSnippet(await readCapped(res, 1024, url));
+        } catch {
+          // an oversized error body is not worth reporting
+        }
+        throw new UpstreamError(`Upstream returned HTTP ${res.status}${snippet ? `: ${snippet}` : ""}`, url, res.status);
       }
-      const data = (await res.json()) as unknown;
+      const text = await readCapped(res, maxBytes, url);
+      const data = JSON.parse(text) as unknown;
       if (validate && !validate(data)) {
         lastErr = new ShapeError("Upstream returned a response that failed shape validation", url);
         if (!isLastAttempt) {
@@ -143,11 +220,7 @@ export async function fetchJson(
         }
         throw lastErr;
       }
-      if (mem.size >= MEM_MAX) {
-        const first = mem.keys().next().value;
-        if (first !== undefined) mem.delete(first);
-      }
-      mem.set(url, { exp: now + ttlSeconds * 1000, data });
+      memPut(url, { exp: now + ttlSeconds * 1000, data, bytes: text.length });
       return data;
     } catch (e) {
       lastErr = e;
@@ -156,6 +229,8 @@ export async function fetchJson(
         await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
         continue;
       }
+    } finally {
+      clearTimeout(timer);
     }
   }
   if (lastErr instanceof ShapeError) throw lastErr;
@@ -203,4 +278,10 @@ export function isTransientUpstreamError(e: unknown): boolean {
 /** Test hook: clear the per-isolate memory cache. */
 export function _clearMemCache(): void {
   mem.clear();
+  memBytes = 0;
+}
+
+/** Test hook: current memory cache size in entries and approximate bytes. */
+export function _memCacheStats(): { entries: number; bytes: number } {
+  return { entries: mem.size, bytes: memBytes };
 }

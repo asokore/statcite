@@ -13,7 +13,7 @@ Do it on the first working day of each month.
 ```bash
 # 1. Traffic sample (run for a few minutes during a busy hour; Workers
 #    observability retains only a few days, so this is a sample, not a total)
-cd server && npx wrangler tail --format pretty --search STATCITE_USAGE
+cd server && npx wrangler@4.131.1 tail --format pretty --search STATCITE_USAGE
 #    (captured nothing in 150s on 2026-09-05; prefer: node tools/analytics.mjs --days 7,
 #     which now prints the outcome mix per caller class)
 
@@ -78,7 +78,7 @@ consider paid keys:
       The listings inventory URL is also stale: their path moved from
       /server/ to /servers/ (the old one 308-redirects).
 - [ ] Measurement note, 2026-09-05: the documented traffic-sample command
-      `npx wrangler tail --format pretty --search STATCITE_USAGE` connected
+      `npx wrangler@4.131.1 tail --format pretty --search STATCITE_USAGE` connected
       and captured ZERO lines in 150 seconds at ~2 requests a minute, twice.
       The GraphQL path in `tools/analytics.mjs` works and now prints the
       outcome mix (2xx/4xx/5xx per caller class), so use that for the monthly

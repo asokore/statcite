@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StatCite API",
-    "version": "1.12.2",
+    "version": "1.12.3",
     "description": "Official economic statistics with full citations, built for AI agents. Every numeric response includes a citation object (source, dataset, series_id, source_url, license, attribution, retrieved_at, citation_text). Free, no auth, read-only. MCP endpoint at https://statcite.com/mcp.",
     "contact": {
       "email": "hello@statcite.com",
@@ -761,6 +761,16 @@
           },
           "415": {
             "description": "Unsupported media type. Set content-type: application/json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The request body is over 262,144 bytes. Fifteen claims take a few KB. The error code is invalid_body.",
             "content": {
               "application/json": {
                 "schema": {

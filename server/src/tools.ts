@@ -13,6 +13,7 @@ import { INDICATORS, searchIndicatorDefs } from "./core/indicators.ts";
 import { parseTransform } from "./core/transforms.ts";
 import { UpstreamError } from "./core/upstream.ts";
 import { recordUsage, indicatorLabel, countryLabel, verdictLabel, type Outcome, seriesIdCountry } from "./core/analytics.ts";
+import { quoteInput } from "./core/text.ts";
 
 type Json = Record<string, unknown>;
 
@@ -81,7 +82,7 @@ const annotations = {
 // query, as_of, ...) at one call site. Without this, a single unauthenticated
 // request can hand a many-KB non-resolving string to suggestCountries' O(names
 // x tokens) scan, burning CPU with no upstream I/O at all.
-const MAX_STR_LEN = 200;
+export const MAX_STR_LEN = 200;
 
 function str(args: Json, key: string, required = true): string {
   const v = args[key];
@@ -162,7 +163,13 @@ const CLAIM_KEYS = ["indicator", "country", "period", "claimed_value", "toleranc
  * "toleranceAbs" and "Tolerance-Abs" outright. */
 function closestKey(input: string, keys: string[]): string | undefined {
   const flat = (k: string) => k.toLowerCase().replace(/[^a-z]/g, "");
+  // No name within two edits can be more than two characters longer than the
+  // longest key, so a long input is answered without running Levenshtein.
+  // Before this, a 100 KB argument name cost many times the CPU budget.
+  const longest = Math.max(0, ...keys.map((k) => flat(k).length));
+  if (input.length > 4 * (longest + 2) + 16) return undefined;
   const f = flat(input);
+  if (f.length > longest + 2) return undefined;
   const exact = keys.find((k) => flat(k) === f);
   if (exact) return exact;
   let best: string | undefined;
@@ -226,10 +233,10 @@ function parseClaims(raw: unknown): ClaimSpec[] {
             return near ? ` Did you mean '${near}'?` : "";
           })();
       throw new ToolError(
-        `claims[${i}] has an unknown key '${first}'.${hint}` +
-          (unknown.length > 1 ? ` Also unknown: ${unknown.slice(1).join(", ")}.` : "") +
+        `claims[${i}] has an unknown key '${quoteInput(first, 64)}'.${hint}` +
+          (unknown.length > 1 ? ` Also unknown: ${unknown.slice(1, 6).map((k) => quoteInput(k, 40)).join(", ")}${unknown.length > 6 ? ` and ${unknown.length - 6} more` : ""}.` : "") +
           ` Accepted keys: ${CLAIM_KEYS.join(", ")}. Keys are refused rather than ignored, because a dropped tolerance silently changes the verdict.`,
-        { claim_index: i, unknown_keys: unknown, accepted_keys: CLAIM_KEYS },
+        { claim_index: i, unknown_keys: unknown.slice(0, 10).map((k) => quoteInput(k, 64)), unknown_count: unknown.length, accepted_keys: CLAIM_KEYS },
         "invalid_parameter",
       );
     }
@@ -829,11 +836,11 @@ export function checkToolArgs(tool: ToolDef, args: unknown): void {
             return near ? ` Did you mean '${near}'?` : "";
           })();
       throw new ToolError(
-        `Unknown argument '${first}' for ${tool.name}.${hint}` +
-          (unknown.length > 1 ? ` Also unknown: ${unknown.slice(1).join(", ")}.` : "") +
+        `Unknown argument '${quoteInput(first, 64)}' for ${tool.name}.${hint}` +
+          (unknown.length > 1 ? ` Also unknown: ${unknown.slice(1, 6).map((k) => quoteInput(k, 40)).join(", ")}${unknown.length > 6 ? ` and ${unknown.length - 6} more` : ""}.` : "") +
           ` Accepted: ${names.length ? names.join(", ") : "no arguments"}.` +
           " Arguments are refused rather than ignored, because a dropped tolerance or flag silently changes the answer.",
-        { unknown_arguments: unknown, accepted_arguments: names },
+        { unknown_arguments: unknown.slice(0, 10).map((k) => quoteInput(k, 64)), unknown_count: unknown.length, accepted_arguments: names },
         "invalid_parameter",
       );
     }
@@ -842,8 +849,8 @@ export function checkToolArgs(tool: ToolDef, args: unknown): void {
     // null means absent, as it does for every other optional argument.
     if (props[k]?.type === "boolean" && a[k] != null && typeof a[k] !== "boolean") {
       throw new ToolError(
-        `Argument '${k}' for ${tool.name} must be a JSON boolean, true or false, not ${JSON.stringify(a[k])}.`,
-        { argument: k, received: a[k] },
+        `Argument '${k}' for ${tool.name} must be a JSON boolean, true or false, not ${quoteInput(JSON.stringify(a[k]), 40)}.`,
+        { argument: k, received_type: typeof a[k], received_preview: quoteInput(JSON.stringify(a[k]), 40) },
         "invalid_parameter",
       );
     }

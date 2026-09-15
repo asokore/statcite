@@ -17,6 +17,7 @@ import { isTransientUpstreamError, UpstreamError } from "./upstream.ts";
 import { eccbRelated } from "./eccb-related.ts";
 export { expectedWeoEdition } from "./weo-calendar.ts";
 import { expectedWeoEdition } from "./weo-calendar.ts";
+import { quoteInput } from "./text.ts";
 
 /**
  * Refuse an inverted year window before any upstream fetch.
@@ -706,6 +707,19 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
   );
 }
 
+/** True when any '/'-separated part, after percent-decoding, is '.' or '..'. */
+function hasDotSegment(path: string): boolean {
+  return path.split("/").some((seg) => {
+    let d = seg;
+    try {
+      d = decodeURIComponent(seg);
+    } catch {
+      // keep the raw segment
+    }
+    return d === "." || d === "..";
+  });
+}
+
 /** An upstream reason fit to show a person: the HTTP status kept, a response
  * body that was pasted into the error dropped, and the length bounded. */
 function cleanReason(msg: string | undefined): string {
@@ -976,6 +990,11 @@ export async function getSeries(
 
   if (lower.startsWith("worldbank/") || lower.startsWith("wb/")) {
     const code = id.slice(id.indexOf("/") + 1);
+    // A bare dot segment is never a World Bank code. encodeURIComponent leaves
+    // '.' and '..' alone, so they walked the request path and returned a 500.
+    if (hasDotSegment(code)) {
+      throw new ToolError(`'${quoteInput(id, 80)}' is not a World Bank series id. Use the form worldbank/CODE, e.g. worldbank/NY.GDP.MKTP.KD.ZG.`, { series_id: quoteInput(id, 200) }, "unknown_indicator");
+    }
     if (!opts.country) {
       throw new ToolError("World Bank series require a 'country' parameter (ISO3 code or name).", { series_id: id });
     }
@@ -1056,7 +1075,15 @@ export async function getSeries(
     const freq = c.doc.frequency ?? inferFrequency(c.doc.periods);
     // When no row was named, the id that reproduces this answer includes the
     // row, so the citation and series_id carry it rather than the bare table.
-    const resolvedId = c.defaultRow ? `${id.replace(/#\s*$/, "")}#${c.defaultRow.selector}` : id;
+    // Built from the parsed parts and the row actually served, never from the
+    // caller's text. A traversal or odd spelling can then no longer name one
+    // table in series_id and the citation while serving another, and verify's
+    // percent-kind decision reads this canonical id, not caller-typed text.
+    const resolvedId = c.defaultRow
+      ? `${c.canonicalBase}#${c.defaultRow.selector}`
+      : c.rowSelected
+        ? `${c.canonicalBase}#${c.label}`
+        : c.canonicalBase;
     const caribNotes: string[] = [];
     if (c.defaultRow) {
       const shown = c.defaultRow.rows.slice(0, 12);
@@ -1103,6 +1130,9 @@ export async function getSeries(
 
   if (lower.startsWith("dbnomics/")) {
     const parts = id.split("/");
+    if (hasDotSegment(parts.slice(1).join("/"))) {
+      throw new ToolError(`'${quoteInput(id, 80)}' is not a DBnomics series id. Use dbnomics/PROVIDER/DATASET/SERIES, e.g. dbnomics/IMF/WEO:latest/USA.NGDP_RPCH.pcent_change.`, { series_id: quoteInput(id, 200) }, "unknown_indicator");
+    }
     if (parts.length < 4) {
       throw new ToolError(
         "DBnomics series ids have the form dbnomics/PROVIDER/DATASET/SERIES (e.g. dbnomics/IMF/WEO:latest/USA.NGDP_RPCH.pcent_change).",

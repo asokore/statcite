@@ -2,4 +2,4 @@ Contact: mailto:hello@statcite.com
 Expires: 2027-08-29T00:00:00.000Z
 Canonical: https://statcite.com/.well-known/security.txt
 Preferred-Languages: en
-Policy: https://statcite.com/terms
+Policy: https://github.com/asokore/statcite/security/policy

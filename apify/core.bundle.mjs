@@ -992,6 +992,10 @@ function latestNonNull(observations) {
 var USER_AGENT = "StatCite/1.0 (+https://statcite.com; data API for AI agents)";
 var mem = /* @__PURE__ */ new Map();
 var MEM_MAX = 400;
+var MEM_BYTES_MAX = 32 * 1024 * 1024;
+var MEM_ENTRY_BYTES_MAX = 2 * 1024 * 1024;
+var memBytes = 0;
+var MAX_UPSTREAM_BYTES = 5 * 1024 * 1024;
 function redactUrl(url) {
   return url.replace(/api_key=[^&]+/gi, "api_key=REDACTED");
 }
@@ -1005,24 +1009,67 @@ var UpstreamError = class extends Error {
     this.status = status;
   }
 };
-async function doFetch(url, timeoutMs, ttlSeconds, accept) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, {
-      // `accept` is overridable because some official APIs content-negotiate
-      // JSON only via a vendor media type: BIS returns SDMX **XML** for a plain
-      // `application/json` Accept, and 200-with-XML is a silent-corruption
-      // class, not an error class.
-      headers: { "user-agent": USER_AGENT, accept: accept ?? "application/json" },
-      redirect: "follow",
-      signal: controller.signal,
-      // Cloudflare edge cache for upstream GETs (effective on custom domains; ignored elsewhere).
-      cf: { cacheTtl: ttlSeconds, cacheEverything: true }
-    });
-  } finally {
-    clearTimeout(timer);
+function doFetch(url, signal, ttlSeconds, accept) {
+  return fetch(url, {
+    // `accept` is overridable because some official APIs content-negotiate
+    // JSON only via a vendor media type: BIS returns SDMX **XML** for a plain
+    // `application/json` Accept, and 200-with-XML is a silent-corruption
+    // class, not an error class.
+    headers: { "user-agent": USER_AGENT, accept: accept ?? "application/json" },
+    redirect: "follow",
+    signal,
+    // Cloudflare edge cache for upstream GETs (effective on custom domains; ignored elsewhere).
+    cf: { cacheTtl: ttlSeconds, cacheEverything: true }
+  });
+}
+async function readCapped(res, maxBytes, url) {
+  const declared = Number(res.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    await res.body?.cancel();
+    throw new UpstreamError(`Upstream response too large (${declared} bytes, limit ${maxBytes})`, url, res.status);
   }
+  if (!res.body) return "";
+  const reader = res.body.getReader();
+  const chunks = [];
+  let total = 0;
+  for (; ; ) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new UpstreamError(`Upstream response too large (over ${maxBytes} bytes)`, url, res.status);
+    }
+    chunks.push(value);
+  }
+  const buf = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) {
+    buf.set(c, off);
+    off += c.byteLength;
+  }
+  return new TextDecoder().decode(buf);
+}
+function errorSnippet(body) {
+  const t = body.replace(/[\u0000-\u001f\u007f-\u009f]+/g, " ").trim();
+  if (!t || /^[<{[]/.test(t)) return "";
+  return t.length > 120 ? t.slice(0, 117) + "..." : t;
+}
+function memPut(url, entry) {
+  if (entry.bytes > MEM_ENTRY_BYTES_MAX) return;
+  const old = mem.get(url);
+  if (old) {
+    memBytes -= old.bytes;
+    mem.delete(url);
+  }
+  while (mem.size > 0 && (mem.size >= MEM_MAX || memBytes + entry.bytes > MEM_BYTES_MAX)) {
+    const first = mem.keys().next().value;
+    if (first === void 0) break;
+    memBytes -= mem.get(first)?.bytes ?? 0;
+    mem.delete(first);
+  }
+  mem.set(url, entry);
+  memBytes += entry.bytes;
 }
 var RETRY_DELAYS_MS = [300, 900];
 var ShapeError = class extends Error {
@@ -1037,7 +1084,8 @@ async function fetchJson(url, {
   ttlSeconds = 21600,
   timeoutMs = 8e3,
   validate,
-  accept
+  accept,
+  maxBytes = MAX_UPSTREAM_BYTES
 } = {}) {
   const hit = mem.get(url);
   const now = Date.now();
@@ -1046,8 +1094,10 @@ async function fetchJson(url, {
   const maxAttempts = RETRY_DELAYS_MS.length + 1;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const isLastAttempt = attempt === maxAttempts - 1;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await doFetch(url, timeoutMs, ttlSeconds, accept);
+      const res = await doFetch(url, controller.signal, ttlSeconds, accept);
       if (res.status === 429 || res.status >= 500) {
         lastErr = new UpstreamError(`Upstream returned HTTP ${res.status}`, url, res.status);
         await res.body?.cancel();
@@ -1058,10 +1108,15 @@ async function fetchJson(url, {
         throw lastErr;
       }
       if (!res.ok) {
-        const body = (await res.text()).slice(0, 300);
-        throw new UpstreamError(`Upstream returned HTTP ${res.status}: ${body}`, url, res.status);
+        let snippet = "";
+        try {
+          snippet = errorSnippet(await readCapped(res, 1024, url));
+        } catch {
+        }
+        throw new UpstreamError(`Upstream returned HTTP ${res.status}${snippet ? `: ${snippet}` : ""}`, url, res.status);
       }
-      const data = await res.json();
+      const text = await readCapped(res, maxBytes, url);
+      const data = JSON.parse(text);
       if (validate && !validate(data)) {
         lastErr = new ShapeError("Upstream returned a response that failed shape validation", url);
         if (!isLastAttempt) {
@@ -1070,11 +1125,7 @@ async function fetchJson(url, {
         }
         throw lastErr;
       }
-      if (mem.size >= MEM_MAX) {
-        const first = mem.keys().next().value;
-        if (first !== void 0) mem.delete(first);
-      }
-      mem.set(url, { exp: now + ttlSeconds * 1e3, data });
+      memPut(url, { exp: now + ttlSeconds * 1e3, data, bytes: text.length });
       return data;
     } catch (e) {
       lastErr = e;
@@ -1083,6 +1134,8 @@ async function fetchJson(url, {
         await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
         continue;
       }
+    } finally {
+      clearTimeout(timer);
     }
   }
   if (lastErr instanceof ShapeError) throw lastErr;
@@ -1134,7 +1187,8 @@ function parseEnvelope(data, apiUrl, ctx = {}) {
     throw new ToolError(`World Bank API error, ${text}`, { api_url: apiUrl });
   }
   const rows = data[1] ?? [];
-  return { meta: first ?? {}, rows: Array.isArray(rows) ? rows : [] };
+  const usable = Array.isArray(rows) ? rows.filter((r) => r && typeof r === "object" && typeof r.date === "string" && typeof r.indicator?.id === "string" && r.country && typeof r.country === "object") : [];
+  return { meta: first ?? {}, rows: usable };
 }
 async function wbIndicatorIsUnknown(indicatorId) {
   try {
@@ -1460,6 +1514,31 @@ async function fetchDataMapperSeries(ctx, code, dataset, countryIso3, now = /* @
   };
 }
 
+// ../server/src/core/text.ts
+function quoteInput(value, max = 80) {
+  const s = String(value ?? "");
+  const cut = s.length > max ? s.slice(0, max) : s;
+  const escaped = JSON.stringify(cut).slice(1, -1);
+  return s.length > max ? `${escaped}...` : escaped;
+}
+var CONTROL_RUN = /[\u0000-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]+/g;
+function stripControls(value) {
+  return typeof value === "string" ? value.replace(CONTROL_RUN, " ") : value;
+}
+function cleanLabel(value, max = 300) {
+  const s = stripControls(String(value ?? "")).trim();
+  return s.length > max ? `${s.slice(0, max - 3)}...` : s;
+}
+function httpsUrl(value) {
+  if (typeof value !== "string") return void 0;
+  try {
+    const u = new URL(value);
+    return u.protocol === "https:" ? u.href : void 0;
+  } catch {
+    return void 0;
+  }
+}
+
 // ../server/src/core/citations.ts
 var FRED_NOTICE = "This product uses the FRED\xAE API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.";
 var IMF_LICENSE = 'Published IMF statistical data may be copied, redistributed, and used (including in derivative works) with attribution to the IMF as source. Conditions: attribute as "Source: International Monetary Fund, <database>, <link>"; do not alter the data in ways affecting its accuracy, and state explicitly if it is materially transformed; anyone redistributing it downstream must take reasonable efforts to communicate these terms to their own users; and if sold as a standalone product, purchasers must be told the data is available free of charge from the IMF. Some statistical products incorporate third-party information under separate terms';
@@ -1469,16 +1548,28 @@ function retrievedVia(date, through) {
   return `Retrieved ${date} via ${chain} (${STATCITE_URL}).`;
 }
 function bibtexEscape(s) {
-  return s.replace(/([&%$#_])/g, "\\$1");
+  return s.replace(/[\r\n]+/g, " ").replace(/[{}\\]/g, "").replace(/([&%$#_])/g, "\\$1");
 }
-function withExports(c) {
+function bibtexUrl(u) {
+  return u.replace(/[\r\n]+/g, "").replace(/\{/g, "%7B").replace(/\}/g, "%7D");
+}
+function withExports(raw) {
+  const c = {
+    ...raw,
+    source: stripControls(raw.source),
+    dataset: stripControls(raw.dataset),
+    series_name: stripControls(raw.series_name),
+    attribution: stripControls(raw.attribution),
+    citation_text: stripControls(raw.citation_text),
+    ...raw.notices ? { notices: raw.notices.map(stripControls) } : {}
+  };
   const year = c.retrieved_at.slice(0, 4);
   const key = `${c.source.split(/[^A-Za-z]/)[0].toLowerCase() || "statcite"}_${c.series_id.replace(/[^A-Za-z0-9]+/g, "_")}_${year}`;
   const bibtex = `@misc{${key},
-  author = {{${c.source}}},
+  author = {{${bibtexEscape(c.source)}}},
   title = {{${bibtexEscape(c.dataset)}: ${bibtexEscape(c.series_name)}}},
   year = {${year}},
-  url = {${c.source_url}},
+  url = {${bibtexUrl(c.source_url)}},
   note = {Series ${bibtexEscape(c.series_id)}. ${retrievedVia(c.retrieved_at)} ${bibtexEscape(c.attribution)}}
 }`;
   const apa = `${c.source}. (n.d.). ${c.series_name} [Data set]. ${c.dataset}. Retrieved ${c.retrieved_at}, from ${c.source_url}`;
@@ -1769,11 +1860,24 @@ function decodeRow(raw) {
     return raw;
   }
 }
+var ID_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+var MAX_ROW_SELECTOR = 200;
+function malformedId(id, why, example) {
+  return new ToolError(`Malformed caribstat series id '${quoteInput(id, 120)}': ${why}. ${example} Add '#Row Label' to select one row.`, {
+    series_id: quoteInput(id, 200)
+  });
+}
 function parseCaribstatId(id) {
   const rest = id.replace(/^caribstat\//i, "");
   const hashAt = rest.indexOf("#");
   const pathPart = hashAt >= 0 ? rest.slice(0, hashAt) : rest;
   const rowPart = hashAt >= 0 ? rest.slice(hashAt + 1) : void 0;
+  if (rowPart && rowPart.length > MAX_ROW_SELECTOR) {
+    throw new ToolError(
+      `The row selector in this caribstat id is ${rowPart.length} characters long. Row labels are at most ${MAX_ROW_SELECTOR} characters, so name the row as the table lists it.`,
+      { series_id: quoteInput(id, 200) }
+    );
+  }
   const bits = pathPart.split("/");
   if (bits[0]?.toLowerCase() === "cbb") {
     if (bits.length < 3) {
@@ -1781,6 +1885,10 @@ function parseCaribstatId(id) {
         `Malformed caribstat series id '${id}'. Central Bank of Barbados ids have the form 'caribstat/CBB/{category}/{sheet}', e.g. 'caribstat/CBB/balance-of-payments-reports/analytical-summary'. Add '#Row Label' to select one row.`,
         { series_id: id }
       );
+    }
+    const cbbSegments = bits.slice(1);
+    if (!cbbSegments.every((seg) => ID_SEGMENT.test(seg))) {
+      throw malformedId(id, "each part of the path must be a slug of letters, digits, '-' or '_'", "Example: 'caribstat/CBB/balance-of-payments-reports/analytical-summary'.");
     }
     return {
       provider: "CBB",
@@ -1798,8 +1906,17 @@ function parseCaribstatId(id) {
     );
   }
   const provider = bits[0];
+  if (provider.toLowerCase() !== "eccb") {
+    throw malformedId(id, `unknown provider '${quoteInput(provider, 40)}'. The providers are ECCB and CBB`, "Example: 'caribstat/ECCB/total-public-sector-debt/AIA.a'.");
+  }
+  if (bits.length !== 3) {
+    throw malformedId(id, "ECCB ids have exactly one table segment", "Example: 'caribstat/ECCB/total-public-sector-debt/AIA.a'.");
+  }
   const last = bits[bits.length - 1];
-  const table = bits.slice(1, -1).join("/");
+  const table = bits[1];
+  if (!ID_SEGMENT.test(table)) {
+    throw malformedId(id, "the table must be a slug of letters, digits, '-' or '_'", "Example: 'caribstat/ECCB/total-public-sector-debt/AIA.a'.");
+  }
   const dot = last.lastIndexOf(".");
   if (dot < 1) {
     throw new ToolError(
@@ -1809,6 +1926,9 @@ function parseCaribstatId(id) {
   }
   const iso3 = last.slice(0, dot).toUpperCase();
   const freq = last.slice(dot + 1).toLowerCase();
+  if (!/^[A-Z]{3}$/.test(iso3)) {
+    throw malformedId(id, "the country must be a three-letter ISO code", "Example: 'caribstat/ECCB/total-public-sector-debt/AIA.a'.");
+  }
   if (!["a", "q", "m"].includes(freq)) {
     throw new ToolError(`Unsupported caribstat frequency '${freq}' in '${id}'. Use a (annual), q (quarterly) or m (monthly).`, {
       series_id: id
@@ -1826,10 +1946,14 @@ function inferFrequency(periods) {
 var CARIBSTAT_CACHE_EPOCH = "2026-08-15a";
 function caribstatUrl(p, origin = CARIBSTAT_ORIGIN) {
   const v = `?v=${CARIBSTAT_CACHE_EPOCH}`;
+  const enc = (path) => path.split("/").map(encodeURIComponent).join("/");
   if (p.provider.toLowerCase() === "cbb") {
-    return `${origin}/data/cbb/${p.table}/${p.sheet}.json${v}`;
+    return `${origin}/data/cbb/${enc(p.table)}/${enc(p.sheet ?? "")}.json${v}`;
   }
-  return `${origin}/data/${p.provider.toLowerCase()}/${p.table}/${p.freq}/${p.iso3}.json${v}`;
+  return `${origin}/data/${enc(p.provider.toLowerCase())}/${enc(p.table)}/${enc(p.freq)}/${enc(p.iso3)}.json${v}`;
+}
+function canonicalCaribstatBase(p) {
+  return p.provider === "CBB" ? `caribstat/CBB/${p.table}/${p.sheet}` : `caribstat/${p.provider}/${p.table}/${p.iso3}.${p.freq}`;
 }
 function withOccurrence(row, n, total) {
   return total > 1 ? { ...row, label: `${row.label} [${n} of ${total}]` } : row;
@@ -1843,11 +1967,12 @@ function selectRow(doc, want) {
     });
   }
   if (!want) return doc.series[0];
-  const occ = /^(.*?)\s*\[(\d+)(?:\s+of\s+\d+)?\]$/i.exec(want.trim());
-  const wantLabel = occ ? occ[1].trim() : want;
+  const trimmed = want.trim();
+  const occ = /\[(\d+)(?:\s+of\s+\d+)?\]$/i.exec(trimmed);
+  const wantLabel = occ ? trimmed.slice(0, occ.index).trim() : want;
   const matches = doc.series.filter((s) => s.label.toLowerCase() === wantLabel.toLowerCase());
   if (occ) {
-    const n = Number(occ[2]);
+    const n = Number(occ[1]);
     if (n >= 1 && n <= matches.length) return withOccurrence(matches[n - 1], n, matches.length);
     throw new ToolError(
       `Row '${wantLabel}' occurs ${matches.length} time(s) in ${doc.table_id}/${doc.country.iso3}, so [${n}] is out of range.`,
@@ -1898,19 +2023,53 @@ async function fetchCaribstatSeries(id, opts = {}) {
   } catch (e) {
     if (e instanceof Error && /HTTP 404/.test(e.message)) {
       throw new ToolError(
-        `No CaribStat series '${id}'. That combination of table, country and frequency is not collected. Not every table exists at every frequency: consumer-price-index is annual and quarterly only, and public-sector-debt is annual only.`,
-        { series_id: id, api_url: apiUrl, no_published_data: true }
+        `No CaribStat series '${canonicalCaribstatBase(parsed)}'. That combination of table, country and frequency is not collected. Not every table exists at every frequency: consumer-price-index is annual and quarterly only, and public-sector-debt is annual only.`,
+        { series_id: canonicalCaribstatBase(parsed), api_url: apiUrl, no_published_data: true }
       );
     }
     throw e;
   }
+  doc = sanitiseDoc(doc);
   const row = selectRow(doc, parsed.row);
   let defaultRow;
   if (!parsed.row && doc.series.length > 1) {
     const same = doc.series.filter((s) => s.label === row.label).length;
     defaultRow = { selector: same > 1 ? `${row.label}[1]` : row.label, rows: doc.series.map((s) => s.label) };
   }
-  return { doc, label: row.label, unit: row.unit, observations: row.observations, apiUrl, ...defaultRow ? { defaultRow } : {} };
+  return {
+    doc,
+    label: row.label,
+    unit: row.unit,
+    observations: row.observations,
+    apiUrl,
+    canonicalBase: canonicalCaribstatBase(parsed),
+    rowSelected: Boolean(parsed.row),
+    ...defaultRow ? { defaultRow } : {}
+  };
+}
+var PROVIDER_HOME = {
+  eccb: "https://www.eccb-centralbank.org",
+  cbb: "https://www.centralbank.org.bb"
+};
+function sanitiseDoc(doc) {
+  const home = PROVIDER_HOME[String(doc.source_id ?? "").toLowerCase()] ?? PROVIDER_HOME[doc.country?.iso3 === "BRB" ? "cbb" : "eccb"];
+  return {
+    ...doc,
+    source: cleanLabel(doc.source, 120),
+    source_url: httpsUrl(doc.source_url) ?? home,
+    ...doc.attachment_url !== void 0 ? { attachment_url: httpsUrl(doc.attachment_url) } : {},
+    ...doc.table_title !== void 0 ? { table_title: cleanLabel(doc.table_title) } : {},
+    ...doc.publication_title !== void 0 ? { publication_title: cleanLabel(doc.publication_title) } : {},
+    ...doc.sheet !== void 0 ? { sheet: cleanLabel(doc.sheet, 120) } : {},
+    // The date stamps go into citation_text and notices too. An empty result
+    // becomes undefined, so a stamp made only of control characters cannot
+    // win the `data_as_at_raw ?? data_as_at` choice and hide the real date.
+    ...doc.data_as_at !== void 0 ? { data_as_at: cleanLabel(doc.data_as_at, 60) || void 0 } : {},
+    ...doc.data_as_at_raw !== void 0 ? { data_as_at_raw: cleanLabel(doc.data_as_at_raw, 60) || void 0 } : {},
+    ...doc.published_at !== void 0 ? { published_at: cleanLabel(doc.published_at, 60) || void 0 } : {},
+    country: { ...doc.country, name: cleanLabel(doc.country?.name, 120) },
+    series: doc.series.map((s) => ({ ...s, label: cleanLabel(s.label) }))
+  };
 }
 var CARIBSTAT_CATALOGUE = [
   {
@@ -2691,6 +2850,16 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
     code
   );
 }
+function hasDotSegment(path) {
+  return path.split("/").some((seg) => {
+    let d = seg;
+    try {
+      d = decodeURIComponent(seg);
+    } catch {
+    }
+    return d === "." || d === "..";
+  });
+}
 function cleanReason(msg) {
   const m = String(msg ?? "").replace(/(Upstream returned HTTP \d+):\s*[\[{][\s\S]*$/, "$1");
   return m.length > 300 ? m.slice(0, 297) + "..." : m;
@@ -2824,6 +2993,9 @@ async function getSeries(ctx, seriesId, opts = {}) {
   const lower = id.toLowerCase();
   if (lower.startsWith("worldbank/") || lower.startsWith("wb/")) {
     const code = id.slice(id.indexOf("/") + 1);
+    if (hasDotSegment(code)) {
+      throw new ToolError(`'${quoteInput(id, 80)}' is not a World Bank series id. Use the form worldbank/CODE, e.g. worldbank/NY.GDP.MKTP.KD.ZG.`, { series_id: quoteInput(id, 200) }, "unknown_indicator");
+    }
     if (!opts.country) {
       throw new ToolError("World Bank series require a 'country' parameter (ISO3 code or name).", { series_id: id });
     }
@@ -2894,7 +3066,7 @@ async function getSeries(ctx, seriesId, opts = {}) {
     }
     const c = await fetchCaribstatSeries(id);
     const freq = c.doc.frequency ?? inferFrequency(c.doc.periods);
-    const resolvedId = c.defaultRow ? `${id.replace(/#\s*$/, "")}#${c.defaultRow.selector}` : id;
+    const resolvedId = c.defaultRow ? `${c.canonicalBase}#${c.defaultRow.selector}` : c.rowSelected ? `${c.canonicalBase}#${c.label}` : c.canonicalBase;
     const caribNotes = [];
     if (c.defaultRow) {
       const shown = c.defaultRow.rows.slice(0, 12);
@@ -2935,6 +3107,9 @@ async function getSeries(ctx, seriesId, opts = {}) {
   }
   if (lower.startsWith("dbnomics/")) {
     const parts = id.split("/");
+    if (hasDotSegment(parts.slice(1).join("/"))) {
+      throw new ToolError(`'${quoteInput(id, 80)}' is not a DBnomics series id. Use dbnomics/PROVIDER/DATASET/SERIES, e.g. dbnomics/IMF/WEO:latest/USA.NGDP_RPCH.pcent_change.`, { series_id: quoteInput(id, 200) }, "unknown_indicator");
+    }
     if (parts.length < 4) {
       throw new ToolError(
         "DBnomics series ids have the form dbnomics/PROVIDER/DATASET/SERIES (e.g. dbnomics/IMF/WEO:latest/USA.NGDP_RPCH.pcent_change).",

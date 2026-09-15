@@ -53,7 +53,7 @@ function refreshIfExpired() {
       // mid-run and fail on the second query rather than the first.
       if (Date.parse(exp[1]) - Date.now() > 60_000) return;
       try {
-        execFileSync("npx", ["wrangler", "whoami"], { stdio: "ignore", shell: true });
+        execFileSync("npx", ["wrangler@4.131.1", "whoami"], { stdio: "ignore", shell: true });
       } catch {
         // If this fails the request below fails with its own message, which is
         // more informative than anything invented here.
@@ -82,7 +82,7 @@ function token() {
     }
   }
   throw new Error(
-    "No Cloudflare credential. Run `npx wrangler login`, or set CLOUDFLARE_API_TOKEN.",
+    "No Cloudflare credential. Run `npx wrangler@4.131.1 login`, or set CLOUDFLARE_API_TOKEN.",
   );
 }
 

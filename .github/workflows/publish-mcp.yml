@@ -24,13 +24,17 @@ on:
 
 permissions:
   contents: read
-  id-token: write # required for OIDC; without it login silently has no identity
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for OIDC; without it login silently has no identity
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       # Fail loudly BEFORE authenticating if the manifest and the code disagree
       # about the version. Publishing a version the Worker does not serve is
@@ -52,11 +56,21 @@ jobs:
           echo "description length=$DESC"
           [ "$DESC" -le 100 ] || { echo "REFUSING: description is $DESC chars, registry allows 100." >&2; exit 1; }
 
+      # PINNED AND VERIFIED. This job can mint an OIDC token for the
+      # io.github.asokore namespace, so it must not run whatever binary
+      # "latest" points at on the day. To upgrade, change both lines: the
+      # digest is on the release page, or from
+      # gh api repos/modelcontextprotocol/registry/releases/tags/<tag>
       - name: Install mcp-publisher
+        env:
+          PUBLISHER_VERSION: v1.8.1
+          PUBLISHER_SHA256: a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc
         run: |
           set -euo pipefail
-          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" \
-            | tar xz mcp-publisher
+          curl -fsSL -o mcp-publisher.tar.gz \
+            "https://github.com/modelcontextprotocol/registry/releases/download/${PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"
+          echo "${PUBLISHER_SHA256}  mcp-publisher.tar.gz" | sha256sum -c -
+          tar xzf mcp-publisher.tar.gz mcp-publisher
           ./mcp-publisher --version
 
       # mcp-publisher reads server.json from the working directory, so run it
