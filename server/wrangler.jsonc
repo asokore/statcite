@@ -9,8 +9,13 @@
     "directory": "../site",
     "binding": "ASSETS",
     "not_found_handling": "404-page",
-    // API routes are handled by the Worker; everything else is served as a static asset.
-    "run_worker_first": ["/mcp", "/mcp/*", "/v1", "/v1/*", "/health"]
+    // Every request reaches the Worker first, which serves the API routes itself
+    // and hands everything else to the asset layer. It runs first so that the
+    // two site-wide redirects below apply to the pages as well as the API:
+    // plain HTTP to HTTPS, and www to the apex host. Both used to depend on
+    // zone settings that were never enabled, so http:// pages were served with
+    // 200 and www served a duplicate of the whole site.
+    "run_worker_first": true
   },
   "vars": {
     // Public base URL of this deployment. Update after wiring the custom domain.

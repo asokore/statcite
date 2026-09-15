@@ -37,7 +37,7 @@ test("plain HTTP to the API is redirected to HTTPS with a 308, query intact", as
   assert.equal(res.headers.get("location"), "https://statcite.test/v1/search?q=debt");
   const body = (await res.json()) as any;
   assert.equal(body.error.code, "invalid_request");
-  assert.match(body.error.message, /HTTPS only/);
+  assert.match(body.error.message, /served over HTTPS/);
 });
 
 test("plain HTTP POST to /mcp is redirected, never answered with data", async () => {
@@ -79,10 +79,39 @@ test("wrangler dev requests are not redirected into a loop, but a real edge requ
   assert.equal(spoofed.status, 308, "a request that came through Cloudflare's edge over HTTP is still redirected");
 });
 
-test("static pages are left to the asset layer, which the Worker does not rewrite", async () => {
-  const res = await handleRequest(new Request("http://statcite.test/docs"), testEnv);
+test("a page served over HTTPS is left to the asset layer", async () => {
+  const res = await handleRequest(new Request("https://statcite.test/docs"), testEnv);
   assert.equal(res.status, 200);
   assert.match(res.headers.get("content-type") ?? "", /text\/html/);
+});
+
+test("the pages are redirected too, not only the API routes", async () => {
+  // The Worker runs first for every path (wrangler.jsonc run_worker_first), so
+  // a page asked for over plain HTTP no longer answers 200.
+  const res = await handleRequest(new Request("http://statcite.test/docs"), testEnv);
+  assert.equal(res.status, 308);
+  assert.equal(res.headers.get("location"), "https://statcite.test/docs");
+});
+
+test("www redirects to the apex host, keeping path, query, scheme and method", async () => {
+  const page = await handleRequest(new Request("https://www.statcite.com/sources?x=1"), testEnv);
+  assert.equal(page.status, 308);
+  assert.equal(page.headers.get("location"), "https://statcite.com/sources?x=1");
+
+  const api = await handleRequest(
+    new Request("http://www.statcite.com/mcp", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+    }),
+    testEnv,
+  );
+  assert.equal(api.status, 308, "one hop fixes both the host and the scheme");
+  assert.equal(api.headers.get("location"), "https://statcite.com/mcp");
+  assert.doesNotMatch(await api.text(), /get_indicator/);
+
+  const apex = await handleRequest(new Request("https://statcite.com/sources"), testEnv);
+  assert.equal(apex.status, 200, "the apex host is served, not redirected");
 });
 
 // --- security headers on every Worker response ------------------------------
