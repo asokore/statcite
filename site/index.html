@@ -807,7 +807,10 @@ function copyText(id, btn){
 (function(){
   var form=document.getElementById('try-form');
   if(!form) return;
-  var esc=function(s){ var d=document.createElement('div'); d.textContent=String(s); return d.innerHTML; };
+  // Five-character escaper, the same as sources.html. The textContent trick
+  // leaves quotes alone, which is unsafe inside an attribute value.
+  var esc=function(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
+  var VERDICTS={match:1,close:1,mismatch:1,cannot_verify:1};
   form.addEventListener('submit', function(e){
     e.preventDefault();
     var go=document.getElementById('try-go'), out=document.getElementById('try-result');
@@ -832,8 +835,11 @@ function copyText(id, btn){
         if(b.diagnostics && b.diagnostics.length) extra='<p style="margin-top:8px">'+esc(b.diagnostics[0])+'</p>';
         var note='';
         if(b.is_projection) note='<p style="margin-top:8px;color:var(--warn)">Note: the official observation is an IMF estimate/projection, not a confirmed outturn.</p>';
-        var cite=b.citation&&b.citation.citation_text?'<div class="cite">'+esc(b.citation.citation_text)+(b.citation.source_url?' <a href="'+esc(b.citation.source_url)+'" rel="noopener">source ↗</a>':'')+'</div>':'';
-        out.innerHTML='<div class="card"><span class="v-'+esc(b.verdict)+'">'+esc(b.verdict.replace('_',' '))+'</span> '+esc(b.explanation||'')+extra+note+cite+'</div>';
+        // Only an https source URL becomes a link. Anything else is not rendered.
+        var src=b.citation&&typeof b.citation.source_url==='string'&&/^https:\/\//i.test(b.citation.source_url)?b.citation.source_url:'';
+        var cite=b.citation&&b.citation.citation_text?'<div class="cite">'+esc(b.citation.citation_text)+(src?' <a href="'+esc(src)+'" rel="noopener noreferrer">source ↗</a>':'')+'</div>':'';
+        var verdict=VERDICTS[b.verdict]===1?b.verdict:'cannot_verify';
+        out.innerHTML='<div class="card"><span class="v-'+verdict+'">'+esc(String(b.verdict).replace('_',' '))+'</span> '+esc(b.explanation||'')+extra+note+cite+'</div>';
       })
       .catch(function(){
         out.innerHTML='<div class="card"><span class="v-cannot_verify">Network error.</span> Please try again.</div>';

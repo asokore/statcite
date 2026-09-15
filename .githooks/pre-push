@@ -4,9 +4,14 @@
 #
 # Local `main` carries the R2 benchmark RESULTS (bench/runs/R2*), which stay off
 # the public remote until the vendor courtesy-preview window closes. This hook
-# refuses any push whose TIP TREE contains embargoed paths — tree membership,
-# not range diffs, because a new-branch push has no range and the first version
-# of this guard silently passed on exactly that case.
+# refuses a push in two cases:
+#
+#   1. the TIP TREE contains embargoed paths. Tree membership, not range diffs,
+#      because a new-branch push has no range and the first version of this
+#      guard silently passed on exactly that case.
+#   2. any COMMIT the push would add carries them, even if a later commit
+#      deleted them. The tip-only check let a branch that added the results and
+#      then removed them publish the files in its history.
 #
 # (bench/questions/R2* and bench/snapshots/R2* are pre-registered and public by
 # design — only runs/ is embargoed.)
@@ -20,6 +25,7 @@
 # `.githooks`). If that prints nothing, this guard is NOT protecting you and a
 # plain `git push` from main would publish the embargoed results.
 
+remote="$1"
 while read local_ref local_sha remote_ref remote_sha; do
   # A delete-push sends the all-zero sha; nothing to inspect.
   [ "$local_sha" = "0000000000000000000000000000000000000000" ] && continue
@@ -28,6 +34,20 @@ while read local_ref local_sha remote_ref remote_sha; do
     echo "PUSH REFUSED: the pushed tree ($local_ref) contains embargoed R2 results:" >&2
     echo "$leaked" >&2
     echo "Push via the public-sync branch (git push origin public-sync:main), which excludes bench/runs/R2*." >&2
+    exit 1
+  fi
+  # Every path touched by a commit the remote does not already have. Not
+  # `rev-list --objects`, which names each object once at the first path it
+  # meets, so results renamed elsewhere before removal went unseen.
+  # --no-renames keeps the original path, --full-history keeps a merged side
+  # branch that added and dropped the results, and -m shows merge diffs. When
+  # the remote is a URL rather than a named remote, nothing is excluded and the
+  # whole history is scanned, which fails closed.
+  in_history=$(git log --format= --name-only --no-renames --full-history -m "$local_sha" --not --remotes="$remote" -- bench/runs 2>/dev/null | grep -E "^bench/runs/R2" | head -5)
+  if [ -n "$in_history" ]; then
+    echo "PUSH REFUSED: a commit in this push ($local_ref) carries embargoed R2 results, even if the tip does not:" >&2
+    echo "$in_history" >&2
+    echo "Rebuild the branch from public-sync so the results never enter its history." >&2
     exit 1
   fi
 done

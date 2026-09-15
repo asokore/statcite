@@ -69,7 +69,13 @@ function parseEnvelope(
     throw new ToolError(`World Bank API error, ${text}`, { api_url: apiUrl });
   }
   const rows = (data[1] ?? []) as WbRow[];
-  return { meta: first ?? {}, rows: Array.isArray(rows) ? rows : [] };
+  // Keep only rows with the fields the adapters dereference. A malformed row
+  // used to throw a TypeError and surface as a 500. Genuine WDI rows always
+  // carry these, so nothing legitimate is dropped.
+  const usable = Array.isArray(rows)
+    ? rows.filter((r) => r && typeof r === "object" && typeof r.date === "string" && typeof r.indicator?.id === "string" && r.country && typeof r.country === "object")
+    : [];
+  return { meta: first ?? {}, rows: usable };
 }
 
 /** True only when the World Bank's indicator endpoint positively refuses the

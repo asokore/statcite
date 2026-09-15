@@ -5,6 +5,52 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.12.3
+
+A security pass over the Worker, the site and the repository. No verdict or
+figure changes for any well-formed request.
+
+**Transport.** The API, the MCP endpoint and /health answered plain HTTP with
+data. They now answer it with a 308 redirect to HTTPS, which keeps the method
+and body. Local development is not redirected. Every Worker response, errors
+included, carries HSTS and `X-Content-Type-Options: nosniff`.
+
+**Request limits.** Request bodies over 262,144 bytes are refused with a 413
+before they are read in full, on /mcp and on /v1/verify_claims. REST query
+values and path parameters are capped at 200 characters, as MCP arguments
+already were. A JSON-RPC batch may ask for at most the upstream work of one
+15-claim verify_claims call. Messages past that budget get an error telling the
+caller to send them on their own. Caller text quoted back in an error is
+shortened and escaped, and a query with thousands of parameter names is
+refused in linear time.
+
+**Upstream reads.** An upstream response over 5 MB is refused. The fetch
+timeout now covers reading the body, not only the headers. The in-memory cache
+is bounded by size as well as entry count. Upstream error bodies are reduced to
+a short plain-text excerpt. A World Bank row missing its date or indicator no
+longer causes a 500.
+
+**Identifiers.** A caribstat series id can no longer use `..` or other path
+tricks to reach other files on the mirror. Each part must be a plain slug. The
+id served back in series_id and the citation is built from the parsed id, so
+two spellings of one row get the same id and the same verdict. `worldbank/..`,
+`dbnomics/` ids with dot segments, and a malformed percent escape in
+/v1/snapshot now return advice instead of a 500.
+
+**Citations.** Control characters and line breaks are stripped from every
+citation's text, whichever source supplied it. CaribStat labels, date stamps and
+links are cleaned before use, and a source link must be https. Runs of spaces in
+Central Bank of Barbados row labels are kept, so those labels still work as row
+selectors. The BibTeX export can no longer be broken by a brace or a newline.
+
+**Site and repository.** The homepage verifier escapes quotes and links only
+https sources. security.txt is served as UTF-8 and points to the security
+policy. The registry publish workflow runs a pinned, checksum-verified
+mcp-publisher, and every workflow token is read-only unless a job needs more.
+wrangler runs at a pinned version. `.gitignore` covers more secret-bearing file
+names. Two unused archive bundles are removed, and a test keeps archives out of
+the tree.
+
 ## 1.12.2
 
 One verdict-changing fix on the main transport, several Caribbean answers that

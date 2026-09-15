@@ -136,7 +136,7 @@ observability (`observability.enabled` in wrangler.jsonc). Useful for live
 watching and as the fallback if the Analytics Engine binding is ever removed.
 
 ```bash
-cd server && npx wrangler tail --format pretty --search STATCITE_USAGE
+cd server && npx wrangler@4.131.1 tail --format pretty --search STATCITE_USAGE
 ```
 
 Dashboard path: **Workers & Pages → statcite → Logs** (Live / Logs tab), filter

@@ -28,6 +28,7 @@
 // formatting, so both dates travel separately all the way into the citation.
 
 import { fetchJson } from "../core/upstream.ts";
+import { quoteInput, cleanLabel, httpsUrl } from "../core/text.ts";
 import { ToolError } from "../core/types.ts";
 import type { Observation } from "../core/types.ts";
 
@@ -89,6 +90,10 @@ export interface CaribstatSeries {
   /** Set when the id named no row and the table has several. The caller got
    * the first row, and `selector` is the '#...' suffix that reproduces it. */
   defaultRow?: { selector: string; rows: string[] };
+  /** The canonical id without a row selector, built from the parsed parts. */
+  canonicalBase: string;
+  /** True when the id named a row. */
+  rowSelected: boolean;
 }
 
 /** Row selectors are written by hand as often as they are URL-encoded, and
@@ -117,12 +122,35 @@ export interface ParsedId {
   row?: string;
 }
 
+/**
+ * One path segment of a CaribStat id: a table, category or sheet slug. Every
+ * published slug fits (for example total-public-sector-debt, jul2001-eop-rw,
+ * 1994-avg). Rejecting everything else, rather than normalising it, is what
+ * stops '..', encoded dots, backslashes and '?' from walking the fetch URL to
+ * another path on the mirror host, which was reproducible before 1.12.3.
+ */
+const ID_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+/** Longest accepted row selector. The longest real label is 106 characters. */
+export const MAX_ROW_SELECTOR = 200;
+
+function malformedId(id: string, why: string, example: string): ToolError {
+  return new ToolError(`Malformed caribstat series id '${quoteInput(id, 120)}': ${why}. ${example} Add '#Row Label' to select one row.`, {
+    series_id: quoteInput(id, 200),
+  });
+}
+
 export function parseCaribstatId(id: string): ParsedId {
   const rest = id.replace(/^caribstat\//i, "");
   // Split on the FIRST '#', so a label that itself contains '#' survives.
   const hashAt = rest.indexOf("#");
   const pathPart = hashAt >= 0 ? rest.slice(0, hashAt) : rest;
   const rowPart = hashAt >= 0 ? rest.slice(hashAt + 1) : undefined;
+  if (rowPart && rowPart.length > MAX_ROW_SELECTOR) {
+    throw new ToolError(
+      `The row selector in this caribstat id is ${rowPart.length} characters long. Row labels are at most ${MAX_ROW_SELECTOR} characters, so name the row as the table lists it.`,
+      { series_id: quoteInput(id, 200) },
+    );
+  }
   const bits = pathPart.split("/");
 
   // CBB: `caribstat/CBB/{category}/{sheet}`. Every CBB series is Barbados, so
@@ -136,6 +164,10 @@ export function parseCaribstatId(id: string): ParsedId {
         `Malformed caribstat series id '${id}'. Central Bank of Barbados ids have the form 'caribstat/CBB/{category}/{sheet}', e.g. 'caribstat/CBB/balance-of-payments-reports/analytical-summary'. Add '#Row Label' to select one row.`,
         { series_id: id },
       );
+    }
+    const cbbSegments = bits.slice(1);
+    if (!cbbSegments.every((seg) => ID_SEGMENT.test(seg))) {
+      throw malformedId(id, "each part of the path must be a slug of letters, digits, '-' or '_'", "Example: 'caribstat/CBB/balance-of-payments-reports/analytical-summary'.");
     }
     return {
       provider: "CBB",
@@ -154,8 +186,17 @@ export function parseCaribstatId(id: string): ParsedId {
     );
   }
   const provider = bits[0];
+  if (provider.toLowerCase() !== "eccb") {
+    throw malformedId(id, `unknown provider '${quoteInput(provider, 40)}'. The providers are ECCB and CBB`, "Example: 'caribstat/ECCB/total-public-sector-debt/AIA.a'.");
+  }
+  if (bits.length !== 3) {
+    throw malformedId(id, "ECCB ids have exactly one table segment", "Example: 'caribstat/ECCB/total-public-sector-debt/AIA.a'.");
+  }
   const last = bits[bits.length - 1];
-  const table = bits.slice(1, -1).join("/");
+  const table = bits[1];
+  if (!ID_SEGMENT.test(table)) {
+    throw malformedId(id, "the table must be a slug of letters, digits, '-' or '_'", "Example: 'caribstat/ECCB/total-public-sector-debt/AIA.a'.");
+  }
   const dot = last.lastIndexOf(".");
   if (dot < 1) {
     throw new ToolError(
@@ -165,6 +206,9 @@ export function parseCaribstatId(id: string): ParsedId {
   }
   const iso3 = last.slice(0, dot).toUpperCase();
   const freq = last.slice(dot + 1).toLowerCase();
+  if (!/^[A-Z]{3}$/.test(iso3)) {
+    throw malformedId(id, "the country must be a three-letter ISO code", "Example: 'caribstat/ECCB/total-public-sector-debt/AIA.a'.");
+  }
   if (!["a", "q", "m"].includes(freq)) {
     throw new ToolError(`Unsupported caribstat frequency '${freq}' in '${id}'. Use a (annual), q (quarterly) or m (monthly).`, {
       series_id: id,
@@ -207,10 +251,20 @@ export function caribstatUrl(p: ParsedId, origin = CARIBSTAT_ORIGIN): string {
   // its corpus is laid out per workbook sheet rather than per country and
   // frequency. Two providers, two shapes, one adapter.
   const v = `?v=${CARIBSTAT_CACHE_EPOCH}`;
+  // Encoded per segment as defence in depth. parseCaribstatId already refuses
+  // anything but slugs, so for a valid id this changes nothing.
+  const enc = (path: string) => path.split("/").map(encodeURIComponent).join("/");
   if (p.provider.toLowerCase() === "cbb") {
-    return `${origin}/data/cbb/${p.table}/${p.sheet}.json${v}`;
+    return `${origin}/data/cbb/${enc(p.table)}/${enc(p.sheet ?? "")}.json${v}`;
   }
-  return `${origin}/data/${p.provider.toLowerCase()}/${p.table}/${p.freq}/${p.iso3}.json${v}`;
+  return `${origin}/data/${enc(p.provider.toLowerCase())}/${enc(p.table)}/${enc(p.freq)}/${enc(p.iso3)}.json${v}`;
+}
+
+/** The id that names exactly what was served, built from the parsed parts
+ * rather than the caller's text, so series_id and the citation can never
+ * carry a spelling that fetched something else. */
+export function canonicalCaribstatBase(p: ParsedId): string {
+  return p.provider === "CBB" ? `caribstat/CBB/${p.table}/${p.sheet}` : `caribstat/${p.provider}/${p.table}/${p.iso3}.${p.freq}`;
 }
 
 /**
@@ -248,11 +302,14 @@ export function selectRow(doc: CaribstatDoc, want?: string): { label: string; un
   // Accept both the compact selector "Domestic[2]" and the display form this
   // function returns, "Domestic [2 of 3]", so a label copied out of a previous
   // response can be pasted straight back in.
-  const occ = /^(.*?)\s*\[(\d+)(?:\s+of\s+\d+)?\]$/i.exec(want.trim());
-  const wantLabel = occ ? occ[1].trim() : want;
+  // Parsed from the end rather than with a lazy leading group, whose
+  // backtracking was quadratic on a long selector.
+  const trimmed = want.trim();
+  const occ = /\[(\d+)(?:\s+of\s+\d+)?\]$/i.exec(trimmed);
+  const wantLabel = occ ? trimmed.slice(0, occ.index).trim() : want;
   const matches = doc.series.filter((s) => s.label.toLowerCase() === wantLabel.toLowerCase());
   if (occ) {
-    const n = Number(occ[2]);
+    const n = Number(occ[1]);
     if (n >= 1 && n <= matches.length) return withOccurrence(matches[n - 1], n, matches.length);
     throw new ToolError(
       `Row '${wantLabel}' occurs ${matches.length} time(s) in ${doc.table_id}/${doc.country.iso3}, so [${n}] is out of range.`,
@@ -324,13 +381,14 @@ export async function fetchCaribstatSeries(id: string, opts: { origin?: string; 
   } catch (e) {
     if (e instanceof Error && /HTTP 404/.test(e.message)) {
       throw new ToolError(
-        `No CaribStat series '${id}'. That combination of table, country and frequency is not collected. Not every table exists at every frequency: consumer-price-index is annual and quarterly only, and public-sector-debt is annual only.`,
-        { series_id: id, api_url: apiUrl, no_published_data: true },
+        `No CaribStat series '${canonicalCaribstatBase(parsed)}'. That combination of table, country and frequency is not collected. Not every table exists at every frequency: consumer-price-index is annual and quarterly only, and public-sector-debt is annual only.`,
+        { series_id: canonicalCaribstatBase(parsed), api_url: apiUrl, no_published_data: true },
       );
     }
     throw e;
   }
 
+  doc = sanitiseDoc(doc);
   const row = selectRow(doc, parsed.row);
   // No row named in a multi-row table. The first row is served, but the
   // caller must be told, because for debt-to-gdp the first row is central
@@ -341,7 +399,50 @@ export async function fetchCaribstatSeries(id: string, opts: { origin?: string; 
     const same = doc.series.filter((s) => s.label === row.label).length;
     defaultRow = { selector: same > 1 ? `${row.label}[1]` : row.label, rows: doc.series.map((s) => s.label) };
   }
-  return { doc, label: row.label, unit: row.unit, observations: row.observations, apiUrl, ...(defaultRow ? { defaultRow } : {}) };
+  return {
+    doc,
+    label: row.label,
+    unit: row.unit,
+    observations: row.observations,
+    apiUrl,
+    canonicalBase: canonicalCaribstatBase(parsed),
+    rowSelected: Boolean(parsed.row),
+    ...(defaultRow ? { defaultRow } : {}),
+  };
+}
+
+/** Provider homepages from the licence ledger, used when a document's own
+ * source link is not https. A citation keeps a checkable link either way. */
+const PROVIDER_HOME: Record<string, string> = {
+  eccb: "https://www.eccb-centralbank.org",
+  cbb: "https://www.centralbank.org.bb",
+};
+
+/**
+ * Third-party text from the mirror goes into citations that agents are told
+ * to reproduce verbatim. Control characters and line breaks are removed and
+ * lengths capped, and source links must be https or fall back to the
+ * provider's homepage.
+ */
+function sanitiseDoc(doc: CaribstatDoc): CaribstatDoc {
+  const home = PROVIDER_HOME[String(doc.source_id ?? "").toLowerCase()] ?? PROVIDER_HOME[doc.country?.iso3 === "BRB" ? "cbb" : "eccb"];
+  return {
+    ...doc,
+    source: cleanLabel(doc.source, 120),
+    source_url: httpsUrl(doc.source_url) ?? home,
+    ...(doc.attachment_url !== undefined ? { attachment_url: httpsUrl(doc.attachment_url) } : {}),
+    ...(doc.table_title !== undefined ? { table_title: cleanLabel(doc.table_title) } : {}),
+    ...(doc.publication_title !== undefined ? { publication_title: cleanLabel(doc.publication_title) } : {}),
+    ...(doc.sheet !== undefined ? { sheet: cleanLabel(doc.sheet, 120) } : {}),
+    // The date stamps go into citation_text and notices too. An empty result
+    // becomes undefined, so a stamp made only of control characters cannot
+    // win the `data_as_at_raw ?? data_as_at` choice and hide the real date.
+    ...(doc.data_as_at !== undefined ? { data_as_at: cleanLabel(doc.data_as_at, 60) || undefined } : {}),
+    ...(doc.data_as_at_raw !== undefined ? { data_as_at_raw: cleanLabel(doc.data_as_at_raw, 60) || undefined } : {}),
+    ...(doc.published_at !== undefined ? { published_at: cleanLabel(doc.published_at, 60) || undefined } : {}),
+    country: { ...doc.country, name: cleanLabel(doc.country?.name, 120) },
+    series: doc.series.map((s) => ({ ...s, label: cleanLabel(s.label) })),
+  };
 }
 
 /**

@@ -38,7 +38,7 @@ Separately, `caribstat/data/` and the other gitignored paths listed in `.gitigno
 
 ## Commands (run in `server/`)
 
-- `npm install`. Dev deps only (typescript, tsx, workers-types; wrangler on demand via npx)
+- `npm install`. Dev deps only (typescript, tsx, workers-types). wrangler runs through npx at the exact version pinned in `package.json` scripts, so a new release is never picked up silently. Bump it deliberately.
 - `npm test`, 180 fixture-backed tests (no network)
 - `npm run smoke`. Live end-to-end against real upstream APIs (network)
 - `npm run typecheck` · `npm run dev` (wrangler dev) · `npm run deploy`
@@ -46,8 +46,8 @@ Separately, `caribstat/data/` and the other gitignored paths listed in `.gitigno
 
 ## Architecture (server/src)
 
-- `index.ts`. Router: `/mcp` → mcp.ts, `/v1/*` → rest.ts, `/health`, else static assets
-- `mcp.ts`, **stateless MCP Streamable HTTP, hand-rolled, zero deps.** Protocol 2025-03-26/06-18/11-25: single JSON-RPC message or a batch accepted per POST for 2025-03-26 clients (empty batch → -32600), JSON responses (no SSE), no session id, notifications → 202, GET/DELETE → 405, lenient Accept, CORS on. All transport logic lives here on purpose. The 2026-07-28 revision candidate (removes initialize/sessions, not yet ratified) lands as a change to this file only when it ships.
+- `index.ts`. Router: `/mcp` → mcp.ts, `/v1/*` → rest.ts, `/health`, else static assets. Worker routes answer plain HTTP with a 308 to HTTPS (localhost exempt) and always carry HSTS and nosniff
+- `mcp.ts`, **stateless MCP Streamable HTTP, hand-rolled, zero deps.** Protocol 2025-03-26/06-18/11-25: single JSON-RPC message or a batch accepted per POST for every legacy revision, refused for 2026-07-28 (empty batch → -32600, max 20 messages, and one upstream work budget of 15 claim-equivalents across the batch), JSON responses (no SSE), no session id, notifications → 202, GET/DELETE → 405, lenient Accept, CORS on. All transport logic lives here on purpose. The 2026-07-28 revision candidate (removes initialize/sessions, not yet ratified) lands as a change to this file only when it ships.
 - `tools.ts`, 11 tool definitions + dispatch (incl. `verify_claims`, the batch wrapper over the `verify_stat` core: 1–15 claims, per-claim error isolation, verdict-count summary). Tool failures return `isError: true` results (never protocol errors). `search`/`fetch` follow OpenAI's deep-research connector schema exactly (outputSchema declared).
 - `rest.ts`. GET mirror of the tools; 422 for helpful failures with suggestions. One non-GET route: `POST /v1/verify_claims` (JSON body `{ claims: [...] }`; GET on it → 405 advice, non-JSON content-type → 415).
 - `core/analytics.ts`. Aggregate usage recording (Workers Analytics Engine binding `STATCITE_USAGE` + a `STATCITE_USAGE {json}` log line). Called from `tools.ts` (`callTool`) and `rest.ts` only. **How to read the data: `docs/LAUNCH.md` → "Reading usage analytics".**

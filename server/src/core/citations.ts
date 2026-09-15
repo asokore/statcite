@@ -2,6 +2,7 @@
 
 import type { Citation, Ctx } from "./types.ts";
 import { today } from "./types.ts";
+import { stripControls } from "./text.ts";
 
 export const FRED_NOTICE =
   "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.";
@@ -39,10 +40,18 @@ export function retrievedVia(date: string, through?: string): string {
   return `Retrieved ${date} via ${chain} (${STATCITE_URL}).`;
 }
 
-/** Escape the BibTeX-special characters that actually occur in series names
- * (%, &, _, #, $). Braces are structural and never appear in our field data. */
+/** Make text safe inside a BibTeX field. Line breaks become spaces, and
+ * braces and backslashes are removed, because they are structural: an
+ * unbalanced brace in third-party or caller-influenced text could close the
+ * field and inject another. The remaining specials (%, &, _, #, $) are escaped. */
 function bibtexEscape(s: string): string {
-  return s.replace(/([&%$#_])/g, "\\$1");
+  return s.replace(/[\r\n]+/g, " ").replace(/[{}\\]/g, "").replace(/([&%$#_])/g, "\\$1");
+}
+
+/** A URL inside a BibTeX url field stays verbatim (biblatex reads it that
+ * way), so only the characters that could break the field are encoded. */
+function bibtexUrl(u: string): string {
+  return u.replace(/[\r\n]+/g, "").replace(/\{/g, "%7B").replace(/\}/g, "%7D");
 }
 
 /** Derive reference-manager export formats from the citation's own fields —
@@ -50,15 +59,28 @@ function bibtexEscape(s: string): string {
  * APA 7 treats continuously updated datasets as (n.d.) works cited with a
  * retrieval date, which is exactly what these series are; BibTeX carries the
  * retrieval year as `year` with the full date in `note`. */
-export function withExports(c: Citation): Citation {
+export function withExports(raw: Citation): Citation {
+  // Every builder ends here, so this is the one place that strips control
+  // characters from the free text any upstream (World Bank, DBnomics, IMF,
+  // BIS, ECB, the CaribStat mirror) can put into a citation. Nothing else
+  // changes: no length cap, no whitespace collapse.
+  const c: Citation = {
+    ...raw,
+    source: stripControls(raw.source),
+    dataset: stripControls(raw.dataset),
+    series_name: stripControls(raw.series_name),
+    attribution: stripControls(raw.attribution),
+    citation_text: stripControls(raw.citation_text),
+    ...(raw.notices ? { notices: raw.notices.map(stripControls) } : {}),
+  };
   const year = c.retrieved_at.slice(0, 4);
   const key = `${c.source.split(/[^A-Za-z]/)[0].toLowerCase() || "statcite"}_${c.series_id.replace(/[^A-Za-z0-9]+/g, "_")}_${year}`;
   const bibtex =
     `@misc{${key},\n` +
-    `  author = {{${c.source}}},\n` +
+    `  author = {{${bibtexEscape(c.source)}}},\n` +
     `  title = {{${bibtexEscape(c.dataset)}: ${bibtexEscape(c.series_name)}}},\n` +
     `  year = {${year}},\n` +
-    `  url = {${c.source_url}},\n` +
+    `  url = {${bibtexUrl(c.source_url)}},\n` +
     `  note = {Series ${bibtexEscape(c.series_id)}. ${retrievedVia(c.retrieved_at)} ${bibtexEscape(c.attribution)}}\n` +
     `}`;
   const apa = `${c.source}. (n.d.). ${c.series_name} [Data set]. ${c.dataset}. Retrieved ${c.retrieved_at}, from ${c.source_url}`;

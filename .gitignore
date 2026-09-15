@@ -2,6 +2,15 @@ node_modules/
 dist/
 .dev.vars
 .env
+# Variants wrangler and other tools also read. Example files stay committable.
+.env*
+!.env.example
+.dev.vars*
+!.dev.vars.example
+*.pem
+*.key
+# Repo-level agent settings can hold local permission allowlists.
+.claude/settings.local.json
 *.log
 .wrangler/
 .DS_Store

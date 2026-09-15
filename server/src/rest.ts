@@ -9,11 +9,13 @@ import { countrySnapshot } from "./core/snapshot.ts";
 import { inflationAdjust } from "./core/inflation.ts";
 import { fxConvert } from "./core/fx.ts";
 import { verifyStat } from "./core/verify.ts";
-import { runVerifyClaims } from "./tools.ts";
+import { runVerifyClaims, MAX_STR_LEN } from "./tools.ts";
 import { SOURCES } from "./core/sources.ts";
 import { corsHeaders, SERVER_VERSION } from "./mcp.ts";
 import { parseTransform } from "./core/transforms.ts";
 import { recordUsage, restOp, indicatorLabel, countryLabel, seriesIdCountry, type Outcome } from "./core/analytics.ts";
+import { readBodyCapped, MAX_BODY_BYTES } from "./body.ts";
+import { quoteInput } from "./core/text.ts";
 
 function json(status: number, body: unknown, cacheSeconds = 3600): Response {
   return new Response(JSON.stringify(body, null, 2), {
@@ -155,15 +157,18 @@ function qYear(q: URLSearchParams, name: string): string | undefined {
 function rejectUnknownParams(q: URLSearchParams, allowed: readonly string[]): void {
   // A repeated name is refused too. q.get() reads the first value and drops
   // the rest, so ?tolerance_abs=0.5&tolerance_abs=0.01 silently checked at 0.5.
-  for (const k of new Set(q.keys())) {
-    const n = q.getAll(k).length;
+  // One counting pass. getAll() per distinct name rescans the whole list, which
+  // made a URL of a few thousand short names cost several times the CPU budget.
+  const counts = new Map<string, number>();
+  for (const k of q.keys()) counts.set(k, (counts.get(k) ?? 0) + 1);
+  for (const [k, n] of counts) {
     if (n > 1) {
       throw new ParamError(
-        `Query parameter '${k}' was given ${n} times. Each parameter takes one value. For several countries or indicators, make one call for each.`,
+        `Query parameter '${quoteInput(k, 40)}' was given ${n} times. Each parameter takes one value. For several countries or indicators, make one call for each.`,
       );
     }
   }
-  const unknown = [...new Set(q.keys())].filter((k) => !allowed.includes(k));
+  const unknown = [...counts.keys()].filter((k) => !allowed.includes(k));
   if (!unknown.length) return;
   const near = (name: string): string => {
     const lower = name.toLowerCase().replace(/[^a-z]/g, "");
@@ -171,9 +176,10 @@ function rejectUnknownParams(q: URLSearchParams, allowed: readonly string[]): vo
     return hit ? ` Did you mean '${hit}'?` : "";
   };
   const first = unknown[0];
+  const more = unknown.slice(1);
   throw new ParamError(
-    `Unknown query parameter '${first}'.${near(first)}` +
-      (unknown.length > 1 ? ` Also unknown: ${unknown.slice(1).join(", ")}.` : "") +
+    `Unknown query parameter '${quoteInput(first, 64)}'.${near(first)}` +
+      (more.length ? ` Also unknown: ${more.slice(0, 5).map((k) => quoteInput(k, 40)).join(", ")}${more.length > 5 ? ` and ${more.length - 5} more` : ""}.` : "") +
       ` This route accepts: ${allowed.join(", ")}.` +
       " Parameters are rejected rather than ignored, because a dropped tolerance or filter silently changes the answer.",
   );
@@ -253,6 +259,23 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
   const q = url.searchParams;
 
   try {
+    // One length cap for every query value and path parameter, the same 200
+    // characters MCP applies to its string arguments. Without it a REST caller
+    // could send a long country or query straight into the name matchers and
+    // the caribstat row parser, which cost far more CPU than the plan allows.
+    for (const [k, v] of q) {
+      if (v.length > MAX_STR_LEN) {
+        throw new ParamError(`Query parameter '${quoteInput(k, 40)}' is ${v.length} characters long. The limit is ${MAX_STR_LEN}.`);
+      }
+      if (k.length > 64) {
+        throw new ParamError(`A query parameter name is ${k.length} characters long. No parameter name is longer than 64.`);
+      }
+    }
+    const pathParam = path.match(/^\/v1\/(?:indicator|snapshot)\/([^/]+)$/)?.[1];
+    if (pathParam !== undefined && pathParam.length > MAX_STR_LEN) {
+      throw new ParamError(`The path parameter is ${pathParam.length} characters long. The limit is ${MAX_STR_LEN}.`);
+    }
+
     if (path === "/v1" || path === "/v1/index") {
       return json(200, {
         service: "StatCite",
@@ -410,7 +433,15 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
 
     const snapMatch = path.match(/^\/v1\/snapshot\/([^/]+)$/);
     if (snapMatch) {
-      const snapshot = await countrySnapshot(ctx, decodeURIComponent(snapMatch[1]));
+      let snapCountry: string;
+      try {
+        snapCountry = decodeURIComponent(snapMatch[1]);
+      } catch {
+        // A malformed percent escape used to reach decodeURIComponent unguarded
+        // and surface as a 500.
+        throw new ParamError(`The country in /v1/snapshot/{country} is not valid percent-encoding: '${quoteInput(snapMatch[1], 60)}'.`);
+      }
+      const snapshot = await countrySnapshot(ctx, snapCountry);
       // Same rule as /v1/indicator: a fallback-sourced number must not linger in
       // shared caches after the primary source recovers.
       return json(200, snapshot, snapshot.fallback_used ? 0 : 3600);
@@ -504,16 +535,22 @@ async function verifyClaimsRoute(request: Request, ctx: Ctx): Promise<Response> 
   }
   const contentType = request.headers.get("content-type") ?? "";
   if (!/\bapplication\/json\b/i.test(contentType)) {
-    return errJson(415, `Set 'content-type: application/json' and send a JSON body: { "claims": [...] } (got '${contentType || "no content-type"}').`);
+    return errJson(415, `Set 'content-type: application/json' and send a JSON body: { "claims": [...] } (got '${contentType ? quoteInput(contentType, 60) : "no content-type"}').`);
+  }
+  // Capped read: the body used to be buffered in full, whatever its size,
+  // before any limit applied.
+  const read = await readBodyCapped(request);
+  if (!read.ok) {
+    return errJson(413, `The request body is over ${MAX_BODY_BYTES} bytes. A verify_claims call takes at most 15 claims, which is a few KB.`, undefined, "invalid_body");
   }
   let body: unknown;
   try {
-    body = await request.json();
+    body = JSON.parse(read.text);
   } catch {
     return errJson(422, 'Malformed JSON body. Send: { "claims": [{ "indicator": ..., "country": ..., "period": ..., "claimed_value": ... }] }.', undefined, "invalid_body");
   }
   if (body === null || typeof body !== "object" || Array.isArray(body)) {
-    return errJson(422, 'Body must be a JSON object with a \'claims\' array — wrap the claims as { "claims": [...] }.', undefined, "invalid_body");
+    return errJson(422, 'Body must be a JSON object with a \'claims\' array. Wrap the claims as { "claims": [...] }.', undefined, "invalid_body");
   }
   const b = body as Record<string, unknown>;
   // The same refusal the claim objects and the GET routes apply. A dropped
@@ -522,17 +559,18 @@ async function verifyClaimsRoute(request: Request, ctx: Ctx): Promise<Response> 
   const BODY_KEYS = ["claims", "strict_source"];
   const unknownTop = Object.keys(b).filter((k) => !BODY_KEYS.includes(k));
   if (unknownTop.length) {
+    const more = unknownTop.slice(1);
     return errJson(
       400,
-      `Unknown body key '${unknownTop[0]}'.` +
-        (unknownTop.length > 1 ? ` Also unknown: ${unknownTop.slice(1).join(", ")}.` : "") +
+      `Unknown body key '${quoteInput(unknownTop[0], 64)}'.` +
+        (more.length ? ` Also unknown: ${more.slice(0, 5).map((k) => quoteInput(k, 40)).join(", ")}${more.length > 5 ? ` and ${more.length - 5} more` : ""}.` : "") +
         " The body accepts: claims, strict_source. Per-claim settings such as tolerance_abs go inside each claim object.",
-      { unknown_keys: unknownTop, accepted_keys: BODY_KEYS },
+      { unknown_keys: unknownTop.slice(0, 10).map((k) => quoteInput(k, 64)), unknown_count: unknownTop.length, accepted_keys: BODY_KEYS },
       "invalid_body",
     );
   }
   if (b.strict_source != null && typeof b.strict_source !== "boolean") {
-    return errJson(400, `'strict_source' must be a JSON boolean, true or false, not ${JSON.stringify(b.strict_source)}.`);
+    return errJson(400, `'strict_source' must be a JSON boolean, true or false, not ${quoteInput(JSON.stringify(b.strict_source), 40)}.`);
   }
   try {
     return json(200, await runVerifyClaims(ctx, b.claims, b.strict_source === true), 0);

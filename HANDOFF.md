@@ -64,19 +64,19 @@ npm run smoke   # expect: SMOKE: ALL PASS (live network calls)
 npm run dev     # wrangler dev → open http://localhost:8787 (site) and check /health
 ```
 
-First `npx wrangler` use will prompt to install wrangler, accept (or `npm i -D wrangler` to pin it).
+wrangler runs through npx at the exact version pinned in `server/package.json` (currently 4.131.1). Use that version in every command below, never the unversioned form, which fetches whatever release is newest.
 
 ## 4. Deploy to Cloudflare (~10 min)
 
 ```bash
 cd server
-npx wrangler login
-npx wrangler deploy
+npx wrangler@4.131.1 login
+npm run deploy
 ```
 
 This deploys the Worker **and** the static site (assets binding) to `statcite.<your-subdomain>.workers.dev`. Sanity check: open `https://statcite.<subdomain>.workers.dev/health`.
 
-**Wire the custom domain:** uncomment the `routes` block in `server/wrangler.jsonc` (statcite.com + www), then `npx wrangler deploy` again. (Alternative: dashboard → Workers → statcite → Settings → Domains & Routes → Add custom domain.) DNS is automatic when the domain is on the same Cloudflare account.
+**Wire the custom domain:** uncomment the `routes` block in `server/wrangler.jsonc` (statcite.com + www), then `npm run deploy` again. (Alternative: dashboard → Workers → statcite → Settings → Domains & Routes → Add custom domain.) DNS is automatic when the domain is on the same Cloudflare account.
 
 **Optional but recommended:**
 - Email: Cloudflare dashboard → Email → Email Routing → route `hello@statcite.com` → your Gmail.
