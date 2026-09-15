@@ -65,19 +65,6 @@ function arrivedOverHttp(request: Request, url: URL): boolean {
 async function routeWorker(request: Request, env: Env, url: URL): Promise<Response> {
   const path = url.pathname;
   const ctx = makeCtx(env);
-  // The API and MCP endpoint answered plain HTTP with data. The zone's own
-  // HTTPS redirect is the owner's setting, so the Worker enforces it for its
-  // routes itself. 308 keeps the method and body, so a POST to /mcp is
-  // retried over HTTPS by clients that follow redirects, and the body names
-  // the HTTPS address for those that do not.
-  if (arrivedOverHttp(request, url)) {
-    const target = new URL(url.href);
-    target.protocol = "https:";
-    return new Response(
-      JSON.stringify({ error: { code: "invalid_request", message: `StatCite is served over HTTPS only. Use ${target.href}` } }),
-      { status: 308, headers: { location: target.href, "content-type": "application/json", "cache-control": "no-store", ...corsHeaders() } },
-    );
-  }
   if (path === "/mcp" || path === "/mcp/") return handleMcp(request, ctx);
   if (path === "/v1" || path.startsWith("/v1/")) return handleRest(request, ctx);
   return new Response(JSON.stringify({ ok: true, service: "statcite", version: SERVER_VERSION }), {
@@ -85,8 +72,31 @@ async function routeWorker(request: Request, env: Env, url: URL): Promise<Respon
   });
 }
 
+/** The canonical host. www serves the same Worker, so it redirects here. */
+const APEX_HOST = "statcite.com";
+
+/**
+ * One redirect for the whole site: to HTTPS, and to the apex host. 308 keeps
+ * the method and body, so a POST to /mcp on the wrong scheme or host is
+ * retried correctly by any client that follows redirects.
+ */
+function canonicalRedirect(request: Request, url: URL): Response | null {
+  const wrongHost = url.hostname === `www.${APEX_HOST}`;
+  const wrongScheme = arrivedOverHttp(request, url);
+  if (!wrongHost && !wrongScheme) return null;
+  const target = new URL(url.href);
+  target.protocol = "https:";
+  if (wrongHost) target.hostname = APEX_HOST;
+  return new Response(
+    JSON.stringify({ error: { code: "invalid_request", message: `StatCite is served over HTTPS at https://${APEX_HOST}. Use ${target.href}` } }),
+    { status: 308, headers: { location: target.href, "content-type": "application/json", "cache-control": "no-store", ...corsHeaders() } },
+  );
+}
+
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
+  const redirect = canonicalRedirect(request, url);
+  if (redirect) return withSecurityHeaders(redirect);
   if (isWorkerRoute(url.pathname)) return withSecurityHeaders(await routeWorker(request, env, url));
   // Static site (landing page, docs, llms.txt, openapi.json, legal).
   return env.ASSETS.fetch(request);

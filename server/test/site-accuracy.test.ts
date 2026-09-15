@@ -363,15 +363,17 @@ test("site/_redirects sends only asset-served paths, to pages and anchors that e
     .map((l) => l.split(/\s+/));
   assert.ok(rules.length >= 5, `expected at least 5 redirect rules, found ${rules.length}`);
 
-  // A rule on a Worker-routed path never fires, because Workers Static Assets
-  // does not apply _redirects to requests the Worker serves. Read the routing
-  // list from the config rather than restating it here.
-  const wrangler = read("server/wrangler.jsonc");
-  const rwf = wrangler.match(/"run_worker_first"\s*:\s*\[([^\]]*)\]/);
-  assert.ok(rwf, "could not read run_worker_first from server/wrangler.jsonc");
-  const workerRoutes = [...rwf[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
-  const workerOwns = (p: string) =>
-    workerRoutes.some((r) => (r.endsWith("/*") ? p.startsWith(r.slice(0, -1)) : p === r));
+  // A rule on a path the Worker answers itself never fires, because those
+  // responses never reach the asset layer. run_worker_first is now true for the
+  // whole site (the Worker applies the HTTPS and apex redirects), so read the
+  // routes from isWorkerRoute in the Worker rather than from the config.
+  const router = read("server/src/index.ts");
+  const fn = router.match(/function isWorkerRoute\(path: string\): boolean \{([\s\S]*?)\n\}/);
+  assert.ok(fn, "could not read isWorkerRoute from server/src/index.ts");
+  const exact = [...fn[1].matchAll(/path === "([^"]+)"/g)].map((m) => m[1]);
+  const prefixes = [...fn[1].matchAll(/path\.startsWith\("([^"]+)"\)/g)].map((m) => m[1]);
+  assert.ok(exact.length >= 3 && prefixes.length >= 1, "isWorkerRoute was not parsed");
+  const workerOwns = (p: string) => exact.includes(p) || prefixes.some((r) => p.startsWith(r));
 
   const pageFor: Record<string, string> = { "/": "site/index.html" };
   const offences: string[] = [];
