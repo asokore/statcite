@@ -36,6 +36,16 @@ while read local_ref local_sha remote_ref remote_sha; do
     echo "Push via the public-sync branch (git push origin public-sync:main), which excludes bench/runs/R2*." >&2
     exit 1
   fi
+  # The public remote must not learn the maintainer's personal address. Commits
+  # authored before 15 September 2026 carry it, so a cherry-pick of one would
+  # reintroduce it. `git commit --amend --reset-author` fixes a refused commit.
+  ident=$(git log --format='%ae%n%ce' "$local_sha" --not --remotes="$remote" 2>/dev/null | sort -u | grep -v "users.noreply.github.com" | head -5)
+  if [ -n "$ident" ]; then
+    echo "PUSH REFUSED: these commits ($local_ref) carry a non-noreply author or committer address:" >&2
+    echo "$ident" >&2
+    echo "Re-author them (git rebase --exec 'git commit --amend --no-edit --reset-author') before publishing." >&2
+    exit 1
+  fi
   # Every path touched by a commit the remote does not already have. Not
   # `rev-list --objects`, which names each object once at the first path it
   # meets, so results renamed elsewhere before removal went unseen.
