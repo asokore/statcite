@@ -24,7 +24,7 @@ Rejecting those cells would have been the wrong repair twice over: it would sile
 
 **Why.** `report.mjs` was written once, for P0, before any multi-vendor run existed, and the banner text was never made conditional — a case this codebase hadn't needed until R1.
 
-**Effect on results.** No effect on any scored number, verdict, band, or ground truth — `score.mjs`'s output (`summary.json`) is unchanged; only `report.mjs`'s prose banner/title/footnote changed. Re-ran `report.mjs --run P0` after the fix to confirm P0's `REPORT.md` is byte-identical (P0 is single-vendor, so it takes the unchanged original-banner branch) — confirmed via `git diff --stat` showing no change. This fix happened after the `prereg-R1` freeze (commit `322e64e`) and after all R1 model calls were made, so it is logged here per COVENANT §7 even though it touches presentation, not analysis.
+**Effect on results.** No effect on any scored number, verdict, band, or ground truth — `score.mjs`'s output (`summary.json`) is unchanged; only `report.mjs`'s prose banner/title/footnote changed. Re-ran `report.mjs --run P0` after the fix to confirm P0's `REPORT.md` is byte-identical (P0 is single-vendor, so it takes the unchanged original-banner branch) — confirmed via `git diff --stat` showing no change. This fix happened after the `prereg-R1` freeze (commit `322e64e`, `2692f00` since the 15 September 2026 history rewrite, see COMMIT-MAP.md) and after all R1 model calls were made, so it is logged here per COVENANT §7 even though it touches presentation, not analysis.
 
 ---
 

@@ -121,6 +121,23 @@ test("no secret-bearing file names are tracked", () => {
   assert.deepEqual(bad, []);
 });
 
+test("no tracked file carries the maintainer's personal address", () => {
+  // The project address is hello@statcite.com. The personal one was removed from
+  // the whole history on 15 September 2026 and must not come back.
+  const offenders: string[] = [];
+  for (const f of trackedFiles()) {
+    if (f === "server/test/site-security.test.ts" || /\.(png|ico|svg|zip|skill|gz)$/i.test(f)) continue;
+    let text: string;
+    try {
+      text = read(f);
+    } catch {
+      continue;
+    }
+    if (/[A-Za-z0-9._%-]+@gmail\.com/.test(text)) offenders.push(f);
+  }
+  assert.deepEqual(offenders, []);
+});
+
 test("the publish workflow runs a pinned, checksum-verified mcp-publisher", () => {
   const wf = read(".github/workflows/publish-mcp.yml");
   assert.doesNotMatch(wf, /releases\/latest\/download/);
