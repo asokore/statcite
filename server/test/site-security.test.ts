@@ -146,6 +146,8 @@ test("no tracked file tells anyone to run a bare, unpinned npx wrangler", () => 
   assert.ok(pinned, "server/package.json pins wrangler");
   const offenders: string[] = [];
   for (const f of trackedFiles()) {
+    // This file names the pattern it bans, so it is skipped.
+    if (f === "server/test/site-security.test.ts") continue;
     if (!/\.(md|mjs|js|ts|json|jsonc|yml|yaml|sh|html|txt)$/i.test(f) || f.endsWith(".bundle.mjs") || f.startsWith("bench/runs/")) continue;
     let text: string;
     try {
