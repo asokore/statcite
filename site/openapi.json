@@ -268,6 +268,15 @@
             "description": "Required for worldbank/* ids. Not used by caribstat/* ids, which carry their geography in the id."
           },
           {
+            "name": "row",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Row of a multi-row caribstat table, given without the '#'. In a URL a raw '#' starts a fragment and never reaches the server, so row=Public Sector Debt is the fragment-free spelling of id=...%23Public%20Sector%20Debt. Sending the row both ways, or sending it with a non-caribstat id, is refused with a 400."
+          },
+          {
             "name": "latest_only",
             "in": "query",
             "schema": {
@@ -961,7 +970,21 @@
                       "type": "number"
                     },
                     "rate_date": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "The period the rate comes from. On a USD-bridged cross rate the two legs can be dated differently, and this is the STALEST of them: a cross rate is only as current as its oldest leg."
+                    },
+                    "legs": {
+                      "type": "array",
+                      "description": "Present on USD-bridged conversions: one entry per side of the bridge, with the rate used, the period it came from (null for the USD identity leg) and the publisher.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "currency": { "type": "string" },
+                          "usd_per_unit": { "type": "number" },
+                          "period": { "type": ["string", "null"] },
+                          "source": { "type": "string" }
+                        }
+                      }
                     },
                     "method": {
                       "type": "string"

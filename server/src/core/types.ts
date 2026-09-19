@@ -1,6 +1,10 @@
 // Shared types for the StatCite core.
 
 export interface Ctx {
+  /** Which public surface is serving this request. Undefined means MCP, so any
+   * caller that does not set it keeps the wording it has today. Read only by
+   * message builders, so a body names a call the reader can actually make. */
+  surface?: "mcp" | "rest";
   /** Public base URL of this deployment (for self-links in docs/errors). */
   baseUrl: string;
   /** INERT: FRED is permanently disabled (adapters/fred.ts declines regardless of

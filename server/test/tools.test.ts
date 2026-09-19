@@ -318,3 +318,27 @@ test("get_series advertises the Caribbean id form it accepts", async () => {
   assert.match(gs.description, /caribstat\//, "get_series must tell agents caribstat/ ids exist");
   assert.match(gs.description, /Eastern Caribbean Central Bank/);
 });
+
+test("search never emits an id that fetch is guaranteed to refuse", async () => {
+  // The deep-research pair is a contract: a client calls search, then fetches
+  // every id it returns. A euro-area-only series emitted under another country
+  // fails on that follow-up call, and the title mislabelled an aggregate as a
+  // national series.
+  for (const query of ["inflation barbados", "inflation anguilla", "hicp", "inflation"]) {
+    const s = await mcpTool("search", { query });
+    for (const r of s.payload.results as Array<{ id: string; title: string }>) {
+      if (r.id === "help/indicators") continue;
+      const f = await mcpTool("fetch", { id: r.id });
+      const text = JSON.stringify(f.payload);
+      assert.doesNotMatch(text, /only published for the euro area/, `${query} -> ${r.id}: ${text.slice(0, 200)}`);
+    }
+  }
+});
+
+test("a euro-area-only series is searched under the geography that serves it", async () => {
+  const s = await mcpTool("search", { query: "euro area hicp" });
+  const hit = (s.payload.results as Array<{ id: string; title: string }>).find((r) => r.id.includes("euro_area_hicp"));
+  assert.ok(hit, JSON.stringify(s.payload.results));
+  assert.equal(hit.id, "indicator/euro_area_hicp/EMU");
+  assert.match(hit.title, /Euro area$/);
+});

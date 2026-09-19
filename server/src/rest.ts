@@ -195,7 +195,9 @@ interface UsageSlot {
  * (see core/analytics.ts). Recording happens after the Response object exists,
  * never throws, and adds no awaits to the response path.
  */
-export async function handleRest(request: Request, ctx: Ctx): Promise<Response> {
+export async function handleRest(request: Request, baseCtx: Ctx): Promise<Response> {
+  // Everything below answers an HTTP caller, who has no MCP tools.
+  const ctx: Ctx = { ...baseCtx, surface: "rest" };
   const started = Date.now();
   const slot: UsageSlot = {};
   const routed = await routeRest(request, ctx, slot);
@@ -401,9 +403,24 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
     }
 
     if (path === "/v1/series") {
-      rejectUnknownParams(q, ["id", "country", "latest_only", "start_year", "end_year", "transform", "strict_source"]);
-      const id = q.get("id");
-      if (!id) return errJson(400, "Query parameter 'id' is required, e.g. id=worldbank/NY.GDP.MKTP.KD.ZG.");
+      rejectUnknownParams(q, ["id", "country", "row", "latest_only", "start_year", "end_year", "transform", "strict_source"]);
+      const idParam = q.get("id");
+      if (!idParam) return errJson(400, "Query parameter 'id' is required, e.g. id=worldbank/NY.GDP.MKTP.KD.ZG.");
+      // A caribstat row selector is written '#Row Label'. In a URL a raw '#'
+      // starts a fragment and never reaches the server, so a caller following
+      // StatCite's own pointer silently got the table's first row instead. 'row'
+      // is the fragment-free spelling; '%23' still works.
+      const row = q.get("row");
+      let id = idParam;
+      if (row !== null) {
+        if (!idParam.startsWith("caribstat/")) {
+          return errJson(400, `'row' selects a row inside a caribstat table and does not apply to '${quoteInput(idParam, 80)}'. Drop it, or use a caribstat/ id.`);
+        }
+        if (idParam.includes("#")) {
+          return errJson(400, "The row is given twice: once in the id after '#' and once as 'row'. Send one spelling, not both.");
+        }
+        id = `${idParam}#${row}`;
+      }
       const result = await getSeries(ctx, id, {
         country: q.get("country") ?? undefined,
         start: qYear(q, "start_year"),

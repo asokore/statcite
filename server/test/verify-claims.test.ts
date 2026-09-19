@@ -339,3 +339,25 @@ test("tools/list reports 12 tools and includes verify_claims with the workflow d
   assert.match(vc.description, /15/);
   assert.match(vc.description, /citation/);
 });
+
+test("a per-claim failure carries the same code and details the single-claim path returns", async () => {
+  // One draft can mix a permanent coverage gap with a transient outage. Prose
+  // alone left the agent unable to tell which to retry and which to report.
+  installFetchStub();
+  const claims = [
+    { indicator: "not_a_real_indicator", period: "2024", claimed_value: 5 },
+    { indicator: "inflation_cpi", country: "FRA", period: "2024", claimed_value: 2.0 },
+  ];
+  const batch = await mcpTool("verify_claims", { claims });
+  const results = batch.payload.results as Array<any>;
+  assert.equal(results.length, 2);
+  for (const [i, claim] of claims.entries()) {
+    const single = await mcpTool("verify_stat", claim);
+    assert.equal(results[i].ok, false, JSON.stringify(results[i]));
+    assert.equal(results[i].code, single.payload.code, `claim ${i}`);
+    assert.deepEqual(results[i].details, single.payload.details, `claim ${i}`);
+  }
+  // The whole point: the two failures are distinguishable.
+  assert.notEqual(results[0].code, results[1].code);
+  assert.equal(results[0].code, "unknown_indicator");
+});

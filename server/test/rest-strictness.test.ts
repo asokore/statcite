@@ -101,3 +101,62 @@ test("an impossible calendar date on /v1/fx is a 422 naming the date, with no up
     assert.equal(restore(), 0);
   }
 });
+
+test("no /v1 body tells a REST caller to call an MCP tool", async () => {
+  // A REST caller has no get_indicator. This reached a 200 response: every
+  // /v1/search hit carried usage: get_indicator(...).
+  const CALL_FORM = /\b(get_indicator|get_series|search_indicators|verify_stat|verify_claims|compare_sources|country_snapshot|list_sources|inflation_adjust|fx_convert)\s*\(/;
+  const IMPERATIVE = /\b(use|call|see)\s+(the\s+)?(get_indicator|get_series|search_indicators|verify_stat|compare_sources)\b/i;
+  const paths = [
+    "/v1/search?q=government+debt",
+    "/v1/search?q=anguilla",
+    "/v1/series?id=inflation_cpi",
+    "/v1/series?id=not-a-real-id",
+  ];
+  for (const p of paths) {
+    const text = JSON.stringify((await get(p)).body);
+    assert.doesNotMatch(text, CALL_FORM, p);
+    assert.doesNotMatch(text, IMPERATIVE, p);
+  }
+});
+
+const CARIBSTAT_DOC = JSON.stringify({
+  source: "Eastern Caribbean Central Bank",
+  source_id: "eccb",
+  source_url: "https://www.eccb-centralbank.org/statistics",
+  table_id: "total-public-sector-debt",
+  table_title: "Total Public Sector Debt",
+  country: { iso3: "AIA", name: "Anguilla" },
+  frequency: "a",
+  data_as_at: "2026-06-08",
+  retrieved_at: "2026-08-13T16:28:44.604Z",
+  periods: ["2024", "2025"],
+  periods_raw: ["2024", "2025"],
+  series: [
+    { label: "Central Government Debt", unit: "EC$M", observations: [{ period: "2024", value: 210.4 }, { period: "2025", value: 219.9 }] },
+    { label: "Public Sector Debt", unit: "EC$M", observations: [{ period: "2024", value: 222.9 }, { period: "2025", value: 232.9 }] },
+  ],
+});
+
+test("a caribstat row can be asked for over HTTP without a fragment", async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(CARIBSTAT_DOC, { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch;
+  try {
+    const base = "caribstat/ECCB/total-public-sector-debt/AIA.a";
+    const label = "Public Sector Debt";
+    const viaRow = await get(`/v1/series?id=${encodeURIComponent(base)}&row=${encodeURIComponent(label)}`);
+    const viaHash = await get(`/v1/series?id=${encodeURIComponent(`${base}#${label}`)}`);
+    assert.equal(viaRow.res.status, 200, JSON.stringify(viaRow.body));
+    assert.equal(viaRow.body.series_id, viaHash.body.series_id);
+    assert.deepEqual(viaRow.body.observations, viaHash.body.observations);
+    assert.match(viaRow.body.series_id, /#Public Sector Debt$/);
+
+    // Two spellings of one row, and a row on an id with no rows, are refused.
+    const both = await get(`/v1/series?id=${encodeURIComponent(`${base}#${label}`)}&row=${encodeURIComponent(label)}`);
+    assert.equal(both.res.status, 400);
+    const wrongKind = await get("/v1/series?id=worldbank/NY.GDP.MKTP.KD.ZG&country=BRB&row=x");
+    assert.equal(wrongKind.res.status, 400);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
