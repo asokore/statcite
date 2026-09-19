@@ -1,8 +1,8 @@
 // MCP tool registry: definitions (agent-facing contract) + dispatch.
 
 import type { Ctx } from "./core/types.ts";
-import { ToolError } from "./core/types.ts";
-import { getIndicator, getSeries, searchIndicators, listRegistry, wbIsPrimarySource, compareSources, isDisabledDef } from "./core/series.ts";
+import { ToolError, toolErrorCode, type ErrorCode } from "./core/types.ts";
+import { getIndicator, getSeries, searchIndicators, listRegistry, wbIsPrimarySource, compareSources, isDisabledDef, isFixedGeographyDef } from "./core/series.ts";
 import { countrySnapshot } from "./core/snapshot.ts";
 import { inflationAdjust } from "./core/inflation.ts";
 import { fxConvert } from "./core/fx.ts";
@@ -125,7 +125,7 @@ export interface ClaimSpec {
 
 export type ClaimResult =
   | { ok: true; claim: ClaimSpec; verification: VerifyResult }
-  | { ok: false; claim: ClaimSpec; error: string };
+  | { ok: false; claim: ClaimSpec; error: string; code: ErrorCode; details?: Record<string, unknown> };
 
 export interface VerifyClaimsResult {
   summary: { total: number; match: number; close: number; mismatch: number; cannot_verify: number; error: number };
@@ -272,10 +272,33 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
   return out;
 }
 
-function claimErrorMessage(e: unknown): string {
-  if (e instanceof ToolError) return e.message;
-  if (e instanceof UpstreamError) return `Upstream data source problem: ${e.message} Usually transient, retry shortly.`;
-  return "Internal error verifying this claim. Please retry; if persistent, verify it individually with verify_stat.";
+/**
+ * A failed claim, shaped like every other error this service returns.
+ *
+ * verify_claims is the "fact-check a whole draft" path, so one batch can mix a
+ * permanent coverage gap with a transient outage. Returning only prose left the
+ * agent unable to tell which to retry and which to report, while verify_stat,
+ * REST and MCP all carried a code and details for the identical failure.
+ */
+function claimFailure(claim: ClaimSpec, e: unknown): ClaimResult {
+  if (e instanceof ToolError) {
+    return { ok: false, claim, error: e.message, code: toolErrorCode(e), ...(e.details ? { details: e.details } : {}) };
+  }
+  if (e instanceof UpstreamError) {
+    return {
+      ok: false,
+      claim,
+      error: `Upstream data source problem: ${e.message} Usually transient, retry shortly.`,
+      code: "upstream_unavailable",
+      details: { upstream_url: e.url },
+    };
+  }
+  return {
+    ok: false,
+    claim,
+    error: "Internal error verifying this claim. Please retry; if persistent, verify it individually with verify_stat.",
+    code: "internal_error",
+  };
 }
 
 export async function runVerifyClaims(ctx: Ctx, claimsRaw: unknown, strictSource = false): Promise<VerifyClaimsResult> {
@@ -284,7 +307,7 @@ export async function runVerifyClaims(ctx: Ctx, claimsRaw: unknown, strictSource
     try {
       return { ok: true, claim, verification: await verifyStat(ctx, { ...claim, strict_source: strictSource }) };
     } catch (e) {
-      return { ok: false, claim, error: claimErrorMessage(e) };
+      return claimFailure(claim, e);
     }
   });
   const summary = { total: claims.length, match: 0, close: 0, mismatch: 0, cannot_verify: 0, error: 0 };
@@ -670,11 +693,17 @@ export const TOOLS: ToolDef[] = [
       // outside its scope, is GUARANTEED to fail on that follow-up call: the
       // pairing is the contract, so search must not emit ids fetch will refuse.
       // Over-fetch and filter so the result count still holds.
+      // A fixed-geography key (the euro-area HICP) is served only for the euro
+      // area, so pin it there rather than dropping it: dropping would remove the
+      // only route to that series through this pair, and emitting it under the
+      // caller's country both mislabels an aggregate and guarantees a refusal.
+      const euroArea = resolveCountry("EMU");
       const matches = searchIndicatorDefs(query, 14).filter((m) => !isDisabledDef(m.def)).slice(0, 6);
       const results: Array<{ id: string; title: string; url: string }> = [];
       for (const m of matches) {
-        const iso = country?.iso3 ?? "WLD";
-        const cname = country?.name ?? "World";
+        const geo = isFixedGeographyDef(m.def) ? euroArea : country;
+        const iso = geo?.iso3 ?? "WLD";
+        const cname = geo?.name ?? "World";
         results.push({
           id: `indicator/${m.def.key}/${iso}`,
           title: `${m.def.label}, ${cname}`,

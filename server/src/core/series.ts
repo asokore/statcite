@@ -546,7 +546,9 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
     throw new ToolError(
       `Unknown indicator '${key}'.` +
         (near.length ? ` Closest matches: ${near.join(", ")}.` : "") +
-        " Use search_indicators to browse the registry, or pass an explicit series id like 'worldbank/NY.GDP.MKTP.KD.ZG'.",
+        (ctx.surface === "rest"
+          ? " Use GET /v1/indicators to list the registry, or pass an explicit series id like 'worldbank/NY.GDP.MKTP.KD.ZG'."
+          : " Use search_indicators to browse the registry, or pass an explicit series id like 'worldbank/NY.GDP.MKTP.KD.ZG'."),
       { input: key, suggestions: near },
       "unknown_indicator",
     );
@@ -1192,7 +1194,11 @@ export async function getSeries(
   // Fall back to registry keys ("gdp_growth") when a country is provided.
   if (getIndicatorDef(id)) {
     if (!opts.country) {
-      throw new ToolError(`'${id}' is a registry indicator. Pass a 'country' as well, or use the get_indicator tool.`);
+      throw new ToolError(
+        ctx.surface === "rest"
+          ? `'${id}' is a registry indicator. Pass a 'country' as well, or call GET /v1/indicator/${id}?country=<ISO3 or name>.`
+          : `'${id}' is a registry indicator. Pass a 'country' as well, or use the get_indicator tool.`,
+      );
     }
     return getIndicator(ctx, id, opts.country, opts);
   }
@@ -1223,7 +1229,7 @@ export async function getSeries(
     : [];
   if (near.length) hints.push(`Registry keys that may match: ${near.join(", ")}.`);
   throw new ToolError(
-    `Unrecognized series id '${id}'. Expected 'worldbank/CODE', 'imf/CODE', 'caribstat/BANK/TABLE/SERIES', 'dbnomics/PROVIDER/DATASET/SERIES', or a registry indicator key (see search_indicators). 'fred/' ids are recognised but permanently disabled.` +
+    `Unrecognized series id '${id}'. Expected 'worldbank/CODE', 'imf/CODE', 'caribstat/BANK/TABLE/SERIES', 'dbnomics/PROVIDER/DATASET/SERIES', or a registry indicator key (${ctx.surface === "rest" ? "list them with GET /v1/indicators" : "see search_indicators"}). 'fred/' ids are recognised but permanently disabled.` +
       (hints.length ? " " + hints.join(" ") : ""),
     { series_id: id, ...(near.length ? { suggestions: near } : {}) },
     "unknown_indicator",
@@ -1262,7 +1268,7 @@ const FRED_DISABLED_REASON =
  * condition getIndicator uses at the serving end to refuse anything but the
  * euro area. Deriving it the same way means search and serving cannot drift.
  */
-function isFixedGeographyDef(def: IndicatorDef): boolean {
+export function isFixedGeographyDef(def: IndicatorDef): boolean {
   return Boolean(def.sdmx && !def.sdmx.key.includes("{ISO2}"));
 }
 
@@ -1329,7 +1335,9 @@ export async function searchIndicators(ctx: Ctx, query: string, opts: { includeD
       url: wbIsPrimarySource(m.def) ? `https://data.worldbank.org/indicator/${m.def.wb}` : undefined,
       usage: disabled
         ? "Do not call: this key always declines. Search again for an active alternative (e.g. unemployment_rate, inflation_cpi, gdp_growth)."
-        : `get_indicator(indicator="${m.def.key}", country="<ISO3 or name>")`,
+        : ctx.surface === "rest"
+          ? `GET /v1/indicator/${m.def.key}?country=<ISO3 or name>`
+          : `get_indicator(indicator="${m.def.key}", country="<ISO3 or name>")`,
       active: !disabled,
     };
   });
@@ -1344,7 +1352,9 @@ export async function searchIndicators(ctx: Ctx, query: string, opts: { includeD
         id: hit.id,
         title: `${hit.entry.provider}: ${hit.entry.title}${hit.iso3 ? `, ${hit.iso3}` : ""}`,
         description: `${hit.why}. Regional central bank data, not a registry indicator: values are on the publishing bank's own definitions.`,
-        usage: `get_series(series_id="${hit.id}") — add '#Row Label' to pick a row, e.g. '#${hit.entry.sampleRow}'`,
+        usage: ctx.surface === "rest"
+          ? `GET /v1/series?id=${hit.id}&row=${encodeURIComponent(hit.entry.sampleRow)} (or percent-encode the '#' row selector as %23)`
+          : `get_series(series_id="${hit.id}") — add '#Row Label' to pick a row, e.g. '#${hit.entry.sampleRow}'`,
       });
     }
   }
@@ -1358,7 +1368,7 @@ export async function searchIndicators(ctx: Ctx, query: string, opts: { includeD
       id: g.id,
       title: `UNCTAD: GDP growth, ${g.name} (1971-2019)`,
       description: `The World Bank and IMF publish no GDP series for ${g.name}. UNCTAD does, annually from 1971, but it ENDS IN 2019, so it is history rather than a current figure.`,
-      usage: `get_series(series_id="${g.id}")`,
+      usage: ctx.surface === "rest" ? `GET /v1/series?id=${g.id}` : `get_series(series_id="${g.id}")`,
     });
   }
 
@@ -1370,7 +1380,11 @@ export async function searchIndicators(ctx: Ctx, query: string, opts: { includeD
           type: "dbnomics_dataset",
           id: `dbnomics/${d.providerCode}/${d.datasetCode}`,
           title: `${d.providerName}: ${d.datasetName}`,
-          description: `${d.nbSeries.toLocaleString("en-US")} series. Browse then fetch with get_series('dbnomics/${d.providerCode}/${d.datasetCode}/SERIES_CODE')`,
+          description:
+            `${d.nbSeries.toLocaleString("en-US")} series. Browse, then fetch one with ` +
+            (ctx.surface === "rest"
+              ? `GET /v1/series?id=dbnomics/${d.providerCode}/${d.datasetCode}/SERIES_CODE`
+              : `get_series('dbnomics/${d.providerCode}/${d.datasetCode}/SERIES_CODE')`),
           url: d.url,
         });
       }
