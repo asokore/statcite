@@ -91,7 +91,7 @@ li{margin:4px 0}
   }
  },
  "programmingModel": "REST",
- "assemblyVersion": "1.12.3",
+ "assemblyVersion": "1.13.0",
  "about": {
   "@type": "SoftwareApplication",
   "@id": "https://statcite.com/#app"
@@ -249,7 +249,7 @@ GET /v1/inflation?amount=100&from_year=1995&to_year=2024&country=USA
 GET /v1/fx?amount=100&from=USD&to=BBD&date=2024
 GET /v1/compare?indicator=govt_debt_gdp&country=BRB&period=2023
 GET /v1/status                            → version + live upstream probes (for a poller or badge)
-GET /v1/series?id=caribstat/ECCB/total-public-sector-debt/AIA.a#Total Public Sector Debt
+GET /v1/series?id=caribstat/ECCB/total-public-sector-debt/AIA.a&amp;row=Total Public Sector Debt
 GET /v1/sources
 GET /health</pre>
   <p>Errors: <code>400</code> missing/invalid parameters, <code>422</code> resolvable-but-failed requests (unknown country, out-of-range year, message includes suggestions), <code>502</code> upstream source trouble, <code>404</code> unknown endpoint. On <code>/v1/verify_claims</code>: <code>405</code> for GET (use POST), <code>415</code> for a non-JSON content-type, <code>400</code> for an unknown top-level body key or a non-boolean <code>strict_source</code>, <code>422</code> for a malformed body. Every error body is <code>{"error": {"code", "message", "details"}}</code>, and <code>code</code> is the field to branch on.</p>
@@ -325,6 +325,7 @@ GET /health</pre>
 
   <h2 id="changelog">10. Changelog</h2>
   <ul>
+    <li><strong>1.13.0</strong>: Verdicts say what they mean: a claim with the opposite sign to the official figure is no longer a "match" near zero, and the adjacent-year diagnostic no longer tells correct claims their year may be wrong. Anguilla and Montserrat return <code>cannot_verify</code> with the ECCB's related figures rather than an error. A year window with <code>yoy</code> keeps its first year. A bridged <code>fx_convert</code> rate is dated to its stalest leg and lists both legs. <code>search</code> no longer returns ids <code>fetch</code> would refuse, each failed claim in <code>verify_claims</code> carries an error code, every /v1 message names an HTTP call rather than an MCP tool, and <code>/v1/series</code> accepts <code>row=</code> for Caribbean tables. Identical upstream requests in flight are shared and a dead host is retried once per request, so one outage no longer starves a batch.</li>
     <li><strong>1.12.3</strong>: A security pass. The API and MCP endpoint redirect plain HTTP to HTTPS, and every response carries HSTS and nosniff. Request bodies over 262,144 bytes get a 413, query values are capped at 200 characters, and one batch may ask for at most the upstream work of a 15-claim <code>verify_claims</code> call. Upstream responses are capped at 5 MB with a timeout that covers the body. Caribbean series ids can no longer reach other paths, and <code>series_id</code> is built from the parsed id. Control characters are stripped from every citation, and the BibTeX export can no longer be broken by a brace.</li>
     <li><strong>1.12.2</strong>: MCP tool arguments are checked against each tool's published schema, so a misspelled tolerance can no longer turn a mismatch into a close verdict. Caribbean answers say which table row they served, a row label containing % no longer fails, and Anguilla and Montserrat point to the Eastern Caribbean Central Bank series with its definition. Every error carries a <code>code</code>, an absence is claimed only when every source reports it, and outages are coded <code>upstream_unavailable</code>. Cloudflare invocation logs, which kept request URLs, are switched off.</li>
     <li><strong>1.12.1</strong>: The country resolver no longer serves one country's figures for another. "American Samoa" had been answered with Samoa's data and "Northern Ireland" with Ireland's. <code>verify_claims</code> now refuses unknown claim keys, so a misspelled tolerance can no longer turn a mismatch into a match. Server instructions now say when to call StatCite, not only how, and every citation links back to statcite.com.</li>
