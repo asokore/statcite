@@ -251,3 +251,58 @@ test("listRegistry: IMF-primary fiscal indicators list IMF DataMapper first then
   assert.equal(reg.get("gdp_growth")![1], "IMF DataMapper API (current WEO/Fiscal Monitor)");
   assert.equal(reg.get("inflation_cpi")![0], "World Bank WDI");
 });
+
+// --- identical concurrent fetches share one flight ---------------------------
+
+test("five concurrent identical fetches cost one subrequest and all get the same body", async () => {
+  _clearMemCache();
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    // The delay matters: a synchronous stub settles each call before the next
+    // starts, and the test would then pass without any sharing.
+    await new Promise((r) => setTimeout(r, 5));
+    return new Response(JSON.stringify({ value: 42 }), { status: 200, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+
+  const results = await Promise.all(Array.from({ length: 5 }, () => fetchJson("https://up.test/shared")));
+  assert.equal(calls, 1, `expected 1 subrequest, got ${calls}`);
+  for (const r of results) assert.deepEqual(r, { value: 42 });
+});
+
+test("five concurrent fetches of a failing URL share one attempt series, not five", async () => {
+  _clearMemCache();
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    await new Promise((r) => setTimeout(r, 5));
+    return new Response("down", { status: 503 });
+  }) as typeof fetch;
+
+  const settled = await Promise.allSettled(Array.from({ length: 5 }, () => fetchJson("https://up.test/down", { timeoutMs: 200 })));
+  // Three attempts is the retry schedule for ONE caller. Before sharing, five
+  // callers cost fifteen subrequests against a 50-subrequest ceiling.
+  assert.equal(calls, 3, `expected 3 attempts in total, got ${calls}`);
+  assert.equal(settled.filter((s) => s.status === "rejected").length, 5);
+  for (const s of settled) {
+    assert.ok(s.status === "rejected" && s.reason instanceof UpstreamError, "sharing a failure must not look like success");
+  }
+});
+
+test("a different Accept header is never served from another flight's body", async () => {
+  _clearMemCache();
+  const seen: Array<string | undefined> = [];
+  globalThis.fetch = (async (_i: RequestInfo | URL, init?: RequestInit) => {
+    seen.push(new Headers(init?.headers).get("accept") ?? undefined);
+    await new Promise((r) => setTimeout(r, 5));
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+
+  await Promise.all([
+    fetchJson("https://up.test/negotiated"),
+    fetchJson("https://up.test/negotiated", { accept: "application/vnd.sdmx.data+json" }),
+  ]);
+  // BIS answers a plain application/json Accept with XML, so these must not share.
+  assert.equal(seen.length, 2, seen.join(", "));
+  assert.ok(seen.includes("application/vnd.sdmx.data+json"), seen.join(", "));
+});

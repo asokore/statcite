@@ -162,7 +162,56 @@ export function isMemCached(url: string): boolean {
   return !!hit && hit.exp > Date.now();
 }
 
+/** Flights in progress, keyed by everything that changes the bytes fetched. */
+const inflight = new Map<string, Promise<unknown>>();
+
+/**
+ * Fetch JSON, sharing an identical request that is already in the air.
+ *
+ * The memory cache can only see requests that have already SETTLED, so N
+ * concurrent callers for one URL each used to issue their own subrequest, and a
+ * failing URL was retried in full by every one of them. verify_claims runs four
+ * claims at a time and country_snapshot fans out across tables, so that
+ * multiplied the subrequest cost of an outage by the concurrency.
+ *
+ * Only parsed values are ever stored here, never a Response or a stream, so no
+ * I/O object crosses a request boundary.
+ */
 export async function fetchJson(
+  url: string,
+  opts: { ttlSeconds?: number; timeoutMs?: number; validate?: (data: unknown) => boolean; accept?: string; maxBytes?: number } = {},
+): Promise<unknown> {
+  const { ttlSeconds = 21600, timeoutMs = 8000, validate, accept, maxBytes = MAX_UPSTREAM_BYTES } = opts;
+  // `accept` and the timeouts are part of the key: BIS returns SDMX XML for a
+  // plain application/json Accept, so sharing across accept values would be the
+  // silent-corruption class the override exists to prevent, and a 5s status
+  // probe must not inherit an adapter's 8s wait. `validate` is deliberately not
+  // in the key: the body is the same, and each joiner re-checks it below.
+  const key = JSON.stringify([ttlSeconds, timeoutMs, maxBytes, accept ?? "", url]);
+  const flight = inflight.get(key);
+  if (flight) {
+    try {
+      const data = await flight;
+      // Same body, this caller's own shape contract.
+      if (!validate || validate(data)) return data;
+    } catch (e) {
+      // A transport verdict on the URL is caller-independent, so joiners may
+      // share it. A shape failure belongs to the starter's validate hook, and a
+      // cancellation says nothing about the upstream, so those fall through and
+      // this caller makes its own attempt.
+      if (e instanceof UpstreamError) throw e;
+    }
+  }
+  const started = attemptFetchJson(url, { ttlSeconds, timeoutMs, validate, accept, maxBytes });
+  inflight.set(key, started);
+  try {
+    return await started;
+  } finally {
+    inflight.delete(key);
+  }
+}
+
+async function attemptFetchJson(
   url: string,
   {
     ttlSeconds = 21600,

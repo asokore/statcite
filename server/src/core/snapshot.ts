@@ -178,9 +178,17 @@ export async function countrySnapshot(ctx: Ctx, countryInput: string): Promise<S
   // replacing, since the two use different definitions and currencies and one
   // must never silently stand in for the other.
   if (CARIBSTAT_ENABLED && ECCU_ISO3.has(country.iso3)) {
-    for (const spec of ECCU_SUPPLEMENT) {
+    // Fetch the tables together, consume them in order. These are the
+    // geographies the supplement exists for, and one table at a time made
+    // Anguilla and Montserrat the slowest snapshots in the service. Every
+    // promise is created and handed to allSettled in the same synchronous
+    // block, so none can reject unobserved.
+    const settled = await Promise.allSettled(ECCU_SUPPLEMENT.map((spec) => fetchCaribstatSeries(spec.id(country.iso3))));
+    for (const [i, spec] of ECCU_SUPPLEMENT.entries()) {
       try {
-        const c = await fetchCaribstatSeries(spec.id(country.iso3));
+        const outcome = settled[i];
+        if (outcome.status === "rejected") throw outcome.reason;
+        const c = outcome.value;
         const latest = latestNonNull(c.observations);
         if (!latest) continue;
         items.push({
