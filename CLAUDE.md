@@ -66,4 +66,12 @@ Separately, `caribstat/data/` and the other gitignored paths listed in `.gitigno
 6b. **Analytics is aggregate-only and best-effort**: never record IP, user agent, headers, free-text queries or claimed values (`site/privacy.html` promises no profiling); every recorded string comes from a closed set; `recordUsage()` must never throw into the response path. Analytics Engine blob positions are a schema, append, never reorder.
 7. If you change `core/`, run `npm test && npm run smoke`, and rebuild the actor bundle (`cd ../apify && npm run build:core`), and regenerate the docs registry table if keys changed (table in `site/docs.html` + list in `site/llms-full.txt` + `skill/statcite/SKILL.md` + repackage `skill/statcite.skill`).
 
+8. **Deploy BEFORE tagging a release.** The scheduled smoke in `ci.yml` (06:17
+   and 18:17) runs `BASE=https://statcite.com npm run smoke`, which since 1.14.0
+   really does go over the wire and asserts the deployed `/v1/status` version
+   equals `SERVER_VERSION`. A bumped version sitting on `main` undeployed turns
+   the next scheduled run red, and that badge is the aliveness signal. Order:
+   `npm test`, `npm run deploy`, verify live, push to `public-sync`, then
+   `gh release create`, which fires the gated registry publish.
+
 Domain is `statcite.com` throughout (BASE_URL var in `wrangler.jsonc`). The `GITHUB_USERNAME` placeholder mentioned in older docs is already resolved to `asokore` in `server/package.json` (mcpName) and `distribution/server.json`, nothing left to do there.
