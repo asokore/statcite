@@ -76,6 +76,13 @@ const routes: Route[] = [
     test: (u) => u.includes("api.db.nomics.world") && u.includes("TESTF"),
     body: () => dbnBody("TESTF", "USA.GGXCNL", "General government net lending/borrowing – Percent of GDP", ["2024"], [-4.5]),
   },
+  {
+    // Flat except for one year, so a correct claim also "matches" its
+    // neighbours. The adjacent-year diagnostic must stay silent here.
+    test: (u) => u.includes("api.db.nomics.world") && u.includes("FLAT"),
+    body: () =>
+      dbnBody("FLAT", "FLAT.Q", "Flat test rate – Percent", ["2020", "2021", "2022", "2023", "2024"], [2.0, 7.5, 2.0, 2.0, 2.0]),
+  },
 ];
 
 function installLocalFetchStub(): void {
@@ -184,4 +191,47 @@ test("verify_stat matches YYYYMM claims against monthly labels", async () => {
   assert.equal(r.verdict, "match");
   assert.equal(r.official_value, 3.4);
   assert.equal(r.period, "2024-05");
+});
+
+test("judge: a sign-reversed percent claim is never a match", () => {
+  // Near zero the absolute band straddles zero. Before this guard, a claimed
+  // 0.04% inflation was graded "match" against an official -0.013%, in a payload
+  // that also reported a relative difference of 403%.
+  assert.notEqual(judge(0.03, -0.03, true, noTol).verdict, "match");
+  assert.notEqual(judge(-0.02, 0.03, true, noTol).verdict, "match");
+  assert.notEqual(judge(0.04, -0.0132025387515946, true, noTol).verdict, "match");
+  assert.match(judge(0.03, -0.03, true, noTol).why, /signs disagree/);
+
+  // The band itself is untouched for same-sign pairs.
+  assert.equal(judge(0.2, 0.15, true, noTol).verdict, "match");
+  assert.equal(judge(5.05, 5, true, noTol).verdict, "match");
+  // A claim written as zero asserts no direction.
+  assert.equal(judge(0, -0.03, true, noTol).verdict, "match");
+  // Level kinds are judged relatively and are unaffected.
+  assert.equal(judge(0.03, -0.03, false, noTol).verdict, "mismatch");
+  // A caller who states a tolerance has stated their own band.
+  assert.equal(judge(0.03, -0.03, true, { tolerance_abs: 2 }).verdict, "match");
+});
+
+test("the adjacent-year diagnostic only fires when the neighbour fits BETTER", async () => {
+  _clearMemCache();
+  // Every year is 2.0 except 2021, so a correct 2.0 claim for 2022 "matches" its
+  // neighbours as well as its own year. Saying the year may be misattributed
+  // there is wrong: on three real World Bank series this fired on 36% to 43% of
+  // exactly-correct claims.
+  const exact = await verifyStat(ctx, {
+    indicator: "dbnomics/IMF/FLAT:latest/FLAT.Q",
+    period: "2022",
+    claimed_value: 2.0,
+  });
+  assert.equal(exact.verdict, "match");
+  assert.deepEqual(exact.diagnostics.filter((d) => /may be misattributed/.test(d)), []);
+
+  // A claim that really belongs to the neighbour still gets the diagnostic.
+  const misfiled = await verifyStat(ctx, {
+    indicator: "dbnomics/IMF/FLAT:latest/FLAT.Q",
+    period: "2022",
+    claimed_value: 7.5,
+  });
+  assert.ok(misfiled.diagnostics.some((d) => /matches the 2021 figure/.test(d)), JSON.stringify(misfiled.diagnostics));
 });

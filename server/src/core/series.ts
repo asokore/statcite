@@ -433,6 +433,7 @@ async function indicatorFromSdmx(ctx: Ctx, def: IndicatorDef, country: Country, 
     throw new ToolError(
       `'${def.key}' is a euro-area aggregate series and is only published for the euro area, request it with country="euro area".`,
       { indicator: def.key, country: country.iso3 },
+      "invalid_request",
     );
   }
   // Resolve the provider's own area code from an explicit allowlist — never
@@ -563,6 +564,10 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
   // its own no_published_data flag, or a 404 for the exact series requested.
   // A declined request (400, 401, 403) is not an absence.
   const attemptAbsent: boolean[] = [];
+  // The code each source stated for itself. An adapter sets one only when its
+  // refusal is deterministic for this query, such as a geography lock. An
+  // upstream failure states nothing and stays judged by the rules below.
+  const attemptCodes: Array<ErrorCode | undefined> = [];
   let absenceDetails: Record<string, unknown> | undefined;
   let firstErrorWasTransient = false;
   // A same-query-different-answer risk exists if ANY skipped source failed
@@ -609,6 +614,7 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
         (e instanceof ToolError && (e.details as Record<string, unknown> | undefined)?.no_published_data === true) ||
           (e instanceof UpstreamError && e.status === 404),
       );
+      attemptCodes.push(e instanceof ToolError ? e.code : undefined);
       // Preserve the structured honest-absence details through the fallback
       // loop: when every source ends up failing, the combined error should
       // still tell an agent machine-readably whether data exists elsewhere in
@@ -686,11 +692,15 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
   // which would tell the caller the data does not exist when another source
   // could not be read.
   const windowMiss = attemptDetails.find((d) => d?.no_published_data === false && d.available_range);
+  // Every source refused with the same stated code: the refusal is a fact about
+  // the request, not about the sources' health. Coding it upstream_unavailable
+  // told a branching agent to retry a call that can never succeed.
+  const statedCode = attemptCodes[0] && attemptCodes.every((c) => c === attemptCodes[0]) ? attemptCodes[0] : undefined;
   const code: ErrorCode = anyErrorWasTransient
     ? "upstream_unavailable"
     : windowMiss
       ? (windowMiss.gap_in_published_range ? "data_gap" : "out_of_range")
-      : "upstream_unavailable";
+      : (statedCode ?? "upstream_unavailable");
   throw new ToolError(
     `Could not retrieve '${def.key}' for ${country.name}: ${errors.map(cleanReason).join(" | ")}`,
     {
