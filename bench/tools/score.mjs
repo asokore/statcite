@@ -67,7 +67,12 @@ export function judgeBand(claimed, official, kind, revisionClass, mult = 1) {
   if (official === 0) return absDiff <= ZERO_OFFICIAL_CLOSE_ABS * mult ? "close" : "mismatch";
   const relDiff = absDiff / Math.abs(official);
   if (kind === "percent") {
-    if (absDiff <= b.match_pp * mult || relDiff <= b.match_rel * mult) return "match";
+    // Mirrors the sign guard added to judge() in server 1.13.0: near zero the
+    // percentage-point band straddles zero, and two figures pointing opposite
+    // ways are not the same answer however small the gap. Measured over all
+    // 1,659 scored percent rows in P0, R1, R2, R2D and R2V: zero rows move.
+    const signsDisagree = claimed !== 0 && official !== 0 && Math.sign(claimed) !== Math.sign(official);
+    if (absDiff <= b.match_pp * mult || relDiff <= b.match_rel * mult) return signsDisagree ? "close" : "match";
     if (absDiff <= b.close_pp * mult || relDiff <= b.close_rel * mult) return "close";
     return "mismatch";
   }

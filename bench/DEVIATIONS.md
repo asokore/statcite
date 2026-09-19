@@ -81,3 +81,22 @@ Logged under COVENANT §7 as analysis-plan/prompt/roster changes relative to the
 ## D-009 — 2026-08-05 — Run R2 — Access gaps found by pre-call capability probes (roster corrected before any benchmark call)
 
 Probes run after the roster snapshot but before any benchmark model call. (1) `gpt-5.5-pro` is not served by chat/completions ("not a chat model"); it is called via the Responses API instead, per the contingency pre-registered in models.json — an invocation-surface difference, disclosed, same instruction contract. (2) `gemini-2.5-pro` and `gemini-2.5-flash` appear in ListModels for this key but are not callable: 2.5-pro returns quota-exceeded on a first trivial call (free-tier quota of zero) and 2.5-flash returns "no longer available to new users". models.json's initial google_snapshot text claimed the R1 access gap had closed based on ListModels alone — that claim was wrong and is corrected; the effective Google roster remains the carried preview model (`gemini-3-flash-preview`) and the asymmetry stays logged (ADDENDA §4 continues to apply to R2). The probe cost was three trivial calls, none part of the benchmark.
+
+## D-013 — 2026-09-19 — Scoring code — Sign guard mirrored from the server's judge()
+
+**What changed.** StatCite 1.13.0 stopped grading a claim as "match" when the
+claimed and official figures carry opposite signs inside the percentage-point
+band. Near zero that band straddles zero, so a claimed +0.04% could match an
+official -0.013%. `bench/tools/score.mjs` carries the same bands as in-file
+literals, and CI's equivalence test (METHODOLOGY §4) failed on three of 1,290
+generated pairs until the scorer was changed to match.
+
+**Effect on published results: none, measured rather than assumed.** Every
+scored row in P0, R1, R2, R2D and R2V was re-checked: 1,659 percent-kind rows,
+of which 0 have opposite signs within the match band. No verdict, no
+Within-Tolerance Rate, no Confabulation Rate and no Answer Rate moves, so no run
+was re-scored and no report changed.
+
+**Why it is logged.** The scorer is pre-registered and its constants are frozen.
+This is a change to scoring code after registration, so it belongs here even
+though it moves nothing, and the equivalence test is what caught it.
