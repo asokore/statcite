@@ -3,13 +3,13 @@
 
 import type { Ctx } from "./core/types.ts";
 import { ToolError, toolErrorCode, type ErrorCode } from "./core/types.ts";
-import { UpstreamError, fetchJson, isMemCached } from "./core/upstream.ts";
+import { UpstreamError, ShapeError, fetchJson, isMemCached } from "./core/upstream.ts";
 import { getIndicator, getSeries, searchIndicators, listRegistry, compareSources } from "./core/series.ts";
 import { countrySnapshot } from "./core/snapshot.ts";
 import { inflationAdjust } from "./core/inflation.ts";
 import { fxConvert } from "./core/fx.ts";
 import { verifyStat } from "./core/verify.ts";
-import { runVerifyClaims, MAX_STR_LEN } from "./tools.ts";
+import { runVerifyClaims, shapeErrorPayload, MAX_STR_LEN } from "./tools.ts";
 import { SOURCES } from "./core/sources.ts";
 import { corsHeaders, SERVER_VERSION } from "./mcp.ts";
 import { parseTransform } from "./core/transforms.ts";
@@ -50,11 +50,33 @@ const STATUS_CODE: Record<number, ErrorCode> = {
   500: "internal_error",
 };
 
+/**
+ * Statuses that a code overrides the throw site's default with. docs.html and
+ * llms-full.txt both publish "502 upstream source trouble", and the routes that
+ * call an adapter directly already answer 502. The registry routes funnel the
+ * same outage through series.ts, which rethrows it as a ToolError, and a bare
+ * `instanceof ToolError` branch turned that into 422 — "your request was wrong"
+ * for a dead World Bank. An HTTP client branching on status retried one and gave
+ * up on the other for one failure.
+ *
+ * primary_source_unavailable is deliberately absent: it means the primary was
+ * unreadable AND a fallback source answered, so the response carries a number.
+ * It reaches this map only on a separate, definitive failure, where 422 is right.
+ */
+const CODE_STATUS: Partial<Record<ErrorCode, number>> = { upstream_unavailable: 502 };
+
 /** Error envelope: { error: { code, message, details? } }. `code` is from the
  * closed ERROR_CODES list, so a client can branch without parsing the prose. */
 function errJson(status: number, message: string, details?: unknown, code?: ErrorCode): Response {
   const c = code ?? STATUS_CODE[status] ?? "invalid_request";
   return json(status, { error: { code: c, message, ...(details !== undefined ? { details } : {}) } });
+}
+
+/** The single place a ToolError becomes a response, so the two catch sites
+ * cannot drift apart on status the way they drifted from the published policy. */
+function toolErrorJson(e: ToolError): Response {
+  const code = toolErrorCode(e);
+  return errJson(CODE_STATUS[code] ?? 422, e.message, e.details, code);
 }
 
 /** A 405 that names the methods it will accept, as RFC 9110 requires. */
@@ -475,8 +497,10 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
       }
       const snapshot = await countrySnapshot(ctx, snapCountry);
       // Same rule as /v1/indicator: a fallback-sourced number must not linger in
-      // shared caches after the primary source recovers.
-      return json(200, snapshot, snapshot.fallback_used ? 0 : 3600);
+      // shared caches after the primary source recovers. A snapshot shortened by
+      // an unreachable source is the same hazard: cached for an hour, it keeps
+      // serving an incomplete picture after the source is back.
+      return json(200, snapshot, snapshot.fallback_used || snapshot.sources_unavailable ? 0 : 3600);
     }
 
     if (path === "/v1/verify") {
@@ -547,8 +571,9 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
     return errJson(404, `Unknown endpoint '${path}'. See ${ctx.baseUrl}/v1 for the endpoint list.`);
   } catch (e) {
     if (e instanceof ParamError) return errJson(400, e.message);
-    if (e instanceof ToolError) return errJson(422, e.message, e.details, toolErrorCode(e));
+    if (e instanceof ToolError) return toolErrorJson(e);
     if (e instanceof UpstreamError) return errJson(502, `Upstream data source problem: ${e.message}`, { upstream_url: e.url });
+    if (e instanceof ShapeError) { const p = shapeErrorPayload(e); return errJson(502, p.message, p.details); }
     // Log the closed-set op name, not the raw path: /v1/snapshot/{country}
     // carries arbitrary user text in the path segment, and privacy.html
     // promises free-text input is never retained.
@@ -607,8 +632,9 @@ async function verifyClaimsRoute(request: Request, ctx: Ctx): Promise<Response> 
   try {
     return json(200, await runVerifyClaims(ctx, b.claims, b.strict_source === true), 0);
   } catch (e) {
-    if (e instanceof ToolError) return errJson(422, e.message, e.details, toolErrorCode(e));
+    if (e instanceof ToolError) return toolErrorJson(e);
     if (e instanceof UpstreamError) return errJson(502, `Upstream data source problem: ${e.message}`, { upstream_url: e.url });
+    if (e instanceof ShapeError) { const p = shapeErrorPayload(e); return errJson(502, p.message, p.details); }
     console.error("rest crash", "/v1/verify_claims", e);
     return errJson(500, "Internal error. Please retry; if persistent, report an issue.");
   }

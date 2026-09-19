@@ -37,9 +37,9 @@
 
 import type { Ctx } from "./core/types.ts";
 import { ToolError } from "./core/types.ts";
-import { UpstreamError } from "./core/upstream.ts";
+import { UpstreamError, ShapeError } from "./core/upstream.ts";
 import { toolErrorCode } from "./core/types.ts";
-import { TOOLS, toolByName, callTool } from "./tools.ts";
+import { TOOLS, toolByName, callTool, shapeErrorPayload } from "./tools.ts";
 import { listRegistry } from "./core/series.ts";
 import { SOURCES } from "./core/sources.ts";
 import { sidsCountries } from "./core/countries.ts";
@@ -560,6 +560,10 @@ async function dispatchCore(
               true,
             ),
           };
+        }
+        if (e instanceof ShapeError) {
+          const p = shapeErrorPayload(e);
+          return { httpStatus: 200, body: toolTextObj(id, { error: p.message, code: p.code, upstream_url: e.url }, true) };
         }
         console.error("tool crash", name, e);
         return {

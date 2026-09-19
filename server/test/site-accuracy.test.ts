@@ -394,3 +394,22 @@ test("site/_redirects sends only asset-served paths, to pages and anchors that e
   }
   assert.deepEqual(offences, [], `bad redirects:\n${offences.join("\n")}`);
 });
+
+test("CI checks out full history, so the sitemap lastmod guard above is not skipped", () => {
+  // The guard skips itself on a shallow clone and actions/checkout defaults to
+  // depth 1, so in CI it had never run once. 1d49c59 shipped a sitemap that
+  // lied about /docs and /llms-full.txt with a green test job, and 1fc6876
+  // existed only to correct it; 97a3d73 then fa400d1 is the same pair before
+  // 1.12.3. Worktree endings are CRLF here and LF on the runner.
+  const wf = readFileSync(path.join(repoRoot, ".github", "workflows", "ci.yml"), "utf8").replace(/\r\n/g, "\n");
+  const jobs = wf.slice(wf.indexOf("\njobs:\n"));
+  const start = jobs.indexOf("\n  test:\n");
+  assert.ok(start >= 0, "ci.yml has a test job");
+  const rest = jobs.slice(start + 1);
+  const end = rest.search(/\n {2}[a-z][\w-]*:\s*\n/);
+  const job = end === -1 ? rest : rest.slice(0, end);
+  assert.match(job, /- uses: actions\/checkout@v5\n\s+with:\n\s+fetch-depth: 0/, "the test job needs the full history");
+  // The second silent skip branch. A green tick with "# skipped 1" is
+  // indistinguishable from a pass, which is how this went unnoticed.
+  assert.match(job, /actions\/setup-python@v5/, "and python on PATH, or the guard skips for the other reason");
+});

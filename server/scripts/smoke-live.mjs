@@ -1,6 +1,10 @@
 // Live smoke test: exercises the real handler against real upstream APIs.
-// Run: npm run smoke   (network required; safe read-only calls)
+// Run: npm run smoke                     (in process, against the working tree)
+//      BASE=https://statcite.com npm run smoke   (over the wire, against the
+//                                                 deployed Worker)
+// Network required either way; every call is a safe read-only one.
 import { handleRequest } from "../src/index.ts";
+import { makeCall } from "./smoke-call.mjs";
 
 const env = {
   ASSETS: { fetch: async () => new Response("site", { headers: { "content-type": "text/html" } }) },
@@ -8,7 +12,8 @@ const env = {
   FRED_API_KEY: process.env.FRED_API_KEY || undefined,
 };
 
-const call = (path, init) => handleRequest(new Request(`https://statcite.com${path}`, init), env);
+const BASE = process.env.BASE;
+const call = makeCall(env, BASE, { fetch, handleRequest });
 const mcp = (body) =>
   call("/mcp", {
     method: "POST",
@@ -46,7 +51,15 @@ async function tool(name, args, check) {
   let payload;
   const { ok, detail, retried } = await withRetry(async () => {
     const res = await mcp({ jsonrpc: "2.0", id: ++id, method: "tools/call", params: { name, arguments: args } });
-    const rpc = await res.json();
+    // Over the wire the body is not guaranteed to be JSON: an edge error page
+    // is HTML, and res.json() would throw past withRetry. "non-JSON 502" is
+    // matched by looksTransient, so it retries and then reports honestly.
+    let rpc;
+    try {
+      rpc = await res.json();
+    } catch {
+      return { ok: false, detail: `non-JSON ${res.status} body` };
+    }
     const isError = Boolean(rpc?.result?.isError);
     try { payload = JSON.parse(rpc?.result?.content?.[0]?.text ?? "null"); } catch { payload = rpc?.result?.content?.[0]?.text; }
     let ok = !isError;
@@ -176,8 +189,25 @@ const s = await tool("search", { query: "unemployment jamaica" }, (p) => p.resul
 await tool("fetch", { id: s.results[0].id }, (p) => `title='${p.title}'`);
 await tool("list_sources", {}, (p) => `sources=${p.sources.length}`);
 
+// Is the thing we are talking to actually the thing this tree describes? In
+// process this is trivially true; over the wire it is the assertion that catches
+// a release nobody deployed. REVIEW-2026-09-12 row 14 records production serving
+// untagged code as 1.12.0, which is this failure.
+{
+  const { SERVER_VERSION } = await import("../src/mcp.ts");
+  const res = await call("/v1/status");
+  const body = await res.json().catch(() => null);
+  const ok = body?.version === SERVER_VERSION;
+  if (!ok) failures++;
+  console.log(`${ok ? "PASS" : "FAIL"} deployed version ${body?.version} === source ${SERVER_VERSION}`);
+}
+
 // REST
 for (const path of [
+  // "/" is the static site. In BASE mode it is the only assertion that sees a
+  // broken asset upload; in process it hits the stub and proves routing only.
+  "/",
+  "/v1/status",
   "/v1",
   "/v1/indicator/unemployment_rate?country=CAN&latest_only=true",
   "/v1/snapshot/Trinidad%20and%20Tobago",

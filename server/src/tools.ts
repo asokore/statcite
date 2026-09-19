@@ -11,7 +11,7 @@ import { SOURCES } from "./core/sources.ts";
 import { resolveCountry } from "./core/countries.ts";
 import { INDICATORS, searchIndicatorDefs } from "./core/indicators.ts";
 import { parseTransform } from "./core/transforms.ts";
-import { UpstreamError } from "./core/upstream.ts";
+import { UpstreamError, ShapeError } from "./core/upstream.ts";
 import { recordUsage, indicatorLabel, countryLabel, verdictLabel, type Outcome, seriesIdCountry } from "./core/analytics.ts";
 import { quoteInput } from "./core/text.ts";
 
@@ -280,6 +280,23 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
  * agent unable to tell which to retry and which to report, while verify_stat,
  * REST and MCP all carried a code and details for the identical failure.
  */
+/**
+ * A ShapeError means the origin answered 200 and the document failed validation:
+ * a decoy envelope, a renamed field, a truncated table. That is the source's
+ * problem and it usually clears, but until 1.13.1 it matched no branch anywhere
+ * and fell through to "Internal error ... report an issue", coded internal_error.
+ * An agent was told StatCite had crashed, pointed at the wrong place to report
+ * it, and given no reason to retry. One payload, used by REST, MCP and
+ * verify_claims, so the three cannot describe the same failure differently.
+ */
+export function shapeErrorPayload(e: ShapeError): { message: string; code: ErrorCode; details: { upstream_url: string } } {
+  return {
+    message: `Upstream data source problem: ${e.message}. The source answered, but the document did not have the shape it publishes. Usually transient, retry shortly.`,
+    code: "upstream_unavailable",
+    details: { upstream_url: e.url },
+  };
+}
+
 function claimFailure(claim: ClaimSpec, e: unknown): ClaimResult {
   if (e instanceof ToolError) {
     return { ok: false, claim, error: e.message, code: toolErrorCode(e), ...(e.details ? { details: e.details } : {}) };
@@ -292,6 +309,10 @@ function claimFailure(claim: ClaimSpec, e: unknown): ClaimResult {
       code: "upstream_unavailable",
       details: { upstream_url: e.url },
     };
+  }
+  if (e instanceof ShapeError) {
+    const p = shapeErrorPayload(e);
+    return { ok: false, claim, error: p.message, code: p.code, details: p.details };
   }
   return {
     ok: false,
@@ -818,7 +839,7 @@ function describeCall(name: string, args: Json, result?: unknown): { indicator?:
 
 function outcomeOf(e: unknown): Outcome {
   if (e instanceof ToolError) return "tool_error";
-  if (e instanceof UpstreamError) return "upstream_error";
+  if (e instanceof UpstreamError || e instanceof ShapeError) return "upstream_error";
   return "crash";
 }
 

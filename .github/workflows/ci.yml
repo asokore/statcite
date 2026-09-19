@@ -19,10 +19,23 @@ jobs:
       run:
         working-directory: server
     steps:
+      # Full history, not the default depth-1 fetch. The sitemap lastmod guard
+      # in server/test/site-accuracy.test.ts skips itself on a shallow clone,
+      # so at depth 1 it had never run: 1d49c59 shipped a sitemap that lied
+      # about /docs and /llms-full.txt, the test job was green, and 1fc6876
+      # existed only to correct it. The same pair preceded 1.12.3 (97a3d73,
+      # then fa400d1). The packed history is under 250 KiB.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+      # The same guard has a second silent skip branch, for python not being on
+      # PATH, and a skip is indistinguishable from a pass in a green tick.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - run: npm install
       - run: npm run typecheck
       - run: npm test

@@ -11,6 +11,13 @@
 // So: append a dated snapshot, never overwrite one. The file becomes the history
 // Cloudflare will not keep.
 //
+// ONE KNOWN FLOOR, from 19 September 2026. The twice-daily CI smoke now really
+// does send its requests to statcite.com instead of running in process, so it
+// contributes roughly 60 requests a day of its own. They are not distinguishable
+// from real usage: core/analytics.ts records nothing derived from the request by
+// design, and adding a marker field would cut against invariant 6b and
+// site/privacy.html. Subtract the floor rather than looking for a flag.
+//
 //   node tools/analytics.mjs              # last 30 days + today's caller mix
 //   node tools/analytics.mjs --days 7
 //   node tools/analytics.mjs --date 2026-08-12

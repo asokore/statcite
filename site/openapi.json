@@ -221,6 +221,9 @@
           "422": {
             "$ref": "#/components/responses/Unprocessable"
           },
+          "502": {
+            "$ref": "#/components/responses/BadGateway"
+          },
           "405": {
             "$ref": "#/components/responses/MethodNotAllowed"
           }
@@ -336,6 +339,9 @@
           },
           "422": {
             "$ref": "#/components/responses/Unprocessable"
+          },
+          "502": {
+            "$ref": "#/components/responses/BadGateway"
           },
           "405": {
             "$ref": "#/components/responses/MethodNotAllowed"
@@ -523,6 +529,9 @@
           "422": {
             "$ref": "#/components/responses/Unprocessable"
           },
+          "502": {
+            "$ref": "#/components/responses/BadGateway"
+          },
           "405": {
             "$ref": "#/components/responses/MethodNotAllowed"
           }
@@ -627,6 +636,9 @@
           },
           "422": {
             "$ref": "#/components/responses/Unprocessable"
+          },
+          "502": {
+            "$ref": "#/components/responses/BadGateway"
           },
           "405": {
             "$ref": "#/components/responses/MethodNotAllowed"
@@ -889,6 +901,9 @@
           "422": {
             "$ref": "#/components/responses/Unprocessable"
           },
+          "502": {
+            "$ref": "#/components/responses/BadGateway"
+          },
           "405": {
             "$ref": "#/components/responses/MethodNotAllowed"
           },
@@ -1012,6 +1027,9 @@
           },
           "422": {
             "$ref": "#/components/responses/Unprocessable"
+          },
+          "502": {
+            "$ref": "#/components/responses/BadGateway"
           },
           "405": {
             "$ref": "#/components/responses/MethodNotAllowed"
@@ -1664,6 +1682,16 @@
       },
       "Unprocessable": {
         "description": "The request was well formed but cannot be answered, e.g. the source does not publish this series for this economy.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "BadGateway": {
+        "description": "An upstream statistical source could not be read. error.code is upstream_unavailable and the failure is usually transient, so retry.",
         "content": {
           "application/json": {
             "schema": {

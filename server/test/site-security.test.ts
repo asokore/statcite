@@ -268,3 +268,43 @@ test("no harvested source data is tracked, even force-added", () => {
   const offenders = trackedFiles().filter((f) => banned.some((p) => f.startsWith(p)));
   assert.deepEqual(offenders, []);
 });
+
+test("the registry publish cannot run from a tree that fails the repository's own checks", () => {
+  // 19 September 2026: CI run 35445862342 failed bench-equivalence at 13:28:29
+  // for tag 1.13.0, and the release-triggered publish started 21 seconds later
+  // and succeeded. The check had already run and gone red. Nothing stood
+  // between it and the publish, so no checklist could have caught it.
+  const wf = read(".github/workflows/publish-mcp.yml").replace(/\r\n/g, "\n");
+  assert.match(wf, /^\s{2}gate:$/m, "publish-mcp.yml must have a gate job");
+  assert.match(wf, /^\s{4}needs: gate$/m, "the publish job must depend on it");
+
+  const gate = wf.slice(wf.indexOf("\n  gate:\n"), wf.indexOf("\n  publish:\n"));
+  for (const cmd of [
+    "npm run typecheck",
+    "npm test",
+    "node bench/tools/equivalence.test.mjs",
+  ]) {
+    assert.ok(gate.includes(cmd), `the gate must run \`${cmd}\`: that is what "green" has to mean`);
+  }
+  assert.ok(gate.includes("working-directory: caribstat"), "the gate must run the caribstat parser tests too");
+  // The gate exists to be a plain read-only test runner. If it could mint the
+  // namespace's OIDC token there would be nothing between an npm lifecycle
+  // script and the registry credential, which is the reason mcp-publisher is
+  // pinned and checksummed in the job below.
+  assert.ok(!gate.includes("id-token"), "the gate must not be able to mint a publishing token");
+});
+
+test("CI runs the checks the gate promises, on the tree being published", () => {
+  // The gate is self-contained rather than a poll of the Actions API: on a
+  // release event the checkout resolves to the tag commit, so it tests exactly
+  // what is about to be published. That only holds while the commands it runs
+  // are the ones ci.yml runs, so compare the two rather than trusting the copy.
+  const ci = read(".github/workflows/ci.yml").replace(/\r\n/g, "\n");
+  const gate = (() => {
+    const wf = read(".github/workflows/publish-mcp.yml").replace(/\r\n/g, "\n");
+    return wf.slice(wf.indexOf("\n  gate:\n"), wf.indexOf("\n  publish:\n"));
+  })();
+  assert.ok(ci.includes("node bench/tools/equivalence.test.mjs"), "ci.yml still runs the equivalence check");
+  assert.ok(gate.includes("node bench/tools/equivalence.test.mjs"), "and so does the gate");
+  assert.match(gate, /node-version: 22/, "same Node as ci.yml, or a green gate means something else");
+});

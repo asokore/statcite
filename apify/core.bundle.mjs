@@ -1084,6 +1084,10 @@ function hostKey(url) {
   }
 }
 var ShapeError = class extends Error {
+  /** Not a subclass of UpstreamError on purpose. The in-flight joiner at the
+   * foot of this file rethrows only UpstreamError to a joining caller, and the
+   * apify bundle is byte-compared against a fresh build of this graph, so the
+   * hierarchy is load-bearing in two places. Callers branch on it explicitly. */
   url;
   constructor(message, url) {
     super(redactUrl(message));
@@ -3379,11 +3383,15 @@ async function countrySnapshot(ctx, countryInput) {
   const codes = defs.map((d) => d.wb);
   let byCode2 = /* @__PURE__ */ new Map();
   let wbFailed;
+  let wbUnreachable = false;
   try {
     byCode2 = await fetchWbMulti(country.iso3, codes, { mrv: 8 });
   } catch (e) {
     wbFailed = e instanceof Error ? e.message : String(e);
+    wbUnreachable = isTransientUpstreamError(e);
   }
+  const unavailable = [];
+  if (wbUnreachable) unavailable.push({ source: "World Bank WDI", reason: cleanReason(wbFailed) });
   const items = [];
   const missing = [];
   const notes = [
@@ -3468,14 +3476,21 @@ async function countrySnapshot(ctx, countryInput) {
             seriesId: spec.id(country.iso3)
           })
         });
-      } catch {
+      } catch (e) {
         missing.push(spec.key);
+        if (isTransientUpstreamError(e)) {
+          unavailable.push({ source: "Eastern Caribbean Central Bank (CaribStat)", reason: cleanReason(e?.message) });
+        }
       }
     }
     if (items.length) {
-      if (wbFailed) {
+      if (byCode2.size === 0 && !wbUnreachable) {
         notes.push(
           "The World Bank publishes none of its headline indicators for this economy, so everything here comes from the regional central bank."
+        );
+      } else if (wbUnreachable) {
+        notes.push(
+          "The World Bank could not be reached for this request, so its headline indicators are absent from this snapshot rather than unpublished. Retrying may return a fuller snapshot."
         );
       }
       notes.push(
@@ -3486,8 +3501,16 @@ async function countrySnapshot(ctx, countryInput) {
   if (items.length === 0) {
     const territory = integratedTerritoryNote(country.iso3, countryName);
     const t = INTEGRATED_TERRITORIES[country.iso3];
+    if (!territory && unavailable.length) {
+      throw new ToolError(
+        `Could not build a snapshot for ${countryName}: ${unavailable.map((u) => u.source).join(", ")} could not be reached. This is an upstream outage, not a statement that ${countryName} publishes no data. Retrying shortly may succeed.`,
+        { country: country.iso3, sources: unavailable },
+        "upstream_unavailable"
+      );
+    }
+    const label = countryInput.trim().toUpperCase() === country.iso3 ? `'${country.iso3}'` : `'${countryInput}' (${country.iso3})`;
     throw new ToolError(
-      territory ?? `No snapshot data available for '${countryInput}' (${country.iso3}).`,
+      territory ?? `No snapshot data available for ${label}.`,
       {
         country: country.iso3,
         ...t ? {
@@ -3505,7 +3528,8 @@ async function countrySnapshot(ctx, countryInput) {
     indicators: items,
     missing,
     notes,
-    ...fallbackIndicators.length ? { fallback_used: true, fallback_indicators: fallbackIndicators } : {}
+    ...fallbackIndicators.length ? { fallback_used: true, fallback_indicators: fallbackIndicators } : {},
+    ...unavailable.length ? { sources_unavailable: unavailable } : {}
   };
 }
 
