@@ -439,8 +439,9 @@ footer a{color:var(--dim)}
 .try-result .v-cannot_verify{color:var(--dim);font-weight:700}
 .try-result .cite{margin-top:10px;color:var(--dim);font-size:13.5px;border-top:1px solid var(--line);padding-top:10px}
 .support-note{margin-top:20px;font-size:13.5px;color:var(--faint);max-width:760px}
-@media(max-width:640px){header{padding:48px 0 32px}nav .links{flex-wrap:wrap;row-gap:6px;justify-content:flex-end}table{display:block;overflow-x:auto}}
+@media(max-width:640px){header{padding:48px 0 32px}nav .links{flex-wrap:wrap;row-gap:6px;justify-content:flex-end}.tscroll{overflow-x:auto}.tscroll.wide table{min-width:560px}.tscroll.wide td code,.tscroll.wide th code{overflow-wrap:normal;word-break:normal}}
 </style>
+<noscript><style>.tabs{display:none}.tabpanel{display:block;border-radius:10px;margin-top:8px}</style></noscript>
 </head>
 <body>
 <a class="skip" href="#main-content">Skip to main content</a>
@@ -479,9 +480,10 @@ footer a{color:var(--dim)}
   <section id="benchmark">
     <h2>We measured it ourselves, on our own claim</h2>
     <p class="lead">The stats above are general research on AI and citations. This is StatCite's own benchmark: 6 models across 3 vendors (4 Anthropic models, 1 OpenAI, 1 Google preview model) answering 100 real economic-statistics questions, instructed to answer from memory only, with no tools, no retrieval and no StatCite. It's the honest baseline StatCite exists to fix.</p>
-    <table>
-      <caption>Run 1, scored 5 August 2026</caption>
-      <tr><th>Model</th><th>Within-Tolerance Rate</th><th>Confabulation Rate</th><th>Answer Rate</th></tr>
+    <div class="tscroll wide" tabindex="0" role="region" aria-label="Benchmark run 1 results">
+      <table>
+        <caption>Run 1, scored 5 August 2026</caption>
+      <tr><th scope="col">Model</th><th scope="col">Within-Tolerance Rate</th><th scope="col">Confabulation Rate</th><th scope="col">Answer Rate</th></tr>
       <tr><td>claude-opus-5</td><td>82.0%</td><td>15.5%</td><td>97.0%</td></tr>
       <tr><td>claude-fable-5</td><td>81.0%</td><td>15.6%</td><td>96.0%</td></tr>
       <tr><td>gemini-3-flash-preview</td><td>79.0%</td><td>20.2%</td><td>99.0%</td></tr>
@@ -489,6 +491,7 @@ footer a{color:var(--dim)}
       <tr><td>claude-sonnet-5</td><td>64.8%</td><td>31.4%</td><td>94.5%</td></tr>
       <tr><td>claude-haiku-4-5</td><td>33.3%</td><td>32.5%</td><td>49.4%*</td></tr>
     </table>
+    </div>
     <p style="color:var(--faint);font-size:12.5px;margin-top:10px">*claude-haiku-4-5's Answer Rate falls below the 70% threshold the pre-registered methodology requires for a model's result to be interpreted at all. It is reported for completeness, not as a headline finding, per the methodology's own pre-committed rule.</p>
     <p style="color:var(--dim);font-size:14px;margin-top:14px">Within-Tolerance Rate, Confabulation Rate, and Answer Rate are a single unit by our own publication covenant, never quoted apart from one another. At this sample size (Wilson 95% CIs, minimum detectable model-to-model difference ~12–15pp) this is not a league table. How the benchmark is built, why it is hard to game, and what is pre-registered for the next run: <a href="/bench">the benchmark page</a>. Full methodology, pre-registration, raw model outputs, and scoring code: <a href="https://github.com/asokore/statcite/blob/main/bench/runs/R1/REPORT.md">the R1 report</a>. Post-publication sensitivity analyses and the logged protocol deviations for this run: <a href="https://github.com/asokore/statcite/blob/main/bench/runs/R1/ADDENDA.md">the R1 addenda</a>.</p>
   </section>
@@ -508,6 +511,7 @@ footer a{color:var(--dim)}
       <button id="tab-stdio" role="tab" aria-selected="false" tabindex="-1" aria-controls="t-stdio" onclick="tab(event,'t-stdio')">Other (stdio)</button>
       <button id="tab-rest" role="tab" aria-selected="false" tabindex="-1" aria-controls="t-rest" onclick="tab(event,'t-rest')">REST</button>
     </div>
+    <noscript><p class="lead" style="margin-top:14px">JavaScript is off, so every client is shown below in one stack, in this order: Claude, ChatGPT, Cursor, VS Code, Claude Code, Gemini CLI, Other (stdio), REST. The same instructions are on the <a href="/docs#connect">docs page</a>.</p></noscript>
     <div id="t-claude" class="tabpanel active" role="tabpanel" aria-labelledby="tab-claude" tabindex="0">
       <p>Open <a href="https://claude.ai/directory/connectors/statcite">StatCite in Claude's connector directory</a> and click <strong>Connect</strong>.</p>
       <p>If the directory does not work for you, add it as a custom connector instead: Settings → Customize → Connectors → <strong>Add custom connector</strong> → paste the URL. Works on all plans (Free allows one custom connector).</p>
@@ -617,10 +621,10 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
   <section id="try">
     <h2>Try a live verification</h2>
     <p class="lead">No setup, no key. This form calls the same public <code style="font-family:var(--mono)">GET /v1/verify</code> endpoint your agent would. Pick an indicator, claim a number, get the verdict and the citation.</p>
-    <form class="try-form" id="try-form">
+    <form class="try-form" id="try-form" action="/v1/verify" method="get">
       <div>
         <label for="try-indicator">Indicator</label>
-        <select id="try-indicator">
+        <select id="try-indicator" name="indicator">
           <option value="inflation_cpi" selected>Inflation, CPI (annual %)</option>
           <option value="gdp_growth">GDP growth (annual %)</option>
           <option value="unemployment_rate">Unemployment rate (%)</option>
@@ -631,20 +635,21 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
       </div>
       <div>
         <label for="try-country">Country (ISO3 or name)</label>
-        <input id="try-country" type="text" value="USA" required>
+        <input id="try-country" name="country" type="text" value="USA" required>
       </div>
       <div>
         <label for="try-period">Year</label>
-        <input id="try-period" type="number" value="2023" min="1960" max="2031" required>
+        <input id="try-period" name="period" type="number" value="2023" min="1960" max="2031" required>
       </div>
       <div>
         <label for="try-value">Claimed value</label>
-        <input id="try-value" type="number" step="any" value="4.1" required>
+        <input id="try-value" name="value" type="number" step="any" value="4.1" required>
       </div>
       <div class="go">
         <button class="btn primary" type="submit" id="try-go" style="border:none;cursor:pointer;width:100%">Verify</button>
       </div>
     </form>
+    <noscript><p style="color:var(--dim);font-size:14px;margin-top:10px">Without JavaScript, Verify takes you straight to the raw <a href="/v1/verify?indicator=inflation_cpi&amp;country=USA&amp;period=2023&amp;value=4.1"><code>GET /v1/verify</code></a> response instead of the formatted verdict card.</p></noscript>
     <div class="try-result" id="try-result" role="status" aria-live="polite"></div>
   </section>
 
@@ -669,8 +674,9 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
   <section id="sources">
     <h2>Sources &amp; licenses</h2>
     <p class="lead">StatCite is a citation layer over official statistics, never a black box. Data is fetched live from the sources and cached briefly for politeness.</p>
-    <table>
-      <tr><th>Source</th><th>Coverage</th><th>License</th></tr>
+    <div class="tscroll wide" tabindex="0" role="region" aria-label="Sources and licenses">
+      <table>
+        <tr><th scope="col">Source</th><th scope="col">Coverage</th><th scope="col">License</th></tr>
       <tr><td>World Bank, World Development Indicators</td><td>~1,400 annual indicators, 200+ economies, from 1960</td><td>CC BY 4.0</td></tr>
       <tr><td>IMF, World Economic Outlook &amp; Fiscal Monitor (via the DataMapper API, with DBnomics as fallback)</td><td>Growth, fiscal &amp; external indicators, 190+ economies, incl. projections. Primary path serves the IMF's current edition directly. If unavailable, it falls back to the newest DBnomics has ingested (responses flag stale vintages and vintage-crossing fallbacks)</td><td>Redistribution and derivative use permitted with attribution in the IMF's format ("Source: International Monetary Fund, &lt;database&gt;, &lt;link&gt;"). Downstream users must be told these terms, and data sold as a standalone product must disclose it is free from the IMF</td></tr>
       <tr><td>IMF, dated WEO vintages (api.imf.org, SDMX 3.0)</td><td>The IMF's own frozen dated editions, used by <code>as_of</code> historical verification and the automatic revision probe. DBnomics remains the deep archive back to 2010</td><td>Same IMF data terms as above</td></tr>
@@ -682,6 +688,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
       <tr><td>FRED, St. Louis Fed</td><td>Not served. Six US-only registry keys are reserved for it but always decline. FRED's terms of use reserve its content from AI/ML use and from caching or redistribution</td><td>n/a</td></tr>
       <tr><td>DBnomics (aggregator)</td><td>90+ official providers (OECD, Eurostat, BIS, national offices)</td><td>Per provider, named in each citation</td></tr>
     </table>
+    </div>
     <p style="margin-top:10px;font-size:14px;color:var(--faint)">The complete licence ledger, with every source, its verbatim licence basis, verification date and required attribution, is served live at <a href="/sources">/sources</a> and <a href="/v1/sources"><code>GET /v1/sources</code></a>.</p>
   </section>
 

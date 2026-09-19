@@ -57,7 +57,7 @@ li{margin:4px 0}
 .note{background:#152030;border:1px solid #24405c;border-radius:8px;padding:12px 16px;font-size:14px;color:var(--dim);margin:14px 0}
 .toc{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 22px;font-size:14px;columns:2;column-gap:40px}
 .toc a{display:block;padding:3px 0;color:var(--dim)}
-@media(max-width:640px){.toc{columns:1}nav .links{flex-wrap:wrap;row-gap:6px;justify-content:flex-end}table{display:block;overflow-x:auto}}
+@media(max-width:640px){.toc{columns:1}nav .links{flex-wrap:wrap;row-gap:6px;justify-content:flex-end}.tscroll{overflow-x:auto}.tscroll.wide table{min-width:560px}.tscroll.wide td code,.tscroll.wide th code{overflow-wrap:normal;word-break:normal}}
 </style>
 <script type="application/ld+json">
 {
@@ -222,18 +222,22 @@ li{margin:4px 0}
 
   <h3 id="prompts">Prompts and resources</h3>
   <p>Beyond the twelve tools, the server exposes three <strong>prompts</strong> and three <strong>resources</strong>. In clients that support them (Claude among them) the prompts appear as slash commands as soon as you connect, so this is usually the quickest way to see the server working:</p>
-  <table>
-    <tr><th>Prompt</th><th>What it does</th></tr>
+  <div class="tscroll">
+    <table>
+      <tr><th scope="col">Prompt</th><th scope="col">What it does</th></tr>
     <tr><td><code>fact_check</code></td><td>Paste a draft. Every macro claim in it is extracted and checked against the official series, with a verdict and citation per claim.</td></tr>
     <tr><td><code>country_brief</code></td><td>A headline economic picture of one country, every figure carrying its own citation.</td></tr>
     <tr><td><code>cite_this_stat</code></td><td>Turn one figure into a properly formatted, verified citation.</td></tr>
   </table>
-  <table>
-    <tr><th>Resource URI</th><th>Contents</th></tr>
+  </div>
+  <div class="tscroll">
+    <table>
+      <tr><th scope="col">Resource URI</th><th scope="col">Contents</th></tr>
     <tr><td><code>statcite://registry/indicators</code></td><td>The full 48-key registry in one read, so an agent never has to page through search results to learn what exists.</td></tr>
     <tr><td><code>statcite://registry/sources</code></td><td>The licence ledger: verdict, basis and verification date per source.</td></tr>
     <tr><td><code>statcite://registry/sids</code></td><td>The curated 39-state small-island developing states grouping.</td></tr>
   </table>
+  </div>
 
   <h2 id="rest">5. REST API</h2>
   <p>The same engine over plain GET, for scripts, notebooks, spreadsheets and Custom GPT Actions. Machine-readable spec: <a href="/openapi.json">/openapi.json</a>. CORS: open. Responses are cacheable (<code>Cache-Control: public</code>).</p>
@@ -257,8 +261,9 @@ GET /health</pre>
 
   <h2 id="indicators">6. Indicator registry</h2>
   <p>48 registry keys, of which <strong>42 are active</strong>. The six US-only FRED-reserved keys are recognized but permanently decline (§8). Machine surfaces say so too: <code>GET /v1/indicators</code> entries and <code>search_indicators</code> results carry <code>active</code> (and <code>disabled_reason</code> on the six disabled keys), so an agent never has to discover a dead key by calling it. Keys are stable; new indicators are added without breaking existing ones.</p>
-  <table>
-    <tr><th>Key</th><th>Series</th><th>Unit</th><th>Sources (order = fallback chain)</th></tr>
+  <div class="tscroll wide" tabindex="0" role="region" aria-label="Indicator registry">
+    <table>
+      <tr><th scope="col">Key</th><th scope="col">Series</th><th scope="col">Unit</th><th scope="col">Sources (order = fallback chain)</th></tr>
             <tr><td><code>gdp_growth</code></td><td>GDP growth (annual %)</td><td>% (annual, real)</td><td>World Bank WDI; IMF DataMapper; IMF WEO (DBnomics fallback)</td></tr>
             <tr><td><code>gdp_current_usd</code></td><td>GDP (current US$)</td><td>current US$</td><td>World Bank WDI</td></tr>
             <tr><td><code>gdp_per_capita_usd</code></td><td>GDP per capita (current US$)</td><td>current US$</td><td>World Bank WDI</td></tr>
@@ -308,6 +313,7 @@ GET /health</pre>
     <tr><td><code>policy_rate</code></td><td>Central bank policy rate</td><td>% per annum</td><td>BIS statistics</td></tr>
     <tr><td><code>tourism_receipts_exports</code></td><td>International tourism, receipts (% of total exports)</td><td>% of total exports</td><td>World Bank WDI</td></tr>
   </table>
+  </div>
   <div class="note">Fiscal indicators (<code>govt_debt_gdp</code>, <code>fiscal_balance_gdp</code>, <code>govt_revenue_gdp</code>, <code>govt_expenditure_gdp</code>) intentionally use IMF general-government series as primary. The World Bank WDI central-government debt series has far patchier coverage. <code>govt_revenue_gdp</code>/<code>govt_expenditure_gdp</code> are served from the IMF's Fiscal Monitor database (the same general-government concept as the WEO database, at full precision); the other two are served from the WEO database itself (values rounded to one decimal by the DataMapper API). US-prefixed keys are reserved for FRED-backed high-frequency series; FRED is permanently disabled (§8) because its terms of use prohibit AI/ML use and caching/redistribution, so these keys always decline.</div>
 
   <h2 id="countries">7. Countries &amp; aggregates</h2>
