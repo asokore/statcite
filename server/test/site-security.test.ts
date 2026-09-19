@@ -7,6 +7,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { SECURITY_HEADERS } from "../src/index.ts";
 
 const repoRoot = path.resolve(fileURLToPath(new URL("../../", import.meta.url)));
 const read = (rel: string) => readFileSync(path.join(repoRoot, rel), "utf8");
@@ -176,5 +177,94 @@ test("no tracked file tells anyone to run a bare, unpinned npx wrangler", () => 
       if (m[1] !== `@${pinned}`) offenders.push(`${f}: ${m[0]}`);
     }
   }
+  assert.deepEqual(offenders, []);
+});
+
+// --- the static pages' security headers, which live only in site/_headers ----
+
+/** Parse one rule block out of site/_headers, comments stripped. The comment
+ * lines matter: a naive split leaves the NEXT block's comments glued to this
+ * one, so a comment naming a header would read as a header. */
+function headerBlock(rule: string): Map<string, string> {
+  const raw = read("site/_headers").split(/\r?\n/).filter((l) => !/^\s*#/.test(l)).join("\n");
+  const block = raw.split(/\n(?=\S)/).find((b) => b.trimEnd() === rule || b.startsWith(`${rule}\n`));
+  assert.ok(block, `site/_headers has no ${rule} block`);
+  const out = new Map<string, string>();
+  for (const line of block.split(/\r?\n/).slice(1)) {
+    const m = /^\s+([A-Za-z0-9-]+):\s*(.+?)\s*$/.exec(line);
+    if (m) out.set(m[1].toLowerCase(), m[2]);
+  }
+  return out;
+}
+
+test("every static page carries the site-wide security headers", () => {
+  // The Worker hands static assets to env.ASSETS.fetch without touching their
+  // headers, so this file is the only place they come from.
+  const h = headerBlock("/*");
+  assert.equal(h.get("x-frame-options"), "DENY");
+  assert.equal(h.get("x-content-type-options"), "nosniff");
+  assert.ok(h.get("referrer-policy"), "Referrer-Policy is set");
+  assert.equal(h.get("strict-transport-security"), SECURITY_HEADERS["strict-transport-security"]);
+  assert.match(h.get("strict-transport-security") ?? "", /max-age=(\d+)/);
+  assert.ok(Number(/max-age=(\d+)/.exec(h.get("strict-transport-security") ?? "")?.[1]) >= 31536000);
+});
+
+test("the site CSP frames out clickjacking and leaves the verifier's own /v1 call working", () => {
+  const csp = headerBlock("/*").get("content-security-policy") ?? "";
+  const directives = new Map(
+    csp.split(";").map((d) => d.trim()).filter(Boolean).map((d) => {
+      const [name, ...values] = d.split(/\s+/);
+      return [name, values];
+    }),
+  );
+  assert.deepEqual(directives.get("default-src"), ["'self'"]);
+  assert.deepEqual(directives.get("frame-ancestors"), ["'none'"]);
+  assert.deepEqual(directives.get("base-uri"), ["'self'"]);
+  assert.deepEqual(directives.get("form-action"), ["'self'"]);
+  assert.ok(directives.get("connect-src")?.includes("'self'"), "the live verifier posts to same-origin /v1");
+  const script = directives.get("script-src") ?? [];
+  assert.ok(script.includes("'self'"));
+  for (const v of script) {
+    assert.ok(!v.includes("*"), `script-src must not wildcard: ${v}`);
+    assert.notEqual(v, "'unsafe-eval'");
+    assert.ok(!v.startsWith("http:"), `script-src must not allow plain HTTP: ${v}`);
+  }
+});
+
+test("every external host the CSP allows is disclosed on the privacy page", () => {
+  // The page used to say "no analytics scripts" while Cloudflare injected its
+  // beacon into every response, including that page's own.
+  const csp = headerBlock("/*").get("content-security-policy") ?? "";
+  const privacy = read("site/privacy.html");
+  const hosts = new Set<string>();
+  for (const directive of csp.split(";")) {
+    const [name, ...values] = directive.trim().split(/\s+/);
+    if (name !== "script-src" && name !== "connect-src") continue;
+    for (const v of values) {
+      if (v.startsWith("'") || v === "data:" || !v.includes(".")) continue;
+      hosts.add(v.replace(/^https?:\/\//, "").replace(/\/$/, ""));
+    }
+  }
+  for (const host of hosts) {
+    assert.ok(privacy.includes(host), `${host} is allowed by the CSP but not disclosed on /privacy`);
+  }
+  if (hosts.size > 0) {
+    assert.ok(
+      !/no analytics scripts/i.test(privacy),
+      "the privacy page denies analytics scripts while the CSP allows an external script host",
+    );
+  }
+});
+
+test("no harvested source data is tracked, even force-added", () => {
+  // caribstat/data holds the banks' own series. Both banks gave permission and
+  // the ledger reads "served", but the canonical published copy is the caribstat
+  // repository, which is what /v1/sources names and the Worker fetches. A second
+  // copy here can drift from the one being served. .gitignore stops a plain
+  // `git add`; `git add -f` walks straight past it. These prefixes are spelled
+  // out on purpose: reading them from .gitignore would delete the guard the day
+  // someone deletes the entry.
+  const banned = ["caribstat/data/", "caribstat/reference/", "caribstat/.publish/", ".capture/"];
+  const offenders = trackedFiles().filter((f) => banned.some((p) => f.startsWith(p)));
   assert.deepEqual(offenders, []);
 });

@@ -52,22 +52,43 @@ test("IMF citation license text states the real conditions and never overclaims"
   assert.match(IMF_LICENSE, /free of charge/i, "must carry the sold-as-standalone disclosure duty");
   assert.match(IMF_LICENSE, /third-party/i, "must flag that some products carry third-party terms");
 });
-test("apify core.bundle.mjs is rebuilt from current core (sentinel strings; guard-the-last-hop)", async () => {
-  // The bundle is a committed build artifact serving a second production surface
-  // (the Apify actor). This proved capable of silent drift: a core change once
-  // shipped while the bundle kept the old strings with every repo test green.
-  const bundle = readFileSync(path.join(repoRoot, "apify/core.bundle.mjs"), "utf8");
-  // esbuild escapes non-ASCII (em-dashes become —), so compare an
-  // ASCII-only distinctive slice of the constant rather than the verbatim string.
-  const { IMF_LICENSE } = await import("../src/core/citations.ts");
-  const asciiSlice = IMF_LICENSE.slice(0, IMF_LICENSE.indexOf("—")).trim();
-  assert.ok(asciiSlice.length > 40, "sentinel slice unexpectedly short — update this test");
-  assert.ok(bundle.includes(asciiSlice), "bundle is stale: missing the current IMF license text — run `cd apify && npm run build:core`");
-  assert.ok(
-    bundle.includes("Latest value not marked as a projection"),
-    "bundle is stale: missing the v1.3.1 latest_only note — run `cd apify && npm run build:core`",
+test("apify/core.bundle.mjs is byte-identical to a fresh build of core-entry.ts", async () => {
+  // The bundle is a committed build artifact and it is what the paid Apify actor
+  // actually runs, so a stale one serves different verdicts from the Worker. Two
+  // sentinel strings used to stand in for freshness here: any core change that
+  // missed those two strings shipped stale with every test green. Proven by
+  // mutating the committed bundle: the sentinels passed, this compare fails.
+  const esbuild = await import("esbuild");
+  const apifyPkg = readJson("apify/package.json");
+  assert.equal(
+    apifyPkg.scripts["build:core"],
+    "esbuild ../server/src/core-entry.ts --bundle --format=esm --platform=node --target=node20 --outfile=core.bundle.mjs",
+    "build:core changed: update the flags below to match",
   );
-  assert.ok(!/free reuse and redistribution/.test(bundle), "bundle still carries the retired categorical IMF license wording");
+  const out = await esbuild.build({
+    entryPoints: [path.join(repoRoot, "server/src/core-entry.ts")],
+    bundle: true,
+    format: "esm",
+    platform: "node",
+    target: "node20",
+    outfile: path.join(repoRoot, "apify/core.bundle.mjs"),
+    // esbuild bakes module paths relative to this, and `npm test` runs from
+    // server/, so without it a fresh build never matches the committed one.
+    absWorkingDir: path.join(repoRoot, "apify"),
+    write: false,
+  });
+  const norm = (s: string) => s.replace(/\r\n/g, "\n");
+  const fresh = norm(Buffer.from(out.outputFiles[0].contents).toString("utf8"));
+  const committed = norm(readFileSync(path.join(repoRoot, "apify/core.bundle.mjs"), "utf8"));
+  assert.equal(
+    fresh,
+    committed,
+    "apify/core.bundle.mjs is stale: run `cd apify && npm run build:core`. If it IS current, compare esbuild versions: this test built with " +
+      esbuild.version + ", apify/package.json declares " + apifyPkg.devDependencies.esbuild + ".",
+  );
+  // Byte equality does not subsume this: a retired wording reintroduced in
+  // source would be reproduced by the rebuild and compare equal.
+  assert.ok(!/free reuse and redistribution/.test(committed), "bundle still carries the retired categorical IMF license wording");
 });
 
 test("apify actor.json is valid JSON with PPE memory bounds", () => {

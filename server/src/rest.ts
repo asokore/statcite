@@ -15,6 +15,7 @@ import { corsHeaders, SERVER_VERSION } from "./mcp.ts";
 import { parseTransform } from "./core/transforms.ts";
 import { recordUsage, restOp, indicatorLabel, countryLabel, seriesIdCountry, type Outcome } from "./core/analytics.ts";
 import { readBodyCapped, MAX_BODY_BYTES } from "./body.ts";
+import { caribstatUrl, parseCaribstatId } from "./adapters/caribstat.ts";
 import { quoteInput } from "./core/text.ts";
 
 function json(status: number, body: unknown, cacheSeconds = 3600): Response {
@@ -373,6 +374,20 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
           });
           return true;
         }),
+        // fx_convert's live upstream. Deliberately /latest rather than
+        // /currencies, which the adapter caches for a day: a probe that always
+        // reports cached:true measures nothing.
+        probe("ecb_fx", "https://api.frankfurter.dev/v1/latest?base=EUR&symbols=USD", async () => {
+          await fetchJson("https://api.frankfurter.dev/v1/latest?base=EUR&symbols=USD", { ttlSeconds: 120, timeoutMs: 5000 });
+          return true;
+        }),
+        // Every caribstat/ series, which is the only coverage for Anguilla and
+        // Montserrat. The URL is built by the adapter's own helpers so a corpus
+        // reshuffle cannot turn this red by itself.
+        probe("caribstat", caribstatUrl(parseCaribstatId("caribstat/ECCB/consumer-price-index/AIA.a")), async () => {
+          await fetchJson(caribstatUrl(parseCaribstatId("caribstat/ECCB/consumer-price-index/AIA.a")), { ttlSeconds: 120, timeoutMs: 5000 });
+          return true;
+        }),
       ]);
       const allOk = Object.values(probes).every((p) => p.ok);
       return json(200, {
@@ -380,7 +395,7 @@ async function routeRest(request: Request, ctx: Ctx, usage: UsageSlot): Promise<
         version: SERVER_VERSION,
         status: allOk ? "ok" : "degraded",
         upstreams: probes,
-        note: "Upstream probes are cached ~120s and a cached probe reports ms:null with cached:true, so a green row is never mistaken for a fresh measurement; each hits the cheapest real endpoint for that source (never HEAD, BIS 500s on HEAD); 'degraded' means at least one primary source is unreachable right now. Fallback chains may still serve affected indicators, with fallback_used disclosed per response.",
+        note: "Upstream probes are cached ~120s and a cached probe reports ms:null with cached:true, so a green row is never mistaken for a fresh measurement. Each hits the cheapest real endpoint for that source (never HEAD, BIS 500s on HEAD). 'degraded' means at least one of the seven probed upstreams is unreachable right now: the World Bank, IMF DataMapper, DBnomics, BIS, the ECB Data Portal, ECB reference rates via Frankfurter (fx_convert), and the CaribStat origin serving the ECCB and Central Bank of Barbados series. The dated-WEO-vintage endpoint used only by as_of and the revision probe is not measured here. Fallback chains may still serve affected indicators, with fallback_used disclosed per response.",
       }, 120);
     }
 

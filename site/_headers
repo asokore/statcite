@@ -1,7 +1,10 @@
 # Cloudflare Workers Static Assets headers.
-# CSP note: all CSS/JS is inline by design (zero external subresources), so
-# 'unsafe-inline' is required; connect-src 'self' covers the live verifier
-# form's same-origin /v1 calls.
+# CSP note: all first-party CSS and JS is inline by design, so 'unsafe-inline'
+# is required. connect-src 'self' covers the live verifier form's same-origin
+# /v1 calls. The only external origins allowed are Cloudflare Web Analytics:
+# static.cloudflareinsights.com serves the beacon Cloudflare injects at the edge,
+# and cloudflareinsights.com receives the count. Both are disclosed on /privacy,
+# and a test refuses any CSP host that the privacy page does not name.
 
 # TDM Reservation Protocol, declared on the PAGES only and deliberately not on
 # the /v1 data responses. The pages are original work. The figures in an API

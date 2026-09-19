@@ -160,3 +160,29 @@ test("a caribstat row can be asked for over HTTP without a fragment", async () =
     globalThis.fetch = original;
   }
 });
+
+test("/v1/status probes every upstream a live request path uses, and its note names only those", async () => {
+  // Five of the eleven ledger sources were probed. Neither fx_convert's upstream
+  // nor the CaribStat origin was, so the badge could read "ok" while /v1/fx
+  // returned 502 and every Anguilla and Montserrat series was dead.
+  const seen: string[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    seen.push(typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url);
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    const { body } = await get("/v1/status");
+    for (const key of ["worldbank", "imf_datamapper", "dbnomics", "bis", "ecb_data", "ecb_fx", "caribstat"]) {
+      assert.ok(body.upstreams[key], `${key} has no row: ${Object.keys(body.upstreams).join(", ")}`);
+    }
+    // Rows are not enough: the probe must have reached the host.
+    assert.ok(seen.some((u) => u.includes("frankfurter")), seen.join(" "));
+    assert.ok(seen.some((u) => u.includes("caribstat")), seen.join(" "));
+    // The note must not claim more than the probe set measures.
+    assert.doesNotMatch(body.note, /at least one primary source is unreachable/);
+    assert.match(body.note, /seven probed upstreams/);
+  } finally {
+    globalThis.fetch = original;
+  }
+});

@@ -2388,12 +2388,14 @@ function requireCountry(input) {
   return c;
 }
 function finishSeries(result, opts) {
-  let obs = filterPeriodRange(result.observations, opts.start, opts.end);
+  const windowed = filterPeriodRange(result.observations, opts.start, opts.end);
+  let obs = windowed;
   const transform = opts.transform ?? "none";
-  const hadValuesBeforeTransform = obs.some((o) => o.value != null);
+  const hadValuesBeforeTransform = windowed.some((o) => o.value != null);
   if (transform !== "none") {
-    const t = applyTransform(obs, transform, { frequency: result.frequency });
-    obs = t.observations;
+    const basis = transform === "index" ? windowed : result.observations;
+    const t = applyTransform(basis, transform, { frequency: result.frequency });
+    obs = transform === "index" ? t.observations : filterPeriodRange(t.observations, opts.start, opts.end);
     if (t.note) result.notes.push(t.note);
     if (t.unit) result.unit = t.unit;
     if (result.citation) {
@@ -2661,7 +2663,8 @@ async function indicatorFromSdmx(ctx, def, country, opts) {
   if (!perCountry && country.iso3 !== "EMU" && country.iso3 !== "XM") {
     throw new ToolError(
       `'${def.key}' is a euro-area aggregate series and is only published for the euro area, request it with country="euro area".`,
-      { indicator: def.key, country: country.iso3 }
+      { indicator: def.key, country: country.iso3 },
+      "invalid_request"
     );
   }
   let areaCode;
@@ -2741,7 +2744,7 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
   if (!def) {
     const near = searchIndicatorDefs(key, 8).filter((m) => !isDisabledDef(m.def)).slice(0, 5).map((m) => m.def.key);
     throw new ToolError(
-      `Unknown indicator '${key}'.` + (near.length ? ` Closest matches: ${near.join(", ")}.` : "") + " Use search_indicators to browse the registry, or pass an explicit series id like 'worldbank/NY.GDP.MKTP.KD.ZG'.",
+      `Unknown indicator '${key}'.` + (near.length ? ` Closest matches: ${near.join(", ")}.` : "") + (ctx.surface === "rest" ? " Use GET /v1/indicators to list the registry, or pass an explicit series id like 'worldbank/NY.GDP.MKTP.KD.ZG'." : " Use search_indicators to browse the registry, or pass an explicit series id like 'worldbank/NY.GDP.MKTP.KD.ZG'."),
       { input: key, suggestions: near },
       "unknown_indicator"
     );
@@ -2758,6 +2761,7 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
   const errors = [];
   const attemptDetails = [];
   const attemptAbsent = [];
+  const attemptCodes = [];
   let absenceDetails;
   let firstErrorWasTransient = false;
   let anyErrorWasTransient = false;
@@ -2783,6 +2787,7 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
       attemptAbsent.push(
         e instanceof ToolError && e.details?.no_published_data === true || e instanceof UpstreamError && e.status === 404
       );
+      attemptCodes.push(e instanceof ToolError ? e.code : void 0);
       if (e instanceof ToolError && e.details && typeof e.details === "object" && "no_published_data" in e.details) {
         if (!absenceDetails) absenceDetails = e.details;
       }
@@ -2834,7 +2839,8 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
     );
   }
   const windowMiss = attemptDetails.find((d) => d?.no_published_data === false && d.available_range);
-  const code = anyErrorWasTransient ? "upstream_unavailable" : windowMiss ? windowMiss.gap_in_published_range ? "data_gap" : "out_of_range" : "upstream_unavailable";
+  const statedCode = attemptCodes[0] && attemptCodes.every((c) => c === attemptCodes[0]) ? attemptCodes[0] : void 0;
+  const code = anyErrorWasTransient ? "upstream_unavailable" : windowMiss ? windowMiss.gap_in_published_range ? "data_gap" : "out_of_range" : statedCode ?? "upstream_unavailable";
   throw new ToolError(
     `Could not retrieve '${def.key}' for ${country.name}: ${errors.map(cleanReason).join(" | ")}`,
     {
@@ -3147,7 +3153,9 @@ async function getSeries(ctx, seriesId, opts = {}) {
   }
   if (getIndicatorDef(id)) {
     if (!opts.country) {
-      throw new ToolError(`'${id}' is a registry indicator. Pass a 'country' as well, or use the get_indicator tool.`);
+      throw new ToolError(
+        ctx.surface === "rest" ? `'${id}' is a registry indicator. Pass a 'country' as well, or call GET /v1/indicator/${id}?country=<ISO3 or name>.` : `'${id}' is a registry indicator. Pass a 'country' as well, or use the get_indicator tool.`
+      );
     }
     return getIndicator(ctx, id, opts.country, opts);
   }
@@ -3168,7 +3176,7 @@ async function getSeries(ctx, seriesId, opts = {}) {
   const near = id.length <= 80 ? searchIndicatorDefs(id.replace(/[^A-Za-z0-9]+/g, " "), 8).filter((m) => !isDisabledDef(m.def)).slice(0, 5).map((m) => m.def.key) : [];
   if (near.length) hints.push(`Registry keys that may match: ${near.join(", ")}.`);
   throw new ToolError(
-    `Unrecognized series id '${id}'. Expected 'worldbank/CODE', 'imf/CODE', 'caribstat/BANK/TABLE/SERIES', 'dbnomics/PROVIDER/DATASET/SERIES', or a registry indicator key (see search_indicators). 'fred/' ids are recognised but permanently disabled.` + (hints.length ? " " + hints.join(" ") : ""),
+    `Unrecognized series id '${id}'. Expected 'worldbank/CODE', 'imf/CODE', 'caribstat/BANK/TABLE/SERIES', 'dbnomics/PROVIDER/DATASET/SERIES', or a registry indicator key (${ctx.surface === "rest" ? "list them with GET /v1/indicators" : "see search_indicators"}). 'fred/' ids are recognised but permanently disabled.` + (hints.length ? " " + hints.join(" ") : ""),
     { series_id: id, ...near.length ? { suggestions: near } : {} },
     "unknown_indicator"
   );
@@ -3209,7 +3217,7 @@ async function searchIndicators(ctx, query, opts = {}) {
       title: m.def.label,
       description: disabled ? `DISABLED, ${m.def.unit}. ${FRED_DISABLED_REASON}` : `${m.def.unit}${m.def.notes ? ` \u2014 ${m.def.notes}` : ""}`,
       url: wbIsPrimarySource(m.def) ? `https://data.worldbank.org/indicator/${m.def.wb}` : void 0,
-      usage: disabled ? "Do not call: this key always declines. Search again for an active alternative (e.g. unemployment_rate, inflation_cpi, gdp_growth)." : `get_indicator(indicator="${m.def.key}", country="<ISO3 or name>")`,
+      usage: disabled ? "Do not call: this key always declines. Search again for an active alternative (e.g. unemployment_rate, inflation_cpi, gdp_growth)." : ctx.surface === "rest" ? `GET /v1/indicator/${m.def.key}?country=<ISO3 or name>` : `get_indicator(indicator="${m.def.key}", country="<ISO3 or name>")`,
       active: !disabled
     };
   });
@@ -3220,7 +3228,7 @@ async function searchIndicators(ctx, query, opts = {}) {
         id: hit.id,
         title: `${hit.entry.provider}: ${hit.entry.title}${hit.iso3 ? `, ${hit.iso3}` : ""}`,
         description: `${hit.why}. Regional central bank data, not a registry indicator: values are on the publishing bank's own definitions.`,
-        usage: `get_series(series_id="${hit.id}") \u2014 add '#Row Label' to pick a row, e.g. '#${hit.entry.sampleRow}'`
+        usage: ctx.surface === "rest" ? `GET /v1/series?id=${hit.id}&row=${encodeURIComponent(hit.entry.sampleRow)} (or percent-encode the '#' row selector as %23)` : `get_series(series_id="${hit.id}") \u2014 add '#Row Label' to pick a row, e.g. '#${hit.entry.sampleRow}'`
       });
     }
   }
@@ -3230,7 +3238,7 @@ async function searchIndicators(ctx, query, opts = {}) {
       id: g.id,
       title: `UNCTAD: GDP growth, ${g.name} (1971-2019)`,
       description: `The World Bank and IMF publish no GDP series for ${g.name}. UNCTAD does, annually from 1971, but it ENDS IN 2019, so it is history rather than a current figure.`,
-      usage: `get_series(series_id="${g.id}")`
+      usage: ctx.surface === "rest" ? `GET /v1/series?id=${g.id}` : `get_series(series_id="${g.id}")`
     });
   }
   if (opts.includeDbnomics !== false && items.length < 5) {
@@ -3241,7 +3249,7 @@ async function searchIndicators(ctx, query, opts = {}) {
           type: "dbnomics_dataset",
           id: `dbnomics/${d.providerCode}/${d.datasetCode}`,
           title: `${d.providerName}: ${d.datasetName}`,
-          description: `${d.nbSeries.toLocaleString("en-US")} series. Browse then fetch with get_series('dbnomics/${d.providerCode}/${d.datasetCode}/SERIES_CODE')`,
+          description: `${d.nbSeries.toLocaleString("en-US")} series. Browse, then fetch one with ` + (ctx.surface === "rest" ? `GET /v1/series?id=dbnomics/${d.providerCode}/${d.datasetCode}/SERIES_CODE` : `get_series('dbnomics/${d.providerCode}/${d.datasetCode}/SERIES_CODE')`),
           url: d.url
         });
       }
@@ -3787,13 +3795,18 @@ async function fxConvert(ctx, amount, fromRaw, toRaw, date) {
   const citations = [];
   let precision = "annual_average";
   let rateDate = "";
+  const legs = [];
   const wbYear = yearOnly ?? (dayDate ? parseInt(dayDate.slice(0, 4), 10) : void 0);
   async function usdPerUnit(cur) {
-    if (cur === "USD") return 1;
+    if (cur === "USD") {
+      legs.push({ currency: "USD", usd_per_unit: 1, period: null, source: "identity (USD bridge base)" });
+      return 1;
+    }
     if (ecbSet.has(cur) && !yearOnly) {
       const r = await getEcbRates(cur, ["USD"], dayDate);
       citations.push(ecbFxCitation(ctx, { base: cur, quote: "USD", rateDate: r.date, apiUrl: r.apiUrl }));
       rateDate = rateDate || r.date;
+      legs.push({ currency: cur, usd_per_unit: r.rates.USD, period: r.date, source: "ECB daily reference rate" });
       return r.rates.USD;
     }
     const wb = await wbUsdPerUnit(ctx, cur, wbYear);
@@ -3804,6 +3817,7 @@ async function fxConvert(ctx, amount, fromRaw, toRaw, date) {
       );
     }
     rateDate = rateDate || wb.period;
+    legs.push({ currency: cur, usd_per_unit: wb.usdPerUnit, period: wb.period, source: "World Bank PA.NUS.FCRF annual average" });
     return wb.usdPerUnit;
   }
   const fromUsd = await usdPerUnit(from);
@@ -3821,6 +3835,14 @@ async function fxConvert(ctx, amount, fromRaw, toRaw, date) {
     );
   }
   if (precision === "mixed") notes.push("Mixed precision: one leg is a daily ECB rate, the other an annual average, treat the result as approximate.");
+  const dated = legs.filter((l) => typeof l.period === "string");
+  if (new Set(dated.map((l) => l.period.slice(0, 4))).size > 1) {
+    const stalest = dated.reduce((a, b) => a.period <= b.period ? a : b);
+    rateDate = stalest.period;
+    notes.push(
+      `Leg periods differ: ${dated.map((l) => `${l.currency} ${l.period}`).join(", ")}. A cross rate is only as current as its stalest leg, so rate_date is ${stalest.period}: ${stalest.currency} has no official rate published after ${stalest.period.slice(0, 4)}. Treat the result as a ${stalest.period.slice(0, 4)} rate, not a current one.`
+    );
+  }
   return {
     amount,
     from,
@@ -3831,7 +3853,8 @@ async function fxConvert(ctx, amount, fromRaw, toRaw, date) {
     method: `USD bridge: 1 ${from} = ${fromUsd.toFixed(6)} USD; 1 ${to} = ${toUsd.toFixed(6)} USD; rate = ${fromUsd.toFixed(6)}/${toUsd.toFixed(6)}`,
     precision,
     citations,
-    notes
+    notes,
+    legs
   };
 }
 
@@ -3958,7 +3981,7 @@ async function verifyStat(ctx, p) {
   }
   for (const offset of [-2, -1, 1, 2]) {
     const v = byPeriod.get(String(year + offset))?.value;
-    if (v != null && closeEnough(p.claimed_value, v, percentKind, p)) {
+    if (v != null && judge(p.claimed_value, v, percentKind, p).verdict === "match" && Math.abs(p.claimed_value - v) < Math.abs(p.claimed_value - official)) {
       diagnostics.push(`The claimed value matches the ${year + offset} figure (${fmt(v)}), the year may be misattributed.`);
     }
   }
@@ -4093,9 +4116,6 @@ function normalizePeriod(input) {
   if (m) return `${m[1]}-${m[2]}`;
   return s;
 }
-function closeEnough(claimed, official, percentKind, p) {
-  return judge(claimed, official, percentKind, p).verdict !== "mismatch";
-}
 function judge(claimed, official, percentKind, p) {
   const absDiff = Math.abs(claimed - official);
   if (absDiff === 0) return { verdict: "match", why: "exact match" };
@@ -4114,6 +4134,12 @@ function judge(claimed, official, percentKind, p) {
   }
   if (percentKind) {
     if (absDiff <= 0.06 || relDiff <= 5e-3) {
+      if (claimed !== 0 && official !== 0 && Math.sign(claimed) !== Math.sign(official)) {
+        return {
+          verdict: "close",
+          why: `the magnitudes agree to ${absDiff.toFixed(3)} pp but the signs disagree: claimed a ${claimed > 0 ? "positive" : "negative"} figure where the official value is ${official > 0 ? "positive" : "negative"}`
+        };
+      }
       return {
         verdict: "match",
         why: absDiff <= 0.06 ? `difference of ${absDiff.toFixed(3)} pp is within normal rounding` : `relative difference ${(relDiff * 100).toFixed(2)}% is within normal rounding`
