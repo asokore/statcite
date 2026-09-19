@@ -121,7 +121,7 @@ Errors: 400 missing params, 422 helpful failure (suggestions included), 502 upst
 - real_interest_rate. Real interest rate (%) [%] (sources: World Bank WDI)
 - broad_money_gdp. Broad money (% of GDP) [% of GDP] (sources: World Bank WDI)
 - gini. Gini index [index (0–100)] (sources: World Bank WDI)
-- poverty_headcount_intl. Poverty headcount ratio at $2.15/day, 2017 PPP (% of population) [% of population] (sources: World Bank WDI)
+- poverty_headcount_intl. Poverty headcount ratio at $3.00 a day, 2021 PPP (% of population) [% of population] (sources: World Bank WDI)
 - life_expectancy. Life expectancy at birth, total (years) [years] (sources: World Bank WDI)
 - urban_population_share. Urban population (% of total population) [% of population] (sources: World Bank WDI)
 - us_fed_funds_rate. US federal funds effective rate (monthly, %) [%] (sources: FRED (US), disabled, always declines)

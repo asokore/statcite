@@ -656,7 +656,7 @@ var INDICATORS = [
     kind: "percent",
     wb: "ST.INT.RCPT.XP.ZS",
     synonyms: ["tourism receipts", "tourism exports", "tourism share of exports", "tourism dependence"],
-    notes: "A headline exposure measure for tourism-dependent economies (most small island developing states)."
+    notes: "A headline exposure measure for tourism-dependent economies (most small island developing states). Coverage is sparse and the World Bank series currently ends in 2020, with no value published for any economy after that, so latest_only returns each economy's own last reported year, which for some is over a decade old. Where that year is 2020, the value reflects the pandemic collapse in travel rather than a normal level."
   },
   // External debt (World Bank International Debt Statistics — same
   // api.worldbank.org v2 endpoint and CC BY 4.0 summary terms as WDI; licence
@@ -781,12 +781,17 @@ var INDICATORS = [
   },
   {
     key: "poverty_headcount_intl",
-    label: "Poverty headcount ratio at $2.15/day, 2017 PPP (% of population)",
+    label: "Poverty headcount ratio at $3.00 a day, 2021 PPP (% of population)",
     unit: "% of population",
     kind: "percent",
     wb: "SI.POV.DDAY",
-    synonyms: ["poverty rate", "extreme poverty", "poverty headcount"],
-    notes: "Survey-based international poverty line; sparse for many countries."
+    // "$2.15 a day" is a deliberate synonym, not a leftover. The tokenizer
+    // strips "$" and ".", so while the label still said 2.15 a search for the
+    // retired line matched it by accident. Correcting the label removed that
+    // route, and an agent that knows the old line still needs to arrive here
+    // and be told it was rebased.
+    synonyms: ["poverty rate", "extreme poverty", "poverty headcount", "international poverty line", "$2.15 a day"],
+    notes: "Survey-based international poverty line, rebased by the World Bank to $3.00 a day in 2021 PPP. Rates on this line cannot be compared with rates published under the earlier $2.15 a day, 2017 PPP line. Sparse for many countries."
   },
   {
     key: "life_expectancy",
@@ -2785,6 +2790,26 @@ function buildSourceAttempts(ctx, def, country, opts) {
   }
   return attempts;
 }
+var STALE_PRIMARY_YEARS = 3;
+function stalePrimaryNote(ctx, def, country, result, opts, attempts, tried) {
+  if (opts.limit !== 1 || opts.end) return void 0;
+  if (attempts.length < 2) return void 0;
+  const latest = result.observations?.[result.observations.length - 1];
+  const period = latest?.period;
+  if (!period) return void 0;
+  const periodYear = Number(String(period).slice(0, 4));
+  if (!Number.isFinite(periodYear)) return void 0;
+  const clockYear = new Date(nowIso(ctx)).getUTCFullYear();
+  const gap = clockYear - periodYear;
+  if (gap <= STALE_PRIMARY_YEARS) return void 0;
+  const others = attempts.slice(1).map((a) => a.label);
+  const plural = others.length > 1;
+  const pointer = ctx.surface === "rest" ? `GET /v1/compare?indicator=${def.key}&country=${country.iso3}` : `compare_sources (indicator=${def.key}, country=${country.iso3})`;
+  return {
+    gap,
+    text: `${tried[0].label} is the primary source for '${def.key}' and its most recent published observation for ${country.name} is ${period}, ${gap} years behind ${clockYear}. This registry entry also lists ${others.join(" and ")}. StatCite has not queried ${plural ? "them" : "it"} for this request, so whether ${plural ? "they publish" : "it publishes"} more recent periods is not known here. Use ${pointer} to see every source's published range before treating this as a current value.`
+  };
+}
 async function getIndicator(ctx, key, countryInput, opts = {}) {
   assertYearWindow(opts);
   const def = getIndicatorDef(key);
@@ -2823,6 +2848,13 @@ async function getIndicator(ctx, key, countryInput, opts = {}) {
         result.notes.push(
           firstErrorWasTransient ? `${primaryLabel} was transiently unavailable for this request; served from ${servedLabel} instead, which may use a different statistical definition and can report a different value for the same nominal indicator. If exact consistency with ${primaryLabel} matters, retry this query, the primary source may have recovered. (${errors[0]})` : anyErrorWasTransient ? `${primaryLabel} does not have this indicator/country/period, and an intermediate fallback source was transiently unavailable; served from ${servedLabel} instead. A skipped source may recover, so the serving source for this query can change on retry. (${errors[0]})` : `${primaryLabel} does not have this indicator/country/period; served from ${servedLabel} instead. (${errors[0]})`
         );
+      } else {
+        const staleNote = stalePrimaryNote(ctx, def, country, result, opts, attempts, tried);
+        if (staleNote) {
+          result.stale_primary = true;
+          result.stale_primary_years = staleNote.gap;
+          result.notes.push(staleNote.text);
+        }
       }
       return result;
     } catch (e) {

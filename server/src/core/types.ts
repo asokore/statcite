@@ -93,6 +93,15 @@ export interface SeriesResult {
    * fallback the stable de-facto source. verify_stat demotes transient-fallback
    * verdicts to cannot_verify but judges definitive-fallback ones normally. */
   fallback_reason?: "transient" | "definitive";
+  /** Set when the PRIMARY source served a "latest" value whose period is far
+   * behind the clock. It is a statement about the serving source's own horizon
+   * and nothing else. It does not claim that any other source publishes a more
+   * recent period, because sometimes none does: for several economies the whole
+   * statistical record stops, and a flag that implied otherwise would be a
+   * fabrication dressed as a disclosure. */
+  stale_primary?: boolean;
+  /** Clock year minus the served period's year. */
+  stale_primary_years?: number;
 }
 
 export type IndicatorKind =

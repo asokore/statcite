@@ -98,3 +98,41 @@ test("scale diagnostic catches a decimal claim rounded to its own precision", ()
   assert.deepEqual(scaleDiagnostics(3, 250), [], "one significant digit is too coarse to call a scale slip");
   assert.deepEqual(scaleDiagnostics(-1.37, 1.37), []);
 });
+
+test("a frozen WDI series discloses its horizon beside the value it returns", async () => {
+  // Measured against the live API on 2026-09-19, not assumed: 1,325 rows for
+  // 2021-2026 on ST.INT.RCPT.XP.ZS, every one of them null. Barbados last
+  // reports 2016 and Jamaica 2011, so for the economies this indicator is sold
+  // to the per-country horizon bites harder than the series-wide one. The
+  // citation says the data was retrieved today, because it was.
+  const wb = JSON.stringify([
+    { page: 1, pages: 1, per_page: 100, total: 1, sourceid: "2", lastupdated: "2026-07-13" },
+    [
+      {
+        indicator: { id: "ST.INT.RCPT.XP.ZS", value: "International tourism, receipts (% of total exports)" },
+        country: { id: "BB", value: "Barbados" },
+        countryiso3code: "BRB",
+        date: "2016",
+        value: 44.4375926721103,
+        unit: "",
+        obs_status: "",
+        decimal: 1,
+      },
+    ],
+  ]);
+  _clearMemCache();
+  const real = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(wb, { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch;
+  try {
+    const res = await handleRequest(new Request("https://statcite.com/v1/indicator/tourism_receipts_exports?country=BRB&latest_only=true"), env);
+    const body = (await res.json()) as any;
+    assert.equal(res.status, 200);
+    assert.equal(body.observations[0].period, "2016");
+    const notes = body.notes.join(" ");
+    assert.match(notes, /currently ends in 2020/, "the series-wide horizon");
+    assert.match(notes, /last reported year/, "and the per-country one, which is what actually bites");
+    assert.match(notes, /pandemic/, "2020 is a trough, not a level");
+  } finally {
+    globalThis.fetch = real;
+  }
+});

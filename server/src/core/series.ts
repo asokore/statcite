@@ -2,7 +2,7 @@
 // and cross-source search.
 
 import type { Citation, Ctx, ErrorCode, IndicatorDef, Observation, SeriesResult } from "./types.ts";
-import { ToolError } from "./types.ts";
+import { ToolError, nowIso } from "./types.ts";
 import { integratedTerritoryNote, INTEGRATED_TERRITORIES, resolveCountry, suggestCountries, type Country } from "./countries.ts";
 import { getIndicatorDef, searchIndicatorDefs, INDICATORS } from "./indicators.ts";
 import { applyTransform, filterPeriodRange, type Transform } from "./transforms.ts";
@@ -535,6 +535,66 @@ function buildSourceAttempts(
   return attempts;
 }
 
+/**
+ * How far behind the clock a primary's own latest observation may sit before it
+ * is worth saying so. Measured on 2026-09-19 rather than picked: at a gap of
+ * more than 3 years the note fires for 21 of 200 economies on BN.CAB.XOKA.GD.ZS
+ * and 10 of 257 on NY.GDP.MKTP.KD.ZG, while the 14 economies sitting exactly 3
+ * years back are ordinary slow refreshes rather than discontinued series. No
+ * annual series publishes the current year, so a gap of 1 or 2 is normal and a
+ * naive "clock minus period" would flag everything. If the World Bank ever
+ * drops its nowcast years this has to be re-measured, not assumed.
+ */
+const STALE_PRIMARY_YEARS = 3;
+
+/**
+ * The disclosure for a "latest" value the primary source stopped updating.
+ *
+ * It says what StatCite knows and stops there: this source's horizon, and the
+ * names of the sources it did not consult. It must never say the other source
+ * is fresher. Syria is the case that makes the stronger sentence false, and a
+ * note that asserted it would be inventing a fact to sound helpful.
+ */
+function stalePrimaryNote(
+  ctx: Ctx,
+  def: IndicatorDef,
+  country: { iso3: string; name: string },
+  result: SeriesResult,
+  opts: SeriesOpts,
+  attempts: Array<{ label: string }>,
+  tried: Array<{ label: string }>,
+): { gap: number; text: string } | undefined {
+  // Only where the caller cannot see the horizon for themselves. A full series
+  // shows its own end year, and a caller who pinned end_year asked for the old
+  // period, so neither needs telling.
+  if (opts.limit !== 1 || opts.end) return undefined;
+  // `attempts`, not `tried`: under strict_source the alternatives were not
+  // consulted by the caller's own instruction, and naming them is the whole
+  // content of the note.
+  if (attempts.length < 2) return undefined;
+  const latest = result.observations?.[result.observations.length - 1];
+  const period = latest?.period;
+  if (!period) return undefined;
+  const periodYear = Number(String(period).slice(0, 4));
+  if (!Number.isFinite(periodYear)) return undefined;
+  const clockYear = new Date(nowIso(ctx)).getUTCFullYear();
+  const gap = clockYear - periodYear;
+  if (gap <= STALE_PRIMARY_YEARS) return undefined;
+  const others = attempts.slice(1).map((a) => a.label);
+  const plural = others.length > 1;
+  const pointer =
+    ctx.surface === "rest"
+      ? `GET /v1/compare?indicator=${def.key}&country=${country.iso3}`
+      : `compare_sources (indicator=${def.key}, country=${country.iso3})`;
+  return {
+    gap,
+    text:
+      `${tried[0].label} is the primary source for '${def.key}' and its most recent published observation for ${country.name} is ${period}, ${gap} years behind ${clockYear}. ` +
+      `This registry entry also lists ${others.join(" and ")}. StatCite has not queried ${plural ? "them" : "it"} for this request, so whether ${plural ? "they publish" : "it publishes"} more recent periods is not known here. ` +
+      `Use ${pointer} to see every source's published range before treating this as a current value.`,
+  };
+}
+
 export async function getIndicator(ctx: Ctx, key: string, countryInput: string, opts: SeriesOpts = {}): Promise<SeriesResult> {
   assertYearWindow(opts);
   const def = getIndicatorDef(key);
@@ -614,6 +674,21 @@ export async function getIndicator(ctx: Ctx, key: string, countryInput: string, 
               ? `${primaryLabel} does not have this indicator/country/period, and an intermediate fallback source was transiently unavailable; served from ${servedLabel} instead. A skipped source may recover, so the serving source for this query can change on retry. (${errors[0]})`
               : `${primaryLabel} does not have this indicator/country/period; served from ${servedLabel} instead. (${errors[0]})`,
         );
+      } else {
+        // The primary served, so no fallback disclosure fires. That is right
+        // when the primary is current and wrong when it stopped publishing
+        // years ago: buildSourceAttempts orders sources by fixed precedence and
+        // the loop takes the first that does not throw, so a World Bank series
+        // discontinued in 2017 permanently outranks an IMF series running to
+        // 2025 and the caller is handed the old number as "latest" with nothing
+        // said. Note only, and only where the caller cannot see it for
+        // themselves.
+        const staleNote = stalePrimaryNote(ctx, def, country, result, opts, attempts, tried);
+        if (staleNote) {
+          result.stale_primary = true;
+          result.stale_primary_years = staleNote.gap;
+          result.notes.push(staleNote.text);
+        }
       }
       return result;
     } catch (e) {

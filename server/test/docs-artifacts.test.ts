@@ -4,6 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
+import { INDICATORS } from "../src/core/indicators.ts";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { inflateRawSync } from "node:zlib";
@@ -506,4 +507,33 @@ test("README and docs publish the copy-paste agent rule", () => {
   assert.match(md, rule, "README must carry the agent rule");
   assert.match(docs, rule, "docs must carry the agent rule");
   assert.match(docs, /id="agent-rule"/, "docs rule needs a linkable anchor");
+});
+
+test("every registry label is published verbatim in site/docs.html and site/llms-full.txt", () => {
+  // The drift had two halves and this guards the second. The World Bank rebased
+  // SI.POV.DDAY to $3.00 a day in 2021 PPP; the served payload takes its name
+  // from the live API and was right, while the registry label, the docs table
+  // and llms-full.txt all still advertised $2.15/day, 2017 PPP. An agent
+  // choosing the key from a discovery surface stated the wrong poverty line for
+  // a correct number. Nothing compared the three, which is why it drifted.
+  const docs = readFileSync(path.join(repoRoot, "site/docs.html"), "utf8");
+  const llms = readFileSync(path.join(repoRoot, "site/llms-full.txt"), "utf8");
+  for (const def of INDICATORS) {
+    assert.ok(docs.includes(def.label), `site/docs.html does not carry the registry label for '${def.key}': ${def.label}`);
+    assert.ok(llms.includes(def.label), `site/llms-full.txt does not carry the registry label for '${def.key}': ${def.label}`);
+  }
+});
+
+test("the poverty key advertises the line the World Bank actually serves", () => {
+  // Verified live on 2026-09-19: api.worldbank.org names SI.POV.DDAY "Poverty
+  // headcount ratio at $3.00 a day (2021 PPP) (% of population)".
+  const def = INDICATORS.find((d) => d.key === "poverty_headcount_intl")!;
+  assert.match(def.label, /\$3\.00 a day/);
+  assert.match(def.label, /2021 PPP/);
+  assert.doesNotMatch(def.label, /2\.15|2017 PPP/);
+  // Served, not just listed: the non-comparability warning reaches the payload.
+  assert.match(def.notes ?? "", /cannot be compared/);
+  // The tokenizer strips "$" and ".", so "2.15" in the label used to be the
+  // accidental search route for the retired line. Keep it deliberately.
+  assert.ok(def.synonyms?.some((s) => s.includes("2.15")), "an agent that knows the old line must still find this key");
 });

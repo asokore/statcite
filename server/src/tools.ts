@@ -66,6 +66,8 @@ const SERIES_OUTPUT_SCHEMA = {
     notes: { type: "array", items: { type: "string" } },
     fallback_used: { type: "boolean" },
     fallback_reason: { type: "string", enum: ["transient", "definitive"] },
+    stale_primary: { type: "boolean" },
+    stale_primary_years: { type: "number" },
   },
   required: ["series_id", "name", "observations", "citation", "notes"],
   additionalProperties: true,

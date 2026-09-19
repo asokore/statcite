@@ -247,7 +247,8 @@ export const INDICATORS: IndicatorDef[] = [
     kind: "percent",
     wb: "ST.INT.RCPT.XP.ZS",
     synonyms: ["tourism receipts", "tourism exports", "tourism share of exports", "tourism dependence"],
-    notes: "A headline exposure measure for tourism-dependent economies (most small island developing states).",
+    notes:
+      "A headline exposure measure for tourism-dependent economies (most small island developing states). Coverage is sparse and the World Bank series currently ends in 2020, with no value published for any economy after that, so latest_only returns each economy's own last reported year, which for some is over a decade old. Where that year is 2020, the value reflects the pandemic collapse in travel rather than a normal level.",
   },
   // External debt (World Bank International Debt Statistics — same
   // api.worldbank.org v2 endpoint and CC BY 4.0 summary terms as WDI; licence
@@ -372,12 +373,18 @@ export const INDICATORS: IndicatorDef[] = [
   },
   {
     key: "poverty_headcount_intl",
-    label: "Poverty headcount ratio at $2.15/day, 2017 PPP (% of population)",
+    label: "Poverty headcount ratio at $3.00 a day, 2021 PPP (% of population)",
     unit: "% of population",
     kind: "percent",
     wb: "SI.POV.DDAY",
-    synonyms: ["poverty rate", "extreme poverty", "poverty headcount"],
-    notes: "Survey-based international poverty line; sparse for many countries.",
+    // "$2.15 a day" is a deliberate synonym, not a leftover. The tokenizer
+    // strips "$" and ".", so while the label still said 2.15 a search for the
+    // retired line matched it by accident. Correcting the label removed that
+    // route, and an agent that knows the old line still needs to arrive here
+    // and be told it was rebased.
+    synonyms: ["poverty rate", "extreme poverty", "poverty headcount", "international poverty line", "$2.15 a day"],
+    notes:
+      "Survey-based international poverty line, rebased by the World Bank to $3.00 a day in 2021 PPP. Rates on this line cannot be compared with rates published under the earlier $2.15 a day, 2017 PPP line. Sparse for many countries.",
   },
   {
     key: "life_expectancy",
