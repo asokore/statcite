@@ -2010,10 +2010,13 @@ function canonicalCaribstatBase(p) {
 function withOccurrence(row, n, total) {
   return total > 1 ? { ...row, label: `${row.label} [${n} of ${total}]` } : row;
 }
+function docRef(d) {
+  return d.table_id || [d.category, d.sheet].filter(Boolean).join("/") || d.source_id || "unknown table";
+}
 function selectRow(doc, want) {
   if (!doc.series?.length) {
-    throw new ToolError(`caribstat document for ${doc.table_id}/${doc.country.iso3} contains no series rows.`, {
-      table: doc.table_id,
+    throw new ToolError(`caribstat document for ${docRef(doc)}/${doc.country.iso3} contains no series rows.`, {
+      table: docRef(doc),
       country: doc.country.iso3,
       no_published_data: true
     });
@@ -2027,16 +2030,16 @@ function selectRow(doc, want) {
     const n = Number(occ[1]);
     if (n >= 1 && n <= matches.length) return withOccurrence(matches[n - 1], n, matches.length);
     throw new ToolError(
-      `Row '${wantLabel}' occurs ${matches.length} time(s) in ${doc.table_id}/${doc.country.iso3}, so [${n}] is out of range.`,
-      { table: doc.table_id, country: doc.country.iso3, occurrences: matches.length }
+      `Row '${wantLabel}' occurs ${matches.length} time(s) in ${docRef(doc)}/${doc.country.iso3}, so [${n}] is out of range.`,
+      { table: docRef(doc), country: doc.country.iso3, occurrences: matches.length }
     );
   }
   if (matches.length > 1) {
     const first = (r) => r.observations.find((o) => o.value != null)?.value ?? "no values";
     throw new ToolError(
-      `Row selector '${wantLabel}' matches ${matches.length} different rows in ${doc.table_id}/${doc.country.iso3}, which the source repeats under different headings. They are distinct series: ` + matches.map((m, i) => `[${i + 1}] first value ${first(m)}`).join(", ") + `. Select one with '${wantLabel}[1]' \u2026 '${wantLabel}[${matches.length}]'.`,
+      `Row selector '${wantLabel}' matches ${matches.length} different rows in ${docRef(doc)}/${doc.country.iso3}, which the source repeats under different headings. They are distinct series: ` + matches.map((m, i) => `[${i + 1}] first value ${first(m)}`).join(", ") + `. Select one with '${wantLabel}[1]' \u2026 '${wantLabel}[${matches.length}]'.`,
       {
-        table: doc.table_id,
+        table: docRef(doc),
         country: doc.country.iso3,
         ambiguous_label: wantLabel,
         occurrences: matches.length
@@ -2048,13 +2051,13 @@ function selectRow(doc, want) {
   if (prefixed.length === 1) return prefixed[0];
   if (prefixed.length > 1) {
     throw new ToolError(
-      `Row selector '${want}' is ambiguous in ${doc.table_id}/${doc.country.iso3}: it matches ${prefixed.length} rows (${prefixed.map((s) => `"${s.label}"`).join(", ")}). Use the exact label.`,
-      { table: doc.table_id, country: doc.country.iso3, matches: prefixed.map((s) => s.label) }
+      `Row selector '${want}' is ambiguous in ${docRef(doc)}/${doc.country.iso3}: it matches ${prefixed.length} rows (${prefixed.map((s) => `"${s.label}"`).join(", ")}). Use the exact label.`,
+      { table: docRef(doc), country: doc.country.iso3, matches: prefixed.map((s) => s.label) }
     );
   }
   throw new ToolError(
-    `No row '${want}' in ${doc.table_id}/${doc.country.iso3}. Available rows: ${doc.series.map((s) => s.label).join(" | ")}`,
-    { table: doc.table_id, country: doc.country.iso3, available_rows: doc.series.map((s) => s.label) }
+    `No row '${want}' in ${docRef(doc)}/${doc.country.iso3}. Available rows: ${doc.series.map((s) => s.label).join(" | ")}`,
+    { table: docRef(doc), country: doc.country.iso3, available_rows: doc.series.map((s) => s.label) }
   );
 }
 async function fetchCaribstatSeries(id, opts = {}) {
@@ -2166,7 +2169,7 @@ var CARIBSTAT_CATALOGUE = [
     title: "Summarized Monetary Survey",
     freqs: ["a", "q", "m"],
     geographies: 9,
-    sampleRow: "Money Supply (M2)",
+    sampleRow: "Broad Money Liabilities (M2)",
     topics: ["money supply", "monetary", "m2", "credit", "deposits", "reserves"]
   },
   {
@@ -2175,7 +2178,7 @@ var CARIBSTAT_CATALOGUE = [
     title: "Interest Rates on Deposits and Loans",
     freqs: ["a", "q", "m"],
     geographies: 9,
-    sampleRow: "Weighted Average Deposit Rate",
+    sampleRow: "Discount Rate",
     topics: ["interest rate", "lending rate", "deposit rate", "spread"]
   },
   {
@@ -2184,7 +2187,7 @@ var CARIBSTAT_CATALOGUE = [
     title: "Selected Tourism Statistics",
     freqs: ["a", "q", "m"],
     geographies: 9,
-    sampleRow: "Total Visitors",
+    sampleRow: "Total Visitor Arrivals",
     topics: ["tourism", "visitors", "arrivals", "cruise", "stayover"]
   },
   // --- CBB ------------------------------------------------------------
@@ -2269,7 +2272,7 @@ var CARIBSTAT_CATALOGUE = [
     table: "inflation-and-retail-price-index",
     title: "Retail Price Index (RPI) and Rate of Inflation",
     sheets: ["inflation", "jul2001-eop-rw", "jul2018-avg-rw", "jul2018-eop-rw", "jul2001-avg-rw", "jul2001-eop", "may1994-eop", "jul2001-avg", "mar1980-avg", "mar1980-eop", "may1994-avg", "oct1965-avg", "oct1965-eop"],
-    sampleRow: "12 MONTH MOVING AVERAGE",
+    sampleRow: "12 MONTH MOVING AVERAGE[4]",
     topics: ["inflation", "retail price index", "rpi", "prices", "cost of living"]
   },
   {

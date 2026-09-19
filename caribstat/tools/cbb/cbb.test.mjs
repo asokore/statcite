@@ -275,3 +275,39 @@ test("the worst real sheet still passes the coverage gate", () => {
   };
   assert.deepEqual(validateTable(ok, "2026-05-03"), []);
 });
+
+test("a period label the parser cannot read stops the document, but a footnote does not", () => {
+  // Until 2026-09-19 nothing read unparsed_labels: `grep -rn unparsed_labels
+  // server/src` returned nothing, and validateTable never looked at it. So an
+  // unreadable period label deleted its observations and the document published
+  // clean. Three holes were live when this was found.
+  //
+  // BOTH conditions are needed, and each one alone is wrong. Period-shape alone
+  // fires on prose footnotes; value-bearing alone fires on "Basket Weights",
+  // which is a real value-bearing skipped row on every RPI sheet in the corpus,
+  // measured by re-extracting the workbook rather than assumed.
+  const base = {
+    periods: ["2025-01", "2025-03"],
+    series: [{ label: "Stg", observations: [{ period: "2025-01", value: 2.01 }, { period: "2025-03", value: 2.03 }] }],
+  };
+
+  const fires = validateTable({ ...base, unparsed_value_rows: ["February2025"] }, "2026-08-01");
+  assert.equal(fires.length, 1, JSON.stringify(fires));
+  assert.match(fires[0], /silently deleted/);
+  assert.match(fires[0], /February2025/);
+
+  // Controls. A footnote that carried numbers is not a deleted observation.
+  assert.deepEqual(validateTable({ ...base, unparsed_value_rows: ["Basket Weights"] }, "2026-08-01"), []);
+  assert.deepEqual(validateTable({ ...base, unparsed_value_rows: ["Source: Barbados Statistical Service"] }, "2026-08-01"), []);
+  // And a period-shaped label that carried NO numbers never reaches this list.
+  // "April 2020*" marks a month the bank's own footnote says had no activity.
+  assert.deepEqual(validateTable({ ...base, unparsed_labels: ["April 2020*"], unparsed_value_rows: [] }, "2026-08-01"), []);
+  // A document from a parser that predates the field must not start failing.
+  assert.deepEqual(validateTable(base, "2026-08-01"), []);
+
+  // The other period shapes it must catch.
+  for (const label of ["2019", "2019-Q3", "3Q 2019", "Feb.2025", "February 2025"]) {
+    const p = validateTable({ ...base, unparsed_value_rows: [label] }, "2026-08-01");
+    assert.equal(p.length, 1, `${label} should be caught: ${JSON.stringify(p)}`);
+  }
+});
