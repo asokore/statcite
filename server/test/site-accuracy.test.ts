@@ -413,3 +413,138 @@ test("CI checks out full history, so the sitemap lastmod guard above is not skip
   // indistinguishable from a pass, which is how this went unnoticed.
   assert.match(job, /actions\/setup-python@v5/, "and python on PATH, or the guard skips for the other reason");
 });
+
+// --- tables contain themselves --------------------------------------------
+//
+// `@media(max-width:640px){table{display:block;overflow-x:auto}}` looked like a
+// horizontal-scroll rule and was not one. `table{width:100%}` stays in force,
+// so the block never overflows and the scroll never engages: the columns fall
+// back to min-content instead, and `:not(pre) > code{word-break:break-word}`
+// squeezed the /docs Key column to about four characters a line. Measured at
+// 375px: the registry table was 10,584px tall, one four-word row 228px on its
+// own. `display:block` also drops a table's implicit ARIA role in Chrome and
+// Firefox, on the pages whose whole point is tabular data.
+//
+// Measured after the fix, same viewport: registry 4,257px, sources 1,550px,
+// bench 331px, display:table restored, no horizontal page overflow anywhere.
+
+test("every site table sits inside a scroll wrapper, and no page collapses a table to display:block", () => {
+  for (const page of sitePages()) {
+    const html = read(page);
+    assert.doesNotMatch(
+      html,
+      /table\s*\{[^}]*display\s*:\s*block/,
+      `${page}: display:block on a table drops its ARIA role and does not scroll, because width:100% stops it overflowing`,
+    );
+    // Containment is load-bearing: without a wrapper a table's natural width
+    // pushes the whole page sideways at phone widths.
+    const opens = [...html.matchAll(/<table[\s>]/g)];
+    for (const m of opens) {
+      const before = html.slice(0, m.index).trimEnd();
+      assert.match(
+        before.slice(-90),
+        /<div class="tscroll[^"]*"[^>]*>$/,
+        `${page}: a <table> at offset ${m.index} is not wrapped in a .tscroll div`,
+      );
+    }
+    for (const w of html.matchAll(/<div class="tscroll wide"([^>]*)>/g)) {
+      const attrs = w[1];
+      assert.match(attrs, /tabindex="0"/, `${page}: a scrollable region must be reachable from the keyboard`);
+      assert.match(attrs, /role="region"/, `${page}: a focus stop needs a role`);
+      assert.match(attrs, /aria-label="[^"]+"/, `${page}: and a name, or the stop is unlabelled`);
+    }
+    if (html.includes('class="tscroll wide"')) {
+      assert.match(html, /\.tscroll\{overflow-x:auto\}/, `${page}: defines a wide wrapper but not the rule that makes it scroll`);
+      assert.match(html, /\.tscroll\.wide table\{min-width:\d+px\}/, `${page}: without a min-width the wrapper never overflows, which was the original bug`);
+    }
+  }
+});
+
+// --- the Connect section without JavaScript --------------------------------
+
+test("every Connect panel is readable without JavaScript, and the fallback is placed where it wins", () => {
+  const html = read("site/index.html");
+  const head = html.slice(0, html.indexOf("</head>"));
+  const ns = head.match(/<noscript>([\s\S]*?)<\/noscript>/);
+  assert.ok(
+    ns,
+    "site/index.html has no head <noscript>: with scripting off, .tabpanel{display:none} hides seven of the eight Connect panels and the buttons that would reveal them are inert",
+  );
+  assert.match(ns![1], /\.tabpanel\s*\{[^}]*display:\s*block/, "the panels must be shown");
+  assert.match(ns![1], /\.tabs\s*\{[^}]*display:\s*none/, "and the inert buttons hidden");
+  // Source order decides. Both rules are one class deep, so a noscript placed
+  // ABOVE the page's own <style> is completely inert while looking shipped.
+  const headWithout = head.slice(0, ns!.index) + head.slice(ns!.index! + ns![0].length);
+  assert.ok(
+    headWithout.lastIndexOf("</style>") < ns!.index!,
+    "the head noscript must come after the page stylesheet, or its rules lose and nothing changes",
+  );
+  // Every tab must point at a real panel, or the class-based rule cannot reach
+  // it and it stays invisible with scripting off.
+  const controls = [...html.matchAll(/aria-controls="([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(controls.length >= 8);
+  for (const id of controls) {
+    const panel = html.match(new RegExp(`<div id="${id}"[^>]*class="([^"]*)"`));
+    assert.ok(panel, `no panel with id ${id}`);
+    assert.match(panel![1], /\btabpanel\b/, `#${id} is a tab target but not a .tabpanel, so the fallback rule misses it`);
+  }
+  // The legend names the clients in tablist order, so a ninth client added
+  // without updating it fails here rather than shipping an unlabelled stack.
+  const labels = [...html.matchAll(/aria-controls="t-[^"]+"[^>]*>([^<]+)<\/button>/g)].map((m) => m[1].trim());
+  const legend = html.match(/<noscript><p class="lead"[^>]*>([\s\S]*?)<\/p><\/noscript>/);
+  assert.ok(legend, "the body needs a legend saying why everything is stacked");
+  const listed = legend![1].slice(legend![1].indexOf("in this order:") + 14).split(/,\s*|\.\s/)[0];
+  const order = legend![1].slice(legend![1].indexOf("in this order:") + 14);
+  let at = -1;
+  for (const label of labels) {
+    const next = order.indexOf(label, at + 1);
+    assert.ok(next > at, `the legend must name '${label}' after the client before it: ${order.slice(0, 160)}`);
+    at = next;
+  }
+  assert.ok(listed.length > 0);
+});
+
+// --- the verifier form without JavaScript ----------------------------------
+
+test("the verifier form still works with JavaScript off", () => {
+  // No action, no method, and not one control with a name: pressing Verify did
+  // a default GET to "/" with an empty query string. The page reloaded at the
+  // top, the typed claim was gone, and nothing said why, directly under copy
+  // promising "this form calls the same public GET /v1/verify endpoint".
+  const html = read("site/index.html");
+  const start = html.indexOf('<form class="try-form"');
+  assert.ok(start > 0);
+  const block = html.slice(start, html.indexOf("</form>", start));
+  assert.match(block, /action="\/v1\/verify"/);
+  assert.match(block, /method="get"/);
+
+  // Derived from the handler rather than hard-coded, so a fifth field read by
+  // the JS but never named fails here.
+  const handler = html.slice(html.indexOf("try-form").valueOf());
+  const readIds = [...handler.matchAll(/getElementById\('(try-[a-z]+)'\)\.value/g)].map((m) => m[1]);
+  assert.ok(readIds.length >= 4, `expected the handler to read four fields, saw ${readIds.length}`);
+  for (const id of readIds) {
+    const control = block.match(new RegExp(`<(?:input|select) id="${id}"([^>]*)>`));
+    assert.ok(control, `${id} is read by the handler but is not in the form`);
+    assert.match(control![1], /name="/, `${id} has no name, so a no-JS submit drops it silently`);
+  }
+
+  // Every name must be one GET /v1/verify accepts. rejectUnknownParams answers
+  // 400 for anything else, which would turn the fallback from "works" into a
+  // different kind of failure.
+  const verifyParams = (() => {
+    const src = read("server/src/rest.ts");
+    const m = src.match(/const VERIFY_PARAMS = \[([\s\S]*?)\]/);
+    assert.ok(m, "VERIFY_PARAMS not found in rest.ts");
+    return [...m![1].matchAll(/"([a-z_]+)"/g)].map((x) => x[1]);
+  })();
+  for (const n of [...block.matchAll(/name="([^"]+)"/g)].map((m) => m[1])) {
+    assert.ok(verifyParams.includes(n), `'${n}' is not a GET /v1/verify parameter: the no-JS submit would 400`);
+    // HTMLFormElement carries [LegacyOverrideBuiltIns], so a control named
+    // after one of its own members shadows it and breaks the form from JS.
+    assert.ok(
+      !["action", "method", "target", "name", "elements", "submit", "reset"].includes(n),
+      `'${n}' shadows an HTMLFormElement member and would silently break the scripted path`,
+    );
+  }
+});

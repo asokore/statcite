@@ -69,7 +69,7 @@ footer{border-top:1px solid var(--line);padding:32px 0 44px;color:var(--faint);f
 footer a{color:var(--dim)}
 .skip{position:absolute;left:-9999px;top:0;background:var(--accent);color:#08130d;padding:10px 18px;border-radius:0 0 8px 0;font-weight:600;z-index:10}
 .skip:focus{left:0;text-decoration:none}
-@media(max-width:640px){header{padding:40px 0 26px}table{display:block;overflow-x:auto}}
+@media(max-width:640px){header{padding:40px 0 26px}.tscroll{overflow-x:auto}.tscroll.wide table{min-width:560px}.tscroll.wide td code,.tscroll.wide th code{overflow-wrap:normal;word-break:normal}}
 </style>
 <script type="application/ld+json">
 {
@@ -181,9 +181,10 @@ footer a{color:var(--dim)}
   <section>
     <h2>Run 1 results (published)</h2>
     <p class="lead">Six models across three vendors, 100 questions, answered from memory only. The three columns are a single unit, never quote one without the others.</p>
-    <table>
-      <caption>Run 1, scored 5 August 2026</caption>
-      <tr><th>Model</th><th>Within-Tolerance Rate</th><th>Confabulation Rate</th><th>Answer Rate</th></tr>
+    <div class="tscroll wide" tabindex="0" role="region" aria-label="Benchmark run 1 results">
+      <table>
+        <caption>Run 1, scored 5 August 2026</caption>
+      <tr><th scope="col">Model</th><th scope="col">Within-Tolerance Rate</th><th scope="col">Confabulation Rate</th><th scope="col">Answer Rate</th></tr>
       <tr><td>claude-opus-5</td><td>82.0%</td><td>15.5%</td><td>97.0%</td></tr>
       <tr><td>claude-fable-5</td><td>81.0%</td><td>15.6%</td><td>96.0%</td></tr>
       <tr><td>gemini-3-flash-preview</td><td>79.0%</td><td>20.2%</td><td>99.0%</td></tr>
@@ -191,6 +192,7 @@ footer a{color:var(--dim)}
       <tr><td>claude-sonnet-5</td><td>64.8%</td><td>31.4%</td><td>94.5%</td></tr>
       <tr><td>claude-haiku-4-5</td><td>33.3%</td><td>32.5%</td><td>49.4%*</td></tr>
     </table>
+    </div>
     <p class="note">*Below the pre-registered 70% Answer Rate threshold for interpretation. It is reported for completeness, per the methodology's own rule. At this sample size (Wilson 95% CIs, minimum detectable model-to-model difference roughly 12–15 percentage points) this is not a league table. Read the <a href="https://github.com/asokore/statcite/blob/main/bench/runs/R1/REPORT.md">full R1 report</a> and the <a href="https://github.com/asokore/statcite/blob/main/bench/runs/R1/ADDENDA.md">post-publication sensitivity analyses</a>. They include a parse-policy sensitivity that affects one model's classification, published there rather than buried.</p>
     <p>The plain reading: even the strongest models confabulate precise official statistics at meaningful rates when answering from memory. Roughly one in six to one in three answered-wrongly-with-confidence, depending on the model. That is the baseline <a href="/#try">verify_stat</a> exists to fix.</p>
   </section>
