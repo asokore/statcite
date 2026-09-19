@@ -311,10 +311,19 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
       "The claimed value is approximately the official figure with the opposite sign, possibly a sign-convention mix-up (e.g. a fiscal deficit quoted as positive where the source reports net lending as negative).",
     );
   }
-  // Adjacent-year check: does the claim match a neighboring year better?
+  // Adjacent-year check: does the claim match a neighbouring year BETTER than the
+  // year it was filed under? Both clauses are load-bearing. The verdict must be a
+  // real match, or the sentence's "matches" is false, and the fit must be
+  // strictly better than the matched year's, or an exactly correct claim gets
+  // told its year may be wrong. Measured on three real World Bank series before
+  // this was tightened: 36% to 43% of exactly-correct claims drew this line.
   for (const offset of [-2, -1, 1, 2]) {
     const v = byPeriod.get(String(year + offset))?.value;
-    if (v != null && closeEnough(p.claimed_value, v, percentKind, p)) {
+    if (
+      v != null &&
+      judge(p.claimed_value, v, percentKind, p).verdict === "match" &&
+      Math.abs(p.claimed_value - v) < Math.abs(p.claimed_value - official)
+    ) {
       diagnostics.push(`The claimed value matches the ${year + offset} figure (${fmt(v)}), the year may be misattributed.`);
     }
   }
@@ -507,10 +516,6 @@ export function normalizePeriod(input: string): string {
   return s;
 }
 
-function closeEnough(claimed: number, official: number, percentKind: boolean, p: VerifyParams): boolean {
-  return judge(claimed, official, percentKind, p).verdict !== "mismatch";
-}
-
 export function judge(
   claimed: number,
   official: number,
@@ -541,6 +546,17 @@ export function judge(
     // Rates in percentage points: rounding to 1 decimal is normal in prose,
     // and large ratios (e.g. debt at 250% of GDP) deserve a proportional band.
     if (absDiff <= 0.06 || relDiff <= 0.005) {
+      // Near zero the absolute band straddles zero, so a claimed expansion could
+      // be graded a match against an official contraction, and the payload then
+      // read "match" beside a relative difference of several hundred percent.
+      // The magnitudes do agree, so this is "close", not "mismatch". A claim
+      // written as 0 asserts no direction and is left alone.
+      if (claimed !== 0 && official !== 0 && Math.sign(claimed) !== Math.sign(official)) {
+        return {
+          verdict: "close",
+          why: `the magnitudes agree to ${absDiff.toFixed(3)} pp but the signs disagree: claimed a ${claimed > 0 ? "positive" : "negative"} figure where the official value is ${official > 0 ? "positive" : "negative"}`,
+        };
+      }
       return {
         verdict: "match",
         why:

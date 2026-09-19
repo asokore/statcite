@@ -109,6 +109,8 @@ test("ECB HICP: numeric values parse; the euro-area-only series refuses a nation
   const wrong = await tool("get_indicator", { indicator: "euro_area_hicp", country: "DEU" });
   assert.equal(wrong.isError, true);
   assert.match(JSON.stringify(wrong.payload), /euro-area aggregate|only published for the euro area/i);
+  // A permanent geography lock must not wear the code that means "retry shortly".
+  assert.equal(wrong.payload.code, "invalid_request");
 });
 
 test("STALENESS IS ASSERTED: a 200 with months-old data carries a disclosure note", async () => {
