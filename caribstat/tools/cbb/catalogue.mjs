@@ -82,7 +82,17 @@ for (const category of readdirSync(DATA).sort()) {
     ? [preferred, ...docs.map((d) => d.slug).filter((x) => x !== preferred)]
     : docs.map((d) => d.slug);
   const head = docs.find((d) => d.slug === order[0]) ?? docs[0];
-  const sampleRow = head.doc.series?.find((s) => s.label)?.label ?? "";
+  // A sample row is printed inside a usage string an agent copies verbatim, so
+  // it has to be one selectRow can resolve. "the first row with a label" is not
+  // that: the CBB inflation sheet repeats every one of its labels, so the first
+  // one matched four rows and the adapter refused it with a 422. Prefer a label
+  // that occurs exactly once, and where every label repeats, pin the LAST
+  // occurrence, which on an RPI-style sheet is the current base period.
+  const labels = (head.doc.series ?? []).map((s) => s.label).filter(Boolean);
+  const counts = new Map();
+  for (const l of labels) counts.set(l, (counts.get(l) ?? 0) + 1);
+  const unique = labels.find((l) => counts.get(l) === 1);
+  const sampleRow = unique ?? (labels.length ? `${labels[0]}[${counts.get(labels[0])}]` : "");
   entries.push({
     table: category,
     title,

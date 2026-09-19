@@ -375,6 +375,70 @@ test("Month YYYY labels parse, prose does not", () => {
   assert.equal(normalisePeriod("Basket Weights"), undefined);
 });
 
+test("a month label with NO separator is a period, not a deleted row", () => {
+  // CBB's E4 exchange-rate sheet writes one month as "February2025", between
+  // "January 2025" and "March 2025". The row carries ten real rates. With the
+  // separator required it failed to parse, went to unparsed_labels which
+  // nothing reads, and the published document lists eleven months for 2025 with
+  // 2025-02 simply absent, no note and no gap marker. Confirmed live before
+  // this fix: GET the e4 document and periods jump 2025-01 to 2025-03.
+  assert.equal(normalisePeriod("February2025").period, "2025-02");
+  assert.equal(normalisePeriod("Feb2026").period, "2026-02");
+  assert.equal(normalisePeriod("January 2025").period, "2025-01", "the spaced form must not regress");
+
+  // The month-name lookup is what keeps prose out, not the space. Measured over
+  // all 662 documents in the corpus: of the 29 distinct unparsed labels, the
+  // relaxed pattern admits exactly one, "February2025", and no prose at all.
+  for (const prose of [
+    "Source: Barbados Statistical Service",
+    "Basket Weights",
+    "BASE YEAR",
+    "Special Note:",
+    "Net Foreign Assets = Claims on NonReside",
+    "The Retained Imports series has been dis",
+  ]) {
+    assert.equal(normalisePeriod(prose), undefined, `prose must stay out: ${prose}`);
+  }
+
+  // The separator is optional, not free. Relaxing it to anything-at-all keeps
+  // every assertion above green while dating a RANGE by its first month, which
+  // is a fabricated period attached to real numbers, the worst thing this
+  // pipeline can emit. No label in today's corpus falls in this gap, so these
+  // are constructed, and each one was checked against both patterns.
+  for (const bad of [
+    "Mar to Dec 2019",
+    "Sep-Dec 2020",
+    "December quarter 2019",
+    "March data revised in 2019",
+    "May the 2019 revision be noted 2020",
+    // "Jun" is a prefix of "Junk". A month name has to BE the label, not start it.
+    "Junk note about 2019 and 2020",
+  ]) {
+    assert.equal(normalisePeriod(bad), undefined, `a span or a sentence is not a month: ${bad}`);
+  }
+});
+
+test("a skipped row that carried numbers is recorded apart from a footnote", () => {
+  // The signal the sentinel reads. A prose footnote and a deleted observation
+  // both land in unparsed_labels, and only one of them is data loss.
+  // Two value columns, because findHeaderAnchor requires two named columns to
+  // the right before it believes a "Period" cell is a table header.
+  const sheet = {
+    name: "S",
+    rows: [
+      [null, "Period", "Stg", "US$"],
+      ...Array.from({ length: 8 }, (_, i) => [null, `January ${2010 + i}`, 2 + i, 3 + i]),
+      [null, "Weird Label", 2.02, 3.02],
+      [null, "Source: Central Bank of Barbados", null, null],
+      [null, "March 2025", 2.03, 3.03],
+    ],
+  };
+  const t = extractSheet(sheet);
+  assert.ok(t.unparsed_labels.includes("Weird Label"));
+  assert.ok(t.unparsed_labels.includes("Source: Central Bank of Barbados"));
+  assert.deepEqual(t.unparsed_value_rows, ["Weird Label"], "only the row carrying a number is data loss");
+});
+
 test("the extractor records how much of the sheet its axis accounts for", () => {
   // The wrong-axis failure is invisible in the values (real numbers, real
   // labels, invented dates). Coverage is the one signal that shows it, so it

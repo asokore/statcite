@@ -558,13 +558,115 @@ test("the CBB catalogue covers every category the pipeline publishes", async () 
   assert.deepEqual(listed, [...published].sort());
 });
 
-test("no catalogue entry carries a sample row it cannot show", async () => {
-  const { CARIBSTAT_CATALOGUE } = await import("../src/adapters/caribstat.ts");
+test("every catalogue sample row resolves through selectRow against the real row labels", async () => {
+  // The old version of this test asserted the string was non-empty, which all
+  // 23 were, including the four that did not exist. search prints sampleRow
+  // inside a usage string an agent copies verbatim: GET /v1/search?q=Anguilla
+  // tourism arrivals returned "...&row=Total%20Visitors", and following that
+  // exact URL answered 422, because the row is called "Total Visitor Arrivals".
+  // Four of 23 were wrong: two ECCB labels that had been guessed, one that was
+  // close but not the published wording, and the CBB inflation sheet, where
+  // every label repeats so the first one matched four rows and selectRow
+  // correctly refused it.
+  //
+  // It must call the production selectRow rather than labels.includes(): the
+  // "[4]" occurrence selector and the prefix rules live in that function, so a
+  // membership test would both miss real failures and reject working selectors.
+  const { CARIBSTAT_CATALOGUE, selectRow } = await import("../src/adapters/caribstat.ts");
+  const rows = JSON.parse(readFileSync(new URL("./fixtures/caribstat-rows.json", import.meta.url), "utf8")) as Record<string, string[]>;
   for (const e of CARIBSTAT_CATALOGUE) {
     assert.ok(e.title && e.title.trim() !== "", `${e.table} has no title`);
     assert.ok(e.topics?.length, `${e.table} has no search topics, so nothing will ever match it`);
-    if (e.provider === "CBB") {
-      assert.ok(e.sampleRow && e.sampleRow.trim() !== "", `${e.table} has no sample row`);
-    }
+    const key = `${e.provider}/${e.table}`;
+    const labels = rows[key];
+    // Fails rather than skips, so adding an entry without regenerating the
+    // fixture is loud.
+    assert.ok(labels?.length, `${key} has no entry in fixtures/caribstat-rows.json`);
+    const doc = {
+      table_id: e.table,
+      country: { iso3: e.provider === "ECCB" ? "AIA" : "BRB", name: "test" },
+      series: labels.map((label) => ({ label, observations: [] })),
+    } as never;
+    assert.doesNotThrow(
+      () => selectRow(doc, e.sampleRow),
+      `${key}: sampleRow ${JSON.stringify(e.sampleRow)} does not resolve, so search hands agents a 422`,
+    );
   }
+});
+
+test("a sample row pinned by occurrence still points at the row it was chosen for", async () => {
+  // The one silent failure mode. "12 MONTH MOVING AVERAGE[4]" is the CURRENT
+  // RPI base period, 2018-07 to 2024-10. If CBB adds a fifth base period the
+  // index still resolves, to the wrong row, and the guard above stays green.
+  const { CARIBSTAT_CATALOGUE } = await import("../src/adapters/caribstat.ts");
+  const rows = JSON.parse(readFileSync(new URL("./fixtures/caribstat-rows.json", import.meta.url), "utf8")) as Record<string, string[]>;
+  for (const e of CARIBSTAT_CATALOGUE) {
+    const m = /^(.*)\[(\d+)\]$/.exec(e.sampleRow);
+    if (!m) continue;
+    const labels = rows[`${e.provider}/${e.table}`];
+    const occurrences = labels.filter((l) => l === m[1]).length;
+    assert.equal(
+      occurrences,
+      Number(m[2]),
+      `${e.table}: the sample row is pinned at occurrence ${m[2]} of '${m[1]}', but the sheet now has ${occurrences}. ` +
+        "The index still resolves, to a different row, so this has to be re-chosen rather than left.",
+    );
+  }
+});
+
+test("a CBB error names the workbook it came from, not 'undefined'", async () => {
+  // CBB documents carry category and sheet and never table_id, so every one of
+  // the five selectRow throw sites printed "undefined/BRB", and details dropped
+  // `table` entirely because JSON.stringify omits an undefined value.
+  //
+  // THE FIXTURE MUST HAVE NO table_id. Every other CBB fixture in this suite
+  // carries one, which real CBB documents never do, so a test copied from them
+  // would pass before the fix and prove nothing.
+  const { selectRow } = await import("../src/adapters/caribstat.ts");
+  const doc = {
+    source_id: "cbb",
+    category: "interest-rates",
+    sheet: "E1",
+    country: { iso3: "BRB", name: "Barbados" },
+    published_at: "2026-08-01",
+    retrieved_at: "2026-08-13T16:28:44.604Z",
+    periods: ["2024", "2025"],
+    series: [
+      { label: "Deposits: Savings", observations: [] },
+      { label: "Deposits: Time", observations: [] },
+      { label: "Loans: Prime Lending", observations: [] },
+    ],
+  } as never;
+  assert.equal((doc as { table_id?: string }).table_id, undefined, "the fixture must be shaped like a real CBB document");
+
+  let caught: any;
+  try {
+    selectRow(doc, "ZZZ-not-a-row");
+  } catch (e) {
+    caught = e;
+  }
+  assert.ok(caught, "an unknown row must still throw");
+  assert.doesNotMatch(caught.message, /undefined/, caught.message);
+  assert.match(caught.message, /interest-rates\/E1/);
+  assert.equal(caught.details.table, "interest-rates/E1", "details.table was absent, not wrong, which is harder to notice");
+
+  // A second throw site, so the helper is not wired into one branch only.
+  let empty: any;
+  try {
+    selectRow({ ...(doc as object), series: [] } as never);
+  } catch (e) {
+    empty = e;
+  }
+  assert.ok(empty);
+  assert.doesNotMatch(empty.message, /undefined/, empty.message);
+  assert.equal(empty.details.table, "interest-rates/E1");
+
+  // And a document with neither field must not degrade to a bare "/BRB".
+  let bare: any;
+  try {
+    selectRow({ ...(doc as object), category: undefined, sheet: undefined } as never, "ZZZ");
+  } catch (e) {
+    bare = e;
+  }
+  assert.equal(bare.details.table, "cbb");
 });

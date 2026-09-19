@@ -48,6 +48,26 @@ export function validateTable(table, publishedAt) {
         `the period column may be the wrong one, or most rows failed to parse`,
     );
   }
+  // A row whose label is ENTIRELY a period AND which carried numbers is an
+  // observation this parser deleted. Both conditions are needed: period-shape
+  // alone fires on five prose footnotes across the corpus, and a problem blocks
+  // the document being written, so a false positive takes a whole table down.
+  // Measured over every captured workbook, 30 distinct skipped labels: this
+  // predicate fires on exactly one, "February2025", and on nothing else.
+  const MONTHS = "jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec";
+  const periodShaped = (s) => {
+    const bare = String(s).trim().replace(/\s*(?:\*+|\u2020|\u2021|\(\d\))$/, "").trim();
+    return /^\d{4}$/.test(bare)
+      || /^\d{4}-Q[1-4]$/i.test(bare)
+      || /^(?:\dQ|Q\d)\s*\d{4}$/i.test(bare)
+      || new RegExp(`^(?:${MONTHS})[a-z]*[\\s.,-]*\\d{4}$`, "i").test(bare);
+  };
+  const deleted = (table.unparsed_value_rows ?? []).filter(periodShaped);
+  if (deleted.length) {
+    problems.push(
+      `${deleted.length} row(s) carrying data have a period label this parser cannot read (e.g. ${JSON.stringify(deleted[0])}), so those observations would be silently deleted from the series`,
+    );
+  }
   const values = (table.series ?? []).flatMap((s) => s.observations.map((o) => o.value)).filter((v) => v != null);
   if (values.length === 0) problems.push("every cell parsed to null — the sheet layout or number format may have changed");
   // A 1900s date in a table published this decade is the year/serial collision

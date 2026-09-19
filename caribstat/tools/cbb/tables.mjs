@@ -104,7 +104,13 @@ export function normalisePeriod(cell, { monthOnly = false } = {}) {
   // real numbers instead of its actual 230 months. Fabricated periods on real
   // figures is the worst failure this pipeline can produce, so this format is
   // covered by tests both ways.
-  const my = /^([A-Za-z]{3,9})\s+(\d{4})$/.exec(bare);
+  // \s* rather than \s+: CBB's E4 sheet writes one month as "February2025"
+  // with no space at all, sitting between "January 2025" and "March 2025". With
+  // the separator required it failed to parse, its ten exchange rates went to
+  // unparsed_labels, which nothing reads, and the live 2025 answer returned
+  // eleven months with no note and no gap marker. The month-name lookup below
+  // is what keeps prose out, not the space.
+  const my = /^([A-Za-z]{3,9})\s*(\d{4})$/.exec(bare);
   if (my) {
     const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
     const mi = months.indexOf(my[1].slice(0, 3).toLowerCase());
@@ -346,6 +352,9 @@ export function extractSheet(sheet) {
   const revisedFlags = [];
   const valueRows = [];
   const skippedRows = [];
+  // Recorded apart from skippedRows so the sentinel can tell a footnote from a
+  // deleted observation. 26 of the 29 unparsed labels in the corpus are prose.
+  const skippedWithValues = [];
 
   for (let r = anchor.row + 1; r < sheet.rows.length; r++) {
     const row = sheet.rows[r] ?? [];
@@ -353,7 +362,14 @@ export function extractSheet(sheet) {
     if (!p) {
       // Only count a skip when the cell had content — blank spacer rows are
       // not anomalies worth reporting.
-      if (row[anchor.col] != null && String(row[anchor.col]).trim() !== "") skippedRows.push(String(row[anchor.col]).slice(0, 40));
+      if (row[anchor.col] != null && String(row[anchor.col]).trim() !== "") {
+        skippedRows.push(String(row[anchor.col]).slice(0, 40));
+        // Carrying numbers means this was an observation, and dropping it loses
+        // data rather than a note.
+        if (anchor.headers.some((_, i) => typeof row[anchor.col + 1 + i] === "number")) {
+          skippedWithValues.push(String(row[anchor.col]).slice(0, 40));
+        }
+      }
       continue;
     }
     // A row whose value cells are all empty is a spacer, not an observation.
@@ -410,6 +426,10 @@ export function extractSheet(sheet) {
     // rather than silently dropped, so a real period format we failed to
     // recognise shows up as a number instead of vanishing.
     unparsed_labels: skippedRows,
+    // The subset that carried numbers. Deliberately not added to buildDocument:
+    // this is a signal for the sentinel, and adding it to the published shape
+    // would make classifyChange re-diff every existing document.
+    unparsed_value_rows: skippedWithValues,
     series,
   };
 }
