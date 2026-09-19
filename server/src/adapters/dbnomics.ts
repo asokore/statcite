@@ -38,9 +38,10 @@ export async function fetchDbnomicsSeries(
   providerCode: string,
   datasetCode: string,
   seriesCode: string,
+  opts: { hostState?: Map<string, number> } = {},
 ): Promise<DbnSeries> {
   const apiUrl = `${BASE}/series/${encodeURIComponent(providerCode)}/${encodeURIComponent(datasetCode)}/${encodeURIComponent(seriesCode)}?observations=1`;
-  const data = (await fetchJson(apiUrl, { ttlSeconds: 21600 })) as {
+  const data = (await fetchJson(apiUrl, { ttlSeconds: 21600, hostState: opts.hostState })) as {
     provider?: { name?: string };
     dataset?: { code?: string; name?: string };
     series?: { docs?: DbnDoc[] };

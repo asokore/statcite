@@ -1072,6 +1072,17 @@ function memPut(url, entry) {
   memBytes += entry.bytes;
 }
 var RETRY_DELAYS_MS = [300, 900];
+var HOST_FAILURE_LIMIT = RETRY_DELAYS_MS.length + 1;
+function hostStateOf(ctx) {
+  return ctx._hostState ??= /* @__PURE__ */ new Map();
+}
+function hostKey(url) {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+}
 var ShapeError = class extends Error {
   url;
   constructor(message, url) {
@@ -1082,7 +1093,7 @@ var ShapeError = class extends Error {
 };
 var inflight = /* @__PURE__ */ new Map();
 async function fetchJson(url, opts = {}) {
-  const { ttlSeconds = 21600, timeoutMs = 8e3, validate, accept, maxBytes = MAX_UPSTREAM_BYTES } = opts;
+  const { ttlSeconds = 21600, timeoutMs = 8e3, validate, accept, maxBytes = MAX_UPSTREAM_BYTES, hostState } = opts;
   const key = JSON.stringify([ttlSeconds, timeoutMs, maxBytes, accept ?? "", url]);
   const flight = inflight.get(key);
   if (flight) {
@@ -1093,7 +1104,7 @@ async function fetchJson(url, opts = {}) {
       if (e instanceof UpstreamError) throw e;
     }
   }
-  const started = attemptFetchJson(url, { ttlSeconds, timeoutMs, validate, accept, maxBytes });
+  const started = attemptFetchJson(url, { ttlSeconds, timeoutMs, validate, accept, maxBytes, hostState });
   inflight.set(key, started);
   try {
     return await started;
@@ -1106,23 +1117,30 @@ async function attemptFetchJson(url, {
   timeoutMs = 8e3,
   validate,
   accept,
-  maxBytes = MAX_UPSTREAM_BYTES
+  maxBytes = MAX_UPSTREAM_BYTES,
+  hostState
 } = {}) {
+  const host = hostKey(url);
+  const hostSpent = () => hostState !== void 0 && (hostState.get(host) ?? 0) >= HOST_FAILURE_LIMIT;
+  const countFailedAttempt = () => hostState?.set(host, (hostState.get(host) ?? 0) + 1);
   const hit = mem.get(url);
   const now = Date.now();
   if (hit && hit.exp > now && (!validate || validate(hit.data))) return hit.data;
   let lastErr;
-  const maxAttempts = RETRY_DELAYS_MS.length + 1;
+  const maxAttempts = hostSpent() ? 1 : RETRY_DELAYS_MS.length + 1;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const isLastAttempt = attempt === maxAttempts - 1;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let counted = false;
     try {
       const res = await doFetch(url, controller.signal, ttlSeconds, accept);
       if (res.status === 429 || res.status >= 500) {
         lastErr = new UpstreamError(`Upstream returned HTTP ${res.status}`, url, res.status);
         await res.body?.cancel();
-        if (!isLastAttempt) {
+        countFailedAttempt();
+        counted = true;
+        if (!isLastAttempt && !hostSpent()) {
           await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
           continue;
         }
@@ -1140,18 +1158,22 @@ async function attemptFetchJson(url, {
       const data = JSON.parse(text);
       if (validate && !validate(data)) {
         lastErr = new ShapeError("Upstream returned a response that failed shape validation", url);
-        if (!isLastAttempt) {
+        countFailedAttempt();
+        counted = true;
+        if (!isLastAttempt && !hostSpent()) {
           await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
           continue;
         }
         throw lastErr;
       }
       memPut(url, { exp: now + ttlSeconds * 1e3, data, bytes: text.length });
+      hostState?.set(host, 0);
       return data;
     } catch (e) {
       lastErr = e;
       if (e instanceof UpstreamError && e.status && e.status < 500 && e.status !== 429) throw e;
-      if (!isLastAttempt) {
+      if (!counted) countFailedAttempt();
+      if (!isLastAttempt && !hostSpent()) {
         await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
         continue;
       }
@@ -1224,7 +1246,7 @@ async function fetchWbSeries(countryCode, indicatorId, opts = {}) {
   const params = new URLSearchParams({ format: "json", per_page: String(opts.perPage ?? 1e3) });
   if (opts.mrv) params.set("mrv", String(opts.mrv));
   const apiUrl = `${BASE}/country/${encodeURIComponent(countryCode)}/indicator/${encodeURIComponent(indicatorId)}?${params}`;
-  const data = await fetchJson(apiUrl, { ttlSeconds: 21600 });
+  const data = await fetchJson(apiUrl, { ttlSeconds: 21600, hostState: opts.hostState });
   let parsed;
   try {
     parsed = parseEnvelope(data, apiUrl, { countryCode, indicatorId, countryUnverified: opts.countryUnverified });
@@ -1265,7 +1287,7 @@ async function fetchWbMulti(countryCode, indicatorIds, opts = {}) {
   if (opts.mrv) params.set("mrv", String(opts.mrv));
   const joined = indicatorIds.map(encodeURIComponent).join(";");
   const apiUrl = `${BASE}/country/${encodeURIComponent(countryCode)}/indicator/${joined}?${params}`;
-  const data = await fetchJson(apiUrl, { ttlSeconds: 21600 });
+  const data = await fetchJson(apiUrl, { ttlSeconds: 21600, hostState: opts.hostState });
   const { meta, rows } = parseEnvelope(data, apiUrl, { countryCode, indicatorId: indicatorIds.join(";") });
   const out = /* @__PURE__ */ new Map();
   for (const r of rows) {
@@ -1291,9 +1313,9 @@ async function fetchWbMulti(countryCode, indicatorIds, opts = {}) {
 
 // ../server/src/adapters/dbnomics.ts
 var BASE2 = "https://api.db.nomics.world/v22";
-async function fetchDbnomicsSeries(providerCode, datasetCode, seriesCode) {
+async function fetchDbnomicsSeries(providerCode, datasetCode, seriesCode, opts = {}) {
   const apiUrl = `${BASE2}/series/${encodeURIComponent(providerCode)}/${encodeURIComponent(datasetCode)}/${encodeURIComponent(seriesCode)}?observations=1`;
-  const data = await fetchJson(apiUrl, { ttlSeconds: 21600 });
+  const data = await fetchJson(apiUrl, { ttlSeconds: 21600, hostState: opts.hostState });
   const docs = data.series?.docs ?? [];
   if (docs.length === 0) {
     throw new ToolError(
@@ -2512,7 +2534,7 @@ function markWeoProjections(vintageTag, observations) {
   }
 }
 async function indicatorFromWb(ctx, def, country, opts) {
-  const wb = await fetchWbSeries(country.iso3, def.wb, { countryUnverified: country.unverified });
+  const wb = await fetchWbSeries(country.iso3, def.wb, { countryUnverified: country.unverified, hostState: hostStateOf(ctx) });
   const citation = worldBankCitation(ctx, {
     indicatorId: wb.indicatorId,
     indicatorName: wb.indicatorName,
@@ -2535,7 +2557,7 @@ async function indicatorFromWb(ctx, def, country, opts) {
 async function indicatorFromDbnomics(ctx, def, country, opts) {
   const [provider, dataset, template] = def.dbnomics;
   const code = template.replace("{ISO3}", country.iso3);
-  const s = await fetchDbnomicsSeries(provider, dataset, code);
+  const s = await fetchDbnomicsSeries(provider, dataset, code, { hostState: hostStateOf(ctx) });
   const citation = dbnomicsCitation(ctx, {
     providerName: s.providerName,
     providerCode: s.providerCode,

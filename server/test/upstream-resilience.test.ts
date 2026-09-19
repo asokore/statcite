@@ -306,3 +306,73 @@ test("a different Accept header is never served from another flight's body", asy
   assert.equal(seen.length, 2, seen.join(", "));
   assert.ok(seen.includes("application/vnd.sdmx.data+json"), seen.join(", "));
 });
+
+test("a host that has failed a whole retry series is not retried again in the same request", async () => {
+  _clearMemCache();
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return new Response("down", { status: 503 });
+  }) as typeof fetch;
+
+  // One request's worth of state, exactly as a Ctx carries it.
+  const hostState = new Map<string, number>();
+  await assert.rejects(fetchJson("https://dead.test/a", { timeoutMs: 200, hostState }));
+  assert.equal(calls, 3, "the first call still gets its full three-attempt schedule");
+
+  // A later call in the SAME request to the same host: one attempt, not three.
+  await assert.rejects(fetchJson("https://dead.test/b", { timeoutMs: 200, hostState }));
+  assert.equal(calls, 4, `expected one further attempt, total 4, got ${calls}`);
+
+  // A different host is unaffected, and a request with its own state is too.
+  await assert.rejects(fetchJson("https://other.test/a", { timeoutMs: 200, hostState }));
+  assert.equal(calls, 7);
+  const freshRequest = new Map<string, number>();
+  await assert.rejects(fetchJson("https://dead.test/c", { timeoutMs: 200, hostState: freshRequest }));
+  assert.equal(calls, 10, "a new request gets the full schedule again");
+});
+
+test("a 404 never arms the breaker: it is an answer about the series, not the host", async () => {
+  _clearMemCache();
+  let calls = 0;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    calls += 1;
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    return url.includes("/missing")
+      ? new Response("not found", { status: 404 })
+      : new Response("down", { status: 503 });
+  }) as typeof fetch;
+
+  const hostState = new Map<string, number>();
+  for (const n of [1, 2, 3, 4]) {
+    await assert.rejects(fetchJson(`https://mixed.test/missing/${n}`, { timeoutMs: 200, hostState }));
+  }
+  assert.equal(calls, 4, "four definitive 404s, one attempt each");
+  await assert.rejects(fetchJson("https://mixed.test/outage", { timeoutMs: 200, hostState }));
+  assert.equal(calls, 7, "the outage still gets its full three attempts");
+});
+
+test("a host that recovers inside the request gets its retry schedule back", async () => {
+  _clearMemCache();
+  let calls = 0;
+  let healthy = false;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return healthy
+      ? new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } })
+      : new Response("down", { status: 503 });
+  }) as typeof fetch;
+
+  const hostState = new Map<string, number>();
+  await assert.rejects(fetchJson("https://flappy.test/a", { timeoutMs: 200, hostState }));
+  assert.equal(calls, 3);
+
+  // One success clears the count, so a later blip is not treated as a
+  // continuing outage and still gets its three attempts.
+  healthy = true;
+  await fetchJson("https://flappy.test/b", { timeoutMs: 200, hostState });
+  assert.equal(calls, 4);
+  healthy = false;
+  await assert.rejects(fetchJson("https://flappy.test/c", { timeoutMs: 200, hostState }));
+  assert.equal(calls, 7, `expected a full schedule after recovery, got ${calls - 4} attempts`);
+});
