@@ -39,12 +39,12 @@ import type { Ctx } from "./core/types.ts";
 import { ToolError } from "./core/types.ts";
 import { UpstreamError, ShapeError } from "./core/upstream.ts";
 import { toolErrorCode } from "./core/types.ts";
-import { TOOLS, toolByName, callTool, shapeErrorPayload } from "./tools.ts";
+import { TOOLS, toolByName, callTool, shapeErrorPayload, CLIENT_TRANSPORT_KEYS, closestKey } from "./tools.ts";
 import { listRegistry } from "./core/series.ts";
 import { SOURCES } from "./core/sources.ts";
 import { sidsCountries } from "./core/countries.ts";
 import { readBodyCapped, MAX_BODY_BYTES } from "./body.ts";
-import { quoteInput } from "./core/text.ts";
+import { quoteInput, promptArgText } from "./core/text.ts";
 
 export const SERVER_VERSION = "1.13.0";
 
@@ -131,13 +131,36 @@ type JsonRpcId = string | number | null;
 // honestly instead of papering over it.
 // ---------------------------------------------------------------------------
 
-const PROMPTS = [
+/**
+ * Every prompt ended with a dangling stub ("Here is the text:\n") and told the
+ * human to paste after invoking. That instruction was a workaround for a
+ * missing feature: no prompt declared an `arguments` array, so prompts/list
+ * gave a host nothing to collect, and prompts/get read only params.name and
+ * discarded params.arguments entirely. Same silent-drop class 1.12.2 closed
+ * for tools/call arguments and for REST query keys, left open on this path.
+ *
+ * Arguments stay OPTIONAL. Omitting them reproduces the previous payload byte
+ * for byte, so a host that collects nothing is exactly as well off as before.
+ */
+type PromptArg = { name: string; description: string; required: boolean; max: number };
+
+const PROMPTS: Array<{
+  name: string;
+  title: string;
+  description: string;
+  arguments: PromptArg[];
+  messages: (args?: Record<string, string>) => Array<{ role: string; content: { type: string; text: string } }>;
+}> = [
   {
     name: "fact_check",
     title: "Fact-check the economic statistics in a text",
     description:
-      "Extract every checkable macroeconomic claim from a draft/article (indicator + country + period + value), verify them all with verify_claims, and report verdicts with citations. Paste or reference the text after invoking.",
-    messages: (): Array<{ role: string; content: { type: string; text: string } }> => [
+      "Extract every checkable macroeconomic claim from a draft/article (indicator + country + period + value), verify them all with verify_claims, and report verdicts with citations. Pass the draft as the 'text' argument, or paste it after invoking.",
+    // 12000 rather than a round number: long enough for a feature article, short
+    // enough that a pasted book does not become one prompt message. Over the cap
+    // the call is refused and the paste-after-invoking route still works.
+    arguments: [{ name: "text", description: "The draft or article to check. Optional, you can also paste it after invoking.", required: false, max: 12000 }],
+    messages: (args = {}) => [
       {
         role: "user",
         content: {
@@ -148,7 +171,8 @@ const PROMPTS = [
             "2. Map each claim to a StatCite registry key (use search_indicators if unsure) and call verify_claims with up to 15 claims per call, in the order they appear.\n" +
             "3. Report a table: claim as written | verdict (match / close / mismatch / cannot_verify) | official value | citation. Quote citation.citation_text for corrected figures.\n" +
             "4. Never soften a mismatch and never guess where the tool says cannot_verify, report the reason it gives. If a claim is a projection-year figure, say so (the result flags it).\n\n" +
-            "Here is the text:\n",
+            "Here is the text:\n" +
+            (args.text ?? ""),
         },
       },
     ],
@@ -157,8 +181,9 @@ const PROMPTS = [
     name: "country_brief",
     title: "One-country economic brief (fully cited)",
     description:
-      "Build a compact, fully cited macroeconomic brief for one country from country_snapshot plus targeted get_indicator calls. Provide the country name after invoking.",
-    messages: () => [
+      "Build a compact, fully cited macroeconomic brief for one country from country_snapshot plus targeted get_indicator calls. Pass the country as the 'country' argument, or name it after invoking.",
+    arguments: [{ name: "country", description: "Country name or ISO3 code, for example Barbados or BRB.", required: false, max: 200 }],
+    messages: (args = {}) => [
       {
         role: "user",
         content: {
@@ -169,7 +194,8 @@ const PROMPTS = [
             "2. Deepen with get_indicator where the snapshot flags something notable (e.g. a debt spike: pull the 10-year series).\n" +
             "3. Every figure cites its source using the citation object returned with it; keep projections labeled as projections, and note any value the tools could not provide rather than filling the gap from memory.\n" +
             "4. Structure: one paragraph of narrative, then a figures table with citations, then caveats (data vintages, projections, gaps).\n\n" +
-            "Country:\n",
+            "Country:\n" +
+            (args.country ?? ""),
         },
       },
     ],
@@ -178,8 +204,9 @@ const PROMPTS = [
     name: "cite_this_stat",
     title: "Get a citation-ready version of one statistic",
     description:
-      "Turn a single economic figure into a verified, citation-ready sentence: verify it first, then format the official value with its full citation. Provide the claim after invoking.",
-    messages: () => [
+      "Turn a single economic figure into a verified, citation-ready sentence: verify it first, then format the official value with its full citation. Pass it as the 'statistic' argument, or state it after invoking.",
+    arguments: [{ name: "statistic", description: "The single figure to verify, as you would write it.", required: false, max: 200 }],
+    messages: (args = {}) => [
       {
         role: "user",
         content: {
@@ -190,7 +217,8 @@ const PROMPTS = [
             "2. If it matches or is close: give me the exact sentence to use, with the official value (not my possibly-rounded one) and the citation from citation.citation_text.\n" +
             "3. If it mismatches: say so plainly, give the correct figure and citation, and note the likely error class if the diagnostics identify one (wrong year, unit scaling, percent-vs-decimal).\n" +
             "4. If it cannot be verified: report the tool's reason; do not substitute a number from memory.\n\n" +
-            "The statistic:\n",
+            "The statistic:\n" +
+            (args.statistic ?? ""),
         },
       },
     ],
@@ -428,7 +456,11 @@ function errorObj(id: JsonRpcId, code: number, message: string, data?: unknown):
 }
 
 function toolTextObj(id: JsonRpcId, payload: unknown, isError = false): Record<string, unknown> {
-  const text = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+  // Compact on purpose. This block is the spec's backwards-compatibility copy
+  // of structuredContent, not a document for a person to read: the indentation
+  // is context the host pays for on every call and no client parses. The REST
+  // surface stays pretty-printed, because that one is read by people.
+  const text = typeof payload === "string" ? payload : JSON.stringify(payload);
   const result: Record<string, unknown> = { content: [{ type: "text", text }], isError };
   if (!isError && payload !== null && typeof payload === "object") {
     result.structuredContent = payload;
@@ -496,6 +528,13 @@ async function dispatchCore(
             prompts: { listChanged: false },
             resources: { listChanged: false, subscribe: false },
           },
+          // Identity at the top level, where initialize has put it in every
+          // legacy revision and where a client reading this result looks for
+          // it. toModernResult also copies it into _meta, and that copy stays
+          // for clients already reading it, but _meta is extension space that
+          // hosts and proxies are free to strip. It cannot be the only place
+          // discovery answers "who are you". Field order mirrors initialize.
+          serverInfo: SERVER_INFO,
           instructions: INSTRUCTIONS,
         }),
       };
@@ -602,7 +641,15 @@ async function dispatchCore(
       return {
         httpStatus: 200,
         body: resultObj(id, {
-          prompts: PROMPTS.map((p) => ({ name: p.name, title: p.title, description: p.description })),
+          // `arguments` is optional in the spec, so a host that ignores it sees
+          // no change, and one that reads it can finally collect the input the
+          // description has been asking the user to paste by hand.
+          prompts: PROMPTS.map((p) => ({
+            name: p.name,
+            title: p.title,
+            description: p.description,
+            arguments: p.arguments.map((a) => ({ name: a.name, description: a.description, required: a.required })),
+          })),
         }),
       };
     case "prompts/get": {
@@ -611,7 +658,54 @@ async function dispatchCore(
       if (!prompt) {
         return { httpStatus: 200, body: errorObj(id, -32602, `Unknown prompt '${quoteInput(name, 64)}'. Available: ${PROMPTS.map((p) => p.name).join(", ")}.`) };
       }
-      return { httpStatus: 200, body: resultObj(id, { description: prompt.description, messages: prompt.messages() }) };
+      // Validate rather than discard. An argument that vanishes silently is
+      // the failure being closed here, so an unknown key is refused with the
+      // name it sent and the names it could have sent.
+      const rawArgs = params.arguments;
+      const args: Record<string, string> = {};
+      if (rawArgs !== undefined && rawArgs !== null) {
+        if (typeof rawArgs !== "object" || Array.isArray(rawArgs)) {
+          return { httpStatus: 200, body: errorObj(id, -32602, `Arguments for '${prompt.name}' must be a JSON object.`) };
+        }
+        const supplied = { ...(rawArgs as Record<string, unknown>) };
+        // The same carve-out tools/call uses, imported rather than restated so
+        // the two paths cannot drift: n8n's MCP Client Tool sent toolCallId in
+        // arguments on releases before 2.3.1, and it is nobody's parameter.
+        for (const k of CLIENT_TRANSPORT_KEYS) delete supplied[k];
+        const names = prompt.arguments.map((a) => a.name);
+        for (const [k, v] of Object.entries(supplied)) {
+          const decl = prompt.arguments.find((a) => a.name === k);
+          if (!decl) {
+            const near = closestKey(k, names);
+            return {
+              httpStatus: 200,
+              body: errorObj(
+                id,
+                -32602,
+                `Unknown argument '${quoteInput(k, 64)}' for prompt '${prompt.name}'.` +
+                  (near ? ` Did you mean '${near}'?` : "") +
+                  ` Accepted: ${names.join(", ")}.`,
+              ),
+            };
+          }
+          if (typeof v !== "string") {
+            return { httpStatus: 200, body: errorObj(id, -32602, `Argument '${k}' for prompt '${prompt.name}' must be a string.`) };
+          }
+          const clean = promptArgText(v, decl.max);
+          if (clean === null) {
+            return {
+              httpStatus: 200,
+              body: errorObj(
+                id,
+                -32602,
+                `Argument '${k}' for prompt '${prompt.name}' is over ${decl.max} characters. Invoke the prompt without it and paste the text into the conversation instead.`,
+              ),
+            };
+          }
+          if (clean) args[k] = clean;
+        }
+      }
+      return { httpStatus: 200, body: resultObj(id, { description: prompt.description, messages: prompt.messages(args) }) };
     }
     default:
       // Modern era pairs an unknown method with HTTP 404 so a dual-era client

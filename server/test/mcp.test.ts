@@ -220,3 +220,81 @@ test("REST /v1/status reports version and per-upstream probes (stubbed upstreams
     assert.equal(typeof body.upstreams[up].ok, "boolean");
   }
 });
+
+test("prompts declare optional arguments, prompts/get interpolates them, and an unknown key is refused", async () => {
+  // Every prompt used to end on a dangling stub and tell the human to paste
+  // after invoking, because no prompt declared arguments and prompts/get threw
+  // params.arguments away. Same silent-drop class 1.12.2 closed for tools/call.
+  const list = await mcpCall({ jsonrpc: "2.0", id: 1, method: "prompts/list" });
+  const prompts = ((await list.json()) as any).result.prompts as any[];
+  for (const p of prompts) {
+    assert.ok(Array.isArray(p.arguments), `${p.name} declares no arguments array`);
+  }
+  const fc = prompts.find((p) => p.name === "fact_check")!;
+  const textArg = fc.arguments.find((a: any) => a.name === "text");
+  assert.ok(textArg, "fact_check must declare 'text'");
+  assert.equal(textArg.required, false, "optional: a host that collects nothing must still work");
+
+  // 2. The argument reaches the message.
+  const SENTENCE = "Barbados inflation was 1.4% in 2024.";
+  const got = await mcpCall({ jsonrpc: "2.0", id: 2, method: "prompts/get", params: { name: "fact_check", arguments: { text: SENTENCE } } });
+  const body = (await got.json()) as any;
+  const filled = body.result.messages[0].content.text as string;
+  assert.ok(filled.endsWith("Here is the text:\n" + SENTENCE), `not interpolated: ${filled.slice(-120)}`);
+
+  // 3. Omitted, the payload is what it always was. This pins the legacy shape.
+  const bare = await mcpCall({ jsonrpc: "2.0", id: 3, method: "prompts/get", params: { name: "fact_check" } });
+  const bareText = ((await bare.json()) as any).result.messages[0].content.text as string;
+  assert.ok(bareText.endsWith("Here is the text:\n"), "an absent argument must append nothing at all");
+
+  // 4. A misspelled key is refused with both names, not silently dropped.
+  const bad = await mcpCall({ jsonrpc: "2.0", id: 4, method: "prompts/get", params: { name: "country_brief", arguments: { contry: "Barbados" } } });
+  const badBody = (await bad.json()) as any;
+  assert.equal(badBody.error.code, -32602);
+  assert.match(badBody.error.message, /contry/);
+  assert.match(badBody.error.message, /country/);
+
+  // 5. The n8n carve-out. Releases before 2.3.1 injected toolCallId into
+  // arguments, and it is nobody's parameter, so it must not turn into an error.
+  const n8n = await mcpCall({ jsonrpc: "2.0", id: 5, method: "prompts/get", params: { name: "fact_check", arguments: { toolCallId: "abc123" } } });
+  const n8nBody = (await n8n.json()) as any;
+  assert.equal(n8nBody.error, undefined, `toolCallId must be tolerated: ${JSON.stringify(n8nBody.error)}`);
+  assert.ok(n8nBody.result.messages[0].content.text.endsWith("Here is the text:\n"));
+
+  // 6. A draft is not silently truncated. Over the cap the call is refused and
+  // the message names the route that still works.
+  const huge = await mcpCall({ jsonrpc: "2.0", id: 6, method: "prompts/get", params: { name: "fact_check", arguments: { text: "x".repeat(12001) } } });
+  const hugeBody = (await huge.json()) as any;
+  assert.equal(hugeBody.error.code, -32602);
+  assert.match(hugeBody.error.message, /12000 characters/);
+  assert.match(hugeBody.error.message, /paste/);
+
+  // 7. Paragraphs survive. cleanLabel would have collapsed them, which for a
+  // draft being fact-checked changes the text under examination.
+  const para = "First line.\n\nSecond paragraph.";
+  const kept = await mcpCall({ jsonrpc: "2.0", id: 7, method: "prompts/get", params: { name: "fact_check", arguments: { text: para } } });
+  const keptText = ((await kept.json()) as any).result.messages[0].content.text as string;
+  assert.ok(keptText.endsWith(para), "newlines inside a supplied draft must survive");
+
+  // 8. But a bidi override does not, because the message is shown to a person.
+  const nasty = await mcpCall({ jsonrpc: "2.0", id: 8, method: "prompts/get", params: { name: "country_brief", arguments: { country: "Bar\u202ebados" } } });
+  const nastyText = ((await nasty.json()) as any).result.messages[0].content.text as string;
+  assert.doesNotMatch(nastyText, /\u202e/);
+
+  // 9. A non-string is refused rather than stringified into the prompt.
+  const num = await mcpCall({ jsonrpc: "2.0", id: 9, method: "prompts/get", params: { name: "country_brief", arguments: { country: 5 } } });
+  assert.equal(((await num.json()) as any).error.code, -32602);
+});
+
+test("the text block is structuredContent verbatim, serialised compactly", async () => {
+  // The duplication is the spec's backwards-compatibility SHOULD and stays. The
+  // two-space indent was pure waste: roughly 30% more context on every call,
+  // paid for by the host, parsed by nobody.
+  installFetchStub();
+  const { rpc } = await mcpTool("get_indicator", { indicator: "inflation_cpi", country: "BRB" });
+  const text = rpc.result.content[0].text as string;
+  assert.deepEqual(JSON.parse(text), rpc.result.structuredContent);
+  // A raw newline here can only be indentation: newlines inside string values,
+  // and the BibTeX export carries several, are escaped by JSON.stringify.
+  assert.doesNotMatch(text, /\n/, "the compatibility copy must not be pretty-printed");
+});

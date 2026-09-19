@@ -120,6 +120,14 @@ test("MODERN: server/discover advertises supported versions, capabilities and id
   assert.ok(r.capabilities.tools, "capabilities must be advertised");
   assert.equal(r._meta[META_SERVER_INFO].name, "statcite");
   assert.equal(r._meta[META_SERVER_INFO].version, SERVER_VERSION);
+  // Top level too, where initialize has put identity in every legacy revision
+  // and where a client reading this result looks for it. _meta is extension
+  // space: hosts strip it and proxies drop it, so a client that only knows the
+  // documented shape met an anonymous server. Both copies are guarded, because
+  // the _meta one is what clients read today.
+  assert.equal(r.serverInfo.name, "statcite");
+  assert.equal(r.serverInfo.version, SERVER_VERSION);
+  assert.equal(r.serverInfo.websiteUrl, "https://statcite.com");
   // server/discover is a cacheable result.
   assert.equal(typeof r.ttlMs, "number");
   assert.equal(r.cacheScope, "public");
@@ -132,6 +140,9 @@ test("MODERN: server/discover answers a BARE probe with no headers", async () =>
   assert.equal(status, 200);
   assert.equal(json.result.resultType, "complete");
   assert.ok(json.result.supportedVersions.includes(MODERN));
+  // The path that matters most: a bare probe is what a dual-era client sends
+  // before it knows anything at all about the server.
+  assert.equal(json.result.serverInfo.name, "statcite");
 });
 
 test("MODERN: list results carry the CacheableResult fields", async () => {
