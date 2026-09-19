@@ -183,7 +183,8 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
     );
   }
   let asOfResolved: VerifyResult["as_of"];
-  const result = p.as_of
+  const resolveSeries = async () =>
+    p.as_of
     ? await (async () => {
         const asOfDate = parseAsOfDate(p.as_of!);
         const { result: r, edition, sourceInfo } = await getIndicatorAsOf(ctx, p.indicator, p.country ?? "", asOfDate, {
@@ -202,6 +203,29 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
     : isRegistry
       ? await getIndicator(ctx, p.indicator, p.country ?? "", { strictSource: p.strict_source })
       : await getSeries(ctx, p.indicator, { country: p.country, strictSource: p.strict_source });
+
+  let result: Awaited<ReturnType<typeof resolveSeries>>;
+  try {
+    result = await resolveSeries();
+  } catch (e) {
+    // A coverage gap that the publishing central bank can speak to is not a
+    // failed verification, it is a verifiable "not this measure". Anguilla and
+    // Montserrat are not World Bank or IMF reporting economies, so every claim
+    // about them counted as an error in a verify_claims summary, indistinguish-
+    // able from an outage, and the related_series the absence already carried
+    // were thrown away. Keyed on related_series rather than on membership, so an
+    // ordinary absence (Nauru) is untouched, and never for as_of, which asks
+    // about a dated IMF vintage an ECCB series cannot answer.
+    const details = e instanceof ToolError ? (e.details as Record<string, unknown> | undefined) : undefined;
+    const related = Array.isArray(details?.related_series) ? (details!.related_series as Array<{ id: string; label: string }>) : [];
+    // The as_of and empty-related clauses are defence in depth rather than the
+    // load-bearing checks: today the as_of path's own absence carries no
+    // related_series, and an empty list falls through to the rethrow inside
+    // verifyAgainstRelated. Both are kept so a future pointer on those paths
+    // cannot answer a dated-vintage question with a different measure.
+    if (p.as_of || !(e instanceof ToolError) || details?.no_published_data !== true || related.length === 0) throw e;
+    return await verifyAgainstRelated(ctx, p, e, related, details, period, year);
+  }
 
   const obs = result.observations;
   const byPeriod = new Map(obs.map((o) => [o.period, o]));
@@ -514,6 +538,75 @@ export function normalizePeriod(input: string): string {
   const m = s.match(/^(\d{4})(0[1-9]|1[0-2])$/);
   if (m) return `${m[1]}-${m[2]}`;
   return s;
+}
+
+/**
+ * Build the cannot_verify answer for a coverage gap the publishing bank covers.
+ *
+ * It never sets official_value and never grades the claim. The ECCB measures
+ * central government or total public sector debt, not IMF general government,
+ * and reports inflation end of period rather than as an annual average, so
+ * putting its number in the official slot would answer a different question
+ * under the registry key's label. The related figures are shown for orientation,
+ * each named with its own definition.
+ */
+async function verifyAgainstRelated(
+  ctx: Ctx,
+  p: VerifyParams,
+  absence: ToolError,
+  related: Array<{ id: string; label: string }>,
+  details: Record<string, unknown> | undefined,
+  period: string,
+  year: number,
+): Promise<VerifyResult> {
+  const settled = await Promise.allSettled(related.map((r) => getSeries(ctx, r.id)));
+  const resolved = settled
+    .map((s, i) => (s.status === "fulfilled" ? { spec: related[i], series: s.value } : undefined))
+    .filter((x): x is { spec: { id: string; label: string }; series: Awaited<ReturnType<typeof getSeries>> } => !!x);
+  // If the mirror is down, the precise coverage statement is worth more than a
+  // half-built orientation answer, so the original absence stands.
+  if (resolved.length === 0) throw absence;
+
+  const definition = typeof details?.definition_note === "string" ? details.definition_note : undefined;
+  const diagnostics: string[] = [];
+  for (const { spec, series } of resolved) {
+    const hit = series.observations.find((o) => o.period === period || o.period === String(year));
+    if (hit?.value == null) continue;
+    const verdict = judge(p.claimed_value, hit.value, true, p).verdict;
+    const relation = verdict === "match" ? "is the same figure to rounding" : verdict === "close" ? "is close to it" : "differs from it";
+    diagnostics.push(
+      `${spec.label} for ${hit.period} is ${hit.value}${series.unit ? ` ${series.unit}` : ""}, which ${relation}. Different measure, shown for orientation only.`,
+    );
+  }
+
+  const first = resolved[0].series;
+  const country = typeof details?.country === "string" ? details.country : p.country;
+  return {
+    verdict: "cannot_verify",
+    claimed_value: p.claimed_value,
+    official_value: null,
+    is_projection: false,
+    observation_status: "unknown",
+    status_method: "as_published",
+    period,
+    difference: null,
+    relative_difference_pct: null,
+    explanation:
+      `This is not a verification of ${p.indicator} for ${first.country?.name ?? country ?? "this economy"}. No source StatCite uses publishes that series for this economy.` +
+      (definition ? ` ${definition}` : "") +
+      " The related central bank figures below are a different measure, shown for orientation only.",
+    diagnostics,
+    series: { id: first.series_id, name: first.name, unit: first.unit },
+    ...(first.country ? { country: first.country } : {}),
+    citation: first.citation!,
+    notes: [
+      "No verdict was reached: the claimed indicator is not published for this economy by any source StatCite serves.",
+      ...first.notes,
+    ],
+    not_verified_because: "no_published_data",
+    related_series: related,
+    ...(typeof details?.publisher === "string" ? { publisher: details.publisher } : {}),
+  } as VerifyResult;
 }
 
 export function judge(

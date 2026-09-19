@@ -88,3 +88,75 @@ test("an economy outside the ECCU gets the plain absence sentence, with no ECCB 
   assert.match(payload.error, /None of the sources for 'govt_debt_gdp'/);
   assert.doesNotMatch(payload.error, /_meta|\{"/);
 });
+
+// --- a coverage gap the bank can speak to is a verdict, not a failure --------
+
+const ECCB_DEBT_DOC = {
+  source: "Eastern Caribbean Central Bank",
+  source_id: "eccb",
+  source_url: "https://www.eccb-centralbank.org/statistics",
+  table_id: "debt-to-gdp",
+  table_title: "Debt to Gross Domestic Product",
+  country: { iso3: "AIA", name: "Anguilla" },
+  frequency: "a",
+  data_as_at: "2026-06-08",
+  retrieved_at: "2026-08-13T16:28:44.604Z",
+  periods: ["2024", "2025"],
+  periods_raw: ["2024", "2025"],
+  series: [
+    { label: "Central Government Debt to GDP", unit: "%", observations: [{ period: "2024", value: 18.1 }, { period: "2025", value: 17.2 }] },
+    { label: "Total Public Sector Debt to GDP", unit: "%", observations: [{ period: "2024", value: 21.0 }, { period: "2025", value: 20.45 }] },
+  ],
+};
+
+function stubAbsentWithEccb() {
+  stubAbsentEverywhere();
+  const inner = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (url.includes("/data/eccb/debt-to-gdp/a/AIA.json")) {
+      return new Response(JSON.stringify(ECCB_DEBT_DOC), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return inner(input as never, init as never);
+  }) as typeof fetch;
+}
+
+test("verify_stat for Anguilla answers cannot_verify with the ECCB figures, never an error", async () => {
+  stubAbsentWithEccb();
+  const { isError, payload } = await mcpTool("verify_stat", {
+    indicator: "govt_debt_gdp",
+    country: "AIA",
+    period: "2025",
+    claimed_value: 20.5,
+  });
+  assert.equal(isError, false, JSON.stringify(payload).slice(0, 300));
+  assert.equal(payload.verdict, "cannot_verify");
+  assert.equal(payload.official_value, null, "an ECCB figure must never be served under the registry key's label");
+  assert.equal(payload.not_verified_because, "no_published_data");
+  assert.equal(payload.related_series.length, 2);
+  assert.match(payload.explanation, /^This is not a verification of govt_debt_gdp for Anguilla/);
+  assert.match(payload.explanation, /not the IMF's general government gross debt/);
+  assert.equal(payload.citation.source, "Eastern Caribbean Central Bank");
+  assert.ok(payload.diagnostics.some((d: string) => d.includes("20.45")), JSON.stringify(payload.diagnostics));
+  assert.ok(payload.diagnostics.every((d: string) => /orientation only/.test(d)), JSON.stringify(payload.diagnostics));
+});
+
+test("verify_claims counts that as cannot_verify, not as an error", async () => {
+  stubAbsentWithEccb();
+  const { payload } = await mcpTool("verify_claims", {
+    claims: [{ indicator: "govt_debt_gdp", country: "AIA", period: "2025", claimed_value: 20.5 }],
+  });
+  assert.equal(payload.summary.error, 0, JSON.stringify(payload.summary));
+  assert.equal(payload.summary.cannot_verify, 1, JSON.stringify(payload.summary));
+});
+
+test("an economy with no related series still fails, rather than inventing an orientation answer", async () => {
+  stubAbsentWithEccb();
+  const { isError } = await mcpTool("verify_stat", {
+    indicator: "govt_debt_gdp",
+    country: "Nauru",
+    period: "2025",
+    claimed_value: 20.5,
+  });
+  assert.equal(isError, true);
+});
