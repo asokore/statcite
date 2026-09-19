@@ -271,3 +271,43 @@ test("an untransformed series keeps the source unit", () => {
   const r = applyTransform([{ period: "2024", value: 1 }], "none", {});
   assert.equal(r.unit, undefined, "no transform means no relabel");
 });
+
+// --- a window must not eat the period the caller asked for -------------------
+
+const DENSE = Array.from({ length: 10 }, (_, i) => ({
+  date: String(2015 + i),
+  value: 100 * Math.pow(1.05, i),
+}));
+
+test("a windowed yoy returns the first requested period, computed from the year before it", async () => {
+  installLocalFetchStub({ "TEST.WINDOW": wbEnvelope("TEST.WINDOW", DENSE) });
+  const r = await getSeries(ctx, "worldbank/TEST.WINDOW", { country: "BRB", start: "2020", end: "2024", transform: "yoy" });
+  assert.deepEqual(r.observations.map((o) => o.period), ["2020", "2021", "2022", "2023", "2024"]);
+  // 5% growth every year, and the first row proves the 2019 value outside the
+  // window was used rather than the row being padded.
+  assert.ok(Math.abs((r.observations[0].value ?? 0) - 5) < 1e-9, String(r.observations[0].value));
+});
+
+test("a single-year window with yoy answers instead of telling the caller to widen it", async () => {
+  installLocalFetchStub({ "TEST.WINDOW": wbEnvelope("TEST.WINDOW", DENSE) });
+  const r = await getSeries(ctx, "worldbank/TEST.WINDOW", { country: "BRB", start: "2024", end: "2024", transform: "yoy" });
+  assert.equal(r.observations.length, 1);
+  assert.equal(r.observations[0].period, "2024");
+  assert.ok(Math.abs((r.observations[0].value ?? 0) - 5) < 1e-9);
+});
+
+test("index rebasing still uses the window as its base, so the unit keeps naming the base period", async () => {
+  installLocalFetchStub({ "TEST.WINDOW": wbEnvelope("TEST.WINDOW", DENSE) });
+  const r = await getSeries(ctx, "worldbank/TEST.WINDOW", { country: "BRB", start: "2020", end: "2024", transform: "index" });
+  assert.equal(r.observations[0].period, "2020");
+  assert.equal(r.observations[0].value, 100);
+  assert.match(r.unit ?? "", /2020 = 100/);
+});
+
+test("a genuine shortfall of prior periods still refuses, rather than inventing a row", async () => {
+  installLocalFetchStub({ "TEST.FIRST": wbEnvelope("TEST.FIRST", [{ date: "2015", value: 100 }]) });
+  await assert.rejects(
+    getSeries(ctx, "worldbank/TEST.FIRST", { country: "BRB", start: "2015", end: "2015", transform: "yoy" }),
+    /not enough prior-period observations|no observations/i,
+  );
+});

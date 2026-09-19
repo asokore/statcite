@@ -37,12 +37,24 @@ const wbFxJam = [
   [wbFxRow("2025", 158.2), wbFxRow("2023", 154.9), wbFxRow("2020", 142.75), wbFxRow("2019", 133.4)],
 ];
 
+// An economy whose official annual average stops well before Jamaica's, which
+// is the real shape: World Bank PA.NUS.FCRF coverage ends in different years.
+function wbFxRowFor(iso3: string, iso2: string, name: string, date: string, value: number) {
+  return { ...wbFxRow(date, value), country: { id: iso2, value: name }, countryiso3code: iso3 };
+}
+
+const wbFxSyr = [
+  { page: 1, pages: 1, per_page: 50, total: 2, sourceid: "2", lastupdated: "2026-07-13" },
+  [wbFxRowFor("SYR", "SY", "Syrian Arab Republic", "2022", 2512.5), wbFxRowFor("SYR", "SY", "Syrian Arab Republic", "2021", 1256.0)],
+];
+
 type Route = { test: (url: string) => boolean; body: () => string };
 
 const routes: Route[] = [
   { test: (u) => u.includes("api.frankfurter.dev/v1/currencies"), body: () => JSON.stringify(frankfurterCurrencies) },
   { test: (u) => u.includes("api.frankfurter.dev/v1/2020-06-15"), body: () => JSON.stringify(frankfurterEurUsd20200615) },
   { test: (u) => u.includes("api.worldbank.org") && u.includes("PA.NUS.FCRF") && u.includes("/JAM/"), body: () => JSON.stringify(wbFxJam) },
+  { test: (u) => u.includes("api.worldbank.org") && u.includes("PA.NUS.FCRF") && u.includes("/SYR/"), body: () => JSON.stringify(wbFxSyr) },
 ];
 
 beforeEach(() => {
@@ -95,4 +107,35 @@ test("mixed ECB+WB pair with a day date keeps both legs in the same period", asy
   assert.equal(r.citations.length, 2);
   assert.equal(r.citations[0].source, "European Central Bank");
   assert.equal(r.citations[1].series_id, "PA.NUS.FCRF");
+});
+
+// --- a cross rate is only as current as its stalest leg ----------------------
+
+test("a bridged pair whose legs end in different years is dated to the stalest leg", async () => {
+
+  const r = await fxConvert(ctx, 100, "JMD", "SYP");
+  assert.equal(r.rate_date, "2022", JSON.stringify(r.notes));
+  assert.ok(r.notes.some((n) => /Leg periods differ/.test(n)), JSON.stringify(r.notes));
+  assert.ok(r.notes.some((n) => n.includes("JMD 2025") && n.includes("SYP 2022")), JSON.stringify(r.notes));
+  assert.deepEqual(
+    (r.legs ?? []).map((l) => [l.currency, l.period]),
+    [["JMD", "2025"], ["SYP", "2022"]],
+  );
+});
+
+test("the stalest leg decides the date whichever way round the pair is asked", async () => {
+
+  const a = await fxConvert(ctx, 100, "JMD", "SYP");
+  const b = await fxConvert(ctx, 100, "SYP", "JMD");
+  assert.equal(a.rate_date, b.rate_date);
+  // The numbers themselves must not move: this change dates the rate, it does
+  // not re-price it.
+  assert.ok(Math.abs(a.rate * b.rate - 1) < 1e-6, `${a.rate} x ${b.rate}`);
+});
+
+test("same-year legs keep the date they had, and carry no stale-leg note", async () => {
+
+  const r = await fxConvert(ctx, 100, "JMD", "USD");
+  assert.equal(r.rate_date, "2025");
+  assert.ok(!r.notes.some((n) => /Leg periods differ/.test(n)), JSON.stringify(r.notes));
 });
