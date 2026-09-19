@@ -9,6 +9,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -137,4 +138,31 @@ test("summarise names tables when there are few, and counts when there are many"
   const msgMany = summarise(many);
   assert.match(msgMany, /\d+ tables\/categories/);
   assert.match(msgMany, /5 new, 15 changed/);
+});
+
+test("every published commit carries the noreply identity, never the machine's own", async () => {
+  // github.com/asokore/caribstat is PUBLIC and the staging clone is a working
+  // copy of it, so a bare `git commit` there writes whatever global user.email
+  // this machine carries into a public history. It did, 12 times, before this
+  // was measured. statcite's .githooks/pre-push refuses a non-noreply address
+  // on that repo and there was no equivalent here, because the push happens
+  // inside a clone of a different repository where that hook does not run.
+  const src = await readFile(new URL("./publish-run.mjs", import.meta.url), "utf8");
+
+  // The address itself, and that it is the noreply form rather than any
+  // address that merely looks configured.
+  const email = /export const COMMIT_EMAIL = "([^"]+)"/.exec(src);
+  assert.ok(email, "publish-run.mjs must declare COMMIT_EMAIL");
+  assert.match(email[1], /@users\.noreply\.github\.com$/, `a public mirror must not record ${email[1]}`);
+  assert.doesNotMatch(email[1], /gmail|outlook|yahoo|hotmail/i);
+
+  // And that the commit actually uses it. A declared constant nothing passes
+  // to git is decoration, which is the failure mode this whole file exists for.
+  const commitCall = /git\(\[([^\]]*)"commit"/.exec(src);
+  assert.ok(commitCall, "the commit call must be findable");
+  assert.match(commitCall[1], /user\.email=\$\{COMMIT_EMAIL\}/, "the commit must be made with the pinned address");
+  assert.match(commitCall[1], /user\.name=\$\{COMMIT_NAME\}/);
+  // -c, not `git config`: a stored config in the clone survives between runs
+  // and can be edited out of band.
+  assert.match(commitCall[1], /"-c"/, "pass the identity per command, not into the clone's config");
 });
