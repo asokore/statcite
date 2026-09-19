@@ -28,6 +28,12 @@ const cloneDataDir = path.join(cloneDir, "data");
 
 const git = (args, cwd) => execFileSync("git", args, { cwd, stdio: ["ignore", "pipe", "pipe"], encoding: "utf8" });
 
+/** The identity every published commit carries. GitHub's noreply form, so the
+ * public mirror never records a personal address. Must match the address
+ * statcite's .githooks/pre-push allows. */
+export const COMMIT_NAME = "Asokore Beckles";
+export const COMMIT_EMAIL = "151703279+asokore@users.noreply.github.com";
+
 async function main() {
   let cloneReady = false;
   try {
@@ -77,7 +83,15 @@ async function main() {
   await applyToClone(localDataDir, cloneDataDir, toPublish);
   git(["add", ...toPublish.map((f) => path.join("data", f.rel))], cloneDir);
   const message = summarise(toPublish);
-  git(["commit", "-m", message], cloneDir);
+  // Identity pinned, not inherited. The staging clone is a working copy of a
+  // PUBLIC repository, and a bare `git commit` here takes whatever global
+  // user.email the machine happens to carry, which put a personal address into
+  // a public history 12 times before this was noticed. statcite's own pre-push
+  // hook refuses a non-noreply address on that repo; this is the same rule for
+  // the mirror, applied at the only point where the mirror gets written.
+  // Per-command via -c rather than `git config`, so it cannot leak into the
+  // clone's stored config or depend on what a previous run left behind.
+  git(["-c", `user.name=${COMMIT_NAME}`, "-c", `user.email=${COMMIT_EMAIL}`, "commit", "-m", message], cloneDir);
   git(["push", "origin", "main"], cloneDir);
   console.log(`\nPublished: ${message}`);
   return 0;
