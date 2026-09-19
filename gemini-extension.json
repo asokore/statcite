@@ -1,6 +1,6 @@
 {
   "name": "statcite",
-  "version": "1.13.0",
+  "version": "1.14.0",
   "description": "Official economic statistics with full citations (World Bank, IMF, BIS, ECB, the Eastern Caribbean Central Bank and the Central Bank of Barbados), plus verification of claimed figures against the official series.",
   "contextFileName": "GEMINI.md",
   "mcpServers": {

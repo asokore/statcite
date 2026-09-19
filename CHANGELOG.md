@@ -5,6 +5,57 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.14.0
+
+A second improvement pass, on the same terms as the first: every change was
+proposed by a review, put through a pass whose job was to refute it, and shipped
+with a test that fails without it. This one is mostly about the service telling
+the truth when something has gone wrong, or when nobody has checked.
+
+**An outage is an outage.** A dead World Bank answered 422 on the four registry
+routes, which says the request was wrong, while the adapter routes answered 502
+for the identical failure and the docs published 502 all along. A client
+branching on status retried one and permanently gave up on the other. Snapshots
+were worse: a total outage came back either as "this economy publishes none of
+these", cached for an hour, or as an error blaming the caller. A source that
+could not be reached is now distinguished from a source that answered and holds
+nothing, on the two legs that can tell the difference, and a shortened snapshot
+is served no-store. A malformed upstream document, which had matched no branch
+anywhere, is no longer reported as a StatCite crash.
+
+**The registry says what it serves.** The World Bank rebased its international
+poverty line to $3.00 a day in 2021 PPP and every discovery surface still
+advertised $2.15 a day, 2017 PPP, while the served number was correct. Tourism
+receipts are sold as a headline exposure measure for small island states and the
+series has published nothing for any economy since 2020, with Barbados last
+reporting 2016 and Jamaica 2011. Both notes now say so. A "latest" value more
+than three years behind the clock discloses the gap and names the sources
+StatCite did not consult, and says only that: for several economies no other
+source is fresher.
+
+**Prompts take arguments.** All three declared none, so a host had nothing to
+collect and prompts/get discarded what a client sent. They are optional, an
+unknown key is refused by name, and a draft over the cap is refused rather than
+silently shortened. server/discover now carries identity at the top level as
+well as in _meta, which hosts and proxies are free to strip. Tool results are no
+longer pretty-printed on the wire, which was about 30% of each response.
+
+**The site works on a phone and without JavaScript.** The mobile table rule had
+never fired, so the indicator registry rendered 10,584px tall at 375px; it is
+now 4,257px and scrolls. Seven of the eight Connect panels were invisible with
+scripting off, and the live verifier form discarded what the visitor typed.
+
+**CaribStat stops losing data quietly.** A period label the parser could not
+read deleted its observations and published clean, which had left three live
+holes. Four of 23 catalogue sample rows did not exist, so search handed agents
+selectors that answered 422. Every CBB row error read "undefined/BRB".
+
+**Release engineering.** 1.13.0 was published from a tree whose equivalence job
+was red, 21 seconds after it failed. The registry publish now runs behind a gate
+that checks the tagged commit itself. The sitemap guard had skipped on every CI
+run since it was written, because it refuses a shallow clone, and the twice-daily
+live smoke never sent a request to statcite.com at all.
+
 ## 1.13.0
 
 An improvement pass over the answers, the agent-facing surface and the cost of a

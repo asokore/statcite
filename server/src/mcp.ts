@@ -46,7 +46,7 @@ import { sidsCountries } from "./core/countries.ts";
 import { readBodyCapped, MAX_BODY_BYTES } from "./body.ts";
 import { quoteInput, promptArgText } from "./core/text.ts";
 
-export const SERVER_VERSION = "1.13.0";
+export const SERVER_VERSION = "1.14.0";
 
 /** Session-era revisions: opened with `initialize`, negotiated once. */
 export const LEGACY_PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
