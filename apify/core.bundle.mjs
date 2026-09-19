@@ -1080,7 +1080,28 @@ var ShapeError = class extends Error {
     this.url = redactUrl(url);
   }
 };
-async function fetchJson(url, {
+var inflight = /* @__PURE__ */ new Map();
+async function fetchJson(url, opts = {}) {
+  const { ttlSeconds = 21600, timeoutMs = 8e3, validate, accept, maxBytes = MAX_UPSTREAM_BYTES } = opts;
+  const key = JSON.stringify([ttlSeconds, timeoutMs, maxBytes, accept ?? "", url]);
+  const flight = inflight.get(key);
+  if (flight) {
+    try {
+      const data = await flight;
+      if (!validate || validate(data)) return data;
+    } catch (e) {
+      if (e instanceof UpstreamError) throw e;
+    }
+  }
+  const started = attemptFetchJson(url, { ttlSeconds, timeoutMs, validate, accept, maxBytes });
+  inflight.set(key, started);
+  try {
+    return await started;
+  } finally {
+    inflight.delete(key);
+  }
+}
+async function attemptFetchJson(url, {
   ttlSeconds = 21600,
   timeoutMs = 8e3,
   validate,
@@ -3395,9 +3416,12 @@ async function countrySnapshot(ctx, countryInput) {
     missing.push("govt_debt_gdp");
   }
   if (CARIBSTAT_ENABLED && ECCU_ISO3.has(country.iso3)) {
-    for (const spec of ECCU_SUPPLEMENT) {
+    const settled = await Promise.allSettled(ECCU_SUPPLEMENT.map((spec) => fetchCaribstatSeries(spec.id(country.iso3))));
+    for (const [i, spec] of ECCU_SUPPLEMENT.entries()) {
       try {
-        const c = await fetchCaribstatSeries(spec.id(country.iso3));
+        const outcome = settled[i];
+        if (outcome.status === "rejected") throw outcome.reason;
+        const c = outcome.value;
         const latest = latestNonNull(c.observations);
         if (!latest) continue;
         items.push({
