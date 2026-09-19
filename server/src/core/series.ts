@@ -70,12 +70,22 @@ export function requireCountry(input: string): Country {
 }
 
 function finishSeries(result: SeriesResult, opts: SeriesOpts): SeriesResult {
-  let obs = filterPeriodRange(result.observations, opts.start, opts.end);
+  const windowed = filterPeriodRange(result.observations, opts.start, opts.end);
+  let obs = windowed;
   const transform = opts.transform ?? "none";
-  const hadValuesBeforeTransform = obs.some((o) => o.value != null);
+  const hadValuesBeforeTransform = windowed.some((o) => o.value != null);
   if (transform !== "none") {
-    const t = applyTransform(obs, transform, { frequency: result.frequency });
-    obs = t.observations;
+    // yoy and pct_change need the period BEFORE the window, which was fetched
+    // and then thrown away by the window filter. Computing on the full series
+    // and re-windowing afterwards returns the first period the caller asked
+    // for. A single-year window used to error out for a figure already in hand.
+    // ADAPTERS MUST RETURN THE FULL SERIES: windowing happens here, so an
+    // adapter that starts fetching only the requested years would silently
+    // bring this back. "index" stays windowed-first, because rebasing the whole
+    // series would move the base period and rewrite the unit the caller reads.
+    const basis = transform === "index" ? windowed : result.observations;
+    const t = applyTransform(basis, transform, { frequency: result.frequency });
+    obs = transform === "index" ? t.observations : filterPeriodRange(t.observations, opts.start, opts.end);
     if (t.note) result.notes.push(t.note);
     // Carry the transformed unit onto the result. Without this the response
     // declares the SOURCE series' unit beside values that are no longer in it.

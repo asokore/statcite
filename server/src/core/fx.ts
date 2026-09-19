@@ -35,6 +35,16 @@ const CURRENCY_COUNTRY: Record<string, string> = {
   ISK: "ISL", USD: "USA",
 };
 
+/** One side of a USD-bridged conversion, with the period its rate came from.
+ * Present only on the bridge path, where the two legs can be dated differently. */
+export interface FxLeg {
+  currency: string;
+  usd_per_unit: number;
+  /** null for the USD identity leg, which has no published rate. */
+  period: string | null;
+  source: string;
+}
+
 export interface FxResult {
   amount: number;
   from: string;
@@ -46,6 +56,8 @@ export interface FxResult {
   precision: "daily" | "annual_average" | "mixed";
   citations: Citation[];
   notes: string[];
+  /** The two sides of a bridged rate. Absent on direct ECB conversions. */
+  legs?: FxLeg[];
 }
 
 async function wbUsdPerUnit(
@@ -163,14 +175,19 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
   const citations: Citation[] = [];
   let precision: FxResult["precision"] = "annual_average";
   let rateDate = "";
+  const legs: FxLeg[] = [];
   const wbYear = yearOnly ?? (dayDate ? parseInt(dayDate.slice(0, 4), 10) : undefined);
 
   async function usdPerUnit(cur: string): Promise<number> {
-    if (cur === "USD") return 1;
+    if (cur === "USD") {
+      legs.push({ currency: "USD", usd_per_unit: 1, period: null, source: "identity (USD bridge base)" });
+      return 1;
+    }
     if (ecbSet.has(cur) && !yearOnly) {
       const r = await getEcbRates(cur, ["USD"], dayDate);
       citations.push(ecbFxCitation(ctx, { base: cur, quote: "USD", rateDate: r.date, apiUrl: r.apiUrl }));
       rateDate = rateDate || r.date;
+      legs.push({ currency: cur, usd_per_unit: r.rates.USD, period: r.date, source: "ECB daily reference rate" });
       return r.rates.USD;
     }
     const wb = await wbUsdPerUnit(ctx, cur, wbYear);
@@ -181,6 +198,7 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
       );
     }
     rateDate = rateDate || wb.period;
+    legs.push({ currency: cur, usd_per_unit: wb.usdPerUnit, period: wb.period, source: "World Bank PA.NUS.FCRF annual average" });
     return wb.usdPerUnit;
   }
 
@@ -199,6 +217,18 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
     );
   }
   if (precision === "mixed") notes.push("Mixed precision: one leg is a daily ECB rate, the other an annual average, treat the result as approximate.");
+  // World Bank annual-average coverage ends in different years for different
+  // currencies, so the two legs can be years apart. rate_date used to carry
+  // whichever leg was resolved first, which dated the result to a year one side
+  // of it never saw. A cross rate is only as current as its stalest leg.
+  const dated = legs.filter((l): l is FxLeg & { period: string } => typeof l.period === "string");
+  if (new Set(dated.map((l) => l.period.slice(0, 4))).size > 1) {
+    const stalest = dated.reduce((a, b) => (a.period <= b.period ? a : b));
+    rateDate = stalest.period;
+    notes.push(
+      `Leg periods differ: ${dated.map((l) => `${l.currency} ${l.period}`).join(", ")}. A cross rate is only as current as its stalest leg, so rate_date is ${stalest.period}: ${stalest.currency} has no official rate published after ${stalest.period.slice(0, 4)}. Treat the result as a ${stalest.period.slice(0, 4)} rate, not a current one.`,
+    );
+  }
 
   return {
     amount, from, to,
@@ -209,5 +239,6 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
     precision,
     citations,
     notes,
+    legs,
   };
 }
