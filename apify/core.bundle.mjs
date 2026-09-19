@@ -3932,7 +3932,7 @@ async function verifyStat(ctx, p) {
     );
   }
   let asOfResolved;
-  const result = p.as_of ? await (async () => {
+  const resolveSeries = async () => p.as_of ? await (async () => {
     const asOfDate = parseAsOfDate(p.as_of);
     const { result: r, edition, sourceInfo } = await getIndicatorAsOf(ctx, p.indicator, p.country ?? "", asOfDate, {
       strictSource: p.strict_source
@@ -3947,6 +3947,15 @@ async function verifyStat(ctx, p) {
     };
     return r;
   })() : isRegistry ? await getIndicator(ctx, p.indicator, p.country ?? "", { strictSource: p.strict_source }) : await getSeries(ctx, p.indicator, { country: p.country, strictSource: p.strict_source });
+  let result;
+  try {
+    result = await resolveSeries();
+  } catch (e) {
+    const details = e instanceof ToolError ? e.details : void 0;
+    const related = Array.isArray(details?.related_series) ? details.related_series : [];
+    if (p.as_of || !(e instanceof ToolError) || details?.no_published_data !== true || related.length === 0) throw e;
+    return await verifyAgainstRelated(ctx, p, e, related, details, period, year);
+  }
   const obs = result.observations;
   const byPeriod = new Map(obs.map((o) => [o.period, o]));
   const lookup = (key) => {
@@ -4139,6 +4148,47 @@ function normalizePeriod(input) {
   const m = s.match(/^(\d{4})(0[1-9]|1[0-2])$/);
   if (m) return `${m[1]}-${m[2]}`;
   return s;
+}
+async function verifyAgainstRelated(ctx, p, absence, related, details, period, year) {
+  const settled = await Promise.allSettled(related.map((r) => getSeries(ctx, r.id)));
+  const resolved = settled.map((s, i) => s.status === "fulfilled" ? { spec: related[i], series: s.value } : void 0).filter((x) => !!x);
+  if (resolved.length === 0) throw absence;
+  const definition = typeof details?.definition_note === "string" ? details.definition_note : void 0;
+  const diagnostics = [];
+  for (const { spec, series } of resolved) {
+    const hit = series.observations.find((o) => o.period === period || o.period === String(year));
+    if (hit?.value == null) continue;
+    const verdict = judge(p.claimed_value, hit.value, true, p).verdict;
+    const relation = verdict === "match" ? "is the same figure to rounding" : verdict === "close" ? "is close to it" : "differs from it";
+    diagnostics.push(
+      `${spec.label} for ${hit.period} is ${hit.value}${series.unit ? ` ${series.unit}` : ""}, which ${relation}. Different measure, shown for orientation only.`
+    );
+  }
+  const first = resolved[0].series;
+  const country = typeof details?.country === "string" ? details.country : p.country;
+  return {
+    verdict: "cannot_verify",
+    claimed_value: p.claimed_value,
+    official_value: null,
+    is_projection: false,
+    observation_status: "unknown",
+    status_method: "as_published",
+    period,
+    difference: null,
+    relative_difference_pct: null,
+    explanation: `This is not a verification of ${p.indicator} for ${first.country?.name ?? country ?? "this economy"}. No source StatCite uses publishes that series for this economy.` + (definition ? ` ${definition}` : "") + " The related central bank figures below are a different measure, shown for orientation only.",
+    diagnostics,
+    series: { id: first.series_id, name: first.name, unit: first.unit },
+    ...first.country ? { country: first.country } : {},
+    citation: first.citation,
+    notes: [
+      "No verdict was reached: the claimed indicator is not published for this economy by any source StatCite serves.",
+      ...first.notes
+    ],
+    not_verified_because: "no_published_data",
+    related_series: related,
+    ...typeof details?.publisher === "string" ? { publisher: details.publisher } : {}
+  };
 }
 function judge(claimed, official, percentKind, p) {
   const absDiff = Math.abs(claimed - official);
