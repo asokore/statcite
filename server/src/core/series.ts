@@ -744,7 +744,7 @@ function hasDotSegment(path: string): boolean {
 
 /** An upstream reason fit to show a person: the HTTP status kept, a response
  * body that was pasted into the error dropped, and the length bounded. */
-function cleanReason(msg: string | undefined): string {
+export function cleanReason(msg: string | undefined): string {
   const m = String(msg ?? "").replace(/(Upstream returned HTTP \d+):\s*[\[{][\s\S]*$/, "$1");
   return m.length > 300 ? m.slice(0, 297) + "..." : m;
 }

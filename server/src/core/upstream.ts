@@ -148,6 +148,10 @@ function hostKey(url: string): string {
  * envelopes (see adapters/datamapper.ts). Distinct from UpstreamError so callers
  * can tell "the shape was wrong" apart from "the transport/status failed." */
 export class ShapeError extends Error {
+  /** Not a subclass of UpstreamError on purpose. The in-flight joiner at the
+   * foot of this file rethrows only UpstreamError to a joining caller, and the
+   * apify bundle is byte-compared against a fresh build of this graph, so the
+   * hierarchy is load-bearing in two places. Callers branch on it explicitly. */
   url: string;
   constructor(message: string, url: string) {
     super(redactUrl(message));

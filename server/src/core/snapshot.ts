@@ -2,7 +2,8 @@
 
 import type { Citation, Ctx } from "./types.ts";
 import { ToolError } from "./types.ts";
-import { requireCountry, getIndicator } from "./series.ts";
+import { isTransientUpstreamError } from "./upstream.ts";
+import { requireCountry, getIndicator, cleanReason } from "./series.ts";
 import { getIndicatorDef } from "./indicators.ts";
 import { fetchWbMulti } from "../adapters/worldbank.ts";
 import { worldBankCitation } from "./citations.ts";
@@ -92,7 +93,28 @@ export interface Snapshot {
    * after the primary recovers. Absent otherwise. */
   fallback_used?: boolean;
   fallback_indicators?: string[];
+  /** Present only when a source failed in a way that may recover, so the caller
+   * can tell a short snapshot caused by an outage from a short snapshot caused
+   * by coverage. Same shape series.ts already uses for its own `sources` detail.
+   * The REST layer serves such snapshots no-store, so a shortfall caused by a
+   * dead upstream cannot linger in shared caches after the source recovers. */
+  sources_unavailable?: { source: string; reason: string }[];
 }
+
+/**
+ * Only the two legs that fetch directly — fetchWbMulti and fetchCaribstatSeries —
+ * are classified, because only they throw the raw error isTransientUpstreamError
+ * can read: an UpstreamError carrying the status, or a ToolError that the adapter
+ * already decided is a definitive absence (caribstat turns its 404 into exactly
+ * that). The govt_debt_gdp leg goes through getIndicator, which wraps every
+ * outcome in a ToolError, and its derived code cannot be trusted as a transience
+ * signal: series.ts uses `upstream_unavailable` as its own catch-all whenever the
+ * three sources' verdicts disagree, so a genuine three-source absence can arrive
+ * carrying it. Guessing there would turn real coverage facts into false outages,
+ * which is the failure this change exists to remove. That leg is therefore left
+ * out, which is safe: it contributes one of the twelve rows, so it can never be
+ * the reason a snapshot is empty while the World Bank call itself succeeded.
+ */
 
 export async function countrySnapshot(ctx: Ctx, countryInput: string): Promise<Snapshot> {
   const country = requireCountry(countryInput);
@@ -104,13 +126,25 @@ export async function countrySnapshot(ctx: Ctx, countryInput: string): Promise<S
   // error, and letting it propagate killed the whole snapshot for a country
   // whose central bank publishes debt, prices and fiscal accounts. One source
   // not covering a country is a fact about that source, not about the country.
+  //
+  // But a source that could not be REACHED is not a source that publishes
+  // nothing, and until 1.13.1 this recorded only that the call failed. That one
+  // boolean then decided both the "World Bank publishes none of these" note and,
+  // via an empty item list, an error coded as the caller's fault. Three states,
+  // not two: served, answered-and-held-nothing, unreachable.
   let byCode: Awaited<ReturnType<typeof fetchWbMulti>> = new Map();
   let wbFailed: string | undefined;
+  let wbUnreachable = false;
   try {
     byCode = await fetchWbMulti(country.iso3, codes, { mrv: 8 });
   } catch (e) {
     wbFailed = e instanceof Error ? e.message : String(e);
+    wbUnreachable = isTransientUpstreamError(e);
   }
+  /** Sources that failed transiently during this snapshot. Non-empty means any
+   * shortfall below may be an outage rather than a coverage fact. */
+  const unavailable: { source: string; reason: string }[] = [];
+  if (wbUnreachable) unavailable.push({ source: "World Bank WDI", reason: cleanReason(wbFailed) });
   const items: SnapshotItem[] = [];
   const missing: string[] = [];
   const notes: string[] = [
@@ -170,6 +204,8 @@ export async function countrySnapshot(ctx: Ctx, countryInput: string): Promise<S
       missing.push("govt_debt_gdp");
     }
   } catch {
+    // Deliberately NOT classified as reachable or unreachable. See the note
+    // above the function: getIndicator's derived code cannot carry that signal.
     missing.push("govt_debt_gdp");
   }
 
@@ -213,17 +249,30 @@ export async function countrySnapshot(ctx: Ctx, countryInput: string): Promise<S
             seriesId: spec.id(country.iso3),
           }),
         });
-      } catch {
+      } catch (e) {
         // A missing table is not a snapshot failure. The bank does not publish
         // every table for every geography and the honest result is a shorter
-        // snapshot, not an error.
+        // snapshot, not an error. An unreachable origin is a different thing and
+        // is recorded as such: caribstat.ts turns a 404 into a ToolError marked
+        // no_published_data, so the two are already distinguishable here.
         missing.push(spec.key);
+        if (isTransientUpstreamError(e)) {
+          unavailable.push({ source: "Eastern Caribbean Central Bank (CaribStat)", reason: cleanReason((e as Error)?.message) });
+        }
       }
     }
     if (items.length) {
-      if (wbFailed) {
+      // Gated on the World Bank having ANSWERED and held nothing, not merely on
+      // the call having failed. byCode is empty both when it returned an empty
+      // envelope (Anguilla, live) and when it refused definitively (Montserrat,
+      // live), and is non-empty whenever it served anything.
+      if (byCode.size === 0 && !wbUnreachable) {
         notes.push(
           "The World Bank publishes none of its headline indicators for this economy, so everything here comes from the regional central bank.",
+        );
+      } else if (wbUnreachable) {
+        notes.push(
+          "The World Bank could not be reached for this request, so its headline indicators are absent from this snapshot rather than unpublished. Retrying may return a fuller snapshot.",
         );
       }
       notes.push(
@@ -236,10 +285,27 @@ export async function countrySnapshot(ctx: Ctx, countryInput: string): Promise<S
     // An empty snapshot for a real place is a coverage fact, and where we know
     // WHY it is empty the caller should be told rather than left to guess that
     // they mistyped the name.
+    //
+    // The territory note stays FIRST. "Martinique is reported inside France" is
+    // true whether or not an upstream is answering, and it is the more useful
+    // answer of the two.
     const territory = integratedTerritoryNote(country.iso3, countryName);
     const t = INTEGRATED_TERRITORIES[country.iso3];
+    // Nothing came back AND something could not be reached: this is an outage,
+    // and coding it as the caller's fault told an agent that a country with a
+    // full statistical office has no published data at all.
+    if (!territory && unavailable.length) {
+      throw new ToolError(
+        `Could not build a snapshot for ${countryName}: ${unavailable.map((u) => u.source).join(", ")} could not be reached. ` +
+          `This is an upstream outage, not a statement that ${countryName} publishes no data. Retrying shortly may succeed.`,
+        { country: country.iso3, sources: unavailable },
+        "upstream_unavailable",
+      );
+    }
+    // An ISO3 caller was told the code twice: "'USA' (USA)".
+    const label = countryInput.trim().toUpperCase() === country.iso3 ? `'${country.iso3}'` : `'${countryInput}' (${country.iso3})`;
     throw new ToolError(
-      territory ?? `No snapshot data available for '${countryInput}' (${country.iso3}).`,
+      territory ?? `No snapshot data available for ${label}.`,
       {
         country: country.iso3,
         ...(t
@@ -261,5 +327,6 @@ export async function countrySnapshot(ctx: Ctx, countryInput: string): Promise<S
     missing,
     notes,
     ...(fallbackIndicators.length ? { fallback_used: true, fallback_indicators: fallbackIndicators } : {}),
+    ...(unavailable.length ? { sources_unavailable: unavailable } : {}),
   };
 }

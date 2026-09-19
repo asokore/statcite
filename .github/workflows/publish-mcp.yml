@@ -26,7 +26,53 @@ permissions:
   contents: read
 
 jobs:
+  # THE GATE. On 19 September 2026, 1.13.0 was published from a tree whose
+  # bench-equivalence job was red: CI run 35445862342 failed at 13:28:29 and the
+  # release-triggered publish started 21 seconds later and succeeded. The check
+  # existed and had already run. What was missing was anything standing between
+  # it and the publish, so a checklist would not have helped.
+  #
+  # SELF-CONTAINED rather than polling the Actions API for a green conclusion at
+  # github.sha: the push CI run is usually still in flight when the release
+  # fires, so a poll needs a wait loop; a cancelled run satisfies a naive
+  # "not failure" check; and a release cut from a commit with no CI run has
+  # nothing to poll for. Checkout on a release event resolves github.sha to the
+  # tag commit, so this tests exactly the tree being published.
+  #
+  # SEPARATE JOB, not a step inside publish. That job can mint an OIDC token for
+  # the io.github.asokore namespace, which is why mcp-publisher below is pinned
+  # and checksummed. `npm install` runs dependency lifecycle scripts, so it does
+  # not belong there. This job inherits the workflow's contents: read and has no
+  # id-token.
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          # Pinned to match ci.yml. A green gate has to mean what a green CI
+          # means, and the equivalence test imports a .ts module directly.
+          node-version: 22
+      # npm install, not npm ci: package-lock.json is gitignored, so there is
+      # no lockfile to install from. Same reason ci.yml uses install.
+      - run: npm install
+        working-directory: server
+      - run: npm run typecheck
+        working-directory: server
+      - run: npm test
+        working-directory: server
+      # No install: caribstat has no dependencies, same as ci.yml's job.
+      - run: npm test
+        working-directory: caribstat
+      # METHODOLOGY section 4. This is the check that was red on 19 September 2026.
+      - run: node bench/tools/equivalence.test.mjs
+      # NOT smoke. ci.yml marks it advisory on non-schedule runs and it probes
+      # production, which is a statement about the deploy, not about this tree.
+
   publish:
+    needs: gate
     runs-on: ubuntu-latest
     permissions:
       contents: read
