@@ -36,6 +36,17 @@ while read local_ref local_sha remote_ref remote_sha; do
     echo "Push via the public-sync branch (git push origin public-sync:main), which excludes bench/runs/R2*." >&2
     exit 1
   fi
+  # The banks' own harvested series are published from their own repository, and
+  # .gitignore only stops a plain `git add`. A force-add would put 62MB of ECCB
+  # and CBB material into this public tree, where it can drift from the copy the
+  # licence ledger names and the Worker actually fetches.
+  harvest=$(git ls-tree -r --name-only "$local_sha" -- caribstat .capture 2>/dev/null | grep -E "^(caribstat/(data|reference|\.publish)|\.capture)/" | head -5)
+  if [ -n "$harvest" ]; then
+    echo "PUSH REFUSED: the pushed tree ($local_ref) contains harvested source data:" >&2
+    echo "$harvest" >&2
+    echo "That corpus is published from github.com/asokore/caribstat. Remove it with git rm --cached." >&2
+    exit 1
+  fi
   # The public remote must not learn the maintainer's personal address. Commits
   # authored before 15 September 2026 carry it, so a cherry-pick of one would
   # reintroduce it. `git commit --amend --reset-author` fixes a refused commit.
