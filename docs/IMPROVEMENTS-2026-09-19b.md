@@ -1,8 +1,8 @@
 # Improvement pass 2, 19 September 2026 (1.14.0)
 
 The second hunt of the day, run over six lenses: protocol, errors, registry,
-layout, pipeline, release engineering. Eighteen findings survived a pass whose
-job was to refute them, and all eighteen shipped. Every one carries a test that
+layout, pipeline, release engineering. Eighteen findings survived a second
+reviewer paid to knock them down, and all eighteen shipped. Every one carries a test that
 fails without the change, and every one of those tests was mutation-proved:
 the guard was broken on purpose, the test was seen to fail, and the break was
 reverted. Thirty-nine mutants, thirty-nine killed, one of them only after the

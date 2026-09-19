@@ -8,9 +8,10 @@ dates.
 ## 1.14.0
 
 A second improvement pass, on the same terms as the first: every change was
-proposed by a review, put through a pass whose job was to refute it, and shipped
-with a test that fails without it. This one is mostly about the service telling
-the truth when something has gone wrong, or when nobody has checked.
+proposed by a review, then attacked by a second reviewer paid to knock it down,
+and shipped with a test that fails without it. This one is mostly about the
+service telling the truth when something has gone wrong, or when nobody has
+checked.
 
 **An outage is an outage.** A dead World Bank answered 422 on the four registry
 routes, which says the request was wrong, while the adapter routes answered 502
