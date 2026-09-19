@@ -80,7 +80,7 @@ Resources (resources/list, resources/read): statcite://registry/indicators (all 
 - /v1/inflation?amount=&from_year=&to_year=&country=
 - /v1/fx?amount=&from=&to=&date=
 - /v1/sources
-- /v1/status. Server version + live upstream probes (WB, IMF DataMapper, DBnomics), cached ~120s
+- /v1/status. Server version + live upstream probes (World Bank, IMF DataMapper, DBnomics, BIS, ECB Data Portal, ECB reference rates via Frankfurter, CaribStat origin), cached ~120s
 - /v1/compare?indicator=&country=&period=
 - /health
 

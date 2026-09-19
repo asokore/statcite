@@ -5,6 +5,70 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.13.0
+
+An improvement pass over the answers, the agent-facing surface and the cost of a
+bad day upstream. Every change here was proposed by a review, checked by a second
+pass that tried to refute it, and shipped with a test that fails without it.
+
+**Verdicts say what they mean.** Near zero the percentage-point band straddled
+zero, so a claimed 0.04% inflation was graded "match" against an official
+-0.013%, in a payload that also reported a relative difference of 403%. Opposite
+signs are now "close" at most, with the direction disagreement named. The
+adjacent-year diagnostic accepted any near miss and never compared the
+neighbour's fit against the matched year's, so it told exactly correct claims
+that their year might be wrong: on three real World Bank series it fired on 36%
+to 43% of correct claims. It now requires a real match and a strictly better fit.
+
+**Anguilla and Montserrat get a verdict.** Neither is a World Bank or IMF
+reporting economy, so verify_stat failed and verify_claims counted the claim as
+an error, beside genuine outages. Such a claim now returns cannot_verify with
+the ECCB's own related figures shown for orientation, the definition difference
+stated, and official_value left null: the bank's measure is never served under
+the registry key's label.
+
+**Windowed growth rates keep their first year.** A year window was applied before
+the transform, so a 2020 to 2024 yoy request returned 2021 to 2024, and a
+single-year window errored out asking the caller to widen it. Growth transforms
+now compute on the full series and re-window afterwards.
+
+**A cross rate is dated to its stalest leg.** fx_convert stamped a bridged rate
+with whichever leg resolved first, so a pair whose World Bank annual averages end
+in different years looked current. rate_date is now the older leg, a note names
+both periods, and the response carries a legs array. No converted amount changed.
+
+**The agent surface keeps its promises.** search no longer emits ids fetch is
+guaranteed to refuse: a euro-area-only series is searched under the euro area
+rather than under whatever country the query named. Each failed claim in
+verify_claims carries the same machine-readable code and details that verify_stat
+returns, so a coverage gap can be told from an outage. Every /v1 body now names
+an HTTP call rather than an MCP tool, including the usage field on search hits.
+GET /v1/series accepts row= for Caribbean tables, because a '#' row selector
+never survives a URL.
+
+**Errors that cannot succeed no longer say "retry".** A euro-area aggregate asked
+for with a national country is coded invalid_request rather than
+upstream_unavailable.
+
+**Cost on a bad day.** Identical in-flight upstream requests are shared, so five
+concurrent callers cost one subrequest instead of five and five callers of a dead
+URL cost one retry series instead of fifteen. Within one request, a host that has
+spent a full retry series gets one attempt thereafter, so a single dead upstream
+no longer starves the claims whose own source is healthy. country_snapshot
+fetches the five ECCU tables together instead of one at a time.
+
+**The privacy page describes the site that is served.** Cloudflare injects its
+Web Analytics beacon into every page, including the page carrying the words "no analytics
+scripts". The page now says what runs and names both beacon hosts, and a test
+refuses any CSP host the page does not disclose.
+
+**Guards.** /v1/status probes the two upstreams it had been silently omitting,
+fx and the CaribStat origin, and its note names what it measures. The Apify
+bundle guard rebuilds the bundle and compares bytes instead of grepping for two
+sentinel strings. New tests cover the site-wide CSP, frame-ancestors, HSTS and
+nosniff, and harvested bank data being force-added past .gitignore, which the
+pre-push hook now refuses too.
+
 ## 1.12.3
 
 A security pass over the Worker, the site and the repository. No verdict or
