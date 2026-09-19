@@ -163,7 +163,7 @@ const CLAIM_KEYS = ["indicator", "country", "period", "claimed_value", "toleranc
 /** Nearest accepted key within two edits, so "tolerence_abs" suggests
  * "tolerance_abs". Case and separators are ignored first, which catches
  * "toleranceAbs" and "Tolerance-Abs" outright. */
-function closestKey(input: string, keys: string[]): string | undefined {
+export function closestKey(input: string, keys: string[]): string | undefined {
   const flat = (k: string) => k.toLowerCase().replace(/[^a-z]/g, "");
   // No name within two edits can be more than two characters longer than the
   // longest key, so a long input is answered without running Levenshtein.
@@ -862,7 +862,7 @@ function outcomeOf(e: unknown): Outcome {
  * Only names and boolean types are checked here. Handlers already validate
  * values, and duplicating that would let the two drift apart.
  */
-const CLIENT_TRANSPORT_KEYS = ["toolCallId"];
+export const CLIENT_TRANSPORT_KEYS = ["toolCallId"];
 
 export function checkToolArgs(tool: ToolDef, args: unknown): void {
   if (args === null || typeof args !== "object" || Array.isArray(args)) {

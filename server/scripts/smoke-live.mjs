@@ -101,7 +101,7 @@ console.log(`PASS tools/list -> ${toolsList.result.tools.length} tools`);
   const r = disc?.result;
   const ok = r?.resultType === "complete" && Array.isArray(r?.supportedVersions) && r.supportedVersions.includes("2026-07-28");
   if (!ok) failures++;
-  console.log(`${ok ? "PASS" : "FAIL"} server/discover (2026-07-28) -> versions=${r?.supportedVersions?.join(",")} serverInfo=${r?._meta?.["io.modelcontextprotocol/serverInfo"]?.version}`);
+  console.log(`${ok ? "PASS" : "FAIL"} server/discover (2026-07-28) -> versions=${r?.supportedVersions?.join(",")} serverInfo=${r?.serverInfo?.version ?? r?._meta?.["io.modelcontextprotocol/serverInfo"]?.version}`);
 
   // Header/body disagreement must be refused, not served.
   const bad = await call("/mcp", {

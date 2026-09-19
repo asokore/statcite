@@ -44,6 +44,26 @@ export function cleanLabel(value: unknown, max = 300): string {
   return s.length > max ? `${s.slice(0, max - 3)}...` : s;
 }
 
+/**
+ * A prompt argument a client supplied, made safe to interpolate into a prompt
+ * message. Unlike cleanLabel this KEEPS newlines and tabs, because the argument
+ * is often a draft article and collapsing its paragraphs would change the text
+ * being fact-checked.
+ *
+ * Returns null when the value is over `max`, so the caller can refuse. It must
+ * not truncate: silently shortening someone's draft and then reporting on the
+ * part that survived is the same silent-drop failure this exists to close.
+ */
+const PROMPT_UNSAFE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]+/g;
+
+export function promptArgText(value: unknown, max: number): string | null {
+  const s = String(value ?? "")
+    .replace(/\r\n?/g, "\n")
+    .replace(PROMPT_UNSAFE, " ")
+    .trim();
+  return s.length > max ? null : s;
+}
+
 /** An https URL, or undefined. Anything else (http, javascript:, data:, garbage) is dropped. */
 export function httpsUrl(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
