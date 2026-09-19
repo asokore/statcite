@@ -124,6 +124,25 @@ function memPut(url: string, entry: MemEntry): void {
 // changing latency on the common (first-attempt-succeeds) path.
 const RETRY_DELAYS_MS = [300, 900];
 
+/** One full attempt series. Past this, a host has stated its case for this request. */
+const HOST_FAILURE_LIMIT = RETRY_DELAYS_MS.length + 1;
+
+/** Per-request failure counts by host. A lone fetch never reaches the limit
+ * before its own last attempt, so a single request's retry schedule is
+ * unchanged. Request-scoped on purpose: module scope would let one request's
+ * outage shorten another's retries. */
+export function hostStateOf(ctx: { _hostState?: Map<string, number> }): Map<string, number> {
+  return (ctx._hostState ??= new Map());
+}
+
+function hostKey(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+}
+
 /** Thrown by fetchJson when a `validate` hook rejects an otherwise-2xx, parseable
  * body — e.g. an API that returns HTTP 200 for both real data and decoy/error
  * envelopes (see adapters/datamapper.ts). Distinct from UpstreamError so callers
@@ -179,9 +198,16 @@ const inflight = new Map<string, Promise<unknown>>();
  */
 export async function fetchJson(
   url: string,
-  opts: { ttlSeconds?: number; timeoutMs?: number; validate?: (data: unknown) => boolean; accept?: string; maxBytes?: number } = {},
+  opts: {
+    ttlSeconds?: number;
+    timeoutMs?: number;
+    validate?: (data: unknown) => boolean;
+    accept?: string;
+    maxBytes?: number;
+    hostState?: Map<string, number>;
+  } = {},
 ): Promise<unknown> {
-  const { ttlSeconds = 21600, timeoutMs = 8000, validate, accept, maxBytes = MAX_UPSTREAM_BYTES } = opts;
+  const { ttlSeconds = 21600, timeoutMs = 8000, validate, accept, maxBytes = MAX_UPSTREAM_BYTES, hostState } = opts;
   // `accept` and the timeouts are part of the key: BIS returns SDMX XML for a
   // plain application/json Accept, so sharing across accept values would be the
   // silent-corruption class the override exists to prevent, and a 5s status
@@ -202,7 +228,7 @@ export async function fetchJson(
       if (e instanceof UpstreamError) throw e;
     }
   }
-  const started = attemptFetchJson(url, { ttlSeconds, timeoutMs, validate, accept, maxBytes });
+  const started = attemptFetchJson(url, { ttlSeconds, timeoutMs, validate, accept, maxBytes, hostState });
   inflight.set(key, started);
   try {
     return await started;
@@ -219,8 +245,20 @@ async function attemptFetchJson(
     validate,
     accept,
     maxBytes = MAX_UPSTREAM_BYTES,
-  }: { ttlSeconds?: number; timeoutMs?: number; validate?: (data: unknown) => boolean; accept?: string; maxBytes?: number } = {},
+    hostState,
+  }: {
+    ttlSeconds?: number;
+    timeoutMs?: number;
+    validate?: (data: unknown) => boolean;
+    accept?: string;
+    maxBytes?: number;
+    hostState?: Map<string, number>;
+  } = {},
 ): Promise<unknown> {
+  const host = hostKey(url);
+  // "This host has already failed a whole attempt series in this request."
+  const hostSpent = () => hostState !== undefined && (hostState.get(host) ?? 0) >= HOST_FAILURE_LIMIT;
+  const countFailedAttempt = () => hostState?.set(host, (hostState.get(host) ?? 0) + 1);
   const hit = mem.get(url);
   const now = Date.now();
   // Re-validate on cache read, not only on write: today every URL with a
@@ -231,7 +269,7 @@ async function attemptFetchJson(
   if (hit && hit.exp > now && (!validate || validate(hit.data))) return hit.data;
 
   let lastErr: unknown;
-  const maxAttempts = RETRY_DELAYS_MS.length + 1;
+  const maxAttempts = hostSpent() ? 1 : RETRY_DELAYS_MS.length + 1;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const isLastAttempt = attempt === maxAttempts - 1;
     // The timer covers the whole attempt, body read included. It used to be
@@ -239,12 +277,16 @@ async function attemptFetchJson(
     // deadline at all.
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    // Each attempt is counted once, wherever it fails.
+    let counted = false;
     try {
       const res = await doFetch(url, controller.signal, ttlSeconds, accept);
       if (res.status === 429 || res.status >= 500) {
         lastErr = new UpstreamError(`Upstream returned HTTP ${res.status}`, url, res.status);
         await res.body?.cancel();
-        if (!isLastAttempt) {
+        countFailedAttempt();
+        counted = true;
+        if (!isLastAttempt && !hostSpent()) {
           await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
           continue;
         }
@@ -263,18 +305,24 @@ async function attemptFetchJson(
       const data = JSON.parse(text) as unknown;
       if (validate && !validate(data)) {
         lastErr = new ShapeError("Upstream returned a response that failed shape validation", url);
-        if (!isLastAttempt) {
+        countFailedAttempt();
+        counted = true;
+        if (!isLastAttempt && !hostSpent()) {
           await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
           continue;
         }
         throw lastErr;
       }
       memPut(url, { exp: now + ttlSeconds * 1000, data, bytes: text.length });
+      hostState?.set(host, 0);
       return data;
     } catch (e) {
       lastErr = e;
+      // A definitive 4xx is an answer, not a failure of the host: it must never
+      // arm the breaker, or one 404 would shorten every later retry.
       if (e instanceof UpstreamError && e.status && e.status < 500 && e.status !== 429) throw e;
-      if (!isLastAttempt) {
+      if (!counted) countFailedAttempt();
+      if (!isLastAttempt && !hostSpent()) {
         await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
         continue;
       }

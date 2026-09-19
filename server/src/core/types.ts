@@ -30,6 +30,11 @@ export interface Ctx {
    * would each independently retry the same failing DataMapper URL.
    */
   _dmMemo?: Map<string, Promise<unknown>>;
+  /** Failures per upstream host WITHIN one HTTP request, never the isolate.
+   * verify_claims takes up to 15 claims and each can try three sources three
+   * times, so one dead host used to cost dozens of subrequests against the
+   * 50-subrequest ceiling and starve the claims that could have been answered. */
+  _hostState?: Map<string, number>;
 }
 
 export interface Observation {

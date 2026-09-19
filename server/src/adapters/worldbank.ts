@@ -95,12 +95,12 @@ async function wbIndicatorIsUnknown(indicatorId: string): Promise<boolean> {
 export async function fetchWbSeries(
   countryCode: string,
   indicatorId: string,
-  opts: { perPage?: number; mrv?: number; countryUnverified?: boolean; checkIndicatorOnRefusal?: boolean } = {},
+  opts: { perPage?: number; mrv?: number; countryUnverified?: boolean; checkIndicatorOnRefusal?: boolean; hostState?: Map<string, number> } = {},
 ): Promise<WbSeries> {
   const params = new URLSearchParams({ format: "json", per_page: String(opts.perPage ?? 1000) });
   if (opts.mrv) params.set("mrv", String(opts.mrv));
   const apiUrl = `${BASE}/country/${encodeURIComponent(countryCode)}/indicator/${encodeURIComponent(indicatorId)}?${params}`;
-  const data = await fetchJson(apiUrl, { ttlSeconds: 21600 });
+  const data = await fetchJson(apiUrl, { ttlSeconds: 21600, hostState: opts.hostState });
   let parsed: ReturnType<typeof parseEnvelope>;
   try {
     parsed = parseEnvelope(data, apiUrl, { countryCode, indicatorId, countryUnverified: opts.countryUnverified });
@@ -144,13 +144,13 @@ export async function fetchWbSeries(
 export async function fetchWbMulti(
   countryCode: string,
   indicatorIds: string[],
-  opts: { mrv?: number } = {},
+  opts: { mrv?: number; hostState?: Map<string, number> } = {},
 ): Promise<Map<string, WbSeries>> {
   const params = new URLSearchParams({ format: "json", source: "2", per_page: "2000" });
   if (opts.mrv) params.set("mrv", String(opts.mrv));
   const joined = indicatorIds.map(encodeURIComponent).join(";");
   const apiUrl = `${BASE}/country/${encodeURIComponent(countryCode)}/indicator/${joined}?${params}`;
-  const data = await fetchJson(apiUrl, { ttlSeconds: 21600 });
+  const data = await fetchJson(apiUrl, { ttlSeconds: 21600, hostState: opts.hostState });
   const { meta, rows } = parseEnvelope(data, apiUrl, { countryCode, indicatorId: indicatorIds.join(";") });
   const out = new Map<string, WbSeries>();
   for (const r of rows) {

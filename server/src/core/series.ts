@@ -13,7 +13,7 @@ import { fetchDataMapperSeries, fetchDataMapperMetadata, computeBoundaryYear, pa
 import { worldBankCitation, dbnomicsCitation, fredCitation, imfDataMapperCitation, sdmxCitation, caribstatCitation } from "./citations.ts";
 import { fetchSdmxSeries, BIS_POLICY_RATE_AREAS } from "../adapters/sdmx.ts";
 import { fetchCaribstatSeries, inferFrequency, searchCaribstat, searchUnctadGap, CARIBSTAT_ENABLED } from "../adapters/caribstat.ts";
-import { isTransientUpstreamError, UpstreamError } from "./upstream.ts";
+import { isTransientUpstreamError, UpstreamError, hostStateOf } from "./upstream.ts";
 import { eccbRelated } from "./eccb-related.ts";
 export { expectedWeoEdition } from "./weo-calendar.ts";
 import { expectedWeoEdition } from "./weo-calendar.ts";
@@ -233,7 +233,7 @@ function markWeoProjections(vintageTag: string, observations: Observation[]): vo
 }
 
 async function indicatorFromWb(ctx: Ctx, def: IndicatorDef, country: Country, opts: SeriesOpts): Promise<SeriesResult> {
-  const wb = await fetchWbSeries(country.iso3, def.wb!, { countryUnverified: country.unverified });
+  const wb = await fetchWbSeries(country.iso3, def.wb!, { countryUnverified: country.unverified, hostState: hostStateOf(ctx) });
   const citation = worldBankCitation(ctx, {
     indicatorId: wb.indicatorId,
     indicatorName: wb.indicatorName,
@@ -257,7 +257,7 @@ async function indicatorFromWb(ctx: Ctx, def: IndicatorDef, country: Country, op
 export async function indicatorFromDbnomics(ctx: Ctx, def: IndicatorDef, country: Country, opts: SeriesOpts): Promise<SeriesResult> {
   const [provider, dataset, template] = def.dbnomics!;
   const code = template.replace("{ISO3}", country.iso3);
-  const s = await fetchDbnomicsSeries(provider, dataset, code);
+  const s = await fetchDbnomicsSeries(provider, dataset, code, { hostState: hostStateOf(ctx) });
   const citation = dbnomicsCitation(ctx, {
     providerName: s.providerName,
     providerCode: s.providerCode,
