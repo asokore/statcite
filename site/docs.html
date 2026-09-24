@@ -91,7 +91,7 @@ li{margin:4px 0}
   }
  },
  "programmingModel": "REST",
- "assemblyVersion": "1.14.0",
+ "assemblyVersion": "1.14.1",
  "about": {
   "@type": "SoftwareApplication",
   "@id": "https://statcite.com/#app"
@@ -331,6 +331,7 @@ GET /health</pre>
 
   <h2 id="changelog">10. Changelog</h2>
   <ul>
+    <li><strong>1.14.1</strong>: A World Bank outage now costs <code>country_snapshot</code> one retry series instead of two, about 1.2 seconds less waiting per snapshot. A single blip is still retried and recovered.</li>
     <li><strong>1.14.0</strong>: An outage now answers 502 on every route rather than 422 on four of them, a snapshot shortened by an unreachable source says so instead of claiming the economy publishes nothing, and a malformed upstream document is no longer reported as a StatCite crash. <code>poverty_headcount_intl</code> advertises the $3.00 a day, 2021 PPP line the World Bank actually serves, <code>tourism_receipts_exports</code> states that its series ends in 2020, and a "latest" value more than three years behind the clock names the sources StatCite did not consult. Prompts declare arguments and <code>prompts/get</code> uses them, <code>server/discover</code> carries identity at the top level, and tool results are no longer pretty-printed on the wire. Tables scroll on a phone, the Connect panels and the verifier form work without JavaScript, and the CaribStat pipeline refuses to publish a table whose period labels it could not read.</li>
     <li><strong>1.13.0</strong>: Verdicts say what they mean: a claim with the opposite sign to the official figure is no longer a "match" near zero, and the adjacent-year diagnostic no longer tells correct claims their year may be wrong. Anguilla and Montserrat return <code>cannot_verify</code> with the ECCB's related figures rather than an error. A year window with <code>yoy</code> keeps its first year. A bridged <code>fx_convert</code> rate is dated to its stalest leg and lists both legs. <code>search</code> no longer returns ids <code>fetch</code> would refuse, each failed claim in <code>verify_claims</code> carries an error code, every /v1 message names an HTTP call rather than an MCP tool, and <code>/v1/series</code> accepts <code>row=</code> for Caribbean tables. Identical upstream requests in flight are shared and a dead host is retried once per request, so one outage no longer starves a batch.</li>
     <li><strong>1.12.3</strong>: A security pass. The API and MCP endpoint redirect plain HTTP to HTTPS, and every response carries HSTS and nosniff. Request bodies over 262,144 bytes get a 413, query values are capped at 200 characters, and one batch may ask for at most the upstream work of a 15-claim <code>verify_claims</code> call. Upstream responses are capped at 5 MB with a timeout that covers the body. Caribbean series ids can no longer reach other paths, and <code>series_id</code> is built from the parsed id. Control characters are stripped from every citation, and the BibTeX export can no longer be broken by a brace.</li>

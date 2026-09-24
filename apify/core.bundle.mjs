@@ -3424,7 +3424,7 @@ async function countrySnapshot(ctx, countryInput) {
   let wbFailed;
   let wbUnreachable = false;
   try {
-    byCode2 = await fetchWbMulti(country.iso3, codes, { mrv: 8 });
+    byCode2 = await fetchWbMulti(country.iso3, codes, { mrv: 8, hostState: hostStateOf(ctx) });
   } catch (e) {
     wbFailed = e instanceof Error ? e.message : String(e);
     wbUnreachable = isTransientUpstreamError(e);

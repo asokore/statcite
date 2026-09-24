@@ -202,3 +202,65 @@ test("a snapshot shortened by an outage is not left in shared caches", async () 
   assert.ok(Array.isArray(body.sources_unavailable) && body.sources_unavailable.length > 0);
   assert.match(res.headers.get("cache-control") ?? "", /no-store/);
 });
+
+// --- one World Bank retry ladder per snapshot, not two ------------------------
+//
+// A snapshot calls the World Bank twice in sequence: fetchWbMulti for the
+// headline indicators, then govt_debt_gdp's source chain, which ends at the
+// World Bank. The per-request host breaker exists so that a host which has
+// already failed one full attempt series is asked once more, not three times.
+// fetchWbMulti was never handed the request's host state, so the breaker could
+// not see the first ladder fail and the second ran in full. Measured 2026-09-24
+// against /v1/snapshot/FRA with every upstream down: api.worldbank.org x6,
+// about 1.2s of extra waiting per snapshot in a real World Bank outage.
+
+function countingOutage() {
+  _clearMemCache();
+  const hosts = new Map<string, number>();
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
+    const h = new URL(url).host;
+    hosts.set(h, (hosts.get(h) ?? 0) + 1);
+    return new Response(JSON.stringify({ error: "down" }), { status: 503, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  return hosts;
+}
+
+test("a World Bank outage costs a snapshot one retry ladder, not two", async () => {
+  const hosts = countingOutage();
+  const { res, body } = await snapshot("FRA");
+  // Behaviour unchanged: still an outage, still said so.
+  assert.equal(res.status, 502, JSON.stringify(body).slice(0, 200));
+  assert.equal(body.error.code, "upstream_unavailable");
+  // One full series of three, then ONE attempt from the later leg, because the
+  // host has stated its case for this request. Six means the breaker was blind.
+  assert.equal(hosts.get("api.worldbank.org"), 4, `World Bank fetches: ${hosts.get("api.worldbank.org")}`);
+  // The breaker is per host. The other sources still get their own full series.
+  assert.equal(hosts.get("www.imf.org"), 3);
+  assert.equal(hosts.get("api.db.nomics.world"), 3);
+});
+
+test("CONTROL: a single World Bank blip in a snapshot is still retried, not recorded as an outage", async () => {
+  // The other class. Sharing the breaker must not shorten the FIRST series: one
+  // 500 on the headline call has to be retried and recovered, or a momentary
+  // blip would be published as "the World Bank could not be reached".
+  stub({ wb: "empty", caribstat: "absent" }, "FRA", "France");
+  const inner = globalThis.fetch;
+  let failed = false;
+  let wbCalls = 0;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
+    if (new URL(url).host === "api.worldbank.org") {
+      wbCalls++;
+      if (!failed) {
+        failed = true;
+        return new Response("blip", { status: 500 });
+      }
+    }
+    return inner(input as RequestInfo, init);
+  }) as typeof fetch;
+  const { body } = await snapshot("FRA");
+  assert.ok(wbCalls >= 2, "the blipped call must have been retried");
+  assert.notEqual(body.error?.code, "upstream_unavailable", `a recovered blip is not an outage: ${JSON.stringify(body).slice(0, 200)}`);
+  assert.equal(body.sources_unavailable, undefined);
+});

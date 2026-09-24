@@ -5,6 +5,23 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.14.1
+
+A World Bank outage now costs a country snapshot one retry ladder instead of
+two. A snapshot calls the World Bank twice in sequence: once for the headline
+indicators, then again at the end of the debt indicator's source chain. The
+per-request host breaker exists so that a host which has already failed a full
+series of attempts is asked once more, not three more times, but the first call
+never reported to it. Measured with every upstream down: six World Bank fetches
+per snapshot before, four after, which is about 1.2 seconds less waiting. A
+single blip on the first call is still retried and recovered, and the other
+sources still get their own full series.
+
+The test suite also stopped sleeping through retry backoff. Every attempt still
+happens in tests, only the wait is removed, and one test keeps the real
+schedule to prove production still pauses. Wall time fell from 24.8 seconds to
+7.4 seconds on CI. No behaviour change from that part.
+
 ## 1.14.0
 
 A second improvement pass, on the same terms as the first: every change was
