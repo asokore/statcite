@@ -124,6 +124,18 @@ function memPut(url: string, entry: MemEntry): void {
 // changing latency on the common (first-attempt-succeeds) path.
 const RETRY_DELAYS_MS = [300, 900];
 
+/** Multiplies every retry wait. 1 in production and nowhere else. Tests set it
+ * to 0 through _setRetryDelayScale, because an outage test has to walk the whole
+ * ladder and the sleeps were most of the suite's time: the 502-on-every-route
+ * test spent 15.6s of its 15.9s waiting. A SCALE, not a replacement array, so a
+ * test cannot change the attempt count or HOST_FAILURE_LIMIT and stop proving
+ * what production does. */
+let retryDelayScale = 1;
+
+function retryPause(attempt: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt] * retryDelayScale));
+}
+
 /** One full attempt series. Past this, a host has stated its case for this request. */
 const HOST_FAILURE_LIMIT = RETRY_DELAYS_MS.length + 1;
 
@@ -291,7 +303,7 @@ async function attemptFetchJson(
         countFailedAttempt();
         counted = true;
         if (!isLastAttempt && !hostSpent()) {
-          await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+          await retryPause(attempt);
           continue;
         }
         throw lastErr;
@@ -312,7 +324,7 @@ async function attemptFetchJson(
         countFailedAttempt();
         counted = true;
         if (!isLastAttempt && !hostSpent()) {
-          await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+          await retryPause(attempt);
           continue;
         }
         throw lastErr;
@@ -327,7 +339,7 @@ async function attemptFetchJson(
       if (e instanceof UpstreamError && e.status && e.status < 500 && e.status !== 429) throw e;
       if (!counted) countFailedAttempt();
       if (!isLastAttempt && !hostSpent()) {
-        await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+        await retryPause(attempt);
         continue;
       }
     } finally {
@@ -377,6 +389,13 @@ export function isTransientUpstreamError(e: unknown): boolean {
 }
 
 /** Test hook: clear the per-isolate memory cache. */
+/** Test hook: shorten the retry backoff without changing how many attempts
+ * are made. 0 in the suite's shared stub, 1 (the default) for the one test that
+ * proves production really does pause between attempts. */
+export function _setRetryDelayScale(scale: number): void {
+  retryDelayScale = scale;
+}
+
 export function _clearMemCache(): void {
   mem.clear();
   memBytes = 0;
