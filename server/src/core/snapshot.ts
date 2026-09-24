@@ -2,7 +2,7 @@
 
 import type { Citation, Ctx } from "./types.ts";
 import { ToolError } from "./types.ts";
-import { isTransientUpstreamError } from "./upstream.ts";
+import { isTransientUpstreamError, hostStateOf } from "./upstream.ts";
 import { requireCountry, getIndicator, cleanReason } from "./series.ts";
 import { getIndicatorDef } from "./indicators.ts";
 import { fetchWbMulti } from "../adapters/worldbank.ts";
@@ -136,7 +136,12 @@ export async function countrySnapshot(ctx: Ctx, countryInput: string): Promise<S
   let wbFailed: string | undefined;
   let wbUnreachable = false;
   try {
-    byCode = await fetchWbMulti(country.iso3, codes, { mrv: 8 });
+    // The request's host state, so the per-request breaker sees this ladder.
+    // Without it a World Bank outage cost two full ladders per snapshot: this
+    // call, then govt_debt_gdp's chain, which ends at the World Bank and could
+    // not tell the host had already failed. 6 fetches and about 1.2s of extra
+    // waiting, measured 2026-09-24. With it the later leg asks once.
+    byCode = await fetchWbMulti(country.iso3, codes, { mrv: 8, hostState: hostStateOf(ctx) });
   } catch (e) {
     wbFailed = e instanceof Error ? e.message : String(e);
     wbUnreachable = isTransientUpstreamError(e);
