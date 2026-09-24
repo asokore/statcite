@@ -1077,6 +1077,10 @@ function memPut(url, entry) {
   memBytes += entry.bytes;
 }
 var RETRY_DELAYS_MS = [300, 900];
+var retryDelayScale = 1;
+function retryPause(attempt) {
+  return new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt] * retryDelayScale));
+}
 var HOST_FAILURE_LIMIT = RETRY_DELAYS_MS.length + 1;
 function hostStateOf(ctx) {
   return ctx._hostState ??= /* @__PURE__ */ new Map();
@@ -1150,7 +1154,7 @@ async function attemptFetchJson(url, {
         countFailedAttempt();
         counted = true;
         if (!isLastAttempt && !hostSpent()) {
-          await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+          await retryPause(attempt);
           continue;
         }
         throw lastErr;
@@ -1170,7 +1174,7 @@ async function attemptFetchJson(url, {
         countFailedAttempt();
         counted = true;
         if (!isLastAttempt && !hostSpent()) {
-          await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+          await retryPause(attempt);
           continue;
         }
         throw lastErr;
@@ -1183,7 +1187,7 @@ async function attemptFetchJson(url, {
       if (e instanceof UpstreamError && e.status && e.status < 500 && e.status !== 429) throw e;
       if (!counted) countFailedAttempt();
       if (!isLastAttempt && !hostSpent()) {
-        await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+        await retryPause(attempt);
         continue;
       }
     } finally {

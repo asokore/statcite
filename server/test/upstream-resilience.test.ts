@@ -13,7 +13,7 @@
 
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { fetchJson, isTransientUpstreamError, UpstreamError, _clearMemCache } from "../src/core/upstream.ts";
+import { fetchJson, isTransientUpstreamError, UpstreamError, _clearMemCache, _setRetryDelayScale } from "../src/core/upstream.ts";
 import { ToolError } from "../src/core/types.ts";
 import { getIndicator, listRegistry, expectedWeoEdition, weoVintageStaleNote } from "../src/core/series.ts";
 import type { Ctx } from "../src/core/types.ts";
@@ -375,4 +375,30 @@ test("a host that recovers inside the request gets its retry schedule back", asy
   healthy = false;
   await assert.rejects(fetchJson("https://flappy.test/c", { timeoutMs: 200, hostState }));
   assert.equal(calls, 7, `expected a full schedule after recovery, got ${calls - 4} attempts`);
+});
+
+test("a failing host is retried after a real pause", async () => {
+  // test/setup.ts zeroes the retry waits for the whole suite, because outage
+  // tests walk the full ladder and the sleeps were most of its run time. That
+  // leaves nothing proving production actually backs off between attempts, so
+  // this one test restores the real schedule: 300ms then 900ms, 1.2s in all.
+  _setRetryDelayScale(1);
+  try {
+    _clearMemCache();
+    const stamps: number[] = [];
+    globalThis.fetch = (async () => {
+      stamps.push(performance.now());
+      return new Response("down", { status: 503 });
+    }) as typeof fetch;
+    await assert.rejects(fetchJson("https://pause.test/series", { ttlSeconds: 60 }));
+    assert.equal(stamps.length, 3, "three attempts, same as production");
+    const first = stamps[1] - stamps[0];
+    const second = stamps[2] - stamps[1];
+    // Lower bounds only, with a margin for timer granularity. An upper bound
+    // would make the test flaky on a loaded runner without proving anything.
+    assert.ok(first >= 250, `first retry came ${first.toFixed(0)}ms after the attempt, expected about 300ms`);
+    assert.ok(second >= 800, `second retry came ${second.toFixed(0)}ms after, expected about 900ms`);
+  } finally {
+    _setRetryDelayScale(0);
+  }
 });
