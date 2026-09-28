@@ -16,6 +16,12 @@
 # (bench/questions/R2* and bench/snapshots/R2* are pre-registered and public by
 # design — only runs/ is embargoed.)
 #
+# Further down it also refuses harvested bank data, a non-noreply identity, a
+# line with no history in common with the remote's main, an AI attribution
+# trailer or stamp, and any retired phrase listed in the clone's local
+# .git/info/push-deny-patterns. Each case is mutation-tested through a real
+# `git push --dry-run` to a new branch, which reaches this hook.
+#
 # THIS FILE IS NOT ACTIVE UNTIL ENABLED. Git never runs hooks straight from a
 # clone, by design. Enable once per clone:
 #
@@ -70,6 +76,52 @@ while read local_ref local_sha remote_ref remote_sha; do
     echo "$in_history" >&2
     echo "Rebuild the branch from public-sync so the results never enter its history." >&2
     exit 1
+  fi
+  # The public history was rewritten on 15 September 2026. Any line that shares
+  # no history with the remote's main is the pre-rewrite history, which still
+  # holds what the rewrite removed. A stale local branch of it survived for twelve
+  # days and would have passed every check above as a new branch.
+  if git rev-parse -q --verify "refs/remotes/$remote/main" >/dev/null 2>&1; then
+    if ! git merge-base "$local_sha" "refs/remotes/$remote/main" >/dev/null 2>&1; then
+      echo "PUSH REFUSED: $local_ref shares no history with $remote/main, so it is the pre-rewrite line." >&2
+      echo "Rebuild the work on public-sync instead." >&2
+      exit 1
+    fi
+  fi
+  # No commit published here names an AI model as its author or co-author.
+  vendors='claude|anthropic'
+  marked=$(git log --format='%h %(trailers:key=Co-authored-by,valueonly,separator=%x20)' "$local_sha" --not --remotes="$remote" 2>/dev/null | grep -i -E " .*($vendors)" | head -5)
+  stamped=$(git log --format='%h %B' "$local_sha" --not --remotes="$remote" 2>/dev/null | grep -i -E "generated (with|by) \[?($vendors)" | head -5)
+  # The robot emoji, U+1F916, matched as its UTF-8 bytes. A multibyte pattern in
+  # grep matched from a shell and missed under the environment git gives a hook
+  # (mutation test, 28 September 2026), so compare bytes, not characters.
+  if git log --format='%B' "$local_sha" --not --remotes="$remote" 2>/dev/null | od -An -v -tx1 | tr -s ' \n' '  ' | grep -q ' f0 9f a4 96'; then
+    stamped="$stamped
+robot emoji in a commit message"
+  fi
+  if [ -n "$marked$stamped" ]; then
+    echo "PUSH REFUSED: commits in $local_ref carry an AI attribution trailer or stamp:" >&2
+    printf '%s\n%s\n' "$marked" "$stamped" | grep . >&2
+    echo "Remove the trailer (git commit --amend, or git rebase with --exec) before publishing." >&2
+    exit 1
+  fi
+  # Retired phrases, kept OUT of this public file. Each clone lists them in
+  # .git/info/push-deny-patterns (one extended regex per line, # for comments),
+  # which git never commits. Absent file, no check, and a warning says so.
+  deny="$(git rev-parse --git-common-dir 2>/dev/null)/info/push-deny-patterns"
+  if [ -f "$deny" ]; then
+    grep -v -E '^[[:space:]]*(#|$)' "$deny" | while IFS= read -r pat; do
+      hit=$(git log -i -E --grep="$pat" --format='%h message' "$local_sha" --not --remotes="$remote" 2>/dev/null | head -3)
+      [ -z "$hit" ] && hit=$(git log -G"$pat" -i --format='%h diff' "$local_sha" --not --remotes="$remote" 2>/dev/null | head -3)
+      [ -z "$hit" ] && git grep -q -i -E "$pat" "$local_sha" -- 2>/dev/null && hit="tip tree"
+      if [ -n "$hit" ]; then
+        echo "PUSH REFUSED: $local_ref carries a retired phrase listed in .git/info/push-deny-patterns:" >&2
+        echo "$hit" >&2
+        exit 1
+      fi
+    done || exit 1
+  else
+    echo "pre-push: no .git/info/push-deny-patterns in this clone, retired-phrase check skipped." >&2
   fi
 done
 exit 0
