@@ -273,6 +273,145 @@ test("the retired IMF commercial-permission wording appears on no public surface
   }
 });
 
+// ---------------------------------------------------------------------------
+// ECCB currency-stamp regression guard (added 2026-09-30).
+//
+// The ECCB stopped printing "Data as at" on its statistics tables in late
+// September 2026 (the corpus collected on 2026-09-20 still carries stamps, and
+// they were gone live on 2026-09-30). ECCB documents collected after that carry
+// no stamp and their citations say so. The ledger, the /sources prerender,
+// llms-full.txt and the guide had all promised that every served ECCB value
+// carries the bank's own stamp, which is now false for every figure collected
+// after the withdrawal, and a prose surface has no compiler to notice.
+//
+// A first version of this guard matched four literal phrasings and passed
+// seven false paraphrases a reviewer wrote in a few minutes ("Each served ECCB
+// value carries...", "All ECCB values carry...", "ECCB citations always
+// include...", a curly apostrophe). So it now matches the SHAPE of the claim:
+// a quantifier over values, figures or citations, a carrying verb, and a
+// data-as-at or currency stamp, within one sentence. It also sweeps the tool
+// descriptions and the MCP server instructions an agent actually reads.
+//
+// The same guard retires a second false claim from the first fix: that the
+// served date is when StatCite "last read" the table. The served retrieved_at
+// is when StatCite collected the copy being served. caribstat/tools/publish.mjs
+// compares documents with retrieved_at stripped, so a run that changes only
+// that field is never published, and the served date can be weeks older than
+// the collector's latest visit.
+// ---------------------------------------------------------------------------
+
+const RETIRED_ECCB_STAMP_CLAIMS: RegExp[] = [
+  /every served value carries both, and the bank's own/i,
+  /served with the bank's own data.as.at stamp/i,
+  /\bECCB\s+stamps\b/i,
+  // The shape: every/each/all VALUE/FIGURE/CITATION ... carries ... data as at,
+  // in one sentence. The verb must follow the noun closely, so "every value
+  // instead names the publication ... than a currency stamp" (the CBB entry,
+  // which is true) does not match.
+  /\b(?:every|each|all)\s+(?:[\w'-]+\s+){0,3}?(?:values?|figures?|citations?|numbers?|observations?)\s+(?:[\w'-]+\s+){0,2}?(?:carr(?:y|ies)|includes?|keeps?|bears?|shows?|has|have|comes?\s+with|ships?\s+with)\b[^.]*?(?:data.as.at|\bas.at\b|currency stamp)/i,
+  /\b(?:always|invariably)\s+(?:[\w'-]+\s+)?(?:include|carr(?:y|ie)|show|keep|bear)s?\b[^.]*?(?:data.as.at|\bas.at\b)/i,
+  // The "last read" wording from the first version of the stampless notice.
+  // Anchored to the collector or the table, so "the last read-through" on the
+  // guide's checklist is not caught.
+  /\b(?:collector|StatCite)\s+last\s+read\b|\blast\s+read\s+(?:this|the)\s+table\b/i,
+];
+
+/** Entities and typographic quotes become plain ASCII quotes, so an escaped
+ * or curly spelling of a retired sentence cannot slip past a pattern. */
+function plainQuotes(s: string): string {
+  return s
+    .replace(/&#39;|&#x27;|&apos;|&rsquo;|&lsquo;|&#8217;|&#8216;|[\u2018\u2019\u201a\u2032]/gi, "'")
+    .replace(/&quot;|&#34;|&ldquo;|&rdquo;|&#8220;|&#8221;|[\u201c\u201d\u201e\u2033]/gi, '"')
+    .replace(/&amp;/g, "&");
+}
+
+function retiredEccbStampClaims(text: string): string[] {
+  const t = plainQuotes(text);
+  return RETIRED_ECCB_STAMP_CLAIMS.flatMap((re) => {
+    const m = t.match(re);
+    return m ? [m[0].slice(0, 120)] : [];
+  });
+}
+
+test("the retired-ECCB-stamp patterns catch known false paraphrases and pass the current wording", () => {
+  // Positive controls. Each is a sentence that is false today and must be caught.
+  const mustCatch = [
+    "Every served value carries both, and the bank's own \"data as at\" stamp.",
+    "The figures are served with the bank's own data-as-at stamp, carried separately from our retrieval time.",
+    "ECCB stamps \"data as at\" and that stamp is carried into the citation.",
+    "Each served ECCB value carries the bank's own \"data as at\" stamp.",
+    "All ECCB values carry the bank's data-as-at stamp.",
+    "Every ECCB figure carries the bank's own \"data as at\" stamp.",
+    "ECCB citations always include the bank's own \"Data as at\" date.",
+    "The ECCB stamps every table with its own \"Data as at\" date, and StatCite carries it into each citation.",
+    "The figures are served with the bank\u2019s own data-as-at stamp.",
+    "every value carries the ECCB's own as-at date",
+    "StatCite's collector last read this table from the bank on 2026-09-28.",
+    "only the date StatCite last read the table",
+  ];
+  for (const s of mustCatch) assert.ok(retiredEccbStampClaims(s).length > 0, `not caught: ${s}`);
+
+  // Negative controls. The current, correct wording must NOT be caught, or the
+  // guard would force the true sentence out along with the false one.
+  const mustPass = [
+    "The figures are collected on a schedule from the ECCB's published tables. Figures collected while the bank printed its own \"data as at\" stamp carry it, kept separate from our retrieval time. The bank stopped printing that stamp in late September 2026, so figures collected since carry no currency claim from the bank, only the date StatCite collected them.",
+    "Eastern Caribbean Central Bank, with a link to the source table. Every served value carries both. Values collected while the bank printed its \"data as at\" stamp also carry that stamp, and values collected after it withdrew the stamp in late September 2026 carry only the date StatCite collected them.",
+    "The Bank prints no \"data as at\" stamp, so every value instead names the publication it came from and links that workbook directly, which is a narrower claim than a currency stamp and one a reader can check.",
+    "The Eastern Caribbean Central Bank stopped printing a \"Data as at\" stamp on its statistics tables in late September 2026, so this figure carries no currency claim from the bank. StatCite collected the copy served here from the bank on 2026-09-30. That is StatCite's collection date, and it says nothing about how current the bank considers the figure.",
+    "- Dates: ECCB figures collected while the bank printed its own \"data as at\" stamp carry that stamp in the citation. The ECCB stopped printing it in late September 2026, so figures collected since carry no currency claim from the bank, only the date StatCite collected the copy it serves, labelled in a notice as StatCite's collection date.",
+    "Until late September 2026 the bank printed its own \"Data as at\" date on each table, and the citation repeated it.",
+    "For the last read-through before anything goes out.",
+  ];
+  for (const s of mustPass) assert.deepEqual(retiredEccbStampClaims(s), [], `current wording caught: ${s}`);
+});
+
+test("the retired every-ECCB-value-carries-the-bank's-stamp wording appears on no public surface", async () => {
+  const { SOURCES } = await import("../src/core/sources.ts");
+  const { TOOLS } = await import("../src/tools.ts");
+  const { mcpCall } = await import("./helpers.ts");
+  const surfaces: Array<[string, string]> = [];
+  /** Every string inside a value, however deeply nested. */
+  const strings = (where: string, v: unknown): void => {
+    if (typeof v === "string") surfaces.push([where, v]);
+    else if (Array.isArray(v)) v.forEach((x, i) => strings(`${where}[${i}]`, x));
+    else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) strings(`${where}.${k}`, x);
+  };
+  for (const s of SOURCES as ReadonlyArray<Record<string, unknown>>) strings(`sources.ts ${s.id}`, s);
+  for (const t of TOOLS) strings(`tools.ts ${t.name}`, t);
+  // What an MCP client is actually served: the server instructions and every
+  // list result, read over the wire rather than from source.
+  for (const [id, method] of [[1, "initialize"], [2, "tools/list"], [3, "prompts/list"], [4, "resources/list"]] as const) {
+    const res = await mcpCall({ jsonrpc: "2.0", id, method, params: { protocolVersion: "2025-06-18" } });
+    const body = (await res.json()) as { result?: unknown };
+    assert.ok(body.result, `${method} returned no result`);
+    strings(`mcp ${method}`, body.result);
+  }
+  const instructions = surfaces.find(([w]) => w === "mcp initialize.instructions");
+  assert.ok(instructions && instructions[1].length > 200, "the MCP server instructions were not swept");
+  const files = [
+    "README.md",
+    "apify/README.md",
+    "apify/core.bundle.mjs",
+    "skill/statcite/SKILL.md",
+    ...readdirSync(path.join(repoRoot, "site")).filter((f) => /\.(html|txt|json)$/.test(f)).map((f) => `site/${f}`),
+    ...readdirSync(path.join(repoRoot, "distribution")).filter((f) => /\.md$/.test(f)).map((f) => `distribution/${f}`),
+  ];
+  for (const rel of files) surfaces.push([rel, readFileSync(path.join(repoRoot, rel), "utf8")]);
+  assert.ok(files.includes("site/sources.html") && files.includes("site/llms-full.txt") && files.includes("site/guide.html"),
+    `surface sweep is missing a page that carried the retired wording: ${files.join(", ")}`);
+  assert.ok(surfaces.some(([w]) => w.startsWith("tools.ts ")), "tool descriptions were not swept");
+  assert.ok(surfaces.length >= 100, `surface sweep looks too small to be real: ${surfaces.length}`);
+  const offences: string[] = [];
+  for (const [where, raw] of surfaces) {
+    for (const hit of retiredEccbStampClaims(raw)) offences.push(`${where}: "${hit}"`);
+  }
+  assert.deepEqual(
+    offences,
+    [],
+    "these surfaces still promise every ECCB value carries the bank's own stamp (withdrawn in late September 2026), or call the served date StatCite's latest read",
+  );
+});
+
 test("the homepage tool count matches the TOOLS array", async () => {
   const { TOOLS } = await import("../src/tools.ts");
   const html = readFileSync(path.join(repoRoot, "site/index.html"), "utf8");

@@ -1743,10 +1743,30 @@ function sdmxCitation(ctx, opts) {
     citation_text: `${source}, ${dataset}, series ${opts.key} (${opts.seriesName}). ${retrievedVia(date)} ${opts.sourceUrl}`
   });
 }
+var ECCB_STAMP_WITHDRAWN = 'The Eastern Caribbean Central Bank stopped printing a "Data as at" stamp on its statistics tables in late September 2026, so this figure carries no currency claim from the bank.';
+function eccbStamplessNotice(collected) {
+  return collected ? `${ECCB_STAMP_WITHDRAWN} StatCite collected the copy served here from the bank on ${collected}. That is StatCite's collection date, and it says nothing about how current the bank considers the figure.` : ECCB_STAMP_WITHDRAWN;
+}
+function collectionDate(raw) {
+  if (typeof raw !== "string") return void 0;
+  const s = raw.trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})(T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(Z|[+-]\d{2}:?\d{2})?)?$/.exec(s);
+  if (!m) return void 0;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const cal = new Date(Date.UTC(y, mo - 1, d));
+  if (cal.getUTCFullYear() !== y || cal.getUTCMonth() !== mo - 1 || cal.getUTCDate() !== d) return void 0;
+  const written = `${m[1]}-${m[2]}-${m[3]}`;
+  if (!m[4]) return written;
+  const t = Date.parse(s);
+  if (Number.isNaN(t)) return void 0;
+  return m[5] ? new Date(t).toISOString().slice(0, 10) : written;
+}
 function caribstatCitation(ctx, opts) {
   const date = today(ctx);
   const freqWord = opts.frequency === "m" ? "monthly" : opts.frequency === "q" ? "quarterly" : "annual";
   const asAt = opts.dataAsAtRaw ?? opts.dataAsAt;
+  const stampless = !asAt && !opts.publishedAt && opts.provider?.toUpperCase() === "ECCB";
+  const collected = stampless ? collectionDate(opts.collectedAt) : void 0;
   return withExports({
     source: opts.source,
     dataset: opts.publicationTitle ?? opts.tableTitle ?? "",
@@ -1757,7 +1777,7 @@ function caribstatCitation(ctx, opts) {
     license: "Reproduced with the publishing central bank's permission; see the source entry in /v1/sources for the scope of that grant",
     attribution: `Source: ${opts.source}`,
     retrieved_at: date,
-    citation_text: `${opts.source}, ${opts.publicationTitle ?? opts.tableTitle}, ${opts.rowLabel}, ${opts.countryName} (${freqWord})` + (asAt ? `, data as at ${asAt}` : opts.publishedAt ? `, published ${opts.publishedAt}` : "") + `. ${retrievedVia(date)} ${opts.attachmentUrl ?? opts.sourceUrl}`,
+    citation_text: `${opts.source}, ${opts.publicationTitle ?? opts.tableTitle}, ${opts.rowLabel}, ${opts.countryName} (${freqWord})` + (asAt ? `, data as at ${asAt}` : opts.publishedAt ? `, published ${opts.publishedAt}` : stampless ? `, no currency stamp from the bank${collected ? `, collected by StatCite on ${collected}` : ""}` : "") + `. ${retrievedVia(date)} ${opts.attachmentUrl ?? opts.sourceUrl}`,
     ...asAt ? {
       notices: [
         `The publishing bank stamps this table "Data as at ${asAt}". That is the source's own currency claim and is not the same as the retrieval date above.`
@@ -1766,7 +1786,7 @@ function caribstatCitation(ctx, opts) {
       notices: [
         `This source publishes no "data as at" stamp. ${opts.publishedAt} is the date of the publication these figures were taken from, which is a weaker claim: it says when the document appeared, not how current the bank considers the figures. Neither is the retrieval date above.`
       ]
-    } : {}
+    } : stampless ? { notices: [eccbStamplessNotice(collected)] } : {}
   });
 }
 
@@ -2070,8 +2090,9 @@ async function fetchCaribstatSeries(id, opts = {}) {
   let doc;
   try {
     doc = await fetchJson(apiUrl, {
-      // Six hours: the banks publish monthly at best, and the document carries
-      // its own data_as_at so a consumer can always see the real currency.
+      // Six hours: the banks publish monthly at best. A document carries the
+      // bank's data_as_at where the bank printed one, and its retrieved_at
+      // always, so a consumer can see which claim a date is.
       ttlSeconds: opts.ttlSeconds ?? 21600,
       timeoutMs: 8e3,
       validate: (d) => {
@@ -2103,6 +2124,7 @@ async function fetchCaribstatSeries(id, opts = {}) {
     apiUrl,
     canonicalBase: canonicalCaribstatBase(parsed),
     rowSelected: Boolean(parsed.row),
+    provider: parsed.provider,
     ...defaultRow ? { defaultRow } : {}
   };
 }
@@ -2126,6 +2148,10 @@ function sanitiseDoc(doc) {
     ...doc.data_as_at !== void 0 ? { data_as_at: cleanLabel(doc.data_as_at, 60) || void 0 } : {},
     ...doc.data_as_at_raw !== void 0 ? { data_as_at_raw: cleanLabel(doc.data_as_at_raw, 60) || void 0 } : {},
     ...doc.published_at !== void 0 ? { published_at: cleanLabel(doc.published_at, 60) || void 0 } : {},
+    // Our collection time reaches citation text on a stampless ECCB document,
+    // so it is cleaned like the bank's dates. The citation then keeps only a
+    // real calendar date from it (collectionDate in core/citations.ts).
+    ...doc.retrieved_at !== void 0 ? { retrieved_at: cleanLabel(doc.retrieved_at, 60) } : {},
     country: { ...doc.country, name: cleanLabel(doc.country?.name, 120) },
     series: doc.series.map((s) => ({ ...s, label: cleanLabel(s.label) }))
   };
@@ -3175,13 +3201,19 @@ async function getSeries(ctx, seriesId, opts = {}) {
       frequency: freq,
       dataAsAt: c.doc.data_as_at,
       dataAsAtRaw: c.doc.data_as_at_raw,
-      // Only one of these pairs is ever present. ECCB stamps currency; CBB
-      // does not and names the publication instead.
+      // At most one of these pairs is present. ECCB documents collected
+      // while the bank printed its "Data as at" stamp carry it. The bank
+      // withdrew the stamp in late September 2026, so ECCB documents collected
+      // after that carry neither pair, and the citation then states
+      // collectedAt as the date StatCite collected the served copy. CBB never
+      // printed a stamp and names the publication.
       publicationTitle: c.doc.publication_title,
       publishedAt: c.doc.published_at,
       attachmentUrl: c.doc.attachment_url,
       apiUrl: c.apiUrl,
-      seriesId: resolvedId
+      seriesId: resolvedId,
+      provider: c.provider,
+      collectedAt: c.doc.retrieved_at
     });
     return finishSeries(
       {
@@ -3512,7 +3544,9 @@ async function countrySnapshot(ctx, countryInput) {
             publishedAt: c.doc.published_at,
             attachmentUrl: c.doc.attachment_url,
             apiUrl: c.apiUrl,
-            seriesId: spec.id(country.iso3)
+            seriesId: spec.id(country.iso3),
+            provider: c.provider,
+            collectedAt: c.doc.retrieved_at
           })
         });
       } catch (e) {
@@ -4448,13 +4482,13 @@ var SOURCES = [
   {
     id: "eccb",
     name: "Eastern Caribbean Central Bank statistics",
-    coverage: "ECCU monetary, fiscal, debt, tourism, interest-rate and CPI statistics for the eight ECCB member geographies and the currency union aggregate, annual, quarterly and monthly. It includes Anguilla and Montserrat, which are not World Bank reporting economies and appear in few other machine-readable sources. The figures are collected on a schedule from the ECCB's published tables and served with the bank's own data-as-at stamp, carried separately from our retrieval time.",
+    coverage: `ECCU monetary, fiscal, debt, tourism, interest-rate and CPI statistics for the eight ECCB member geographies and the currency union aggregate, annual, quarterly and monthly. It includes Anguilla and Montserrat, which are not World Bank reporting economies and appear in few other machine-readable sources. The figures are collected on a schedule from the ECCB's published tables. Figures collected while the bank printed its own "data as at" stamp carry it, kept separate from our retrieval time. The bank stopped printing that stamp in late September 2026, so figures collected since carry no currency claim from the bank, only the date StatCite collected them.`,
     access: "Scheduled collection to static JSON at github.com/asokore/caribstat, fetched and edge-cached like any other upstream",
     license: "ECCB website terms of use, plus written permission granted to the operator",
     license_verdict: "served",
     license_note: "The ECCB's published website terms grant use of the site for personal, non-commercial purposes and reserve reproduction and redistribution unless permission is given. The operator wrote to the ECCB describing exactly this service, including scheduled fetching, storage, and serving each value with attribution and a link back to the source table, and permission was granted. This entry was recorded on the operator's confirmation of 2026-08-14. The correspondence itself is held privately rather than published, so the entry states its basis rather than quoting it. The request that was granted is public at github.com/asokore/statcite in caribstat/outreach/.",
     license_verified_on: "2026-08-14",
-    attribution_required: `Eastern Caribbean Central Bank, with a link to the source table. Every served value carries both, and the bank's own "data as at" stamp.`,
+    attribution_required: 'Eastern Caribbean Central Bank, with a link to the source table. Every served value carries both. Values collected while the bank printed its "data as at" stamp also carry that stamp, and values collected after it withdrew the stamp in late September 2026 carry only the date StatCite collected them.',
     url: "https://www.eccb-centralbank.org",
     terms_url: "https://www.eccb-centralbank.org"
   },

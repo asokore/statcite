@@ -75,10 +75,51 @@ export function extractCsrfToken(html) {
 
 /** The bank's own "Data as at DD Month YYYY" stamp. This is the provenance
  * StatCite cites — it is the SOURCE's freshness claim, not our retrieval time,
- * and the two must never be conflated in a citation. */
+ * and the two must never be conflated in a citation.
+ *
+ * WITHDRAWN BY THE BANK. The 2026-09-20 deep run read it on every table. By
+ * the 2026-09-30 run it was gone from every table at every frequency, and not
+ * relocated: not in the server HTML, the browser-rendered page, the CSV export
+ * or the Excel export, whose only date is its own generation time. So
+ * undefined is now the normal answer, and the caller must record the stamp as
+ * absent rather than borrow the last one it saw.
+ *
+ * Read from the page's visible text (tags and &nbsp; removed), so a restored
+ * stamp wrapped in markup or written "Data as at: ..." is still recognised.
+ * Any OTHER restored shape must not pass as "absent": see mentionsDataAsAt. */
+const visibleText = (html) =>
+  String(html)
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;|&#160;|&#xa0;| /gi, " ")
+    .replace(/\s+/g, " ");
+
 export function extractDataAsAt(html) {
-  const m = /Data\s+as\s+at\s+([0-9]{1,2}\s+[A-Za-z]+\s+[0-9]{4})/i.exec(html);
+  const m = /Data\s+as\s+at:?\s+([0-9]{1,2}\s+[A-Za-z]+\s+[0-9]{4})\b/i.exec(visibleText(html));
   return m ? m[1].trim() : undefined;
+}
+
+/** Does the page print a currency phrase at all, recognised or not?
+ *
+ * Accepting an absent stamp (September 2026) removed the sentinel that used to
+ * fail every unrecognised one. Review then showed that a stamp restored as
+ * "30th September 2026", "30/09/2026" or "Data as of ..." would have been
+ * read as absent, and the Worker would have told every consumer that the bank
+ * prints no stamp while it did. So "absent" is only accepted when no such
+ * phrase appears anywhere in the visible text. */
+export function mentionsDataAsAt(html) {
+  return /\bdata\s+(?:as\s+(?:at|of)|current\s+(?:as|to))\b/i.test(visibleText(html));
+}
+
+/** Which geography the bare GET rendered, as the page itself declares it in
+ * its hidden `hdnUtrCountry` field. Read rather than assumed: the stampless
+ * skip compares this rendering against one stored document, and comparing it
+ * against the wrong geography's file would be a false "unchanged". */
+export function extractDefaultCountryCode(html) {
+  const tag = /<input[^>]*\bid=["']hdnUtrCountry["'][^>]*>/i.exec(html)?.[0];
+  const v = tag ? /\bvalue=["']([^"']*)["']/i.exec(tag)?.[1] : undefined;
+  return v && /^\d+$/.test(v) ? v : undefined;
 }
 
 const stripTags = (s) => s.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
@@ -189,7 +230,12 @@ export async function openTableSession(tableUrl, freq = "a") {
       `ECCB session: no CSRF token found on ${tableUrl}/${freq}. The page shape changed — do NOT POST with an empty token, it returns 419 and reads like a block.`,
     );
   }
-  return { token, cookies, html, dataAsAt: extractDataAsAt(html) };
+  return {
+    token, cookies, html,
+    dataAsAt: extractDataAsAt(html),
+    stampPhrase: mentionsDataAsAt(html),
+    defaultCountryCode: extractDefaultCountryCode(html),
+  };
 }
 
 /**
@@ -231,5 +277,5 @@ export async function fetchGeography(tableUrl, { token, cookies }, { countryCode
     );
   }
   if (!res.ok) throw new Error(`ECCB POST ${res.status} for country_code=${countryCode}`);
-  return { html, table: parseTable(html, { freq }), dataAsAt: extractDataAsAt(html) };
+  return { html, table: parseTable(html, { freq }), dataAsAt: extractDataAsAt(html), stampPhrase: mentionsDataAsAt(html) };
 }

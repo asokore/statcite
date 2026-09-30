@@ -145,7 +145,8 @@ diff was a 2026 column that appeared because the ingest window was widened from
 `--end 2025` to `--end 2026`. Our request had changed, not the source. Reported
 without that distinction it is a false claim about the world rather than about
 our query, so the runners now print four states, judged against the banks' OWN
-currency stamps (ECCB prints `data_as_at`, CBB gives `published_at`):
+currency stamps (ECCB printed `data_as_at` until September 2026, CBB gives
+`published_at`):
 
 | | meaning |
 |---|---|
@@ -157,6 +158,22 @@ currency stamps (ECCB prints `data_as_at`, CBB gives `published_at`):
 Only `PUB` means a bank published something. Widening a window, fixing a parser
 or adding a table all show as `qry`, which is real work worth committing but is
 not news about the region.
+
+**When there is no stamp to judge by.** ECCB stopped printing `Data as at` on
+every table between the deep run of 2026-09-20 and the run of 2026-09-30. It was
+not moved: it is absent from the server HTML, the rendered page and both
+exports. Documents built since then carry no `data_as_at` at all. None is
+borrowed from an earlier run, and our retrieval time is never put in its place.
+With a stamp missing on either side, the content decides instead of the stamp:
+
+| | meaning |
+|---|---|
+| `same` (stamp withdrawn) | values identical, the file changes only by losing the bank's old stamp, no new snapshot |
+| `PUB ` | a value, label, unit or row moved, or a period appeared or vanished that our window cannot explain |
+| `qry ` | only periods moved, and every one lies where our window move put it (added outside the old window, removed outside the new one) |
+
+A per-country table (CPI) is never excused by our window, because our
+`--start`/`--end` never reach its request.
 
 ## Incremental collection: asking only for what could have moved
 
@@ -170,11 +187,22 @@ The runners now ask a cheaper question first, using each bank's own claim about
 its currency:
 
 - **ECCB.** A geography-selector table renders all nine geographies from one
-  page, and that page prints the `Data as at` stamp. One GET reveals whether the
+  page. When that page prints a `Data as at` stamp, one GET reveals whether the
   table moved; if it did not, the nine POSTs behind it cannot return anything new
   and are not made. Per-country tables (CPI) get **no** shortcut and are not
   given a fake one: each geography's page IS its table, so there is nothing to
   save by fetching it and discarding it.
+- **ECCB with no stamp** (the normal case since September 2026). The same GET
+  renders one geography (the page names it in its hidden `hdnUtrCountry` field,
+  ECCU in practice) over the bank's default window. The skip then needs that
+  rendering to agree cell for cell with the document we hold for that
+  geography, by row position, label, unit, period and value. It also needs
+  every stored file to come from the one full fetch the ledger records, no
+  stored file still carrying the withdrawn stamp, no stored value later than
+  the page's last period, and a full fetch within the last 7.5 days. This is
+  weaker than the stamp in one known way: a revision confined to another
+  country, or to a year outside the default window, is invisible here. The
+  age bound forces a full re-read whether or not the Sunday deep run happened.
 - **CBB.** The CDN puts a publication timestamp in the filename, so a new
   publication is necessarily a new URL. If the newest item still points at the
   workbook we already hold, the download does not happen.
@@ -186,8 +214,10 @@ observations.
 
 **`same` and `SKIPPED` are different claims and are never merged.** `same` means
 we re-read the numbers and they matched. `SKIPPED` means we did not re-read them
-and are trusting the bank's stamp. A report that collapsed the two would be
-claiming verification it did not perform.
+and are trusting either the bank's stamp or, where it prints none, the agreement
+of its default page with our data. The run says which, per table, and the ledger
+records it as `basis`. A report that collapsed these would be claiming
+verification it did not perform.
 
 **What the shortcut cannot see, and what bounds it.** A stamp is a claim, not a
 guarantee: a silent correction that left the stamp untouched, or a workbook
@@ -216,9 +246,9 @@ recorded once, in one file, and the data files are left alone.
 ```bash
 npm test                                    # parser + sentinel tests, no network
 node tools/eccb/run.mjs --dry-run           # what would be fetched, no requests
-node tools/eccb/run.mjs --freq a --start 2015 --end 2025
-node tools/eccb/run.mjs --table consumer-price-index --freq q
-node tools/eccb/run.mjs --freq a --deep     # ignore the stamp shortcut, re-read everything
+node tools/eccb/run.mjs --freq a --start 2015 --end 2026
+node tools/eccb/run.mjs --table consumer-price-index --freq q --start 2020 --end 2026
+node tools/eccb/run.mjs --freq a --start 2015 --end 2026 --deep   # ignore the skip shortcuts, re-read everything
 node tools/cbb/run.mjs --deep               # re-download every workbook
 node tools/status.mjs                       # what we hold, and how far behind today it is
 ```
@@ -241,11 +271,13 @@ tools/eccb/fetch.mjs      session handshake, table parsing, period normalisation
 tools/eccb/catalogue.mjs  table definitions, geographies, sentinel rows
 tools/eccb/ingest.mjs     validation, document shape, snapshot writing
 tools/eccb/run.mjs        CLI
+tools/eccb/summary.mjs    what a run prints (prefixes, counts), kept pure and tested
 tools/changed.mjs         did the content move, and did the SOURCE republish
 tools/checkpoint.mjs      the check ledger and the skip decision
 tools/status.mjs          inventory: newest period held, per series
 data/eccb/{table}/{freq}/{ISO3}.json              latest (mutable)
-data/eccb/{table}/{freq}/snapshots/{ISO3}.{date}.json   immutable vintage
+data/eccb/{table}/{freq}/snapshots/{ISO3}.{date}.json   immutable vintage, filed under the bank's stamp
+data/eccb/{table}/{freq}/snapshots/{ISO3}.retrieved-{timestamp}.json   stampless vintage, filed under our full retrieval time and never overwritten
 data/{source}/_last_check.json                    check ledger (bookkeeping, never data)
 ```
 
@@ -268,7 +300,14 @@ Each of these cost a debugging cycle and is documented at its call site:
 - **Provenance is per table, not per site**: fiscal accounts stamp
   2026-07-28, public sector debt 2026-06-08, monetary survey 2026-07-09, and
   CPI varies *by country*. Caching one date for the source would mislabel most
-  of the corpus.
+  of the corpus. (Historical: the bank withdrew every stamp in September 2026,
+  see above. Stamped snapshots from before then keep the stamp they were read
+  with.)
+- The stamp check once failed all 153 series at once, because the bank stopped
+  printing the stamp while every table still parsed. An absent stamp is now
+  accepted and recorded as absent. A printed stamp that will not parse still
+  fails. `parseDataAsAt` parses by hand, because V8's `Date` read
+  "28 Julember 2026" as 28 July.
 
 ### The search catalogue is generated, not hand-written
 

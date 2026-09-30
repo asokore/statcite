@@ -20,12 +20,21 @@
 // constraint that will apply again to the next source, not a historical
 // curiosity.
 //
-// WHY data_as_at MATTERS HERE MORE THAN ANYWHERE ELSE. These banks stamp every
-// table with their own "Data as at" date, and the stamps genuinely differ per
+// WHY data_as_at MATTERS HERE MORE THAN ANYWHERE ELSE. The ECCB stamped every
+// table with its own "Data as at" date, and the stamps genuinely differed per
 // table and even per country (verified 2026-08-10: fiscal accounts 2026-07-28,
 // public sector debt 2026-06-08, CPI varying by country). A citation that
 // presented our retrieval time as the data's currency would be a lie by
 // formatting, so both dates travel separately all the way into the citation.
+//
+// The ECCB stopped printing that stamp in late September 2026 (documents
+// collected on 2026-09-20 still carry it, and it was gone live on 2026-09-30
+// from the HTML, the rendered page and the CSV and Excel exports). Documents
+// collected after the withdrawal omit data_as_at and data_as_at_raw entirely,
+// and the ingest never borrows an earlier stamp or fills one with its own
+// fetch time. For those, the citation says the bank makes no currency claim
+// and names `retrieved_at` as the date StatCite collected the served copy,
+// never the bank's (core/citations.ts, eccbStamplessNotice).
 
 import { fetchJson } from "../core/upstream.ts";
 import { quoteInput, cleanLabel, httpsUrl } from "../core/text.ts";
@@ -62,7 +71,8 @@ export interface CaribstatDoc {
    * being asserted. A wrong frequency label is a quiet way to misdescribe a
    * series, so it is inferred from the data rather than defaulted. */
   frequency?: string;
-  /** The BANK's own currency claim, ISO date. */
+  /** The BANK's own currency claim, ISO date. Absent on ECCB documents
+   * collected after the bank withdrew its stamp in late September 2026. */
   data_as_at?: string;
   /** The bank's stamp exactly as printed, e.g. "08 June 2026". */
   data_as_at_raw?: string;
@@ -74,7 +84,11 @@ export interface CaribstatDoc {
   attachment_url?: string;
   category?: string;
   sheet?: string;
-  /** OUR fetch time. Never presented as the data's currency. */
+  /** OUR fetch time for the copy being served. Never presented as the data's
+   * currency. It is not the collector's latest visit: the publish step
+   * compares documents with retrieved_at stripped, so a run that changes only
+   * this field is never published. On a stampless ECCB document it is stated
+   * as StatCite's collection date, labelled as ours. */
   retrieved_at: string;
   periods: string[];
   periods_raw?: string[];
@@ -94,6 +108,9 @@ export interface CaribstatSeries {
   canonicalBase: string;
   /** True when the id named a row. */
   rowSelected: boolean;
+  /** The provider parsed from the id ("ECCB" or "CBB"), not from document
+   * text. The citation reads it to tell a stampless ECCB table apart. */
+  provider: string;
 }
 
 /** Row selectors are written by hand as often as they are URL-encoded, and
@@ -384,8 +401,9 @@ export async function fetchCaribstatSeries(id: string, opts: { origin?: string; 
   let doc: CaribstatDoc;
   try {
     doc = (await fetchJson(apiUrl, {
-    // Six hours: the banks publish monthly at best, and the document carries
-    // its own data_as_at so a consumer can always see the real currency.
+    // Six hours: the banks publish monthly at best. A document carries the
+    // bank's data_as_at where the bank printed one, and its retrieved_at
+    // always, so a consumer can see which claim a date is.
       ttlSeconds: opts.ttlSeconds ?? 21600,
       timeoutMs: 8000,
       validate: (d) => {
@@ -422,6 +440,7 @@ export async function fetchCaribstatSeries(id: string, opts: { origin?: string; 
     apiUrl,
     canonicalBase: canonicalCaribstatBase(parsed),
     rowSelected: Boolean(parsed.row),
+    provider: parsed.provider,
     ...(defaultRow ? { defaultRow } : {}),
   };
 }
@@ -455,6 +474,10 @@ function sanitiseDoc(doc: CaribstatDoc): CaribstatDoc {
     ...(doc.data_as_at !== undefined ? { data_as_at: cleanLabel(doc.data_as_at, 60) || undefined } : {}),
     ...(doc.data_as_at_raw !== undefined ? { data_as_at_raw: cleanLabel(doc.data_as_at_raw, 60) || undefined } : {}),
     ...(doc.published_at !== undefined ? { published_at: cleanLabel(doc.published_at, 60) || undefined } : {}),
+    // Our collection time reaches citation text on a stampless ECCB document,
+    // so it is cleaned like the bank's dates. The citation then keeps only a
+    // real calendar date from it (collectionDate in core/citations.ts).
+    ...(doc.retrieved_at !== undefined ? { retrieved_at: cleanLabel(doc.retrieved_at, 60) } : {}),
     country: { ...doc.country, name: cleanLabel(doc.country?.name, 120) },
     series: doc.series.map((s) => ({ ...s, label: cleanLabel(s.label) })),
   };

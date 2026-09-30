@@ -92,20 +92,29 @@ for (const table of await listDirs(eccbDir)) {
     const dir = path.join(eccbDir, table, freq);
     const files = await listJson(dir);
     if (!files.length) continue;
-    let newest, stamp, geos = 0;
+    let newest, stamp, geos = 0, stamped = 0;
     for (const f of files) {
       const doc = await readJson(path.join(dir, f));
       geos++;
       const p = newestPeriod(doc);
       if (p && (!newest || p > newest)) newest = p;
       const s = doc.data_as_at;
+      if (s) stamped++;
       if (s && (!stamp || s > stamp)) stamp = s;
     }
+    // ECCB withdrew its stamp in September 2026. A column that showed the
+    // newest stamp any file still holds would present a withdrawn claim as
+    // the table's current one, so say plainly when files carry none, or when
+    // they disagree.
+    const stampState = stamped === 0 ? "none" : stamped === geos ? "all" : "mixed";
     const led = eccbLedger.entries[`${table}/${freq}`] ?? {};
     rows.push({
       source: "eccb", unit: table, freq, members: geos,
-      newest_period: newest, source_stamp: stamp,
-      last_checked: led.checked_at?.slice(0, 10), last_action: led.action,
+      newest_period: newest,
+      source_stamp: stampState === "none" ? "none printed" : stampState === "mixed" ? `mixed ${stamped}/${geos}` : stamp,
+      stamp_state: stampState,
+      last_checked: led.checked_at?.slice(0, 10),
+      last_action: led.action ? `${led.action}${led.basis ? ` (${led.basis})` : ""}` : undefined,
       last_full_fetch: led.last_full_fetch_at?.slice(0, 10),
       months_behind: monthsBehind(newest),
     });
