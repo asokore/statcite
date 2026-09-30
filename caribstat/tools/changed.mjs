@@ -77,8 +77,101 @@ export function sourceStamp(doc) {
   return doc?.data_as_at ?? doc?.published_at;
 }
 
-/** "republished" | "our-query-changed" | "unchanged" | "new" */
-export async function classifyChange(file, doc) {
+/** The stamp fields, which say WHEN the bank vouched for a table, not WHAT it
+ * published. Stripped only when a stamp is missing on one side, to ask whether
+ * anything but the stamp moved. */
+const STAMP_FIELDS = ["data_as_at", "data_as_at_raw", "published_at"];
+const withoutStamp = (doc) => Object.fromEntries(Object.entries(doc ?? {}).filter(([k]) => !STAMP_FIELDS.includes(k)));
+
+/** Everything except the observations must match, the series must be the same
+ * rows in the same order, and every period BOTH documents hold must carry the
+ * same value. True means the only difference is which periods are present. */
+function sameContentOnOverlap(a, b) {
+  const frame = (d) => canonical({ ...withoutStamp(d), periods: undefined, periods_raw: undefined, series: undefined });
+  if (frame(a) !== frame(b)) return false;
+  const as = a.series ?? [];
+  const bs = b.series ?? [];
+  if (as.length !== bs.length) return false;
+  for (let i = 0; i < as.length; i++) {
+    if (as[i].label !== bs[i].label || as[i].unit !== bs[i].unit) return false;
+    const held = new Map((as[i].observations ?? []).map((o) => [o.period, o.value]));
+    for (const o of bs[i].observations ?? []) {
+      if (held.has(o.period) && held.get(o.period) !== o.value) return false;
+    }
+  }
+  return true;
+}
+
+/** "2015..2026" -> { start: 2015, end: 2026 }. A window with an empty side
+ * ("..", "2015..") is UNKNOWN, not unbounded: with no date posted the bank
+ * picks the window itself, so neither side says what we asked for, and an
+ * unknown window excuses nothing. Reading "" as infinite made every period
+ * look requested (review, 2026-09-30). */
+function parseWindow(w) {
+  const m = /^(\d{4})\.\.(\d{4})$/.exec(String(w ?? ""));
+  if (!m) return undefined;
+  return { start: Number(m[1]), end: Number(m[2]) };
+}
+const inWindow = (year, w) => year >= w.start && year <= w.end;
+
+/**
+ * Can the move from `before` to `after` in OUR query window account for every
+ * period that appeared or vanished? A period is explained only if the old
+ * window never asked for it (added) or the new window no longer asks for it
+ * (removed). Anything else is the bank's doing. Periods are keyed by their
+ * leading year, which every normalised ECCB label carries ("2026",
+ * "2026-Q2", "2026-06").
+ */
+function windowExplainsPeriods(a, b, windowBefore, windowAfter) {
+  const wb = parseWindow(windowBefore);
+  const wa = parseWindow(windowAfter);
+  if (!wb || !wa || windowBefore === windowAfter) return false;
+  const held = new Set(a.periods ?? []);
+  const now = new Set(b.periods ?? []);
+  const year = (p) => Number(String(p).slice(0, 4));
+  for (const p of now) {
+    if (held.has(p)) continue;
+    const y = year(p);
+    if (!Number.isFinite(y) || inWindow(y, wb) || !inWindow(y, wa)) return false;
+  }
+  for (const p of held) {
+    if (now.has(p)) continue;
+    const y = year(p);
+    if (!Number.isFinite(y) || inWindow(y, wa)) return false;
+  }
+  return true;
+}
+
+/** Change states that carry no news about the bank's figures, so they write
+ * no snapshot. Both callers (ECCB and CBB) test against this one set. */
+export const QUIET_STATES = new Set(["unchanged", "stamp-withdrawn", "stamp-restored"]);
+
+/**
+ * "republished" | "our-query-changed" | "unchanged" | "stamp-withdrawn" |
+ * "stamp-restored" | "new"
+ *
+ * `windowBefore` / `windowAfter` are OUR query windows ("2015..2026") for the
+ * stored and the fresh document. They only matter when a stamp is missing,
+ * and an unknown window excuses nothing. A per-country table whose extract
+ * never uses our window must pass neither.
+ *
+ * WHEN A STAMP IS MISSING. ECCB stopped printing "Data as at" in September
+ * 2026. The stamp rule below then compares undefined with undefined, calls them
+ * equal, and would label EVERY genuine revision "our-query-changed", which is
+ * the opposite of the 135-series false alarm it was written to prevent and
+ * much worse, because it hides real news. So with a stamp absent on either
+ * side the content decides instead:
+ *   - only the stamp vanished                  -> stamp-withdrawn (values held)
+ *   - only the stamp appeared                  -> stamp-restored  (values held)
+ *   - a value, label, unit or row moved        -> republished
+ *   - only periods moved, and our window move
+ *     explains every one of them               -> our-query-changed
+ *   - any other period movement                -> republished (the bank added
+ *                                                  or withdrew a period)
+ * The two stamp states are named rather than folded into "unchanged" because
+ * the file DOES change and gets published: the run should say why.
+ */
+export async function classifyChange(file, doc, { windowBefore, windowAfter } = {}) {
   const { readFile } = await import("node:fs/promises");
   let existing;
   try {
@@ -87,6 +180,16 @@ export async function classifyChange(file, doc) {
     return "new";
   }
   if (canonical(existing) === canonical(doc)) return "unchanged";
-  return sourceStamp(existing) === sourceStamp(doc) ? "our-query-changed" : "republished";
+  const before = sourceStamp(existing);
+  const after = sourceStamp(doc);
+  if (before && after) return before === after ? "our-query-changed" : "republished";
+  if (canonical(withoutStamp(existing)) === canonical(withoutStamp(doc))) {
+    if (before && !after) return "stamp-withdrawn";
+    if (!before && after) return "stamp-restored";
+    return "unchanged";
+  }
+  return sameContentOnOverlap(existing, doc) && windowExplainsPeriods(existing, doc, windowBefore, windowAfter)
+    ? "our-query-changed"
+    : "republished";
 }
 

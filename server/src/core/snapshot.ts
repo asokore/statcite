@@ -252,6 +252,8 @@ export async function countrySnapshot(ctx: Ctx, countryInput: string): Promise<S
             attachmentUrl: c.doc.attachment_url,
             apiUrl: c.apiUrl,
             seriesId: spec.id(country.iso3),
+            provider: c.provider,
+            collectedAt: c.doc.retrieved_at,
           }),
         });
       } catch (e) {

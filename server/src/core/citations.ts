@@ -276,13 +276,72 @@ export function sdmxCitation(
 }
 
 /**
+ * The notice for an ECCB table collected after the bank withdrew its stamp.
+ *
+ * Verified live on 2026-09-30: the ECCB no longer prints "Data as at" on its
+ * statistics table pages, in the rendered page or in the CSV and Excel
+ * exports. The corpus collected on 2026-09-20 still carried stamps, so the
+ * bank withdrew it between those two dates, which is why every surface says
+ * "late September 2026" and keys the wording to the event, not to a month
+ * boundary. The CaribStat ingest omits the stamp rather than borrowing one
+ * from an earlier run or filling it with our own retrieval time. Without this
+ * notice such a citation carried no date except StatCite's request date, which
+ * a reader could take for the data's currency.
+ *
+ * The date in the notice is when StatCite collected the COPY BEING SERVED. It
+ * is not StatCite's latest read of the bank: caribstat/tools/publish.mjs
+ * compares documents with retrieved_at stripped, so a run whose only change is
+ * retrieved_at never republishes, and the served retrieved_at can be weeks
+ * older than the collector's most recent visit.
+ */
+export const ECCB_STAMP_WITHDRAWN =
+  'The Eastern Caribbean Central Bank stopped printing a "Data as at" stamp on its statistics tables in late September 2026, so this figure carries no currency claim from the bank.';
+
+export function eccbStamplessNotice(collected?: string): string {
+  return collected
+    ? `${ECCB_STAMP_WITHDRAWN} StatCite collected the copy served here from the bank on ${collected}. That is StatCite's collection date, and it says nothing about how current the bank considers the figure.`
+    : ECCB_STAMP_WITHDRAWN;
+}
+
+/**
+ * The calendar date on which StatCite collected the served copy, or undefined.
+ *
+ * The value comes from the mirror document, so it is third-party text as far
+ * as a citation is concerned. Only a real calendar date survives, either a
+ * bare YYYY-MM-DD or a strict ISO timestamp that parses, reduced to its UTC
+ * date. Anything else yields undefined and the caller drops the sentence, so a
+ * citation can never print "undefined" or "Invalid Date". The time part is
+ * matched strictly rather than left to Date.parse, because the language lets
+ * Date.parse fall back to implementation-defined parsing for anything outside
+ * the ISO format. A timestamp with no zone keeps its written date,
+ * because converting it would depend on the clock of the machine running this.
+ */
+export function collectionDate(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const s = raw.trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})(T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(Z|[+-]\d{2}:?\d{2})?)?$/.exec(s);
+  if (!m) return undefined;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const cal = new Date(Date.UTC(y, mo - 1, d));
+  if (cal.getUTCFullYear() !== y || cal.getUTCMonth() !== mo - 1 || cal.getUTCDate() !== d) return undefined;
+  const written = `${m[1]}-${m[2]}-${m[3]}`;
+  if (!m[4]) return written;
+  const t = Date.parse(s);
+  if (Number.isNaN(t)) return undefined;
+  return m[5] ? new Date(t).toISOString().slice(0, 10) : written;
+}
+
+/**
  * CaribStat citation — regional central-bank data ingested on a schedule.
  *
- * The distinguishing field is `data_as_at`: these banks stamp every table with
- * their own currency date, and those stamps differ per table and per country.
- * It is carried separately from `retrieved_at` and stated in the citation text,
- * because "when the bank says this data is current to" and "when we fetched it"
- * are different claims and conflating them would misrepresent the source.
+ * The distinguishing field is `data_as_at`: the ECCB stamped its tables with
+ * its own currency date until late September 2026, and those stamps differ per
+ * table and per country. Where a document carries one it is kept separate from
+ * `retrieved_at` and stated in the citation text, because "when the bank says
+ * this data is current to" and "when we fetched it" are different claims and
+ * conflating them would misrepresent the source. ECCB documents collected
+ * after the bank withdrew the stamp carry none, and their citation says so and
+ * names our collection date as ours.
  */
 export function caribstatCitation(
   ctx: Ctx,
@@ -310,11 +369,28 @@ export function caribstatCitation(
     attachmentUrl?: string;
     apiUrl: string;
     seriesId: string;
+    /**
+     * The provider parsed from the series id StatCite fetched ("ECCB" or
+     * "CBB"), never taken from document text. It decides whether a document
+     * with no date at all is an ECCB table collected after the bank withdrew
+     * its stamp, which is the only case the withdrawal notice may describe.
+     */
+    provider?: string;
+    /**
+     * The document's `retrieved_at`: when StatCite collected the copy being
+     * served. Not the collector's latest visit, because a run that changes
+     * only retrieved_at is never published. Only ever stated as StatCite's
+     * collection date, and only on a stampless ECCB document. Never merged
+     * into dataAsAt.
+     */
+    collectedAt?: string;
   },
 ): Citation {
   const date = today(ctx);
   const freqWord = opts.frequency === "m" ? "monthly" : opts.frequency === "q" ? "quarterly" : "annual";
   const asAt = opts.dataAsAtRaw ?? opts.dataAsAt;
+  const stampless = !asAt && !opts.publishedAt && opts.provider?.toUpperCase() === "ECCB";
+  const collected = stampless ? collectionDate(opts.collectedAt) : undefined;
   return withExports({
     source: opts.source,
     dataset: opts.publicationTitle ?? opts.tableTitle ?? "",
@@ -327,7 +403,13 @@ export function caribstatCitation(
     retrieved_at: date,
     citation_text:
       `${opts.source}, ${opts.publicationTitle ?? opts.tableTitle}, ${opts.rowLabel}, ${opts.countryName} (${freqWord})` +
-      (asAt ? `, data as at ${asAt}` : opts.publishedAt ? `, published ${opts.publishedAt}` : "") +
+      (asAt
+        ? `, data as at ${asAt}`
+        : opts.publishedAt
+          ? `, published ${opts.publishedAt}`
+          : stampless
+            ? `, no currency stamp from the bank${collected ? `, collected by StatCite on ${collected}` : ""}`
+            : "") +
       `. ${retrievedVia(date)} ${opts.attachmentUrl ?? opts.sourceUrl}`,
     ...(asAt
       ? {
@@ -341,6 +423,8 @@ export function caribstatCitation(
               `This source publishes no "data as at" stamp. ${opts.publishedAt} is the date of the publication these figures were taken from, which is a weaker claim: it says when the document appeared, not how current the bank considers the figures. Neither is the retrieval date above.`,
             ],
           }
-        : {}),
+        : stampless
+          ? { notices: [eccbStamplessNotice(collected)] }
+          : {}),
   });
 }

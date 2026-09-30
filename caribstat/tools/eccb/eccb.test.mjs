@@ -11,7 +11,9 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseTable, extractCsrfToken, extractDataAsAt, toEccbDate, normalisePeriod } from "./fetch.mjs";
+import { parseTable, extractCsrfToken, extractDataAsAt, mentionsDataAsAt, extractDefaultCountryCode, toEccbDate, normalisePeriod } from "./fetch.mjs";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { validateTable, parseDataAsAt, buildDocument } from "./ingest.mjs";
 import { tableById, tableUrl, isPerCountry, COUNTRY_SLUGS } from "./catalogue.mjs";
 
@@ -66,6 +68,20 @@ test("provenance stamp is extracted and parsed to an ISO date", () => {
   assert.equal(parseDataAsAt(undefined), undefined);
 });
 
+test("the stamp parser is strict: a garbled month or an impossible day is not a date", () => {
+  // V8's Date() read "Julember" as July. Every raw stamp held on 2026-09-30
+  // (504 documents, 11 distinct stamps) parses identically under this rule.
+  assert.equal(parseDataAsAt("28 Julember 2026"), undefined);
+  assert.equal(parseDataAsAt("31 June 2026"), undefined, "June has 30 days; Date() would roll it to 1 July");
+  assert.equal(parseDataAsAt("28 July 2026 extra"), undefined);
+  assert.equal(parseDataAsAt("01 September 2026"), "2026-09-01");
+  assert.equal(parseDataAsAt("8 Jun 2026"), "2026-06-08", "three-letter months are still accepted");
+  assert.equal(parseDataAsAt("28 Ju 2026"), undefined, "a two-letter prefix is ambiguous (June or July) and is refused");
+  assert.equal(parseDataAsAt("5 Sept 2026"), undefined, "only the three-letter form or the full name");
+  assert.equal(parseDataAsAt("1 Ma 2026"), undefined);
+  assert.equal(parseDataAsAt("29 February 2028"), "2028-02-29");
+});
+
 test("dates convert to the DD/MM/YYYY the form requires", () => {
   assert.equal(toEccbDate(2021, "start"), "01/01/2021");
   assert.equal(toEccbDate(2025, "end"), "31/12/2025");
@@ -90,9 +106,68 @@ test("SENTINEL fires when every value fails to parse (number format changed)", (
   assert.ok(problems.some((p) => /parsed to null/.test(p)), `expected an all-null problem, got: ${problems.join("; ")}`);
 });
 
-test("SENTINEL fires when the provenance stamp is missing", () => {
-  const problems = validateTable(FISCAL, parseTable(FIXTURE), undefined);
-  assert.ok(problems.some((p) => /Data as at/.test(p)));
+test("SENTINEL fires when a stamp is printed but will not parse", () => {
+  const problems = validateTable(FISCAL, parseTable(FIXTURE), "28 Julember 2026");
+  assert.ok(problems.some((p) => /Data as at/.test(p)), `a garbled stamp is a shape change, got: ${problems.join("; ")}`);
+});
+
+test("an ABSENT stamp is accepted, because ECCB no longer prints one", () => {
+  // Found 2026-09-30: every ECCB table lost its "Data as at" line, and this
+  // sentinel then failed 153 of 153 series whose tables parsed perfectly.
+  const stampless = FIXTURE.replace("<p>Data as at 28 July 2026</p>", "");
+  assert.equal(extractDataAsAt(stampless), undefined);
+  assert.deepEqual(validateTable(FISCAL, parseTable(stampless), undefined), []);
+  // Relaxing the stamp must not have relaxed the table sentinels with it.
+  assert.ok(validateTable(FISCAL, undefined, undefined).length > 0, "no table still fails");
+  const redesigned = stampless.replace("Total Revenue and Grants", "Revenue, Total");
+  assert.ok(validateTable(FISCAL, parseTable(redesigned), undefined).some((p) => /Total Revenue and Grants/.test(p)));
+});
+
+test("a stamp restored in markup or with a colon is recognised, not lost", () => {
+  assert.equal(extractDataAsAt("<p>Data as at <span>30 September 2026</span></p>"), "30 September 2026");
+  assert.equal(extractDataAsAt("<p>Data as at: 30 September 2026</p>"), "30 September 2026");
+  assert.equal(extractDataAsAt("<p>Data as at&nbsp;30 September 2026</p>"), "30 September 2026");
+  assert.equal(extractDataAsAt("<script>var x='Data as at 1 January 2020';</script><p>none here</p>"), undefined, "script text is not the page");
+});
+
+test("SENTINEL fires on a currency phrase in any shape it cannot read, never accepts it as absent", () => {
+  // Found in round-2 review: relaxing the absent-stamp rule had silenced these.
+  const stampless = FIXTURE.replace("<p>Data as at 28 July 2026</p>", "");
+  for (const line of [
+    "Data as at 30th September 2026",
+    "Data as at 30/09/2026",
+    "Data as of 30 September 2026",
+    "Data as at 30 Sept 2026",
+    "DATA AS AT 2026-09-30",
+    "Data current as at 30 September 2026",
+  ]) {
+    const html = `<p>${line}</p>${stampless}`;
+    const dataAsAt = extractDataAsAt(html);
+    const problems = validateTable(FISCAL, parseTable(html), dataAsAt, { stampPhrase: mentionsDataAsAt(html) });
+    assert.ok(problems.length > 0, `"${line}" must fail loudly, got extracted=${dataAsAt} and no problem`);
+  }
+  // Control: today's page, with no phrase at all, is accepted as stampless.
+  assert.equal(mentionsDataAsAt(stampless), false);
+  assert.deepEqual(validateTable(FISCAL, parseTable(stampless), undefined, { stampPhrase: false }), []);
+});
+
+test("a stampless document carries NO stamp, never a borrowed or invented one", () => {
+  const doc = buildDocument({
+    def: FISCAL, iso3: "AIA", name: "Anguilla", freq: "a",
+    url: "https://example.test", table: parseTable(FIXTURE),
+    dataAsAt: undefined, retrievedAt: "2026-09-30T12:00:00.000Z",
+  });
+  const written = JSON.parse(JSON.stringify(doc));
+  assert.ok(!("data_as_at" in written), "our fetch date must not appear as the bank's currency claim");
+  assert.ok(!("data_as_at_raw" in written));
+  assert.equal(written.retrieved_at, "2026-09-30T12:00:00.000Z");
+});
+
+test("the default rendering's geography is read from the page, not assumed", () => {
+  assert.equal(extractDefaultCountryCode('<input type="hidden" id="hdnUtrCountry" name="hdnUtrCountry" value="9">'), "9");
+  assert.equal(extractDefaultCountryCode('<input value="3" name="hdnUtrCountry" id="hdnUtrCountry" type="hidden">'), "3", "attribute order varies");
+  assert.equal(extractDefaultCountryCode('<input id="hdnUtrCountry" value="">'), undefined, "empty is unknown, not a code");
+  assert.equal(extractDefaultCountryCode("<html>no field</html>"), undefined);
 });
 
 test("SENTINEL fires when there is no table at all", () => {
@@ -114,6 +189,19 @@ test("the published document keeps the source's stamp and ours apart", () => {
   assert.equal(doc.country.iso3, "AIA");
   assert.equal(doc.series[0].observations[0].period, "2023");
   assert.equal(doc.series[0].observations[0].value, 7338.3);
+});
+
+test("the runner refuses a real run without both window ends, before any request", () => {
+  // Without them the bank's default window would replace, and narrow, the
+  // stored series. The check runs before any network call, so this is offline.
+  const runner = fileURLToPath(new URL("./run.mjs", import.meta.url));
+  for (const args of [["--freq", "a"], ["--freq", "a", "--start", "2015"], ["--freq", "a", "--end", "2026", "--deep"]]) {
+    const r = spawnSync(process.execPath, [runner, ...args], { encoding: "utf8", timeout: 20000 });
+    assert.equal(r.status, 2, `${args.join(" ")} should exit 2, got ${r.status}: ${r.stdout}${r.stderr}`);
+    assert.match(r.stderr, /--start and --end are required/);
+  }
+  const dry = spawnSync(process.execPath, [runner, "--freq", "a", "--dry-run"], { encoding: "utf8", timeout: 20000 });
+  assert.equal(dry.status, 0, "a dry run needs no window");
 });
 
 // --- catalogue -------------------------------------------------------------

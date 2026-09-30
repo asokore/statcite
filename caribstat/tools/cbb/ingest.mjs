@@ -19,7 +19,7 @@ import path from "node:path";
 import { openListing, extractItemLinks, resolveAttachment, downloadAttachment, publicationDateFromUrl, titleAgreesWithAttachment, publicationFamily, CBB_LISTINGS } from "./fetch.mjs";
 import { readXlsx } from "../xlsx.mjs";
 import { extractWorkbook } from "./tables.mjs";
-import { compareWithExisting, classifyChange } from "../changed.mjs";
+import { compareWithExisting, classifyChange, QUIET_STATES } from "../changed.mjs";
 import { loadLedger, saveLedger, noteCheck } from "../checkpoint.mjs";
 
 export const DATA_DIR = path.resolve(process.cwd(), "data", "cbb");
@@ -265,7 +265,7 @@ export async function ingestCategory(listing, { maxItems = 1, dataDir = DATA_DIR
         });
         const base = path.join(dataDir, listing.id, slug(sheet.name));
         const state = await classifyChange(`${base}.json`, doc);
-        if (state !== "unchanged") {
+        if (!QUIET_STATES.has(state)) {
           await writeJson(path.join(base, "snapshots", `${publishedAt}.json`), doc);
         }
         await writeJson(`${base}.json`, doc);

@@ -53,7 +53,7 @@ export async function saveLedger(dataDir, ledger) {
  * Keeping them distinct is what makes a later "when was this last genuinely
  * re-read?" answerable, which is exactly the question a deep run exists for.
  */
-export function noteCheck(ledger, key, { checkedAt, sourceStamp, window, action, fetched }) {
+export function noteCheck(ledger, key, { checkedAt, sourceStamp, window, action, fetched, basis }) {
   const prior = ledger.entries[key] ?? {};
   ledger.entries[key] = {
     ...prior,
@@ -61,6 +61,11 @@ export function noteCheck(ledger, key, { checkedAt, sourceStamp, window, action,
     source_stamp: sourceStamp ?? null,
     window: window ?? null,
     action,
+    // What a skip rested on: the bank's stamp, or (when it prints none) our
+    // comparison of its live rendering against the stored data. Absent on a
+    // fetch, where nothing had to be trusted. Undefined clears a prior skip's
+    // basis, and JSON.stringify drops the key.
+    basis: basis || undefined,
     // The last time we actually pulled the numbers down, as opposed to
     // confirming a stamp and skipping. A skip carries the previous value
     // forward so it never looks fresher than it is.
@@ -90,4 +95,33 @@ export function canSkip(ledger, key, { liveStamp, window }) {
   if (!liveStamp) return { skip: false, why: "no live source stamp to compare" };
   if (e.source_stamp !== liveStamp) return { skip: false, why: `source republished (${e.source_stamp} -> ${liveStamp})` };
   return { skip: true, why: `stamp unchanged (${liveStamp})` };
+}
+
+/**
+ * The ledger half of a skip for a source that prints NO stamp (ECCB since
+ * September 2026).
+ *
+ * With no stamp there is no source claim to lean on, so this can only ever
+ * say "the ledger does not forbid a skip". It never says "skip": the caller
+ * must separately prove that the bank's live rendering agrees cell for cell
+ * with what we hold. That proof is `storedContentAgrees` in eccb/ingest.mjs,
+ * and a skip without it would be a skip on no evidence at all.
+ */
+//
+// It also enforces the seven-day bound itself rather than trusting the Sunday
+// deep run to exist. The content check cannot see a revision confined to a
+// non-default geography or year, so the only thing bounding such a change is
+// a full re-read. If the last one is older than MAX_CONTENT_SKIP_AGE_MS (a
+// missed or failed deep run), the incremental run does the re-read instead.
+export const MAX_CONTENT_SKIP_AGE_MS = 7.5 * 24 * 3600 * 1000;
+
+export function ledgerAllowsContentSkip(ledger, key, { window, now, maxAgeMs = MAX_CONTENT_SKIP_AGE_MS }) {
+  const e = ledger.entries[key];
+  if (!e) return { ok: false, why: "no prior check recorded" };
+  if (e.window !== window) return { ok: false, why: `query window changed (${e.window} -> ${window})` };
+  if (!e.last_full_fetch_at) return { ok: false, why: "no full fetch on record to compare against" };
+  const age = Date.parse(now) - Date.parse(e.last_full_fetch_at);
+  if (!Number.isFinite(age) || age < 0) return { ok: false, why: "cannot tell how old the last full fetch is" };
+  if (age > maxAgeMs) return { ok: false, why: `last full fetch ${e.last_full_fetch_at} is older than the ${maxAgeMs / 86400000}-day bound` };
+  return { ok: true, lastFullFetchAt: e.last_full_fetch_at };
 }

@@ -154,14 +154,14 @@ export const SOURCES = [
   {
     id: "eccb",
     name: "Eastern Caribbean Central Bank statistics",
-    coverage: "ECCU monetary, fiscal, debt, tourism, interest-rate and CPI statistics for the eight ECCB member geographies and the currency union aggregate, annual, quarterly and monthly. It includes Anguilla and Montserrat, which are not World Bank reporting economies and appear in few other machine-readable sources. The figures are collected on a schedule from the ECCB's published tables and served with the bank's own data-as-at stamp, carried separately from our retrieval time.",
+    coverage: "ECCU monetary, fiscal, debt, tourism, interest-rate and CPI statistics for the eight ECCB member geographies and the currency union aggregate, annual, quarterly and monthly. It includes Anguilla and Montserrat, which are not World Bank reporting economies and appear in few other machine-readable sources. The figures are collected on a schedule from the ECCB's published tables. Figures collected while the bank printed its own \"data as at\" stamp carry it, kept separate from our retrieval time. The bank stopped printing that stamp in late September 2026, so figures collected since carry no currency claim from the bank, only the date StatCite collected them.",
     access: "Scheduled collection to static JSON at github.com/asokore/caribstat, fetched and edge-cached like any other upstream",
     license: "ECCB website terms of use, plus written permission granted to the operator",
     license_verdict: "served" as LicenseVerdict,
     license_note:
       "The ECCB's published website terms grant use of the site for personal, non-commercial purposes and reserve reproduction and redistribution unless permission is given. The operator wrote to the ECCB describing exactly this service, including scheduled fetching, storage, and serving each value with attribution and a link back to the source table, and permission was granted. This entry was recorded on the operator's confirmation of 2026-08-14. The correspondence itself is held privately rather than published, so the entry states its basis rather than quoting it. The request that was granted is public at github.com/asokore/statcite in caribstat/outreach/.",
     license_verified_on: "2026-08-14",
-    attribution_required: "Eastern Caribbean Central Bank, with a link to the source table. Every served value carries both, and the bank's own \"data as at\" stamp.",
+    attribution_required: "Eastern Caribbean Central Bank, with a link to the source table. Every served value carries both. Values collected while the bank printed its \"data as at\" stamp also carry that stamp, and values collected after it withdrew the stamp in late September 2026 carry only the date StatCite collected them.",
     url: "https://www.eccb-centralbank.org",
     terms_url: "https://www.eccb-centralbank.org",
   },

@@ -1190,9 +1190,10 @@ export async function getSeries(
           `. Add '#Row Label' to the series id to choose one.`,
       );
     }
-    // The bank's own currency stamp travels separately from our retrieval
-    // time all the way into the citation. These two dates differ by weeks and
-    // presenting ours as the data's currency would misstate the source.
+    // The bank's own currency stamp, where it printed one, travels separately
+    // from our retrieval time all the way into the citation. These two dates
+    // differ by weeks and presenting ours as the data's currency would
+    // misstate the source.
     const citation = caribstatCitation(ctx, {
       source: c.doc.source,
       sourceUrl: c.doc.source_url,
@@ -1202,13 +1203,19 @@ export async function getSeries(
       frequency: freq,
       dataAsAt: c.doc.data_as_at,
       dataAsAtRaw: c.doc.data_as_at_raw,
-      // Only one of these pairs is ever present. ECCB stamps currency; CBB
-      // does not and names the publication instead.
+      // At most one of these pairs is present. ECCB documents collected
+      // while the bank printed its "Data as at" stamp carry it. The bank
+      // withdrew the stamp in late September 2026, so ECCB documents collected
+      // after that carry neither pair, and the citation then states
+      // collectedAt as the date StatCite collected the served copy. CBB never
+      // printed a stamp and names the publication.
       publicationTitle: c.doc.publication_title,
       publishedAt: c.doc.published_at,
       attachmentUrl: c.doc.attachment_url,
       apiUrl: c.apiUrl,
       seriesId: resolvedId,
+      provider: c.provider,
+      collectedAt: c.doc.retrieved_at,
     });
     return finishSeries(
       {
