@@ -5,6 +5,28 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.14.2
+
+The Eastern Caribbean Central Bank stopped printing its "Data as at" stamp on
+its statistics tables in late September 2026. The collection of 2026-09-20 read
+it on every table. By 2026-09-30 it was gone from the page, the rendered view
+and both exports, and the collector's sentinel refused all 153 ECCB series,
+although every table still parsed.
+
+The collector now records an absent stamp as absent. It never borrows the last
+stamp it saw, and it never puts its own retrieval time in its place. A stamp
+printed in any shape it cannot read still fails loudly, so a restored stamp
+cannot pass as missing. With no stamp to compare, a quiet-day skip rests on the
+bank's live page agreeing cell for cell with the stored data. A full re-read is
+forced whenever the last one is more than 7.5 days old.
+
+Citations for ECCB figures collected since the withdrawal say the bank gave no
+currency stamp, and give the date StatCite collected the copy being served,
+labelled as StatCite's own. Stamped ECCB citations and Central Bank of Barbados
+citations are unchanged byte for byte. The sources page, llms-full.txt and the
+guide no longer promise that every ECCB value carries the bank's stamp, and a
+test fails if that wording returns.
+
 ## 1.14.1
 
 A World Bank outage now costs a country snapshot one retry ladder instead of
