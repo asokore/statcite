@@ -3,7 +3,12 @@
 --fam-1:#4da3ff;--fam-2:#b48cff;--fam-3:#f2b544;--fam-4:#3fd68f;--v-match:#3fd68f;--v-close:#f2b544;--v-mismatch:#ff6b6b;--v-cannot:#a3a9b8;
 --fam-wb:var(--fam-1);--fam-imf:var(--fam-2);--fam-ecb:var(--fam-3);--fam-carib:var(--fam-4);--err:var(--v-mismatch);--warn:var(--v-close);--dim:var(--text-2);--faint:var(--text-3);--mono:var(--font-mono)}
 [data-fam=wb]{--f:var(--fam-wb)}[data-fam=imf]{--f:var(--fam-imf)}[data-fam=ecb]{--f:var(--fam-ecb)}[data-fam=carib]{--f:var(--fam-carib)}
-/* 2 KIT TOKENS, phone geometry */
+/* 2 KIT TOKENS, fonts, phone geometry. The three faces are Latin subsets served
+   under kit names (docs/design/FONTS.md). optional: used only if it arrives
+   before first paint or is cached, so no view ever shifts. */
+@font-face{font-family:"Orbit Display";src:url(/fonts/orbit-display-800.5160b1f2.woff2) format("woff2");font-weight:800;font-display:optional}
+@font-face{font-family:"Orbit Serif";src:url(/fonts/orbit-serif-italic.68739bf5.woff2) format("woff2");font-style:italic;font-weight:400;font-display:optional}
+@font-face{font-family:"Orbit Mono";src:url(/fonts/orbit-mono-400.af8b85d2.woff2) format("woff2");font-weight:400;font-display:optional}
 :root{--font-body:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
 --font-display:"Orbit Display","Arial Black",system-ui,sans-serif;
 --font-serif:"Orbit Serif",Georgia,serif;
@@ -11,7 +16,7 @@
 --fs-0:11px;--fs-1:12.5px;--fs-2:14px;--fs-3:16px;--fs-4:18px;--fs-5:22px;--fs-6:26px;--fs-7:38px;
 --sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;--sp-7:48px;--sp-8:64px;--sp-9:96px;
 --r-1:6px;--r-2:10px;--r-3:14px;--period-a:54s;--period-b:84s;--ticker-period:60s;--ease:ease-out;--hl:1px solid var(--line);
---ra-rx:130px;--ra-ry:70px;--ua:.0077;--card-w:104px;--card-h:30px;--band:220px}
+--ra-rx:130px;--ra-ry:70px;--ua:.0077;--card-w:118px;--card-h:30px;--g:14px;--band:220px}
 [data-fam=accent]{--f:var(--accent)}[data-fam=fam-1]{--f:var(--fam-1)}[data-fam=fam-2]{--f:var(--fam-2)}[data-fam=fam-3]{--f:var(--fam-3)}[data-fam=fam-4]{--f:var(--fam-4)}
 /* 3 PRIMITIVES */
 *,::before,::after{box-sizing:border-box}
@@ -26,13 +31,17 @@ p a,li a,td a{text-decoration:underline;text-underline-offset:2px}
 .wrap{max-width:1060px;margin:0 auto;padding:0 16px}
 .skip{position:absolute;left:-9999px;top:0;z-index:10;background:var(--accent);color:var(--on-accent);padding:10px 18px;font-weight:600}
 .skip:focus{left:0}
-nav .links,.badge,th,.tabs button,.pill,.try-result [class*=v-],#motion+label{font:calc(var(--cap,12px)/.7)/1.05 var(--mono);font-variant-caps:all-small-caps;letter-spacing:.084em}
+/* Labels are true small caps. The mono's small capitals stand .583 of the em
+   (measured on the shipped file). Sizing by the wanted cap height over .66 keeps
+   the run of a label close to its old width, and the fallback's synthetic caps
+   at .7 land within a pixel. */
+nav .links,.badge,th,.tabs button,.pill,.try-result [class*=v-],#motion+label{font:calc(var(--cap,12px)/.66)/1.05 var(--mono);font-variant-caps:all-small-caps;letter-spacing:.07em}
 .ticker-row>*,.sbar,.oc::before,.needle *,.ticks i::after,[data-eyebrow]::before{font:12px/1.5 var(--mono);letter-spacing:.12em}
 [data-t]::after,.oc.stamp::after,.sbar ::after{text-transform:uppercase}
 nav .links a,[data-eyebrow]::before,.sub,.lead,.card p,caption,th,footer a,#motion+label,.ticker-row>*,.sbar,.needle *{color:var(--text-2)}
 nav{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 20px;padding:20px 0;border-bottom:var(--hl)}
 .logo{display:flex;align-items:center;gap:10px;font:800 19px var(--font-display);color:var(--text)}
-nav .links{display:flex;flex-wrap:wrap;gap:6px 20px;--cap:13px}
+nav .links{display:flex;flex-wrap:wrap;gap:6px 20px;--cap:12.5px}
 nav .links a:hover{color:var(--text);text-decoration:none}
 h1{font:800 clamp(30px,3.2vw,40px)/1.12 var(--font-display);letter-spacing:-.03em}
 h2{font:800 22px/1.2 var(--font-display);margin-bottom:8px}
@@ -43,7 +52,7 @@ h1 em{color:var(--accent)}
 .sub{margin-top:16px;font-size:17px;max-width:740px}
 .lead{margin-bottom:24px;max-width:760px}
 section{padding:40px 0;border-top:var(--hl)}
-.badge{display:inline-block;margin-bottom:20px;padding:3px 12px;border:1px solid var(--line-strong);border-radius:20px;color:var(--accent)}
+.badge{--cap:9px;display:inline-block;margin-bottom:20px;padding:3px 12px;border:1px solid var(--line-strong);border-radius:20px;color:var(--accent);letter-spacing:.02em}
 .cta{margin-top:28px;display:flex;flex-wrap:wrap;gap:12px}
 .btn{display:inline-block;padding:11px 20px;border:1px solid transparent;border-radius:8px;font-weight:600;font-size:15px}
 .btn.primary{background:var(--accent);color:var(--on-accent)}
@@ -61,7 +70,7 @@ pre code{font-size:inherit}
 table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
 caption{caption-side:top;text-align:left;font-size:13px;padding-bottom:8px}
 th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:var(--hl)}
-th{--cap:12.5px;letter-spacing:.042em}
+th{--cap:12px;letter-spacing:.04em}
 .tscroll{overflow-x:auto}
 .tscroll.wide table{min-width:560px}
 .tscroll.wide td code,.tscroll.wide th code{overflow-wrap:normal;word-break:normal}
@@ -77,27 +86,53 @@ footer{border-top:var(--hl);padding:36px 0 48px;color:var(--text-3);font-size:13
 /* 4 INSTRUMENTS */
 .hero{position:relative;isolation:isolate;overflow:hidden;overflow:clip;padding:var(--band) 16px 40px}
 .orbit{position:absolute;left:50%;top:calc(var(--band)/2);width:0;height:0;z-index:0;pointer-events:none;contain:size layout style}
+/* A still bloom behind the copy, blue above and to the right, green below and left */
+.orbit::before{content:"";position:absolute;left:0;top:0;width:calc(var(--ra-rx)*1.7);height:calc(var(--ra-ry)*2.6);translate:-50% -50%;border-radius:50%;background:radial-gradient(closest-side at 64% 32%,color-mix(in srgb,var(--fam-1) 15%,transparent),transparent 72%),radial-gradient(closest-side at 36% 72%,color-mix(in srgb,var(--accent) 11%,transparent),transparent 72%)}
 .hero-copy{position:relative;z-index:1;max-width:600px;margin:0 auto;text-align:center;background:radial-gradient(ellipse,var(--bg) 58%,transparent)}
 .hero .sub{margin-inline:auto}
 .hero .cta{justify-content:center}
 [data-ring=a]{--u:var(--ua);--rx:var(--ra-rx);--ry:var(--ra-ry);--period:var(--period-a)}
 [data-ring=b]{--u:var(--ub);--rx:var(--rb-rx);--ry:var(--rb-ry);--period:var(--period-b)}
+/* The outer ring and its cards sit in wrappers that lean the whole orbit, so the
+   two rings cross like a gyroscope. Cards lean back by the same angle. The cards
+   take a second wrapper after the inner ring, so no ring line paints over them. */
+.tilt{position:absolute;left:0;top:0;width:0;height:0}
 .ring{position:absolute;left:0;top:0;translate:-50% -50%;fill:none;width:calc(var(--rx)*2);height:calc(var(--ry)*2);overflow:visible;stroke:var(--line)}
 .ring .base{vector-effect:non-scaling-stroke}
 .bezel{stroke-width:calc(6*var(--u))}
 .ring[data-ring=b]{display:none}
-.arcs{transform-box:view-box;transform-origin:0 0}
-.arcs circle{stroke:var(--fam-1);stroke-width:calc(2*var(--u));stroke-linecap:round}
-.arcs .glow{stroke-width:calc(6*var(--u));opacity:.22}
-.arcs>:nth-child(4n+2){stroke:var(--fam-2)}.arcs>:nth-child(4n+3){stroke:var(--fam-3)}.arcs>:nth-child(4n){stroke:var(--fam-4)}
-.oc{position:absolute;left:0;top:0;display:grid;align-content:center;width:var(--card-w);height:var(--card-h);padding:0 10px;overflow:hidden;white-space:nowrap;background:color-mix(in srgb,var(--bg-2) 92%,transparent);border:var(--hl);border-left:3px solid var(--f,var(--text));border-radius:8px;font:11px/1.25 var(--mono);color:var(--text);
---k:var(--m,0);--n:6;contain:strict;offset-path:path("M 0 70 A 130 70 0 0 1 0 -70 A 130 70 0 0 1 0 70");offset-anchor:center;offset-rotate:0deg;offset-distance:calc(var(--k)/var(--n)*100%)}
-.oc::before{content:attr(data-tag);display:none;font-size:9.5px;color:var(--f,var(--text-2))}
-.oc::after{content:attr(data-label)}
+/* Arcs turn on their own compositor layer: a square svg as wide as its ring,
+   squashed to the ring by a static vertical scale of ry over rx. Each scale
+   equals that breakpoint's --ra-ry/--ra-rx or --rb-ry/--rb-rx, pinned by test.
+   will-change keeps the raster so the turn never repaints. */
+.spin{height:calc(var(--rx)*2);scale:1 .5385}
+.spin>svg{display:block;width:100%;height:100%;overflow:visible;transform-origin:50% 50%;will-change:transform}
+/* Comet arcs: per family a head, two fading tails and a glow, all ending at the
+   same point. A circle's path runs clockwise, so the dash end leads. */
+.arcs circle{stroke:var(--fam-1);stroke-width:calc(2*var(--u));stroke-linecap:round;--l:6;--o:0;stroke-dasharray:var(--l) calc(100 - var(--l));stroke-dashoffset:calc(var(--l) - 8 - var(--o))}
+.arcs>:nth-child(4n+2){--l:14;opacity:.5}.arcs>:nth-child(4n+3){--l:26;opacity:.18}.arcs>:nth-child(4n){--l:10;opacity:.22;stroke-width:calc(7*var(--u))}
+.arcs>:nth-child(n+5){stroke:var(--fam-2);--o:25}.arcs>:nth-child(n+9){stroke:var(--fam-3);--o:50}.arcs>:nth-child(n+13){stroke:var(--fam-4);--o:75}
+.oc{position:absolute;left:0;top:0;display:grid;grid-template-columns:var(--g) 1fr;column-gap:7px;align-items:center;align-content:center;width:var(--card-w);height:var(--card-h);padding:0 8px 0 7px;overflow:hidden;white-space:nowrap;
+background:linear-gradient(90deg,color-mix(in srgb,var(--f,var(--text-2)) 14%,transparent),transparent 45%),color-mix(in srgb,var(--bg-2) 92%,transparent);border:var(--hl);border-radius:8px;box-shadow:inset 0 1px 0 color-mix(in srgb,var(--text) 7%,transparent),0 10px 22px -14px var(--bg);font:11px/1.25 var(--mono);color:var(--text);
+--k:var(--m,0);--n:6;contain:size layout style;offset-path:path("M 0 70 A 130 70 0 0 1 0 -70 A 130 70 0 0 1 0 70");offset-anchor:center;offset-rotate:0deg;offset-distance:calc(var(--k)/var(--n)*100%)}
+.oc>i{grid-row:1/span 2;width:var(--g);height:var(--g);background:var(--f,var(--text-2));-webkit-mask:var(--glyph) center/contain no-repeat;mask:var(--glyph) center/contain no-repeat}
+.oc::before{content:attr(data-tag);grid-column:2;display:none;font-size:9.5px;color:var(--f,var(--text-2))}
+.oc::after{content:attr(data-label);grid-column:2}
 .oc:not([data-mobile]){display:none}
-.oc:nth-child(2 of [data-mobile]){--m:1}.oc:nth-child(3 of [data-mobile]){--m:2}.oc:nth-child(4 of [data-mobile]){--m:3}.oc:nth-child(5 of [data-mobile]){--m:4}.oc:nth-child(6 of [data-mobile]){--m:5}
 .oc[data-label=match]{--f:var(--v-match)}.oc[data-label=close]{--f:var(--v-close)}.oc[data-label=mismatch]{--f:var(--v-mismatch)}.oc[data-label=cannot_verify]{--f:var(--v-cannot)}
-.oc.stamp{background:color-mix(in srgb,var(--bg) 85%,transparent);border:1.5px solid var(--f);color:var(--f);letter-spacing:.1em;transform:rotate(-6deg)}
+.oc.stamp{background:color-mix(in srgb,var(--bg) 85%,transparent);border:1.5px solid var(--f);box-shadow:none;color:var(--f);letter-spacing:.06em;transform:rotate(-6deg)}
+/* Glyphs, drawn as masks filled with the family colour. No text, no figure:
+   a seal for a publisher, a series for an indicator, a dial at rest for a rate,
+   a pin for an economy, and the four verdict marks. */
+.oc[data-g=seal]{--glyph:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='8.6' fill='none' stroke='black' stroke-width='2.2'/><circle cx='12' cy='12' r='3.2'/></svg>")}
+.oc[data-g=series]{--glyph:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M2,13l5-6,5,8,5-8,5,6' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/></svg>")}
+.oc[data-g=dial]{--glyph:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M3,17a9,9,0,0,1,18,0M12,17V7' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'/><circle cx='12' cy='17' r='2.3'/></svg>")}
+.oc[data-g=pin]{--glyph:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12,21.6c0,0-6.8-7.2-6.8-11.6a6.8,6.8,0,0,1,13.6,0c0,4.4-6.8,11.6-6.8,11.6z' fill='none' stroke='black' stroke-width='2.2'/><circle cx='12' cy='10' r='2.5'/></svg>")}
+.oc[data-g=tick]{--glyph:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='9.4' fill='none' stroke='black' stroke-width='2'/><path d='M7.4,12.4l3,3,6.2-6.4' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/></svg>")}
+.oc[data-g=check]{--glyph:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M4,12.6l5.2,5.2L20,6.6' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/></svg>")}
+.oc[data-g=near]{--glyph:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M4,9.5c2.6-3,5.4-3,8,0s5.4,3,8,0M4,15c2.6-3,5.4-3,8,0s5.4,3,8,0' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'/></svg>")}
+.oc[data-g=cross]{--glyph:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M6,6l12,12M18,6L6,18' stroke='black' stroke-width='2.4' stroke-linecap='round'/></svg>")}
+.oc[data-g=null]{--glyph:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='9.4' fill='none' stroke='black' stroke-width='2'/><path d='M8,12h8' stroke='black' stroke-width='2.4' stroke-linecap='round'/></svg>")}
 @supports not (offset-path:path("M0 0h1")){.oc{display:none!important}}
 #motion{position:absolute;opacity:0;width:1px;height:1px}
 #motion+label{display:none;align-items:center;gap:8px;margin-top:20px;padding:5px 14px;border:1px solid var(--line-strong);border-radius:20px;cursor:pointer}
@@ -134,30 +169,41 @@ section[id]:has(>.sbar){counter-increment:sec;padding-top:0;border-top:0}
 .progress{position:fixed;inset:0 0 auto;z-index:7;height:2px;background:var(--accent);transform-origin:0 0;transform:scaleX(0);pointer-events:none}
 /* Breakpoints, clockwise paths */
 @media (min-width:640px){
-:root{--ra-rx:300px;--ra-ry:110px;--ua:.0033;--card-w:128px;--card-h:36px;--band:300px}
+:root{--ra-rx:300px;--ra-ry:110px;--ua:.0033;--card-w:140px;--card-h:36px;--g:18px;--band:300px}
 .wrap{padding:0 24px}
 section{padding:52px 0}
 h2{font-size:26px}
 .hero{padding:var(--band) 24px 48px}
+.badge{--cap:11px;letter-spacing:.05em}
+.spin{scale:1 .3667}
 .oc{--k:var(--i);--n:8;font-size:12px;offset-path:path("M 0 110 A 300 110 0 0 1 0 -110 A 300 110 0 0 1 0 110")}
 .oc::before,.sbar .tag{display:block}
 .oc:not([data-mobile]){display:grid}
 .oc[data-ring=b]{display:none}
 #motion+label{display:inline-flex}
+/* A compact orbit (the 404 page) keeps this breakpoint's ring at every width */
+.compact{--ra-rx:300px;--ra-ry:110px;--ua:.0033;--card-w:160px}
+.compact .spin{scale:1 .3667}
+.compact .oc[data-ring=a]{offset-path:path("M 0 110 A 300 110 0 0 1 0 -110 A 300 110 0 0 1 0 110")}
 }
 @media (min-width:1024px){
-:root{--ra-rx:500px;--ra-ry:260px;--rb-rx:660px;--rb-ry:320px;--ua:.002;--ub:.0015;--card-w:136px;--card-h:40px}
+:root{--ra-rx:500px;--ra-ry:260px;--rb-rx:660px;--rb-ry:320px;--ua:.002;--ub:.0015;--card-w:152px;--card-h:40px;--g:20px}
 .hero{display:grid;place-items:center;min-height:700px;padding:64px 24px}
 .orbit{top:50%}
 .hero-copy{max-width:540px}
 .ring[data-ring=b]{display:block}
+.tilt{rotate:-6deg}
+.spin{scale:1 .5200}
+.spin[data-ring=b]{scale:1 .4848}
 .oc[data-ring=a]{offset-path:path("M 0 260 A 500 260 0 0 1 0 -260 A 500 260 0 0 1 0 260")}
-.oc[data-ring=b]{display:grid;--n:12;offset-path:path("M 0 320 A 660 320 0 0 1 0 -320 A 660 320 0 0 1 0 320")}
+.oc[data-ring=b]{display:grid;rotate:6deg;--n:12;offset-path:path("M 0 320 A 660 320 0 0 1 0 -320 A 660 320 0 0 1 0 320")}
 }
 @media (min-width:1280px){
-:root{--ra-rx:600px;--ra-ry:290px;--rb-rx:800px;--rb-ry:360px;--ua:.0017;--ub:.00125;--card-w:148px;--card-h:44px}
+:root{--ra-rx:600px;--ra-ry:290px;--rb-rx:800px;--rb-ry:360px;--ua:.0017;--ub:.00125;--card-w:164px;--card-h:44px;--g:22px}
 .hero{min-height:780px}
 .hero-copy{max-width:600px}
+.spin{scale:1 .4833}
+.spin[data-ring=b]{scale:1 .4500}
 .oc{font-size:12.5px}
 .oc[data-ring=a]{offset-path:path("M 0 290 A 600 290 0 0 1 0 -290 A 600 290 0 0 1 0 290")}
 .oc[data-ring=b]{offset-path:path("M 0 360 A 800 360 0 0 1 0 -360 A 800 360 0 0 1 0 360")}

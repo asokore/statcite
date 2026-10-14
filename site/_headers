@@ -28,6 +28,13 @@
 /assets/*
   Cache-Control: public, max-age=86400
 
+# Self-hosted fonts. Each .woff2 name carries a hash of its bytes, so a changed
+# face is a new URL and a year-long immutable cache is safe. The OFL-*.txt
+# licence files beside them are not hashed, so a changed licence text needs a
+# new file name before it can reach a cached client.
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
 # Machine-readable spec files: browser-side consumers (Swagger UI, client-side
 # importers, agent fetchers) need CORS on the static assets, not only on /v1.
 /openapi.json
