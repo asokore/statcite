@@ -16,14 +16,17 @@
 // in CI, so the guards read the real repo. The registry (INDICATORS, SOURCES,
 // TOOLS, countries, the Verdict type) always comes from this checkout's server/src.
 //
-// Font guards are deferred: no font file has been approved yet, so (d) checks
-// only that every url() in sc.css is same-origin and exists, and (c) does not yet
-// require a /fonts/* block. Both tighten when the fonts land. No network.
+// Fonts: (d) requires the three served faces to be declared with
+// font-display: optional, preloaded on every page, recorded in
+// docs/design/FONTS.md with the SHA-256 and size of the shipped bytes, and
+// licensed by an OFL file beside them. (c) requires the /fonts/* cache block.
+// (p) holds the orbit glyphs to inline SVG masks that draw shapes only. No network.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { INDICATORS } from "../src/core/indicators.ts";
@@ -241,7 +244,7 @@ test("(a) every page links sc.css once and sc.js deferred, all on one ?v= value,
     versions.add(jsV!);
   }
   assert.equal(versions.size, 1, `pages disagree on the asset version: ${[...versions].join(", ")}`);
-  assert.ok(size("site/assets/sc.css") <= 14 * KB, `sc.css is ${size("site/assets/sc.css")} bytes, cap 14 KB`);
+  assert.ok(size("site/assets/sc.css") <= 20 * KB, `sc.css is ${size("site/assets/sc.css")} bytes, cap 20 KB`);
   assert.ok(size("site/assets/sc.js") <= 5 * KB, `sc.js is ${size("site/assets/sc.js")} bytes, cap 5 KB`);
   assert.ok(size("site/index.html") <= 66 * KB, `index.html is ${size("site/index.html")} bytes, cap 66 KB`);
 });
@@ -315,45 +318,144 @@ test("(c) site/_headers caches /assets/* and no longer claims all CSS and JS is 
   assert.ok(assets, "site/_headers has no /assets/* block (the shared assets are cached for a day: Cache-Control: public, max-age=86400)");
   assert.match(assets, /^\s+Cache-Control:\s*public,\s*max-age=86400\s*$/m, `the /assets/* block does not set a one-day cache:\n${assets}`);
   assert.doesNotMatch(h, /all first-party CSS and JS is inline/i, "the _headers comment still says all CSS and JS is inline, which sc.css and sc.js made false");
+  const fonts = headerBlock(h, "/fonts/*");
+  assert.ok(fonts, "site/_headers has no /fonts/* block (hashed font files are cached for a year: Cache-Control: public, max-age=31536000, immutable)");
+  assert.match(fonts, /^\s+Cache-Control:\s*public,\s*max-age=31536000,\s*immutable\s*$/m, `the /fonts/* block does not set a one-year immutable cache:\n${fonts}`);
 });
 
-// --- (d) sc.css loads nothing from another origin ------------------------------
+// --- (d) sc.css loads nothing from another origin, and the fonts are what the record says -------
 
-test("(d) every url() in sc.css is a same-origin /fonts/ or /assets/ file that exists, and sc.css imports nothing", () => {
+// Every url() in sc.css. A data: SVG is an inline mask (guard p reads its
+// content), anything else must be a same-origin /fonts/ or /assets/ path.
+const cssUrls = (css: string) =>
+  [...css.matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^'")\s]*))\s*\)/gi)].map((m) => ({ raw: m[0], u: (m[1] ?? m[2] ?? m[3]).trim() }));
+const isDataSvg = (u: string) => /^data:image\/svg\+xml,/.test(u);
+
+test("(d) every url() in sc.css is an inline SVG mask or a same-origin /fonts/ or /assets/ file that exists, and sc.css imports nothing", () => {
   const css = stripCssComments(read("site/assets/sc.css"));
   assert.doesNotMatch(css, /@import\b/i, "sc.css uses @import");
   const bad: string[] = [];
   let fontBytes = 0;
-  for (const m of css.matchAll(/url\(\s*(['"]?)([^'")]*)\1\s*\)/gi)) {
-    const u = m[2].trim().replace(/[?#].*$/, "");
+  const fontFiles = new Set<string>();
+  for (const { raw, u: full } of cssUrls(css)) {
+    if (isDataSvg(full)) continue;
+    const u = full.replace(/[?#].*$/, "");
     if (!/^\/(fonts|assets)\/[^/]/.test(u)) {
-      bad.push(`${m[0]}: not a same-origin /fonts/ or /assets/ path`);
+      bad.push(`${raw.slice(0, 80)}: not a same-origin /fonts/ or /assets/ path`);
       continue;
     }
     const rel = `site${u}`;
     if (!existsSync(path.join(root, rel))) {
-      bad.push(`${m[0]}: ${rel} does not exist`);
+      bad.push(`${raw}: ${rel} does not exist`);
       continue;
     }
     if (/\.woff2?$/i.test(u)) {
+      fontFiles.add(u);
       const s = size(rel);
       fontBytes += s;
       if (s > 30 * KB) bad.push(`${rel}: ${s} bytes, cap 30 KB`);
     }
   }
   assert.ok(fontBytes <= 100 * KB, `fonts total ${fontBytes} bytes, cap 100 KB`);
-  // Pages: every stylesheet, script and preload they pull is same-origin and exists.
+  assert.equal(fontFiles.size, 3, `sc.css references ${fontFiles.size} font files, the kit serves three: ${[...fontFiles].join(", ")}`);
+  // Every @font-face is optional (no late swap can shift a view) and names one
+  // of the kit families.
+  const faces = [...css.matchAll(/@font-face\s*\{([^}]*)\}/g)].map((m) => m[1]);
+  assert.equal(faces.length, 3, `sc.css declares ${faces.length} @font-face blocks, expected 3`);
+  for (const f of faces) {
+    if (!/font-display\s*:\s*optional/.test(f)) bad.push(`@font-face without font-display: optional: ${f.slice(0, 60)}`);
+    if (!/font-family\s*:\s*"Orbit (?:Display|Serif|Mono)"/.test(f)) bad.push(`@font-face outside the kit families: ${f.slice(0, 60)}`);
+  }
+  // The serif is set only by the one rule `h1 em,.serif`, so a page uses it
+  // exactly when its markup holds an em inside h1 or a .serif element. Any
+  // other stylesheet reaching the serif would break that reading, so it is refused.
+  const serifFace = faces.find((f) => /font-family\s*:\s*"Orbit Serif"/.test(f));
+  const serifFile = serifFace && /url\(\s*["']?([^"')\s?#]+)/.exec(serifFace)?.[1];
+  assert.ok(serifFile && fontFiles.has(serifFile), `the Orbit Serif @font-face does not name one of the served files: ${serifFile}`);
+  for (const d of allDeclarations()) {
+    if (!/--font-serif|Orbit Serif/.test(d.value) || d.prop === "--font-serif" || /^@font-face$/i.test(d.prelude)) continue;
+    if (d.where !== "site/assets/sc.css" || d.prelude.replace(/\s+/g, "") !== "h1em,.serif") bad.push(`${d.where} ${d.prelude}: ${d.prop} sets the serif outside the "h1 em,.serif" rule, so the serif preload list cannot be read from markup`);
+  }
+  const usesSerif = (html: string) =>
+    /\bclass="[^"]*\bserif\b/.test(html) || [...html.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)].some((m) => /<em\b/i.test(m[1]));
+  const serifPages: string[] = [];
+  // Pages: every stylesheet, script and preload they pull is same-origin and
+  // exists. Every page preloads the fonts sc.css references, less the serif on
+  // a page that never sets it.
   for (const rel of PAGES()) {
     const html = read(rel);
+    const preloaded = new Set<string>();
     for (const m of html.matchAll(/<(?:link|script)\b[^>]*\b(?:href|src)="([^"]+)"[^>]*>/gi)) {
       const tag = m[0];
       if (/^<link/i.test(tag) && !/\brel="(?:stylesheet|preload|modulepreload)"/i.test(tag)) continue;
       const u = m[1].replace(/[?#].*$/, "");
       if (!u.startsWith("/") || u.startsWith("//")) bad.push(`${rel}: ${tag} loads from another origin`);
       else if (!existsSync(path.join(root, `site${u}`))) bad.push(`${rel}: ${tag} points at a missing file`);
+      if (/\brel="preload"/.test(tag) && /\bas="font"/.test(tag)) {
+        preloaded.add(u);
+        if (!/\btype="font\/woff2"/.test(tag) || !/\scrossorigin(\s|=|>)/.test(tag)) bad.push(`${rel}: font preload lacks type="font/woff2" or crossorigin: ${tag}`);
+      }
     }
+    const serif = usesSerif(html);
+    if (serif) serifPages.push(rel);
+    const want = [...fontFiles].filter((f) => serif || f !== serifFile).sort();
+    const got = [...preloaded].sort();
+    if (JSON.stringify(want) !== JSON.stringify(got)) bad.push(`${rel}: preloads [${got.join(", ")}] but should preload [${want.join(", ")}] (${serif ? "sets" : "never sets"} the serif)`);
   }
+  // Both branches must be reached, or the rule above is not being exercised.
+  assert.ok(serifPages.length >= 1 && serifPages.length < PAGES().length, `serif pages read as [${serifPages.join(", ")}], so the per-page preload rule is not being exercised`);
   assert.deepEqual(bad, [], bad.join("\n"));
+});
+
+// The per-file record in docs/design/FONTS.md, as rows of its tables: served
+// file name with its size, and in the record table its SHA-256 too. Every row
+// that names a file and a size is read, so the summary table is held to the
+// bytes as well.
+function fontsRecord() {
+  const md = read("docs/design/FONTS.md");
+  const rows = new Map<string, { sha?: string; bytes: number[] }>();
+  for (const line of md.split(/\r?\n/)) {
+    if (!line.startsWith("|")) continue;
+    const cells = line.split("|").map((c) => c.trim());
+    const file = cells.map((c) => /`(?:site\/fonts\/)?([\w.-]+\.woff2)`/.exec(c)?.[1]).find(Boolean);
+    const sha = cells.map((c) => /^`([0-9a-f]{64})`$/.exec(c)?.[1]).find(Boolean);
+    const bytes = cells.map((c) => /^(\d{1,3}(?:,\d{3})*) bytes$/.exec(c)?.[1]).find(Boolean);
+    if (!file || !bytes) continue;
+    const row = rows.get(file) ?? { bytes: [] };
+    row.bytes.push(Number(bytes.replace(/,/g, "")));
+    if (sha) {
+      assert.ok(!row.sha, `FONTS.md records a SHA-256 for ${file} twice`);
+      row.sha = sha;
+    }
+    rows.set(file, row);
+  }
+  return rows;
+}
+
+test("(d) every served font is recorded in FONTS.md with the SHA-256 and size of its bytes, and ships beside an OFL file", () => {
+  const files = readdirSync(path.join(root, "site/fonts")).sort();
+  const woff = files.filter((f) => /\.woff2$/.test(f));
+  const ofl = files.filter((f) => /^OFL-[A-Za-z]+\.txt$/.test(f));
+  assert.equal(woff.length, 3, `site/fonts holds ${woff.length} woff2 files: ${files.join(", ")}`);
+  assert.equal(ofl.length, 3, `site/fonts holds ${ofl.length} OFL files, one per upstream family: ${files.join(", ")}`);
+  for (const f of ofl) assert.match(read(`site/fonts/${f}`), /SIL Open Font License, Version 1\.1/, `${f} is not the OFL 1.1 text`);
+  const record = fontsRecord();
+  const problems: string[] = [];
+  for (const f of woff) {
+    const buf = readFileSync(path.join(root, `site/fonts/${f}`));
+    const sha = createHash("sha256").update(buf).digest("hex");
+    const row = record.get(f);
+    if (!row) { problems.push(`${f}: no row in docs/design/FONTS.md`); continue; }
+    if (!row.sha) problems.push(`${f}: no FONTS.md row carries its SHA-256`);
+    else if (row.sha !== sha) problems.push(`${f}: FONTS.md records SHA-256 ${row.sha.slice(0, 12)}..., the file is ${sha.slice(0, 12)}...`);
+    if (row.bytes.length < 2) problems.push(`${f}: FONTS.md gives its size ${row.bytes.length} times, the summary and the record should both carry it`);
+    for (const b of row.bytes) if (b !== buf.length) problems.push(`${f}: FONTS.md records ${b} bytes, the file is ${buf.length}`);
+    const stem = /^([a-z0-9-]+)\.([0-9a-f]{8})\.woff2$/.exec(f);
+    if (!stem) problems.push(`${f}: not named <stem>.<8 hex of its SHA-256>.woff2`);
+    else if (stem[2] !== sha.slice(0, 8)) problems.push(`${f}: the hash in the name is not the first 8 hex of its SHA-256 (${sha.slice(0, 8)})`);
+  }
+  for (const f of record.keys()) if (!woff.includes(f)) problems.push(`FONTS.md records ${f}, which is not in site/fonts`);
+  assert.deepEqual(problems, [], problems.join("\n"));
 });
 
 // --- (e) no digit in decoration -------------------------------------------------
@@ -699,6 +801,52 @@ test("(g) no declaration, attribute or script mirrors the orbit or anything arou
   assert.deepEqual(problems, [], problems.join("\n"));
 });
 
+// The arcs turn inside a square svg that a static `scale: 1 <ry/rx>` on its
+// .spin wrapper flattens to the ring. A scale that drifts from its ring's tokens
+// draws the arcs off the ring, so each one is pinned to the tokens declared in
+// the same media scope, to four decimals. The rule lives only in sc.css.
+test("(g) every .spin scale equals its ring's ry over rx at that breakpoint, and no page restates it inline", () => {
+  const { clean, blocks } = offsetPaths(read("site/assets/sc.css"));
+  const problems: string[] = [];
+  const seen: string[] = [];
+  for (const b of blocks) {
+    if (b.children.length || !/\.spin(?![\w-])/.test(b.prelude)) continue;
+    const body = clean.slice(b.open + 1, b.close);
+    for (const m of body.matchAll(/(?<![-\w])scale\s*:\s*([^;}]+)/g)) {
+      let scope = b.parent;
+      while (scope && !/^@media\b/i.test(scope.prelude)) scope = scope.parent;
+      const where = `${scope ? scope.prelude : "(base)"} ${b.prelude}`;
+      const v = /^1\s+(\d*\.\d{4})$/.exec(m[1].trim());
+      if (!v) { problems.push(`${where}: scale:${m[1].trim()} is not "1 <ry/rx to four decimals>"`); continue; }
+      const ring = /data-ring=["']?b/.test(b.prelude) ? "rb" : "ra";
+      const tok = ringTokens(clean, blocks, scope);
+      const rx = tok[`--${ring}-rx`];
+      const ry = tok[`--${ring}-ry`];
+      if (rx === undefined || ry === undefined) { problems.push(`${where}: no --${ring}-rx/--${ring}-ry declared in the same scope`); continue; }
+      const want = (ry / rx).toFixed(4);
+      seen.push(`${where} ${ring} ${v[1]}`);
+      if (Number(v[1]).toFixed(4) !== want) problems.push(`${where}: scale 1 ${v[1]} but --${ring}-ry/--${ring}-rx = ${ry}/${rx} = ${want}`);
+    }
+  }
+  assert.ok(seen.length >= 6, `only ${seen.length} .spin scale declarations read, expected one per ring per breakpoint (6)`);
+  for (const rel of PAGES()) {
+    const html = read(rel);
+    for (const css of inlineStyles(html)) {
+      if (/\.spin(?![\w-])|\.arcs(?![\w-])/.test(css)) problems.push(`${rel}: an inline style restates .spin or .arcs, which sc.css owns`);
+      for (const m of css.matchAll(/(?<![-\w])scale\s*:/g)) problems.push(`${rel}: inline scale declaration at "${css.slice(Math.max(0, (m.index ?? 0) - 30), (m.index ?? 0) + 20).replace(/\s+/g, " ")}"`);
+    }
+    // The composited markup on every orbit: arcs are an svg inside span.ring.spin,
+    // never a <g> rotated inside the ring svg.
+    for (const [, outer] of elementsWithClass(html, "orbit")) {
+      if (/<g\b[^>]*\bclass="[^"]*\barcs\b/.test(outer)) problems.push(`${rel}: the orbit still rotates a <g class="arcs"> inside the ring svg`);
+      const spins = [...outer.matchAll(/<span\b[^>]*\bclass="ring spin"[^>]*>\s*<svg\b[^>]*\bclass="arcs"/g)].length;
+      const rings = [...outer.matchAll(/<svg\b[^>]*\bclass="ring"/g)].length;
+      if (spins === 0 || spins !== rings) problems.push(`${rel}: ${rings} ring svgs but ${spins} span.ring.spin > svg.arcs wrappers`);
+    }
+  }
+  assert.deepEqual(problems, [], problems.join("\n"));
+});
+
 // --- (h) every motion stops under reduced motion -------------------------------------
 
 const MOTION_DECL = /(?<![-\w])(?:animation(?:-[a-z]+)*|transition(?:-[a-z]+)*)\s*:|scroll-behavior\s*:\s*smooth|@keyframes\b/gi;
@@ -917,6 +1065,157 @@ test("(o) privacy, terms and 404 carry data-ruler=\"off\", and sc.js returns bef
       if (!at) problems.push(`sc.js no longer builds ${what} the way this guard reads it`);
       else if (at.index < optOut.index) problems.push(`sc.js builds ${what} before the ruler opt-out`);
     }
+  }
+  assert.deepEqual(problems, [], problems.join("\n"));
+});
+
+// --- (p) orbit glyphs are shapes only -------------------------------------------------------
+
+// Each orbit card carries data-g naming a glyph that sc.css draws as a mask
+// from an inline SVG. The SVG may hold shapes and nothing that draws text,
+// loads a resource or runs script, so a glyph can never carry a figure, a flag
+// or a logo fetched from elsewhere. No flag or logo artwork is allowed at all.
+const SVG_SHAPE_TAGS = new Set(["svg", "path", "circle", "rect", "line", "polyline", "polygon", "ellipse", "g"]);
+
+test("(p) every orbit data-g names a glyph sc.css defines, and every glyph is an inline SVG of plain shapes", () => {
+  const css = stripCssComments(read("site/assets/sc.css"));
+  const defined = new Map<string, string>();
+  for (const m of css.matchAll(/\.oc\[data-g=([\w-]+)\]\s*\{\s*--glyph\s*:\s*url\(\s*"([^"]*)"\s*\)\s*\}/g)) {
+    assert.ok(!defined.has(m[1]), `glyph ${m[1]} is defined twice`);
+    defined.set(m[1], m[2]);
+  }
+  assert.ok(defined.size >= 8, `only ${defined.size} glyphs defined in sc.css, the orbit needs at least 8`);
+  const problems: string[] = [];
+  for (const [name, uri] of defined) {
+    if (!isDataSvg(uri)) { problems.push(`glyph ${name}: not an inline data:image/svg+xml mask`); continue; }
+    const svg = uri.slice("data:image/svg+xml,".length);
+    if (/%[0-9a-f]{2}|&#|\\/i.test(svg)) problems.push(`glyph ${name}: holds an escape, so its content cannot be read as written`);
+    for (const t of svg.matchAll(/<\/?([a-zA-Z][\w:-]*)/g)) if (!SVG_SHAPE_TAGS.has(t[1])) problems.push(`glyph ${name}: holds <${t[1]}>, which is not a plain shape`);
+    if (/\b(?:href|src|url|style|on[a-z]+)\s*=/i.test(svg)) problems.push(`glyph ${name}: holds a reference, style or handler attribute`);
+    if (/\bxmlns\s*=\s*'([^']*)'/.exec(svg)?.[1] !== "http://www.w3.org/2000/svg") problems.push(`glyph ${name}: xmlns is not the SVG namespace`);
+    if (/http/.test(svg.replace("xmlns='http://www.w3.org/2000/svg'", ""))) problems.push(`glyph ${name}: holds a URL beyond the xmlns`);
+    if (/>[^<]*[^\s<>][^<]*</.test(svg)) problems.push(`glyph ${name}: holds text between tags`);
+  }
+  // Every url() in sc.css that is a data: URI belongs to a --glyph rule.
+  const glyphUris = new Set(defined.values());
+  for (const { u } of cssUrls(css)) if (/^data:/i.test(u) && !glyphUris.has(u)) problems.push(`a data: url() outside the glyph rules: ${u.slice(0, 60)}`);
+  // Every card names a defined glyph and holds the one empty <i> the mask paints.
+  const used = new Set<string>();
+  let cards = 0;
+  for (const rel of ["site/index.html", "site/404.html"]) {
+    for (const [, outer] of elementsWithClass(read(rel), "orbit")) {
+      for (const m of outer.matchAll(/<span\b[^>]*\bclass="oc[^"]*"[^>]*>([\s\S]*?)<\/span>/g)) {
+        cards++;
+        const g = /\sdata-g="([^"]*)"/.exec(m[0])?.[1];
+        if (!g) problems.push(`${rel}: a card has no data-g: ${m[0].slice(0, 80)}`);
+        else if (!defined.has(g)) problems.push(`${rel}: data-g="${g}" names no glyph in sc.css`);
+        else used.add(g);
+        if (m[1] !== "<i></i>") problems.push(`${rel}: card body is "${m[1].slice(0, 40)}", expected one empty <i>`);
+      }
+      if (/<(?:img|svg|use|image|picture|object|embed)\b[^>]*\b(?:src|href|xlink:href)=/i.test(outer)) problems.push(`${rel}: the orbit pulls in artwork`);
+    }
+  }
+  assert.ok(cards >= 24, `only ${cards} orbit cards read (20 on index, 4 on 404)`);
+  for (const g of defined.keys()) if (!used.has(g)) problems.push(`glyph ${g} is defined in sc.css but no card uses it`);
+  assert.deepEqual(problems, [], problems.join("\n"));
+});
+
+// The rule above reads glyphs from sc.css only, so a glyph set anywhere else
+// would never be inspected: a percent-encoded --glyph in a card's style
+// attribute, or a page <style> that redefines .oc[data-g=seal], could draw a
+// figure. Glyphs and masks therefore live only in sc.css, and an orbit style
+// attribute may hold nothing but the card order (--i, --m, --n as integers).
+// Both sides are read after CSS escapes are decoded, so "\67" spells nothing past it.
+const GLYPH_OR_MASK = /--glyph|(?<![\w-])(?:-webkit-)?mask(?:-[a-z-]+)?\s*:|\[\s*data-g\b/i;
+
+test("(p) glyphs and masks are declared only in sc.css, and orbit style attributes hold only the card order", () => {
+  const problems: string[] = [];
+  const sc = decodeCssEscapes(stripCssComments(read("site/assets/sc.css")));
+  const glyphRules = [...sc.matchAll(/\.oc\[data-g=[\w-]+\]\s*\{\s*--glyph\s*:/g)].length;
+  const glyphDecls = [...sc.matchAll(/--glyph\s*:/g)].length;
+  if (glyphDecls !== glyphRules) problems.push(`sc.css declares --glyph ${glyphDecls} times but holds ${glyphRules} .oc[data-g=...] glyph rules, so a glyph is set outside them`);
+  for (const d of declarations("site/assets/sc.css", read("site/assets/sc.css"))) {
+    if (/^(?:-webkit-)?mask(?:-[a-z-]+)?$/.test(d.prop) && d.prelude.replace(/\s+/g, "") !== ".oc>i") problems.push(`sc.css ${d.prelude}: ${d.prop} outside the one .oc>i mask rule`);
+  }
+  let attrs = 0;
+  for (const rel of PAGES()) {
+    const html = read(rel);
+    for (const m of html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) {
+      const css = decodeCssEscapes(stripCssComments(m[1]));
+      const hit = GLYPH_OR_MASK.exec(css);
+      if (hit) problems.push(`${rel} <style>: "${css.slice(Math.max(0, hit.index - 30), hit.index + 40).replace(/\s+/g, " ")}" sets a glyph or mask, which only sc.css may`);
+    }
+    for (const m of html.matchAll(/\sstyle="([^"]*)"/gi)) {
+      const css = decodeCssEscapes(m[1]);
+      if (GLYPH_OR_MASK.test(css)) problems.push(`${rel}: style="${m[1].slice(0, 60)}" sets a glyph or mask, which only sc.css may`);
+    }
+    for (const [, outer] of elementsWithClass(html, "orbit")) {
+      for (const t of outer.matchAll(/<[a-zA-Z][^>]*>/g)) {
+        const st = /\sstyle="([^"]*)"/i.exec(t[0]);
+        if (!st) continue;
+        attrs++;
+        const css = decodeCssEscapes(st[1]);
+        if (/--glyph|url\(/i.test(css)) problems.push(`${rel}: an orbit style attribute holds --glyph or url(): ${t[0].slice(0, 100)}`);
+        else if (!/^\s*--[imn]\s*:\s*\d+\s*(?:;\s*--[imn]\s*:\s*\d+\s*)*;?\s*$/.test(st[1])) problems.push(`${rel}: an orbit style attribute holds more than --i, --m and --n: ${t[0].slice(0, 100)}`);
+      }
+    }
+  }
+  assert.ok(attrs >= 24, `only ${attrs} orbit style attributes read (20 on index, 4 on 404)`);
+  assert.deepEqual(problems, [], problems.join("\n"));
+});
+
+// Elements in one stacking context paint in document order. A ring svg or
+// .spin that comes after a card draws its line and comet arcs across the
+// card's text, so every card must follow every ring. The outer ring's cards
+// sit in their own .tilt after the inner ring's .spin for that reason.
+test("(p) every orbit card paints after every ring svg and spin, the outer orbit leans, and each phone --m is unique", () => {
+  const problems: string[] = [];
+  let orbits = 0;
+  // The base .oc rule sets the phone --n, which a card's inline --n may override.
+  const baseN = declarations("site/assets/sc.css", read("site/assets/sc.css")).find((d) => d.block?.parent === null && d.prelude === ".oc" && d.prop === "--n");
+  assert.ok(baseN && /^\d+$/.test(baseN.value), "the base .oc rule no longer sets --n to an integer");
+  for (const rel of ["site/index.html", "site/404.html"]) {
+    for (const [, outer] of elementsWithClass(read(rel), "orbit")) {
+      orbits++;
+      const rings = elementsWithClass(outer, "ring");
+      const ringEnd = Math.max(...rings.map(([, r]) => outer.indexOf(r) + r.length));
+      const cards = [...outer.matchAll(/<span\b[^>]*\bclass="oc\b[^"]*"[^>]*>/g)];
+      if (rings.length < 2 || cards.length < 4) problems.push(`${rel}: read ${rings.length} rings and ${cards.length} cards, too few to judge the order`);
+      for (const c of cards) if ((c.index ?? 0) < ringEnd) problems.push(`${rel}: card ${/data-label="([^"]*)"/.exec(c[0])?.[1]} comes before a ring svg or spin, which then paints over it`);
+      // Everything on the outer ring sits inside a .tilt, so it leans with the ring.
+      const ringB = [...outer.matchAll(/<[a-z]+\b[^>]*\sdata-ring="b"[^>]*>/g)].length;
+      const tilted = elementsWithClass(outer, "tilt").reduce((n, [, t]) => n + [...t.matchAll(/<[a-z]+\b[^>]*\sdata-ring="b"[^>]*>/g)].length, 0);
+      if (ringB !== tilted) problems.push(`${rel}: ${ringB} outer-ring elements but ${tilted} of them inside a .tilt`);
+      // Phone order: each data-mobile card carries a unique --m, together 0 to N-1, with N the --n they run on.
+      const ms: number[] = [];
+      let n = Number(baseN.value);
+      for (const c of cards) {
+        const style = /\sstyle="([^"]*)"/.exec(c[0])?.[1] ?? "";
+        const m = /--m\s*:\s*(\d+)/.exec(style);
+        const inlineN = /--n\s*:\s*(\d+)/.exec(style);
+        if (/\sdata-mobile(?:\s|=|>)/.test(c[0])) {
+          if (!m) { problems.push(`${rel}: phone card without --m: ${c[0].slice(0, 90)}`); continue; }
+          ms.push(Number(m[1]));
+          if (inlineN) n = Number(inlineN[1]);
+        } else if (m) problems.push(`${rel}: --m on a card that is not data-mobile: ${c[0].slice(0, 90)}`);
+      }
+      const dup = ms.filter((v, i) => ms.indexOf(v) !== i);
+      if (dup.length) problems.push(`${rel}: phone --m ${[...new Set(dup)].join(", ")} used twice, so two cards sit on one spot`);
+      const want = Array.from({ length: n }, (_, i) => i).join(",");
+      if ([...ms].sort((a, b) => a - b).join(",") !== want) problems.push(`${rel}: phone --m values [${ms.join(", ")}] are not 0 to ${n - 1}, one per slot of --n ${n}`);
+    }
+  }
+  assert.equal(orbits, 2, `read ${orbits} orbits, expected one on index and one on 404`);
+  // The lean: in some media scope .tilt turns by a non-zero angle and the
+  // outer cards turn back by the same angle, so their labels stay level.
+  const { clean, blocks } = offsetPaths(read("site/assets/sc.css"));
+  const rot = (b: Block) => /(?<![-\w])rotate\s*:\s*(-?\d*\.?\d+)deg/.exec(clean.slice(b.open + 1, b.close))?.[1];
+  const scopeOf = (b: Block) => { let s = b.parent; while (s && !/^@media\b/i.test(s.prelude)) s = s.parent; return s; };
+  const leans = blocks.filter((b) => !b.children.length && b.prelude === ".tilt" && rot(b) && Number(rot(b)) !== 0);
+  if (!leans.length) problems.push("sc.css no longer turns .tilt, so the outer ring stops leaning");
+  for (const t of leans) {
+    const back = blocks.find((b) => !b.children.length && b.prelude === ".oc[data-ring=b]" && scopeOf(b) === scopeOf(t) && rot(b));
+    if (!back || Number(rot(back)) !== -Number(rot(t))) problems.push(`sc.css turns .tilt by ${rot(t)}deg but .oc[data-ring=b] turns back by ${back ? rot(back) : "nothing"} in the same scope`);
   }
   assert.deepEqual(problems, [], problems.join("\n"));
 });

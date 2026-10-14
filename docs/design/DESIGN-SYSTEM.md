@@ -8,7 +8,7 @@ A dark, instrument-styled page shell for sites that bots and people both read. E
 
 The kit is `site/assets/sc.css` layers 2 to 4, `site/assets/sc.js`, the fonts directory layout, the test file `server/test/site-design.test.ts` and this document. Layer 1 of `sc.css` is the brand block, and it is the only part a new site rewrites. Today the kit lives inside the StatCite repository because StatCite is its only user. It moves to its own repository when a second site adopts it. These sites have no build step, so a copied file is the honest dependency.
 
-Probed on 14 October 2026 with `wc -c`: `sc.css` is 13,885 bytes against a 14,000 byte cap and `sc.js` is 4,985 bytes against a 5,000 byte cap. For comparison `site/index.html` is 65,078 bytes against a 66,000 byte cap. The caps are asserted by test (a) in section 9.
+Probed on 14 October 2026 with `wc -c`, after the fixes to the second orbit round: `sc.css` is 19,696 bytes against a 20,000 byte cap (raised from 14,000 in that round, because the nine glyph masks and the three `@font-face` rules live in the sheet) and `sc.js` is 4,985 bytes against a 5,000 byte cap. `site/index.html` is 64,932 bytes against a 66,000 byte cap. The caps are asserted by test (a) in section 9. The fonts add 34,224 bytes over three files, recorded in `FONTS.md`.
 
 ## 2. Tokens
 
@@ -46,42 +46,37 @@ Lowest text pair in the set: `--text-3` on `--card` at 4.63:1. Lowest control pa
 ### 2.2 Type, spacing, radius, motion, geometry (layer 2)
 
 - Type scale `--fs-0` to `--fs-7`: 11, 12.5, 14, 16, 18, 22, 26, 38 px.
-- Labels (nav links, badges, table headers, tabs, pills, the live verifier result and the motion toggle label) are small caps through `font-variant-caps: all-small-caps`, set in one rule at a font size of the cap height divided by 0.7. The characters in the HTML are unchanged, so textContent and innerText read the same as before. Text drawn from attributes (section bars, verdict stamps) still uses `text-transform: uppercase`.
+- Labels (nav links, badges, table headers, tabs, pills, the live verifier result and the motion toggle label) are true small caps through `font-variant-caps: all-small-caps`, which the mono supplies from its `smcp` and `c2sc` features. One rule sets the font size at the wanted cap height divided by 0.66: the face's small capitals stand 0.583 of the em, so the run of a label stays close to its old width, and a fallback's synthetic caps at 0.7 land within a pixel. The characters in the HTML are unchanged, so textContent and innerText read the same as before. Text drawn from attributes (section bars, verdict stamps) still uses `text-transform: uppercase`.
 - Spacing `--sp-1` to `--sp-9` on a 4px grid: 4, 8, 12, 16, 24, 32, 48, 64, 96 px.
 - Radii `--r-1` 6px, `--r-2` 10px, `--r-3` 14px. Pills use 20px.
 - Motion `--period-a` 54s, `--period-b` 84s, `--ticker-period` 60s, `--ease` ease-out.
 - Hairline shorthand `--hl: 1px solid var(--line)`.
-- Orbit geometry per breakpoint: `--ra-rx`, `--ra-ry`, `--rb-rx`, `--rb-ry`, `--card-w`, `--card-h`, `--band` (height of the stacked orbit band on narrow screens), `--ua` and `--ub` (the stroke-width unit that cancels the non-uniform SVG scale). Declared in `:root` at phone size and overridden inside the 640, 1024 and 1280 pixel media queries.
+- Orbit geometry per breakpoint: `--ra-rx`, `--ra-ry`, `--rb-rx`, `--rb-ry`, `--card-w`, `--card-h`, `--g` (the glyph box inside a card), `--band` (height of the stacked orbit band on narrow screens), `--ua` and `--ub` (the stroke-width unit that cancels the non-uniform SVG scale). Declared in `:root` at phone size and overridden inside the 640, 1024 and 1280 pixel media queries. A `.compact` ancestor (the 404 page's stage) pins the 640 geometry at every width above it.
 
 ## 3. Fonts
 
-Four roles, three self-hosted files, body on the system stack.
+Four roles, three self-hosted files, body on the system stack. The per-file record (source URL and commit, version, OFL first line, SHA-256, size) is `FONTS.md`.
 
-| Role | Token | Kit family | Upstream (planned) |
-|---|---|---|---|
-| Body | `--font-body` | system stack, 0 KB | none |
-| Display | `--font-display` | `Orbit Display`, weight 800 | Archivo ExtraBold, SIL OFL 1.1 |
-| Accent | `--font-serif` | `Orbit Serif`, italic 400 | Instrument Serif Italic, SIL OFL 1.1 |
-| Labels | `--font-mono` | `Orbit Mono`, 400 | Geist Mono Regular, SIL OFL 1.1 |
+| Role | Token | Kit family | Upstream | Served size |
+|---|---|---|---|---|
+| Body | `--font-body` | system stack, 0 KB | none | 0 |
+| Display | `--font-display` | `Orbit Display`, weight 800 | Archivo at weight 800 and width 100, SIL OFL 1.1 | 10,464 bytes |
+| Accent | `--font-serif` | `Orbit Serif`, italic 400 | Instrument Serif Italic, SIL OFL 1.1 | 14,148 bytes |
+| Labels | `--font-mono` | `Orbit Mono`, 400 | Fragment Mono Regular, SIL OFL 1.1, with its true small capitals (`smcp`, `c2sc`) | 9,612 bytes |
 
-Licence statements are from memory until each upstream `OFL.txt` is opened at download time. The kit names are brand-neutral on purpose. A subset is a Modified Version under the OFL, and both Archivo and Instrument Serif are expected to declare Reserved Font Names, so the served files never carry the upstream family names.
+The kit names are brand-neutral on purpose. A subset is a Modified Version under the OFL, so the served files carry the kit family names in their name tables and keep the upstream copyright and licence strings. Each OFL text sits beside the fonts in `site/fonts/`.
 
-### 3.1 Status, probed on 14 October 2026
+### 3.1 Loading, probed on 14 October 2026
 
-No font file is downloaded yet. `sc.css` declares no `@font-face`, and pages send no font preload, so nothing can 404. The tokens resolve to system stacks, with the kit name first so the real file takes over the moment an `@font-face` for that name exists:
+- Three `@font-face` rules at the top of layer 2, each `font-display: optional`: a face is used only when it arrives inside the block period or is cached, so no view ever reflows from a late font. No metric-matched fallback faces are declared, because with `optional` there is no swap to hide.
+- `<link rel="preload" as="font" type="font/woff2" crossorigin>` after the stylesheet link: the display face and the mono on every page, the serif only on a page whose markup sets it (an `em` inside `h1`, or `.serif`). Test (d) holds each page to that rule.
+- `site/_headers` caches `/fonts/*` for a year as immutable. The first 8 hex of the file's SHA-256 is in its name, so a changed face is a new URL.
+- The stacks behind each kit name: `"Arial Black",system-ui,sans-serif`, `Georgia,serif` and `ui-monospace,"Cascadia Mono",Consolas,monospace`. `pre` and `code` keep `font-synthesis: none`.
+- `document.fonts.check()` on the index page under `wrangler dev` reported all three faces loaded, with and without JavaScript.
 
-- `--font-display: "Orbit Display","Arial Black",system-ui,sans-serif` at weight 800
-- `--font-serif: "Orbit Serif",Georgia,serif` at italic 400
-- `--font-mono: "Orbit Mono",ui-monospace,"Cascadia Mono",Consolas,monospace` at 400, with `font-synthesis: none` so the mono never fakes a bold
+### 3.2 Rebuilding a face
 
-### 3.2 Plan once approved
-
-1. Fill `tools/fonts-src/` (gitignored) by hand from each upstream release, one fresh empty directory per download. Run every Python step that reads them with `python -I`.
-2. Run `python -I tools/build-fonts.py`. It subsets with `pyftsubset <ttf> --flavor=woff2 --layout-features='kern,liga' --unicodes="U+0020-007E,U+00A0-00FF,U+2013,U+2018-201D,U+2022,U+2026,U+20AC,U+2197,U+2713,U+25F7"`, names each output with the first 8 hex of its SHA-256, prints size and full hash, and exits non-zero above 30 KB per file.
-3. Add `@font-face` with `font-display: optional` for each face, three `<link rel="preload" as="font" type="font/woff2" crossorigin>` per page, and the metric-matched fallback faces (`Orbit Display Fallback`, `Orbit Serif Fallback`, `Orbit Mono Fallback`) with `size-adjust`, `ascent-override`, `descent-override` and `line-gap-override` measured against the real files in DevTools.
-4. Fill the per-file record in `FONTS.md` in the same commit. Confirm each file with `git hash-object` against `git rev-parse HEAD:<path>` after a branch switch.
-
-Ceilings: 30 KB per file, 100 KB in all (targets 28, 22 and 28 KB, estimates until the build prints them). The CSP needs no change, since `default-src 'self'` covers same-origin fonts.
+The build is a scratch script, run offline, never committed: pin a variable file with `fontTools.varLib.instancer`, subset with `fontTools.subset --flavor=woff2 --layout-features=kern,liga` (the mono adds `smcp,c2sc`) `--unicodes="U+0020-007E,U+00A0-00FF,U+2013,U+2018-201D,U+2022,U+2026,U+20AC,U+2197,U+2713,U+25F7" --no-hinting --desubroutinize`, rewrite name IDs 1, 2, 3, 4, 6, 16 and 17 to the kit family, name the file by its hash, then fill the row in `FONTS.md`. Test (d) refuses a served font whose bytes differ from that row. Ceilings: 30 KB per file, 100 KB in all. The CSP needs no change, since `default-src 'self'` covers same-origin fonts.
 
 ## 4. Components
 
@@ -92,8 +87,10 @@ Instruments (layer 4):
 | Component | Markup | Behaviour |
 |---|---|---|
 | Hero | `<header class="hero"><div class="orbit" aria-hidden="true" data-nosnippet>...</div><div class="hero-copy">...</div></header>` | min-height hero, orbit out of flow, copy block in flow with a radial ground so a card passing behind it fades |
-| Orbit ring | `<svg class="ring" data-ring="a">` with `.base`, `.bezel`, and `<g class="arcs">` of circles | squashed-circle method: viewBox `-1 -1 2 2`, `preserveAspectRatio="none"` for the static `.base` and `.bezel` circles. On the index page the 8 arc circles sit in their own `<span class="ring spin" data-ring><svg class="arcs" viewBox="-1 -1 2 2">`, a square as wide as its ring, flattened by a static `scale: 1 <ry/rx>` per breakpoint. The `svg.arcs` turns 0 to 360deg clockwise with `will-change: transform`, so the turn runs on the compositor. The `.spin` rules sit in the page's inline style. The 404 page keeps the older `<g class="arcs">` inside the ring SVG |
-| Orbit card | `<span class="oc" data-ring="a" data-fam="wb" data-tag="..." data-label="..." style="--i:0">` | text rendered by `::before` and `::after` from attributes, no text node. `data-mobile` marks the phone subset. `.oc.stamp` gives a rotated verdict stamp |
+| Orbit ring | `<svg class="ring" data-ring="a">` with `.base` and `.bezel`, then `<span class="ring spin" data-ring="a"><svg class="arcs">` holding 16 bare `<circle r="1" pathLength="100">` | squashed-circle method: viewBox `-1 -1 2 2`, `preserveAspectRatio="none"` for the static `.base` and `.bezel` circles. The arcs sit in their own square svg as wide as the ring, flattened by a static `scale: 1 <ry/rx>` on `.spin` per breakpoint, pinned to the ring tokens by test (g). The `svg.arcs` turns 0 to 360deg clockwise with `will-change: transform`, so the turn runs on the compositor. Dash lengths, offsets and colours come from `:nth-child` rules: per family a 6 unit head, a 14 unit and a 26 unit fading tail and a wide glow, all ending at the same point, so each arc reads as a comet. Both pages use this markup, and the `.spin` rules live in sc.css |
+| Tilt | two `<span class="tilt">` wrappers: the first holds the outer ring's svgs and comes before the inner ring, the second holds the outer ring's cards and comes after the inner ring's `.spin`, so no ring line or arc paints over a card. Test (p) pins that order | at 1024px and above each wrapper leans the whole outer orbit by `rotate: -6deg`, and `.oc[data-ring=b]` leans back by 6deg so labels stay level. The two rings cross like a gyroscope. Under 1024px the outer ring is hidden and the wrappers lean nothing, and the second one still holds the outer ring's phone cards |
+| Orbit card | `<span class="oc" data-ring="a" data-fam="wb" data-g="seal" data-tag="..." data-label="..." style="--i:0"><i></i></span>` | a grid of glyph box and two text lines. Text rendered by `::before` and `::after` from attributes, no text node. The empty `<i>` is painted by a mask: `data-g` picks one of nine inline SVG glyphs in sc.css (seal for a publisher, series for an indicator, dial for a rate, pin for an economy, tick for a tool, and check, near, cross and null for the four verdicts), filled with the family colour. `data-mobile` and `--m` mark and order the phone subset. `.oc.stamp` gives a rotated verdict stamp |
+| Bloom | `.orbit::before` | a still radial ground behind the copy, blue above right and green below left, scaled from the inner ring's tokens. No animation |
 | Motion toggle | `<input type="checkbox" id="motion"><label for="motion">Pause motion</label>` | checked means paused. Works with JavaScript off where `:has()` is supported. Hidden below 640px |
 | Ticker | `<div class="ticker" aria-hidden="true" data-nosnippet><div class="ticker-row"><span data-t="..."></span>...</div>` | row duplicated once in the HTML so the loop is seamless without JavaScript. Text from `data-t` |
 | Section bar | `<div class="sbar" aria-hidden="true" data-nosnippet data-label="..." data-tag="..."><span class="tag" data-tag="..."></span></div>` as the first child of `section[id]` | sticky 40px with the solid `--sbar-fill` (no blur, no transparency at any width), number from a CSS counter, label and tag from attributes |
@@ -135,7 +132,7 @@ Motion:
 
 Honesty:
 
-1. No decorative element shows a number. Orbit cards, ticker items and bar labels carry names (indicator keys, source names, ISO3 codes, tool names, verdict words) that cannot go stale. Tests (e) and (f) refuse a digit and refuse a label that resolves to nothing real.
+1. No decorative element shows a number. Orbit cards, ticker items and bar labels carry names (indicator keys, source names, ISO3 codes, tool names, verdict words) that cannot go stale. Tests (e) and (f) refuse a digit and refuse a label that resolves to nothing real. Glyphs are shapes, never artwork. No flag and no logo appears in the orbit: a flag drawn at 20px misstates most emblems, and a logo is a trademark that implies endorsement. A publisher is a seal, an economy is a pin, a rate is a dial at rest, an indicator is a series with no trend. Test (p) holds every glyph to an inline SVG of plain shapes with no text, no reference and no script, and refuses any image pulled into the orbit.
 2. A figure appears only where it is real, sourced and dated on the page. The ruler's per cent is a layout measurement.
 3. A verdict stamp on a live result shows the API's own verdict.
 4. Decoration is `aria-hidden="true"` with `data-nosnippet`, contains no link, button, heading or `tabindex`, and renders text from attributes. Bot safety: compared with the pages before the redesign, the HTML source, textContent and innerText are unchanged apart from three added strings: `Pause motion` (the toggle label), `Skip to main content` (the skip link) and the 404 page's nav label. Attribute-rendered text appears in none of the three.
@@ -154,7 +151,7 @@ A brand block is layer 1 of `sc.css`. It sets values only. Steps:
 2. Run `node tools/contrast.mjs path/to/brand.css`. It reads every `:root` block, resolves `var()` aliases, measures the pairs listed in section 2 and exits 1 if any falls below its floor or a token is missing. Record the printed ratios in that site's copy of this document before committing.
 3. Optionally set `--period-a`, `--period-b`, the ring geometry tokens and the literal `offset-path` strings, which must match each other. Test (g) compares the radii in each path with `--ra-*` and `--rb-*` declared in the same media block.
 4. Supply three font files under the kit family names, or drop the serif by not loading it (the italic then falls back to the display face), with `FONTS.md` beside them.
-5. Write orbit content: 6 to 20 short non-numeric strings that cannot go stale, each an `.oc` with label, tag and family, plus a `data-mobile` subset of six. For a property site that means parish names, listing-status words and property types. For an events site, categories and venues. A personal site probably wants no orbit, and the bars, ruler, type and colour carry the brand alone.
+5. Write orbit content: 6 to 20 short non-numeric strings that cannot go stale, each an `.oc` with label, tag, family and a `data-g` glyph, plus a `data-mobile` subset of six. For a property site that means parish names, listing-status words and property types. For an events site, categories and venues. A personal site probably wants no orbit, and the bars, ruler, type and colour carry the brand alone. New glyphs are added as `.oc[data-g=name]{--glyph:url("data:image/svg+xml,...")}` rules of plain shapes, and test (p) adapts its list.
 6. Write section labels and tags and a `data-fam` per section, supply the SVG mark in the nav, and adapt the registry in test (f).
 
 A worked example is `docs/design/brand-atlas.css`: deep sea ground, warm paper text, lagoon accent, sun, coral and reef families. It is not served. Probed on 14 October 2026, its pairs:
@@ -193,16 +190,16 @@ The checks below run in this order. A result is recorded beside its row only aft
 | Token contrast | `node tools/contrast.mjs` | Probed on 14 October 2026: exit 0, 36 rows plus 1 information row |
 | Alternate brand contrast | `node tools/contrast.mjs docs/design/brand-atlas.css` | Probed on 14 October 2026: exit 0 |
 | Contrast script fires | mutate a token, expect exit 1 | Probed on 14 October 2026: exit 1 on both mutations |
-| Site tests | `cd server && npm run typecheck && npm test`, print both exit codes | `npm test` 543 of 543 pass, exit 0. Typecheck result exit 0 |
-| Design guards (a) to (o) | `server/test/site-design.test.ts`, each mutation-tested by breaking what it protects | 22 of 22 (15 of 15 mutations killed in the last round) pass after the ring restructure. Mutation results to be recorded at release |
-| Pages, widths and modes | load `/`, `/docs`, `/guide`, `/sources`, `/bench`, `/privacy`, `/terms`, `/missing` at 320, 375, 768, 1024, 1280, 1440 px, each with JavaScript on, JavaScript off, and reduced motion emulated, and screenshot | Zero animations under reduced motion and while off-screen. innerText unchanged apart from the three added strings. Frozen screenshots of the old and new arc markup at 1440, 1100, 800 and 375 px differ by more than 32 levels in 0.007, 0.023, 0.005 and 0 per cent of pixels. JavaScript-off screenshots to be recorded at release |
-| Direction | record two seconds of the index hero at 1440 and watch one card travel bottom, left, top, right | Clockwise on both rings over a full loop |
-| Pause persistence | toggle Pause motion, reload, confirm it holds | to be recorded at release |
-| Layout shift | CLS in DevTools, target 0 | CLS 0 |
-| Off-screen cost | rAF callbacks with hero off-screen, target 0 | Zero animations running with the hero off-screen. A raw rAF callback count is to be recorded at release |
-| Frame cost | main thread per frame with hero in view, target at most 4 ms. Scroll frames, target p95 at most 8 ms. The bars shipped with the solid fill and no blur | DevTools traces at 1440 by 900 on a 240 Hz display, hero over 5 s. Before: mean 4.96 ms, p95 6.20 ms, GPU main 26.9 ms per frame, 37 main frames per second. After, three windows: mean 3.36, 3.67 and 3.21 ms, p95 4.53, 5.20 and 4.44 ms, GPU main 1.7 to 2.5 ms, 230 to 239 frames per second. Scroll over 6 s through all 10 bars, driven by script: before p95 5.70 ms, mean 2.98 ms, 151 frames per second. After p95 4.06 ms, mean 2.25 ms, 238 frames per second. The hero margin is thin and varies between runs. Traces include the screenshot overhead |
-| CSP | `npx wrangler@4.131.1 dev`, read console, target 0 violations | 0 violations on 8 pages at 375, 1280 and 1440 px. The DevTools issues list is empty on the index page |
-| Lighthouse | performance at least 95 on mobile, accessibility 100 | Lighthouse 13.4.1 on the index page: accessibility 100 on desktop and mobile, target-size scores 1, no failing audits. With the footer link rule removed in a test copy, target-size scored 0 and accessibility 97. A performance score is to be recorded at release |
+| Site tests | `cd server && npm run typecheck && npm test`, print both exit codes | Fixes to the second round, 14 October 2026: `npm test` 548 of 548 pass, exit 0. Typecheck exit 0. Second round: `npm test` 546 of 546 pass, exit 0. Typecheck exit 0 |
+| Design guards (a) to (p) | `server/test/site-design.test.ts`, each mutation-tested by breaking what it protects in a copy of the tree, restoring byte for byte and checking the hash | 27 of 27 pass. Fixes to the second round: 21 of 21 mutations killed and 21 restores hash-checked, across the card paint order, the outer cards' wrapper, the tilt and its counter-turn, the phone order, glyphs or masks set outside sc.css (both of the reviewer's probes among them) and the per-page serif preload. Second round: 46 of 46 mutations killed, 46 restores hash-checked, across the raised size cap, the font record, the preloads, the `/fonts/*` block, the spin scales, the composited 404 markup, the glyph rules and the earlier guards. First round: 15 of 15 |
+| Pages, widths and modes | load `/`, `/docs`, `/guide`, `/sources`, `/bench`, `/privacy`, `/terms`, `/missing` at 320, 375, 768, 1024, 1280, 1440 px, each with JavaScript on, JavaScript off, and reduced motion emulated, and screenshot | Second round at 1440 and 375 with JavaScript on, 1440 with JavaScript off, 1440 and 404 under reduced motion, 1024 and 768 with JavaScript on. Zero animations under reduced motion, cards at the static spread (0 to 87.5 per cent in 12.5 steps). Zero running animations with the hero off-screen. One running animation (the ticker) at 375. innerText byte-identical on seven pages against the previous commit served side by side, and on `/sources` the only difference is the ledger the live API filled in, which the static copy of the old page could not fetch. JSON-LD byte-identical on all eight pages. No horizontal scroll at 375, 768, 1024 or 1440. No card touches the copy block's box at 1440 or 768. At 1024 three cards cross the block's lower corners behind its radial ground, which fades them |
+| Direction | record two seconds of the index hero at 1440 and watch one card travel bottom, left, top, right | Second round, sampled by angle from the orbit centre over 1.5 s: four cards on both rings advanced 4.4 to 7.8 degrees in the positive screen direction, which is clockwise. First round: watched clockwise on both rings over a full loop |
+| Pause persistence | toggle Pause motion, reload, confirm it holds | Second round: after the click 43 animations paused and the ticker's 1 running, after reload the class and the checkbox held, after a second click 44 running |
+| Layout shift | CLS in DevTools, target 0 | CLS 0 in both rounds |
+| Off-screen cost | rAF callbacks with hero off-screen, target 0 | Zero animations running with the hero off-screen in both rounds. A raw rAF callback count is still to be recorded |
+| Frame cost | main thread per frame with hero in view, target at most 4 ms. Scroll frames, target p95 at most 8 ms. The bars shipped with the solid fill and no blur | Second round: a 48 s DevTools trace at 1440 by 900, device pixel ratio 1.5, hero in view and turning, read from the raw trace file: 8,205 drawn frames, main thread busy 2.45 ms per drawn frame, 0 tasks over 16 ms, 6.95 ms mean and 9.88 ms p95 per 16.7 ms slot (about 2.8 frames per slot on this display). First round: mean 3.36, 3.67 and 3.21 ms per frame over three 5 s windows, scroll p95 4.06 ms |
+| CSP | `npx wrangler@4.131.1 dev`, read console, target 0 violations | Second round: 0 console messages of any kind on the index page at 1440. First round: 0 violations on 8 pages at 375, 1280 and 1440 px |
+| Lighthouse | performance at least 95 on mobile, accessibility 100 | Second round, Lighthouse through DevTools on the index page: accessibility 100, best practices 100, SEO 100 on desktop and on mobile, 62 audits passed and 0 failed each. A performance score is still to be recorded |
 | Narrow screens | no horizontal scroll at 320px, ruler absent below 1160px and on privacy, terms and 404 | No horizontal scroll from 320 to 1440 px. Ruler absent on privacy, terms and the 404 page. Ruler absence below 1160 px is to be recorded at release |
 | Bands recompute | open three FAQ details on index, load `/sources` and wait for its fetch | to be recorded at release |
 | Independent review | a reviewer who did not write the kit reads the diff before any deploy | to be recorded at release |
