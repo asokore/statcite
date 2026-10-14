@@ -21,6 +21,9 @@
 // docs/design/FONTS.md with the SHA-256 and size of the shipped bytes, and
 // licensed by an OFL file beside them. (c) requires the /fonts/* cache block.
 // (p) holds the orbit glyphs to inline SVG masks that draw shapes only. No network.
+// (q) pins the phone orbit: it turns clockwise, only inside the reduced-motion
+// gate, with the pause control showing. (r) holds the stroke and small-caps
+// rules that make Firefox and WebKit draw the orbit and labels as Chromium does.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -1161,6 +1164,119 @@ test("(p) glyphs and masks are declared only in sc.css, and orbit style attribut
     }
   }
   assert.ok(attrs >= 24, `only ${attrs} orbit style attributes read (20 on index, 4 on 404)`);
+  assert.deepEqual(problems, [], problems.join("\n"));
+});
+
+// --- (q) the phone orbit turns, clockwise, and only when motion is welcome ---------------------
+
+// Whether every @media around a block applies to a phone held upright, 320 to
+// 639 px wide, with reduced motion not requested. The no-preference block is the
+// gate and counts as applying. Any other feature does not.
+const PHONE_MIN = 320;
+const PHONE_MAX = 639;
+function appliesOnPhone(b: Block): { ok: boolean; gated: boolean; why: string } {
+  let gated = false;
+  let why = "";
+  for (let s = b.parent; s; s = s.parent) {
+    if (!/^@media\b/i.test(s.prelude)) continue;
+    if (NO_PREF.test(s.prelude)) { gated = true; continue; }
+    const q = s.prelude.replace(/^@media\s*/i, "");
+    for (const part of q.split(/\s+and\s+/i)) {
+      const min = /^\(\s*min-width\s*:\s*(\d+(?:\.\d+)?)px\s*\)$/i.exec(part.trim());
+      const max = /^\(\s*max-width\s*:\s*(\d+(?:\.\d+)?)px\s*\)$/i.exec(part.trim());
+      if (min && Number(min[1]) <= PHONE_MIN) continue;
+      if (max && Number(max[1]) >= PHONE_MAX) continue;
+      why ||= `${s.prelude} does not cover ${PHONE_MIN} to ${PHONE_MAX} px`;
+    }
+  }
+  return { ok: !why, gated, why };
+}
+
+test("(q) on a phone the cards and arcs animate clockwise, only inside the reduced-motion gate, and the pause control shows", () => {
+  const raw = read("site/assets/sc.css");
+  const { clean, blocks } = offsetPaths(raw);
+  const problems: string[] = [];
+  const decls = declarations("site/assets/sc.css", raw);
+  // 1. The cards ride `orbit` and the arcs turn by `spin` in a rule that reaches a phone, inside the gate.
+  for (const [sel, kf] of [[".oc", "orbit"], [".arcs", "spin"]] as Array<[string, string]>) {
+    const hits = decls.filter((d) => d.block && /^animation(?:-name)?$/.test(d.prop) && new RegExp(`\\b${kf}\\b`).test(d.value) && subjects(d.prelude).some((s) => s === sel));
+    const onPhone = hits.filter((d) => appliesOnPhone(d.block!).ok);
+    if (!onPhone.length) problems.push(`no ${sel} rule runs @keyframes ${kf} at ${PHONE_MIN} to ${PHONE_MAX} px (read ${hits.length}: ${hits.map((d) => appliesOnPhone(d.block!).why).join("; ")})`);
+    for (const d of onPhone) if (!appliesOnPhone(d.block!).gated) problems.push(`${sel} runs ${kf} on a phone outside @media (prefers-reduced-motion: no-preference)`);
+  }
+  // 2. Every animation, wherever it sits, is gated (the phone rules included).
+  for (const d of decls) {
+    if (!d.block || !/^animation/.test(d.prop)) continue;
+    if (!appliesOnPhone(d.block).gated && !/@keyframes/i.test(d.block.parent?.prelude ?? "")) problems.push(`${d.prelude}: ${d.prop} sits outside the no-preference gate`);
+  }
+  // 3. The phone path is the base .oc path, drawn clockwise, and the keyframes run forwards.
+  const basePaths = offsetPaths(raw).paths.filter((p) => p.scope === null && p.selector === ".oc");
+  if (basePaths.length !== 1) problems.push(`expected one base .oc offset-path for the phone, read ${basePaths.length}`);
+  for (const p of basePaths) {
+    if (!/^M 0 \d+ /.test(p.d)) problems.push(`the phone path "${p.d}" no longer starts at the bottom of the ring`);
+    if (!p.arcs.length || p.arcs.some((a) => a.sweep !== "1")) problems.push(`the phone path "${p.d}" has an arc that is not sweep-flag 1, so it turns anticlockwise`);
+  }
+  const kfBody = (name: string) => {
+    const m = new RegExp(`@keyframes\\s+${name}\\s*\\{`).exec(clean);
+    const b = m && blocks.find((x) => x.open === m.index + m[0].length - 1);
+    return b ? clean.slice(b.open + 1, b.close).replace(/\s+/g, "") : "";
+  };
+  if (kfBody("orbit") !== "from{offset-distance:0%}to{offset-distance:100%}") problems.push("@keyframes orbit no longer runs 0% to 100%");
+  if (kfBody("spin") !== "to{rotate:360deg}") problems.push("@keyframes spin no longer turns +360deg");
+  // 4. All phone cards share ring a's period, so cards from both rings never meet on the one phone path.
+  const basePeriod = decls.find((d) => d.block?.parent === null && d.prelude === ".oc" && d.prop === "--period");
+  if (!basePeriod || basePeriod.value.replace(/\s+/g, "") !== "var(--period-a)") problems.push("the base .oc rule no longer sets --period:var(--period-a), so phone cards from the two rings run at two speeds and collide");
+  // 5. Nothing hides a ring or its arcs at phone width.
+  for (const d of decls) {
+    if (!d.block || d.prop !== "display" || !/^none$/i.test(d.value.trim())) continue;
+    if (!appliesOnPhone(d.block).ok) continue;
+    const sub = subjects(d.prelude).filter((s) => /\.(?:ring|spin|arcs)(?![\w-])/.test(s));
+    if (sub.length) problems.push(`${d.prelude}: display:none hides ${sub.join(", ")} on a phone`);
+  }
+  // 6. The pause control shows wherever the orbit moves: on a phone it is not hidden by sc.css or a page.
+  for (const d of decls) {
+    if (!d.block || d.prop !== "display" || !/^none$/i.test(d.value.trim()) || !appliesOnPhone(d.block).ok) continue;
+    if (splitTop(d.prelude, ",").some((s) => /#motion/.test(s))) problems.push(`sc.css ${d.prelude}: hides the pause control on a phone`);
+  }
+  for (const rel of PAGES()) {
+    for (const css of inlineStyles(read(rel))) {
+      for (const d of declarations(rel, css)) {
+        if (!d.block || d.prop !== "display" || !/^none$/i.test(d.value.trim())) continue;
+        if (!splitTop(d.prelude, ",").some((s) => /#motion/.test(s))) continue;
+        let reduce = false;
+        for (let s = d.block.parent; s; s = s.parent) if (/prefers-reduced-motion\s*:\s*reduce/i.test(s.prelude)) reduce = true;
+        if (!reduce) problems.push(`${rel}: ${d.block.parent?.prelude ?? "(base)"} ${d.prelude} hides the pause control while the orbit can move`);
+      }
+    }
+  }
+  assert.deepEqual(problems, [], problems.join("\n"));
+});
+
+// --- (r) every engine draws the rings and the labels the same way ---------------------------------
+
+// Firefox drops a calc() that resolves to a bare number in stroke-width,
+// stroke-dasharray or stroke-dashoffset. A dropped width falls back to 1 user
+// unit, which in a viewBox of -1 -1 2 2 paints each ring as a solid band. WebKit
+// synthesises small caps even from a face that carries smcp and c2sc, which drew
+// every label about a quarter narrower than Chromium and Firefox.
+test("(r) stroke calc() carries a unit, and labels never synthesise small caps", () => {
+  const problems: string[] = [];
+  let strokes = 0;
+  for (const d of allDeclarations()) {
+    if (!/^stroke-(?:width|dasharray|dashoffset)$/.test(d.prop) || !/calc\(/i.test(d.value)) continue;
+    strokes++;
+    for (const m of d.value.matchAll(/calc\(((?:[^()]|\((?:[^()]|\([^()]*\))*\))*)\)/gi)) {
+      if (!/\d(?:px|em|rem|%)/.test(m[1])) problems.push(`${d.where} ${d.prelude}: ${d.prop}:${d.value} has a unitless calc(), which Firefox drops`);
+    }
+  }
+  assert.ok(strokes >= 4, `only ${strokes} stroke calc() declarations read, so the sweep is not reading sc.css`);
+  const sc = declarations("site/assets/sc.css", read("site/assets/sc.css"));
+  const caps = sc.filter((d) => d.prop === "font-variant-caps" && /small-caps/.test(d.value));
+  assert.ok(caps.length >= 1, "no small-caps rule read in sc.css");
+  for (const c of caps) {
+    const off = sc.some((d) => d.block === c.block && /^font-synthesis(?:-small-caps)?$/.test(d.prop) && /^none$/i.test(d.value.trim()));
+    if (!off) problems.push(`sc.css ${c.prelude}: small caps without font-synthesis-small-caps:none, so WebKit draws them synthetic and narrower`);
+  }
   assert.deepEqual(problems, [], problems.join("\n"));
 });
 
