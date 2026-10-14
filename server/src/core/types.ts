@@ -117,6 +117,8 @@ export const LIMITATION_CODES = [
   "modeled_estimate",
   "rounded_source",
   "computed_values",
+  "stale_latest",
+  "outturn_unconfirmed",
 ] as const;
 export type LimitationCode = (typeof LIMITATION_CODES)[number];
 

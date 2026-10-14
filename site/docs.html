@@ -74,7 +74,7 @@ li{margin:4px 0}
   }
  },
  "programmingModel": "REST",
- "assemblyVersion": "1.15.0",
+ "assemblyVersion": "1.16.0",
  "about": {
   "@type": "SoftwareApplication",
   "@id": "https://statcite.com/#app"
@@ -319,6 +319,7 @@ GET /health</pre>
 
   <h2 id="changelog">10. Changelog</h2>
   <ul>
+    <li><strong>1.16.0</strong>: Two codes join the <code>limitations</code> list. <code>stale_latest</code> marks a latest-only value more than 3 years older than the year it was retrieved, from any source, so a single-source series such as the Gini index is covered. Ordinary lags of 1 or 2 years never fire it. <code>outturn_unconfirmed</code> marks IMF values before the projection boundary StatCite infers, because the IMF data StatCite reads does not mark which years are outturns and which are staff estimates.</li>
     <li><strong>1.15.0</strong>: Every <code>get_indicator</code> and <code>get_series</code> result carries a <code>limitations</code> list, codes for what the figure is not: <code>projection</code>, <code>fallback_source</code>, <code>stale_primary</code>, <code>modeled_estimate</code>, <code>rounded_source</code> and <code>computed_values</code>, each with a one-line <code>detail</code>. Each code is read from a structured field of the result or from the indicator registry, and an empty list means none of those conditions was detected. The README gains a side-effect table, and the stdio install line pins <code>mcp-remote@0.14.3</code>.</li>
     <li><strong>1.14.2</strong>: The Eastern Caribbean Central Bank stopped printing its "Data as at" stamp in late September 2026. An ECCB figure collected since then says the bank gave no currency date, and its citation names the date StatCite collected the copy served, labelled as StatCite's own. Stamped ECCB citations and Barbados citations are unchanged.</li>
     <li><strong>1.14.1</strong>: A World Bank outage now costs <code>country_snapshot</code> one retry series instead of two, about 1.2 seconds less waiting per snapshot. A single blip is still retried and recovered.</li>

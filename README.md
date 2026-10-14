@@ -47,7 +47,7 @@ StatCite is a remote server. Over HTTP, calling it installs nothing and runs not
 
 The usage row holds the transport, the tool name, the registry indicator key, the ISO3 country code, the verify verdict kind, the outcome and the duration. Every one of those comes from a closed list, so nothing you type is stored. No IP address, user agent, header, session id, query text or claimed value is recorded. The code is [`server/src/core/analytics.ts`](server/src/core/analytics.ts) and the policy is at [statcite.com/privacy](https://statcite.com/privacy.html).
 
-Every `get_indicator` and `get_series` result also carries a `limitations` list: codes for what the figure is not, such as a projection, a fallback source's figure, a modelled estimate, a value rounded by the source or a number StatCite computed. Each code is read from a structured field of the result or from the indicator registry, and an empty list means none of those conditions was detected.
+Every `get_indicator` and `get_series` result also carries a `limitations` list: codes for what the figure is not, such as a projection, a fallback source's figure, a modelled estimate, a value rounded by the source or a number StatCite computed. A latest value more than 3 years older than the year it was retrieved carries `stale_latest`, and an IMF value before the projection boundary StatCite infers carries `outturn_unconfirmed`, because the IMF data StatCite reads does not mark which years are outturns. Each code is read from a structured field of the result or from the indicator registry, and an empty list means none of those conditions was detected.
 
 ## Make your agent use it without being asked
 

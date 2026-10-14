@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StatCite API",
-    "version": "1.15.0",
+    "version": "1.16.0",
     "description": "Official economic statistics with full citations, built for AI agents. Every numeric response includes a citation object (source, dataset, series_id, source_url, license, attribution, retrieved_at, citation_text). Free, no auth, read-only. MCP endpoint at https://statcite.com/mcp.",
     "contact": {
       "email": "hello@statcite.com",
@@ -1497,7 +1497,7 @@
           },
           "limitations": {
             "type": "array",
-            "description": "Codes for what this figure is NOT, each read from a structured field of the result or from the indicator registry: projection (values in the source's estimate/projection period), fallback_source, stale_primary, modeled_estimate (a published model output), rounded_source (IMF DataMapper WEO values rounded to one decimal) and computed_values (a StatCite transform). An empty list means none of these conditions was detected. It is not a warranty.",
+            "description": "Codes for what this figure is NOT, each read from a structured field of the result or from the indicator registry: projection (values in the source's estimate/projection period), fallback_source, stale_primary, modeled_estimate (a published model output), rounded_source (IMF DataMapper WEO values rounded to one decimal), computed_values (a StatCite transform), stale_latest (a latest_only value more than 3 years older than its retrieval year) and outturn_unconfirmed (IMF values before the projection boundary StatCite infers, which the IMF data StatCite reads does not mark as outturns or staff estimates). An empty list means none of these conditions was detected. It is not a warranty.",
             "items": {
               "type": "object",
               "properties": {
@@ -1509,7 +1509,9 @@
                   "stale_primary",
                   "modeled_estimate",
                   "rounded_source",
-                  "computed_values"
+                  "computed_values",
+                  "stale_latest",
+                  "outturn_unconfirmed"
                   ]
                 },
                 "detail": {
