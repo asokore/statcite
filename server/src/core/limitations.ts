@@ -9,7 +9,8 @@
 // RULE: every entry is derived from a STRUCTURED field the code itself sets
 // or holds: an observation's projection marker, fallback_used and
 // fallback_reason, stale_primary, the registry's `modeled` flag, the registry's
-// DataMapper dataset for an imf/ code, and the transform. The prose in `notes`
+// DataMapper dataset for an imf/ code, the series id of an IMF vintage, the
+// citation's retrieved_at, the latest-only request, and the transform. The prose in `notes`
 // is never read, so a reworded note can never add or drop a limitation. An
 // empty list means none of these conditions was detected. It is not a warranty
 // that the figure has no other limits.
@@ -36,7 +37,32 @@ function dataMapperDataset(seriesId: string): "WEO" | "FM" | undefined {
   return INDICATORS.find((d) => d.datamapper?.[0] === m[1].toUpperCase())?.datamapper?.[1];
 }
 
-export function deriveLimitations(r: SeriesResult, opts: { transform?: string } = {}): Limitation[] {
+/**
+ * A "latest" value more than this many years before the year it was retrieved
+ * is stale. Shared with the stale_primary note in series.ts, which carries the
+ * first measurement. Re-measured for the World Bank-only registry series on
+ * 2026-10-14 against a 2026 clock: population 0 of 217 economies past it, life
+ * expectancy 0 of 217, GDP per capita 10 of 214, while Gini 106 of 171 and
+ * tourism receipts 191 of 191 (the World Bank series ends at 2020). No annual
+ * series publishes the current year, so a gap of 1 or 2 is an ordinary
+ * publication lag and must never fire.
+ */
+export const STALE_YEARS = 3;
+
+/** A DataMapper code (WEO or Fiscal Monitor), or a DBnomics IMF vintage whose
+ * dataset code carries the year the projection marker is anchored on. These
+ * are the IMF series where StatCite infers the projection boundary itself. */
+function imfInferredBoundary(seriesId: string): boolean {
+  return dataMapperDataset(seriesId) !== undefined || /^dbnomics\/IMF\/(WEO|FM):\d{4}/i.test(seriesId);
+}
+
+export interface LimitationOpts {
+  transform?: string;
+  /** The caller asked for the latest value: latest_only, with no end year pinned. */
+  latestOnly?: boolean;
+}
+
+export function deriveLimitations(r: SeriesResult, opts: LimitationOpts = {}): Limitation[] {
   const out: Limitation[] = [];
   const valued = r.observations.filter((o) => o.value != null);
   const transformed = !!opts.transform && opts.transform !== "none";
@@ -49,6 +75,21 @@ export function deriveLimitations(r: SeriesResult, opts: { transform?: string } 
         `${projected.length} of ${valued.length} returned value(s) fall in the source's estimate/projection period ` +
         `(${projected[0].period}${projected.length > 1 ? ` to ${projected[projected.length - 1].period}` : ""}). ` +
         "The boundary is a heuristic, so earlier values may also be staff estimates.",
+    });
+  }
+
+  // Checked live on 2026-10-14: the DataMapper values and /indicators
+  // metadata, DBnomics WEO series and the IMF's own SDMX 3.0 WEO flow carry no
+  // per-country "estimates start after" year. So StatCite cannot tell an
+  // outturn from a staff estimate before its inferred boundary, and says only
+  // that. It never says a value IS an estimate.
+  const unmarked = valued.length - projected.length;
+  if (unmarked > 0 && imfInferredBoundary(r.series_id)) {
+    out.push({
+      code: "outturn_unconfirmed",
+      detail:
+        `${unmarked} of ${valued.length} returned value(s) fall before the projection boundary StatCite infers. ` +
+        "The IMF data StatCite reads does not mark which years are outturns and which are staff estimates, so any of these values may be a staff estimate.",
     });
   }
 
@@ -67,6 +108,23 @@ export function deriveLimitations(r: SeriesResult, opts: { transform?: string } 
       code: "stale_primary",
       detail: `The latest value is ${r.stale_primary_years ?? "several"} year(s) behind the current year. This describes the serving source's own horizon only.`,
     });
+  }
+
+  if (opts.latestOnly && valued.length) {
+    const latest = valued[valued.length - 1];
+    const periodYear = Number(String(latest.period).slice(0, 4));
+    const retrievedYear = Number(String(r.citation?.retrieved_at ?? "").slice(0, 4));
+    // An unreadable date gives NaN or a negative gap, and neither passes. An
+    // empty period reads as year 0, so it needs its own guard.
+    const gap = retrievedYear - periodYear;
+    if (periodYear > 0 && gap > STALE_YEARS) {
+      out.push({
+        code: "stale_latest",
+        detail:
+          `The latest value returned is for ${latest.period}, ${gap} years before ${retrievedYear}, the year it was retrieved. ` +
+          `This fires only past ${STALE_YEARS} years, so an ordinary publication lag of 1 or 2 years never triggers it.`,
+      });
+    }
   }
 
   if (wdiDefFor(r.series_id)?.modeled) {
@@ -96,7 +154,7 @@ export function deriveLimitations(r: SeriesResult, opts: { transform?: string } 
 }
 
 /** Attach `limitations` to a result in place and return it. */
-export function withLimitations(r: SeriesResult, opts: { transform?: string } = {}): SeriesResult {
+export function withLimitations(r: SeriesResult, opts: LimitationOpts = {}): SeriesResult {
   r.limitations = deriveLimitations(r, opts);
   return r;
 }

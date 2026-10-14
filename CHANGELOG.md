@@ -5,6 +5,40 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.16.0
+
+Two codes join the `limitations` list:
+
+| Code | Fires when |
+|---|---|
+| `stale_latest` | A latest-only value is more than 3 years older than the year it was retrieved |
+| `outturn_unconfirmed` | IMF values fall before the projection boundary StatCite infers |
+
+`stale_latest` fires whatever the source. Until now a latest-only value carried
+a staleness code only when its indicator had a second registry source, so the
+Barbados Gini index for 2016 came back with an empty list. It now carries
+`stale_latest` with a gap of 10 years. `stale_primary` keeps its meaning and
+still marks the case where other registry sources were left unqueried. The
+threshold is the one `stale_primary` already used. Re-measured on the World
+Bank API on 14 October 2026 for the series that have no other registry source,
+it is passed by no economy's latest population figure, by 10 of 214 GDP per
+capita figures and by 106 of 171 Gini figures. A gap of 1 or 2 years is an
+ordinary publication lag and never fires. A full series and a request with a
+pinned end year are left alone, because the caller can see the last period.
+
+`outturn_unconfirmed` covers what the IMF data StatCite reads does not say. The DataMapper
+API, DBnomics and the IMF's own SDMX 3.0 WEO flow carry no per-country year at
+which estimates start. Each was checked on 14 October 2026. So StatCite cannot
+tell an outturn from a staff estimate before the boundary it infers, and the
+code states only that. It never calls a value an estimate. It fires on
+DataMapper WEO and Fiscal Monitor codes and on dated DBnomics IMF vintages,
+including the single value a latest-only request returns, which `projection`
+never covers.
+
+Both codes are read from structured fields: the citation's `retrieved_at`, the
+latest-only request, the series id and the projection marker StatCite sets.
+Each new branch has a test that fails when the branch is broken.
+
 ## 1.15.0
 
 Every `get_indicator` and `get_series` result now carries a `limitations`

@@ -18,7 +18,7 @@ import { eccbRelated } from "./eccb-related.ts";
 export { expectedWeoEdition } from "./weo-calendar.ts";
 import { expectedWeoEdition } from "./weo-calendar.ts";
 import { quoteInput } from "./text.ts";
-import { withLimitations } from "./limitations.ts";
+import { withLimitations, STALE_YEARS } from "./limitations.ts";
 
 /**
  * Refuse an inverted year window before any upstream fetch.
@@ -544,9 +544,10 @@ function buildSourceAttempts(
  * years back are ordinary slow refreshes rather than discontinued series. No
  * annual series publishes the current year, so a gap of 1 or 2 is normal and a
  * naive "clock minus period" would flag everything. If the World Bank ever
- * drops its nowcast years this has to be re-measured, not assumed.
+ * drops its nowcast years this has to be re-measured, not assumed. The value
+ * lives in core/limitations.ts so the stale_latest code uses the same line.
  */
-const STALE_PRIMARY_YEARS = 3;
+const STALE_PRIMARY_YEARS = STALE_YEARS;
 
 /**
  * The disclosure for a "latest" value the primary source stopped updating.
@@ -596,9 +597,16 @@ function stalePrimaryNote(
   };
 }
 
+/** What the limitations deriver needs from the request. "Latest" is the
+ * latest_only request (limit 1) with no end year pinned: a caller who pinned
+ * end_year asked for that period, the same rule stalePrimaryNote follows. */
+function limitationOpts(opts: SeriesOpts): { transform?: string; latestOnly: boolean } {
+  return { transform: opts.transform, latestOnly: opts.limit === 1 && !opts.end };
+}
+
 /** Public entry: the served series plus its `limitations` (core/limitations.ts). */
 export async function getIndicator(ctx: Ctx, key: string, countryInput: string, opts: SeriesOpts = {}): Promise<SeriesResult> {
-  return withLimitations(await getIndicatorCore(ctx, key, countryInput, opts), { transform: opts.transform });
+  return withLimitations(await getIndicatorCore(ctx, key, countryInput, opts), limitationOpts(opts));
 }
 
 async function getIndicatorCore(ctx: Ctx, key: string, countryInput: string, opts: SeriesOpts = {}): Promise<SeriesResult> {
@@ -1088,7 +1096,7 @@ export async function getSeries(
   seriesId: string,
   opts: SeriesOpts & { country?: string } = {},
 ): Promise<SeriesResult> {
-  return withLimitations(await getSeriesCore(ctx, seriesId, opts), { transform: opts.transform });
+  return withLimitations(await getSeriesCore(ctx, seriesId, opts), limitationOpts(opts));
 }
 
 async function getSeriesCore(

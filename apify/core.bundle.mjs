@@ -2460,6 +2460,10 @@ function dataMapperDataset(seriesId) {
   if (!m) return void 0;
   return INDICATORS.find((d) => d.datamapper?.[0] === m[1].toUpperCase())?.datamapper?.[1];
 }
+var STALE_YEARS = 3;
+function imfInferredBoundary(seriesId) {
+  return dataMapperDataset(seriesId) !== void 0 || /^dbnomics\/IMF\/(WEO|FM):\d{4}/i.test(seriesId);
+}
 function deriveLimitations(r, opts = {}) {
   const out = [];
   const valued = r.observations.filter((o) => o.value != null);
@@ -2469,6 +2473,13 @@ function deriveLimitations(r, opts = {}) {
     out.push({
       code: "projection",
       detail: `${projected.length} of ${valued.length} returned value(s) fall in the source's estimate/projection period (${projected[0].period}${projected.length > 1 ? ` to ${projected[projected.length - 1].period}` : ""}). The boundary is a heuristic, so earlier values may also be staff estimates.`
+    });
+  }
+  const unmarked = valued.length - projected.length;
+  if (unmarked > 0 && imfInferredBoundary(r.series_id)) {
+    out.push({
+      code: "outturn_unconfirmed",
+      detail: `${unmarked} of ${valued.length} returned value(s) fall before the projection boundary StatCite infers. The IMF data StatCite reads does not mark which years are outturns and which are staff estimates, so any of these values may be a staff estimate.`
     });
   }
   if (r.fallback_used) {
@@ -2482,6 +2493,18 @@ function deriveLimitations(r, opts = {}) {
       code: "stale_primary",
       detail: `The latest value is ${r.stale_primary_years ?? "several"} year(s) behind the current year. This describes the serving source's own horizon only.`
     });
+  }
+  if (opts.latestOnly && valued.length) {
+    const latest = valued[valued.length - 1];
+    const periodYear = Number(String(latest.period).slice(0, 4));
+    const retrievedYear = Number(String(r.citation?.retrieved_at ?? "").slice(0, 4));
+    const gap = retrievedYear - periodYear;
+    if (periodYear > 0 && gap > STALE_YEARS) {
+      out.push({
+        code: "stale_latest",
+        detail: `The latest value returned is for ${latest.period}, ${gap} years before ${retrievedYear}, the year it was retrieved. This fires only past ${STALE_YEARS} years, so an ordinary publication lag of 1 or 2 years never triggers it.`
+      });
+    }
   }
   if (wdiDefFor(r.series_id)?.modeled) {
     out.push({
@@ -2882,7 +2905,7 @@ function buildSourceAttempts(ctx, def, country, opts) {
   }
   return attempts;
 }
-var STALE_PRIMARY_YEARS = 3;
+var STALE_PRIMARY_YEARS = STALE_YEARS;
 function stalePrimaryNote(ctx, def, country, result, opts, attempts, tried) {
   if (opts.limit !== 1 || opts.end) return void 0;
   if (attempts.length < 2) return void 0;
@@ -2902,8 +2925,11 @@ function stalePrimaryNote(ctx, def, country, result, opts, attempts, tried) {
     text: `${tried[0].label} is the primary source for '${def.key}' and its most recent published observation for ${country.name} is ${period}, ${gap} years behind ${clockYear}. This registry entry also lists ${others.join(" and ")}. StatCite has not queried ${plural ? "them" : "it"} for this request, so whether ${plural ? "they publish" : "it publishes"} more recent periods is not known here. Use ${pointer} to see every source's published range before treating this as a current value.`
   };
 }
+function limitationOpts(opts) {
+  return { transform: opts.transform, latestOnly: opts.limit === 1 && !opts.end };
+}
 async function getIndicator(ctx, key, countryInput, opts = {}) {
-  return withLimitations(await getIndicatorCore(ctx, key, countryInput, opts), { transform: opts.transform });
+  return withLimitations(await getIndicatorCore(ctx, key, countryInput, opts), limitationOpts(opts));
 }
 async function getIndicatorCore(ctx, key, countryInput, opts = {}) {
   assertYearWindow(opts);
@@ -3168,7 +3194,7 @@ for (const d of INDICATORS) {
   if (d.datamapper) DM_CODE_INFO.set(d.datamapper[0], { dataset: d.datamapper[1], def: d });
 }
 async function getSeries(ctx, seriesId, opts = {}) {
-  return withLimitations(await getSeriesCore(ctx, seriesId, opts), { transform: opts.transform });
+  return withLimitations(await getSeriesCore(ctx, seriesId, opts), limitationOpts(opts));
 }
 async function getSeriesCore(ctx, seriesId, opts = {}) {
   assertYearWindow(opts);
