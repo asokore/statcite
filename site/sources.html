@@ -27,6 +27,7 @@ h1{max-width:860px}
 .card{margin-bottom:14px}
 .card h3{font-size:16.5px;margin-bottom:2px}
 .card .meta{font-family:var(--mono);font-size:12.5px;color:var(--faint);margin-bottom:10px}
+.card .meta a{text-decoration:underline;text-underline-offset:2px}
 .card p{margin-bottom:8px}
 .card .attr{font-family:var(--mono);font-size:13px;color:var(--text);background:var(--bg-2);border:var(--hl);border-radius:6px;padding:8px 12px;margin:8px 0}
 .card:has(.pill.served){border-left:3px solid var(--accent)}
@@ -78,7 +79,8 @@ h1{max-width:860px}
     <div class="links"><a href="/guide">Guide</a><a href="/docs">Docs</a><a href="/bench">Benchmark</a><a href="/sources">Sources</a><a href="/#connect">Connect</a></div>
   </nav>
 
-  <header id="main-content">
+  <main id="main-content">
+  <header>
     <h1>Data sources &amp; the <span class="serif">licence ledger</span></h1>
     <p class="sub">Every source StatCite serves, and every source it evaluated and <em>refused</em>, with the licence verdict, the basis for it, and the date it was last checked against the source's own terms. A source enters the indicator registry only after its ledger entry exists with a "served" verdict. This page renders live from <a href="/v1/sources">/v1/sources</a>, so it cannot drift from what the API actually reports.</p>
   </header>
@@ -188,6 +190,7 @@ h1{max-width:860px}
     </div>
     <p class="note">Licence positions are re-verified when sources are added or terms change. Each entry carries its own verified-on date. If you believe a verdict is wrong, or a refused source's terms have changed, email <a href="mailto:hello@statcite.com">hello@statcite.com</a>. Corrections are welcome and acted on.</p>
   </section>
+  </main>
 
   <footer>
     <p>StatCite: official economic statistics with full citations. <a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/guide">Guide</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>

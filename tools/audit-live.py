@@ -74,6 +74,29 @@ def check(area, name, ok, detail=""):
     print(f"  [{mark}] {area}/{name}" + (f" — {detail}" if detail and not ok else ""))
 
 
+FLOAT_NOISE = 1e-12  # relative
+
+
+def same_value(got, want):
+    """True when the live value is the page's value.
+
+    Strings and verdicts compare exactly. Numbers may differ below 1e-12
+    relative: on 14 October 2026 the World Bank API served USA 2023 inflation
+    as 4.11633838374487, where the page had captured 4.11633838374488, a
+    change in the 15th significant digit that no reader could act on. A
+    revision is far larger than that, so it still fails here.
+    """
+    if str(got) == str(want):
+        return True
+    if isinstance(got, bool) or not isinstance(got, (int, float)):
+        return False
+    try:
+        w = float(want)
+    except (TypeError, ValueError):
+        return False
+    return abs(got - w) <= FLOAT_NOISE * max(abs(got), abs(w))
+
+
 def jget(path):
     st, _, body = get(path)
     try:
@@ -314,20 +337,20 @@ def audit_consistency():
             d = d or {}
             for key, want, fragment in expect:
                 got = d.get(key)
-                if str(got) != str(want):
+                if not same_value(got, want):
                     drift.append(f"{label}.{key}: page says {want}, live says {got}")
                 elif fragment not in guide:
                     drift.append(f"{label}.{key}: page no longer prints {fragment!r}")
 
         guide_figure("/v1/verify?indicator=inflation_cpi&country=USA&period=2023&value=8.0",
-                     [("official_value", "4.11633838374488", '"official_value": 4.11633838374488'),
+                     [("official_value", "4.11633838374487", '"official_value": 4.11633838374487'),
                       ("verdict", "mismatch", '"verdict": "mismatch"')], "wrong-year")
         guide_figure("/v1/verify?indicator=govt_debt_gdp&country=USA&period=2023&value=98",
                      [("official_value", "120", '"official_value": 120,'),
                       ("verdict", "mismatch", '"verdict": "mismatch"')], "stale-recall")
         guide_figure("/v1/verify?indicator=inflation_cpi&country=BRB&period=2024&value=1.45",
                      [("verdict", "match", '"verdict": "match"'),
-                      ("official_value", "1.4464366430616", "1.4464")], "rounding")
+                      ("official_value", "1.44643664306159", "1.4464")], "rounding")
         # The revision-check figures are the point of that example.
         _, rv = jget("/v1/verify?indicator=govt_debt_gdp&country=USA&period=2023&value=98")
         rc = (rv or {}).get("revision_check") or {}

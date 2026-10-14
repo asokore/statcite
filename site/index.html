@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>StatCite: Economic statistics your AI can actually cite</title>
-<meta name="description" content="Free remote MCP server + REST API serving official economic statistics from the World Bank, IMF, BIS, ECB and Caribbean central banks (ECCB, Central Bank of Barbados), where every number ships with a full citation. Includes verify_stat: check any claimed figure against the official series.">
+<title>StatCite: Check and cite economic statistics</title>
+<meta name="description" content="Free MCP server and REST API. verify_stat and verify_claims check a claimed figure against the official series. Every figure ships with a citation you can paste: source URL, licence, retrieval time and a citation sentence. It covers Eastern Caribbean Central Bank and Central Bank of Barbados series. It also serves the World Bank, IMF, ECB and BIS.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="canonical" href="https://statcite.com/">
-<meta property="og:title" content="StatCite: Economic statistics your AI can actually cite">
-<meta property="og:description" content="Official macro data with full citations, built for AI agents. Free MCP server + REST API, plus stat verification.">
+<meta property="og:title" content="StatCite: Check and cite economic statistics">
+<meta property="og:description" content="Check a claimed economic figure against the official series. Every figure ships with a citation you can paste. Includes Eastern Caribbean and Barbados central bank series.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://statcite.com/">
 <meta property="og:site_name" content="StatCite">
@@ -19,8 +19,8 @@
 <meta name="twitter:image" content="https://statcite.com/og.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="StatCite: Economic statistics your AI can actually cite">
-<meta name="twitter:description" content="Official macro data with full citations, built for AI agents. Free MCP server + REST API, plus stat verification.">
+<meta name="twitter:title" content="StatCite: Check and cite economic statistics">
+<meta name="twitter:description" content="Check a claimed economic figure against the official series. Every figure ships with a citation you can paste. Includes Eastern Caribbean and Barbados central bank series.">
 <script type="application/ld+json">
 {
  "@context": "https://schema.org",
@@ -390,7 +390,6 @@ footer .cols a{display:inline-block;line-height:24px}
 /* The pause control is hidden where the orbit never moves, so it must not
    stay a tab stop there either. The duplicate ticker row exists only for the
    seamless loop and is dropped when nothing loops. */
-@media (max-width:639.98px){#motion{display:none}}
 @media (prefers-reduced-motion:reduce){#motion,#motion+label,.ticker-row>:nth-child(n+13){display:none}}
 </style>
 <noscript><style>.tabs{display:none}.tabpanel{display:block;border-radius:10px;margin-top:8px}</style></noscript>
@@ -411,8 +410,8 @@ footer .cols a{display:inline-block;line-height:24px}
   <header class="hero">
     <div class="hero-copy">
     <span class="badge">MCP server · REST API · free</span>
-    <h1>Economic statistics your AI can <em>actually cite</em>.</h1>
-    <p class="sub">StatCite serves official macro data from the World Bank, IMF, ECB and others, and <strong>every number ships with its full citation</strong>: source, dataset, series ID, canonical URL, license, and retrieval date. Plus <code style="font-family:var(--mono);color:var(--accent)">verify_stat</code>: check any claimed figure against the official series before it goes in your report.</p>
+    <h1>Economic figures your AI can <em>check and cite</em>.</h1>
+    <p class="sub"><code style="font-family:var(--mono);color:var(--accent)">verify_stat</code> and <code style="font-family:var(--mono);color:var(--accent)">verify_claims</code> check a claimed figure against the official series. <strong>Every figure ships with a citation you can paste</strong>: source URL, licence, retrieval time and a citation sentence. Beside the World Bank, IMF, ECB and BIS, it serves Eastern Caribbean Central Bank and Central Bank of Barbados series. Those reach Anguilla and Montserrat.</p>
     <div class="cta">
       <a class="btn primary" href="#connect">Connect your agent</a>
       <a class="btn ghost" href="#try">Try a live verification</a>

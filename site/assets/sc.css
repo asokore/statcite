@@ -16,7 +16,7 @@
 --fs-0:11px;--fs-1:12.5px;--fs-2:14px;--fs-3:16px;--fs-4:18px;--fs-5:22px;--fs-6:26px;--fs-7:38px;
 --sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;--sp-7:48px;--sp-8:64px;--sp-9:96px;
 --r-1:6px;--r-2:10px;--r-3:14px;--period-a:54s;--period-b:84s;--ticker-period:60s;--ease:ease-out;--hl:1px solid var(--line);
---ra-rx:130px;--ra-ry:70px;--ua:.0077;--card-w:118px;--card-h:30px;--g:14px;--band:220px}
+--ra-rx:130px;--ra-ry:70px;--rb-rx:76px;--rb-ry:38px;--ua:.0077;--ub:.0132;--card-w:118px;--card-h:30px;--g:14px;--band:220px}
 [data-fam=accent]{--f:var(--accent)}[data-fam=fam-1]{--f:var(--fam-1)}[data-fam=fam-2]{--f:var(--fam-2)}[data-fam=fam-3]{--f:var(--fam-3)}[data-fam=fam-4]{--f:var(--fam-4)}
 /* 3 PRIMITIVES */
 *,::before,::after{box-sizing:border-box}
@@ -31,11 +31,9 @@ p a,li a,td a{text-decoration:underline;text-underline-offset:2px}
 .wrap{max-width:1060px;margin:0 auto;padding:0 16px}
 .skip{position:absolute;left:-9999px;top:0;z-index:10;background:var(--accent);color:var(--on-accent);padding:10px 18px;font-weight:600}
 .skip:focus{left:0}
-/* Labels are true small caps. The mono's small capitals stand .583 of the em
-   (measured on the shipped file). Sizing by the wanted cap height over .66 keeps
-   the run of a label close to its old width, and the fallback's synthetic caps
-   at .7 land within a pixel. */
-nav .links,.badge,th,.tabs button,.pill,.try-result [class*=v-],#motion+label{font:calc(var(--cap,12px)/.66)/1.05 var(--mono);font-variant-caps:all-small-caps;letter-spacing:.07em}
+/* Labels are the mono's true small caps, sized at cap height over .66. WebKit
+   synthesises them even from a face that has them, so synthesis is off. */
+nav .links,.badge,th,.tabs button,.pill,.try-result [class*=v-],#motion+label{font:calc(var(--cap,12px)/.66)/1.05 var(--mono);font-variant-caps:all-small-caps;font-synthesis-small-caps:none;letter-spacing:.07em}
 .ticker-row>*,.sbar,.oc::before,.needle *,.ticks i::after,[data-eyebrow]::before{font:12px/1.5 var(--mono);letter-spacing:.12em}
 [data-t]::after,.oc.stamp::after,.sbar ::after{text-transform:uppercase}
 nav .links a,[data-eyebrow]::before,.sub,.lead,.card p,caption,th,footer a,#motion+label,.ticker-row>*,.sbar,.needle *{color:var(--text-2)}
@@ -99,22 +97,21 @@ footer{border-top:var(--hl);padding:36px 0 48px;color:var(--text-3);font-size:13
 .tilt{position:absolute;left:0;top:0;width:0;height:0}
 .ring{position:absolute;left:0;top:0;translate:-50% -50%;fill:none;width:calc(var(--rx)*2);height:calc(var(--ry)*2);overflow:visible;stroke:var(--line)}
 .ring .base{vector-effect:non-scaling-stroke}
-.bezel{stroke-width:calc(6*var(--u))}
-.ring[data-ring=b]{display:none}
-/* Arcs turn on their own compositor layer: a square svg as wide as its ring,
-   squashed to the ring by a static vertical scale of ry over rx. Each scale
-   equals that breakpoint's --ra-ry/--ra-rx or --rb-ry/--rb-rx, pinned by test.
-   will-change keeps the raster so the turn never repaints. */
+.bezel{stroke-width:calc(6px*var(--u))}
+/* Arcs turn on their own compositor layer: a square svg squashed to its ring by
+   a static scale of ry over rx, pinned by test. */
 .spin{height:calc(var(--rx)*2);scale:1 .5385}
+.spin[data-ring=b]{scale:1 .5000}
 .spin>svg{display:block;width:100%;height:100%;overflow:visible;transform-origin:50% 50%;will-change:transform}
 /* Comet arcs: per family a head, two fading tails and a glow, all ending at the
-   same point. A circle's path runs clockwise, so the dash end leads. */
-.arcs circle{stroke:var(--fam-1);stroke-width:calc(2*var(--u));stroke-linecap:round;--l:6;--o:0;stroke-dasharray:var(--l) calc(100 - var(--l));stroke-dashoffset:calc(var(--l) - 8 - var(--o))}
-.arcs>:nth-child(4n+2){--l:14;opacity:.5}.arcs>:nth-child(4n+3){--l:26;opacity:.18}.arcs>:nth-child(4n){--l:10;opacity:.22;stroke-width:calc(7*var(--u))}
+   same point. A circle's path runs clockwise, so the dash end leads. Stroke
+   calc() carries px, a user unit here: Firefox drops a unitless one. */
+.arcs circle{stroke:var(--fam-1);stroke-width:calc(2px*var(--u));stroke-linecap:round;--l:6;--o:0;stroke-dasharray:calc(var(--l)*1px) calc(100px - var(--l)*1px);stroke-dashoffset:calc(var(--l)*1px - 8px - var(--o)*1px)}
+.arcs>:nth-child(4n+2){--l:14;opacity:.5}.arcs>:nth-child(4n+3){--l:26;opacity:.18}.arcs>:nth-child(4n){--l:10;opacity:.22;stroke-width:calc(7px*var(--u))}
 .arcs>:nth-child(n+5){stroke:var(--fam-2);--o:25}.arcs>:nth-child(n+9){stroke:var(--fam-3);--o:50}.arcs>:nth-child(n+13){stroke:var(--fam-4);--o:75}
 .oc{position:absolute;left:0;top:0;display:grid;grid-template-columns:var(--g) 1fr;column-gap:7px;align-items:center;align-content:center;width:var(--card-w);height:var(--card-h);padding:0 8px 0 7px;overflow:hidden;white-space:nowrap;
 background:linear-gradient(90deg,color-mix(in srgb,var(--f,var(--text-2)) 14%,transparent),transparent 45%),color-mix(in srgb,var(--bg-2) 92%,transparent);border:var(--hl);border-radius:8px;box-shadow:inset 0 1px 0 color-mix(in srgb,var(--text) 7%,transparent),0 10px 22px -14px var(--bg);font:11px/1.25 var(--mono);color:var(--text);
---k:var(--m,0);--n:6;contain:size layout style;offset-path:path("M 0 70 A 130 70 0 0 1 0 -70 A 130 70 0 0 1 0 70");offset-anchor:center;offset-rotate:0deg;offset-distance:calc(var(--k)/var(--n)*100%)}
+--k:var(--m,0);--n:6;--period:var(--period-a);contain:size layout style;offset-path:path("M 0 70 A 130 70 0 0 1 0 -70 A 130 70 0 0 1 0 70");offset-anchor:center;offset-rotate:0deg;offset-distance:calc(var(--k)/var(--n)*100%)}
 .oc>i{grid-row:1/span 2;width:var(--g);height:var(--g);background:var(--f,var(--text-2));-webkit-mask:var(--glyph) center/contain no-repeat;mask:var(--glyph) center/contain no-repeat}
 .oc::before{content:attr(data-tag);grid-column:2;display:none;font-size:9.5px;color:var(--f,var(--text-2))}
 .oc::after{content:attr(data-label);grid-column:2}
@@ -135,7 +132,7 @@ background:linear-gradient(90deg,color-mix(in srgb,var(--f,var(--text-2)) 14%,tr
 .oc[data-g=null]{--glyph:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='9.4' fill='none' stroke='black' stroke-width='2'/><path d='M8,12h8' stroke='black' stroke-width='2.4' stroke-linecap='round'/></svg>")}
 @supports not (offset-path:path("M0 0h1")){.oc{display:none!important}}
 #motion{position:absolute;opacity:0;width:1px;height:1px}
-#motion+label{display:none;align-items:center;gap:8px;margin-top:20px;padding:5px 14px;border:1px solid var(--line-strong);border-radius:20px;cursor:pointer}
+#motion+label{display:inline-flex;align-items:center;gap:8px;margin-top:20px;padding:5px 14px;border:1px solid var(--line-strong);border-radius:20px;cursor:pointer}
 #motion+label::before{content:"";width:8px;height:8px;border:1.5px solid;border-radius:2px}
 #motion:checked+label{color:var(--accent);border-color:currentColor}
 #motion:checked+label::before{background:currentColor}
@@ -179,8 +176,7 @@ h2{font-size:26px}
 .oc{--k:var(--i);--n:8;font-size:12px;offset-path:path("M 0 110 A 300 110 0 0 1 0 -110 A 300 110 0 0 1 0 110")}
 .oc::before,.sbar .tag{display:block}
 .oc:not([data-mobile]){display:grid}
-.oc[data-ring=b]{display:none}
-#motion+label{display:inline-flex}
+.ring[data-ring=b],.oc[data-ring=b]{display:none}
 /* A compact orbit (the 404 page) keeps this breakpoint's ring at every width */
 .compact{--ra-rx:300px;--ra-ry:110px;--ua:.0033;--card-w:160px}
 .compact .spin{scale:1 .3667}
@@ -196,7 +192,7 @@ h2{font-size:26px}
 .spin{scale:1 .5200}
 .spin[data-ring=b]{scale:1 .4848}
 .oc[data-ring=a]{offset-path:path("M 0 260 A 500 260 0 0 1 0 -260 A 500 260 0 0 1 0 260")}
-.oc[data-ring=b]{display:grid;rotate:6deg;--n:12;offset-path:path("M 0 320 A 660 320 0 0 1 0 -320 A 660 320 0 0 1 0 320")}
+.oc[data-ring=b]{display:grid;rotate:6deg;--n:12;--period:var(--period-b);offset-path:path("M 0 320 A 660 320 0 0 1 0 -320 A 660 320 0 0 1 0 320")}
 }
 @media (min-width:1280px){
 :root{--ra-rx:600px;--ra-ry:290px;--rb-rx:800px;--rb-ry:360px;--ua:.0017;--ub:.00125;--card-w:164px;--card-h:44px;--g:22px}
@@ -217,12 +213,10 @@ html{scroll-behavior:smooth}
 @keyframes spin{to{rotate:360deg}}
 @keyframes tick{to{translate:-50%}}
 @keyframes fade{to{opacity:.3}}
-@media (min-width:640px){
 .oc{will-change:transform,opacity;animation:orbit var(--period) linear infinite,depth var(--period) linear infinite;animation-delay:calc(var(--k)/var(--n)*var(--period)*-1)}
 .oc.stamp{animation-name:orbit,tilt}
 .arcs{animation:spin var(--period) linear infinite}
-.ticker-row{animation:tick var(--ticker-period) linear infinite}
-}
+@media (min-width:640px){.ticker-row{animation:tick var(--ticker-period) linear infinite}}
 :is(:root:has(#motion:checked),.sc-paused,.sc-hidden,.is-offscreen) :is(.oc,.arcs,.ticker-row){animation-play-state:paused}
 @supports (animation-timeline:scroll()){.orbit{animation:fade linear both;animation-timeline:scroll(root);animation-range:0 500px}}
 .btn,.tabs button,nav .links a,#motion+label{transition:background-color 120ms,border-color 120ms,color 120ms}
