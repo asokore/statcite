@@ -8,6 +8,7 @@ users get.
 
     python tools/audit-live.py
     python tools/audit-live.py --only seo
+    python tools/audit-live.py --only a11y --base http://127.0.0.1:8787
 
 Exit status is 1 if any check fails.
 """
@@ -449,12 +450,140 @@ def audit_a11y():
 
     # Inline code that cannot wrap is what pushed /docs 90px wide on mobile.
     # Any page that STYLES inline code must also let it break.
+    #
+    # Amended 2026-10-14. The old check read the page HTML alone and
+    # skipped any page without the literal `code{font-family`. Once the shared
+    # rules move into /assets/sc.css that string leaves every page, so the old
+    # check would have skipped all of them and stayed green over a sheet with
+    # no wrap rule at all. It also passed on `word-break` or `overflow-wrap`
+    # appearing ANYWHERE, including the `.tscroll.wide td code` rule that turns
+    # wrapping OFF. Now the CSS is read in cascade order (inline <style> blocks
+    # plus every same-origin stylesheet the page links), and the page passes
+    # only if the last unscoped code rule that sets overflow-wrap sets it to
+    # anywhere or break-word. A linked sheet that does not load counts as a
+    # failure.
     for p in PAGES:
         st, _, html = get(p)
-        if st != 200 or "code{font-family" not in html:
+        if st != 200:
             continue
-        wraps = "overflow-wrap" in html or "word-break" in html
-        check("a11y", f"{p} lets inline code wrap", wraps, "long tokens will widen the page on mobile")
+        css, sheet_errors = page_css(html)
+        check("a11y", f"{p} linked stylesheets load", not sheet_errors, "; ".join(sheet_errors)[:160])
+        if not styles_inline_code(css):
+            continue
+        ok, why = inline_code_wraps(css)
+        check("a11y", f"{p} lets inline code wrap", ok, why)
+
+    # The shared design assets. Every page links /assets/sc.css and loads
+    # /assets/sc.js, so a missing or mistyped file restyles or breaks all eight
+    # pages at once. The content type matters as much as the status: site/_headers
+    # sends X-Content-Type-Options: nosniff, so a sheet served as text/plain is
+    # ignored by the browser.
+    # Font preload checks join this list when the font files ship.
+    for asset, want in (("/assets/sc.css", ("text/css",)),
+                        ("/assets/sc.js", ("text/javascript", "application/javascript"))):
+        st, hdr, _ = get(asset)
+        ct = header(hdr, "content-type").lower()
+        check("a11y", f"{asset} serves with the right content type",
+              st == 200 and ct.split(";")[0].strip() in want, f"status {st} content-type={ct or '(absent)'}")
+
+
+def header(hdrs, name):
+    """Case-insensitive header lookup over the plain dict get() returns."""
+    for k, v in (hdrs or {}).items():
+        if k.lower() == name:
+            return v or ""
+    return ""
+
+
+def same_origin_path(href):
+    """The path for a same-origin href, or None for another origin."""
+    if href.startswith("//"):
+        return None
+    if href.startswith("/"):
+        return href
+    if href.startswith(BASE + "/"):
+        return href[len(BASE):]
+    if re.match(r"^[a-z][a-z0-9+.-]*:", href, re.I):
+        return None
+    return "/" + href  # a relative href on a top-level page
+
+
+def page_css(html):
+    """Every CSS byte the page applies, in document (cascade) order.
+
+    Inline <style> blocks and the bodies of same-origin <link rel=stylesheet>
+    sheets, joined in the order they appear. Returns (css, errors), where
+    errors lists every linked sheet that did not come back 200.
+    """
+    parts, errors = [], []
+    for m in re.finditer(r"<style\b[^>]*>(.*?)</style>|<link\b([^>]*)>", html, re.I | re.S):
+        if m.group(1) is not None:
+            parts.append(m.group(1))
+            continue
+        attrs = m.group(2)
+        rel = re.search(r'\brel\s*=\s*["\']?([^"\'>]+)', attrs, re.I)
+        href = re.search(r'\bhref\s*=\s*["\']([^"\']+)', attrs, re.I)
+        if not rel or "stylesheet" not in rel.group(1).lower().split() or not href:
+            continue
+        path = same_origin_path(href.group(1))
+        if path is None:
+            continue  # the CSP refuses other origins anyway
+        st, _, body = get(path)
+        if st != 200:
+            errors.append(f"{path}:{st}")
+            continue
+        parts.append(body)
+    return "\n".join(parts), errors
+
+
+def css_rules(css):
+    """(selectors, declarations) for every innermost rule, comments removed.
+
+    Rules nested in @media or @supports are included, because a wrap rule
+    that applies only at narrow widths still fixes the narrow-width overflow.
+    """
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    out = []
+    for m in re.finditer(r"([^{}]+)\{([^{}]*)\}", css):
+        sels = [re.sub(r"\s+", " ", s).strip() for s in m.group(1).split(",")]
+        if any(s.startswith("@") for s in sels):
+            continue
+        out.append((sels, m.group(2)))
+    return out
+
+
+_ANY_CODE = re.compile(r"(?:^|[\s>+~(])code$")
+_GENERAL_CODE = re.compile(r"^(?::not\(pre\)\s*>?\s*)?code$")
+
+
+def styles_inline_code(css):
+    """True when any rule targets the code element and sets its font."""
+    return any(
+        any(_ANY_CODE.search(s) for s in sels) and re.search(r"(?:^|[;\s])font(?:-family)?\s*:", decl)
+        for sels, decl in css_rules(css)
+    )
+
+
+def inline_code_wraps(css):
+    """(ok, detail): does the cascade leave unscoped inline code wrappable?
+
+    Only unscoped selectors count (`code`, `:not(pre) > code`). A scoped one
+    such as `.tscroll.wide td code` legitimately turns wrapping off inside a
+    scroll wrapper and must neither satisfy nor fail this check. The LAST
+    unscoped rule that sets overflow-wrap wins, as it does in the browser.
+    """
+    last = None
+    for sels, decl in css_rules(css):
+        if not any(_GENERAL_CODE.match(s) for s in sels):
+            continue
+        m = re.search(r"(?:^|[;\s])overflow-wrap\s*:\s*([a-z-]+)", decl)
+        if m:
+            last = m.group(1)
+    if last is None:
+        return False, "no unscoped code rule sets overflow-wrap, long tokens will widen the page on mobile"
+    if last not in ("anywhere", "break-word"):
+        return False, f"the last unscoped code rule sets overflow-wrap:{last}"
+    return True, ""
 
 
 # --------------------------------------------------- AI discovery surfaces
@@ -790,9 +919,13 @@ def audit_crawlable():
     check("crawl", "the docs registry table lists every live registry key", not absent, f"{len(absent)} absent: {', '.join(absent)[:120]}")
 
 def main():
+    global BASE
     only = None
     if "--only" in sys.argv:
         only = sys.argv[sys.argv.index("--only") + 1]
+    if "--base" in sys.argv:
+        # For a local `wrangler dev` run, e.g. --base http://127.0.0.1:8787.
+        BASE = sys.argv[sys.argv.index("--base") + 1].rstrip("/")
     for name, fn in [("api", audit_api), ("seo", audit_seo), ("links", audit_links), ("claims", audit_consistency), ("mcp", audit_mcp), ("a11y", audit_a11y), ("disc", audit_discovery), ("machine", audit_machine_clients), ("contract", audit_contracts), ("crawl", audit_crawlable)]:
         if only and only != name:
             continue

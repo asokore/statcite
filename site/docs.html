@@ -21,43 +21,26 @@
 <meta property="og:image:alt" content="StatCite: economic statistics your AI can actually cite. Every number ships with its source, dataset, series id and licence.">
 <meta name="twitter:image" content="https://statcite.com/og.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/assets/sc.css?v=20261014">
 <style>
-:root{--bg:#0b0f14;--card:#141c25;--line:#22303d;--text:#dbe4ec;--dim:#8fa1b0;--faint:#6b7f8e;--accent:#4cc38a;--accent2:#7cb8ff;--warn:#e5b567;
---mono:ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,sans-serif}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.65;font-size:15.5px}
-a{color:var(--accent2);text-decoration:none} a:hover{text-decoration:underline}
-/* WCAG 1.4.1: prose links must not rely on colour alone (~1.6:1 vs body text). */
-p a,li a,td a{text-decoration:underline;text-underline-offset:2px}
-.wrap{max-width:940px;margin:0 auto;padding:0 24px 80px}
-nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0;border-bottom:1px solid var(--line);margin-bottom:36px}
-.logo{font-weight:700;font-size:18px;color:var(--text)}
-nav .links{display:flex;gap:20px;font-size:14px}
-nav .links a{color:var(--dim)}
-h1{font-size:32px;letter-spacing:-.02em;margin:10px 0 6px}
-h2{font-size:23px;letter-spacing:-.01em;margin:44px 0 10px;padding-top:18px;border-top:1px solid var(--line)}
-h3{font-size:17px;margin:26px 0 6px;font-family:var(--mono);color:var(--accent)}
-p{color:var(--dim);margin:8px 0;max-width:800px}
-p strong, li strong{color:var(--text)}
-pre{background:#0d1319;border:1px solid var(--line);border-radius:8px;padding:13px 15px;overflow-x:auto;font-family:var(--mono);font-size:12.8px;line-height:1.55;color:#c6d5e2;margin:10px 0}
-code{font-family:var(--mono);font-size:.92em;color:var(--accent)}
-/* Inline code must wrap. A long unbreakable token in inline code is not
-   clipped and not scrollable: it widens the PAGE. On 2026-08-16 /docs
-   measured 465px of content in a 375px viewport, so the whole page slid
-   sideways on a phone, from exactly two elements: an MCP config JSON and
-   the series id dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change.
-   Scoped away from `pre`, which already scrolls internally and whose
-   formatting must not be re-wrapped. */
-:not(pre) > code{overflow-wrap:anywhere;word-break:break-word}
-table{width:100%;border-collapse:collapse;font-size:13.5px;margin:14px 0}
-th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--dim);font-size:12.5px}
-ul,ol{margin:8px 0 8px 22px;color:var(--dim)}
+.wrap{max-width:940px;padding-bottom:80px}
+nav{margin-bottom:36px}
+h1{margin:10px 0 6px}
+h2{margin:44px 0 10px;padding-top:18px;border-top:1px solid var(--line)}
+h3{margin:26px 0 6px;font-family:var(--font-mono);color:var(--accent)}
+p{color:var(--text-2);margin:8px 0;max-width:800px}
+p strong,li strong{color:var(--text)}
+pre{color:#c6d5e2;margin:10px 0}
+code{color:var(--accent)}
+table{margin:14px 0}
+ul,ol{margin:8px 0 8px 22px;color:var(--text-2)}
 li{margin:4px 0}
-.note{background:#152030;border:1px solid #24405c;border-radius:8px;padding:12px 16px;font-size:14px;color:var(--dim);margin:14px 0}
-.toc{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 22px;font-size:14px;columns:2;column-gap:40px}
-.toc a{display:block;padding:3px 0;color:var(--dim)}
-@media(max-width:640px){.toc{columns:1}nav .links{flex-wrap:wrap;row-gap:6px;justify-content:flex-end}.tscroll{overflow-x:auto}.tscroll.wide table{min-width:560px}.tscroll.wide td code,.tscroll.wide th code{overflow-wrap:normal;word-break:normal}}
+.note{background:#152030;border:1px solid #24405c;border-radius:8px;padding:12px 16px;font-size:14px;color:var(--text-2);margin:14px 0}
+.toc{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 22px;font:13px/1.5 var(--font-mono);columns:2;column-gap:40px}
+.toc a{display:block;padding:3px 0;color:var(--text-2)}
+.toc a:hover{color:var(--text)}
+.tscroll.wide td:first-child code{font-family:var(--font-mono);color:var(--fam-1)}
+@media(max-width:640px){.toc{columns:1}.tscroll{overflow-x:auto}.tscroll.wide table{min-width:560px}.tscroll.wide td code,.tscroll.wide th code{overflow-wrap:normal;word-break:normal}}
 </style>
 <script type="application/ld+json">
 {
@@ -104,12 +87,17 @@ li{margin:4px 0}
 </script>
 </head>
 <body>
+<a class="skip" href="#main-content">Skip to main content</a>
 <div class="wrap">
   <nav>
-    <a class="logo" href="/">StatCite</a>
+    <a class="logo" href="/">
+      <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#12241c"/><path d="M8 22V14M13.5 22V10M19 22V16M24.5 22V7" stroke="#3fd68f" stroke-width="3" stroke-linecap="round"/><circle cx="24.5" cy="7" r="2.6" fill="#6fb4ff"/></svg>
+      StatCite
+    </a>
     <div class="links"><a href="/guide">Guide</a><a href="/docs">Docs</a><a href="/bench">Benchmark</a><a href="/sources">Sources</a><a href="/#connect">Connect</a></div>
   </nav>
-  <h1>Documentation</h1>
+  <main id="main-content">
+  <h1 data-eyebrow="REFERENCE">Documentation</h1>
   <p>StatCite is a free remote MCP server and REST API serving official economic statistics where every number carries a full citation, plus verification and conversion utilities. Base URL: <code>https://statcite.com</code>.</p>
   <div class="toc">
     <a href="#connect">1. Connecting (all clients)</a>
@@ -365,6 +353,8 @@ GET /health</pre>
   </ul>
 
   <p style="margin-top:40px;color:var(--faint);font-size:13px">© 2026 StatCite · <a href="/">Home</a> · <a href="/openapi.json">OpenAPI</a> · <a href="/llms.txt">llms.txt</a> · <a href="/llms-full.txt">llms-full.txt</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="mailto:hello@statcite.com">hello@statcite.com</a></p>
+  </main>
 </div>
+<script src="/assets/sc.js?v=20261014" defer></script>
 </body>
 </html>

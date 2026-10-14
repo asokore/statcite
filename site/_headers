@@ -1,6 +1,7 @@
 # Cloudflare Workers Static Assets headers.
-# CSP note: all first-party CSS and JS is inline by design, so 'unsafe-inline'
-# is required. connect-src 'self' covers the live verifier form's same-origin
+# CSP note: page-specific CSS and JS stay inline, and the shared design system
+# loads from /assets/sc.css and /assets/sc.js on the same origin, so both 'self'
+# and 'unsafe-inline' are required. connect-src 'self' covers the live verifier form's same-origin
 # /v1 calls. The only external origins allowed are Cloudflare Web Analytics:
 # static.cloudflareinsights.com serves the beacon Cloudflare injects at the edge,
 # and cloudflareinsights.com receives the count. Both are disclosed on /privacy,
@@ -21,6 +22,11 @@
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
   X-Frame-Options: DENY
+
+# The shared stylesheet and script. Pages link them with a ?v= date token that
+# changes on every release, so a day of caching never serves a stale pair.
+/assets/*
+  Cache-Control: public, max-age=86400
 
 # Machine-readable spec files: browser-side consumers (Swagger UI, client-side
 # importers, agent fetchers) need CORS on the static assets, not only on /v1.

@@ -24,3 +24,8 @@ site/**/*.png binary
 site/**/*.ico binary
 site/**/*.gif binary
 site/**/*.jpg binary
+# Fonts are bytes too. These lines land before any font file exists, so the
+# first woff2 or woff ever added under site/ is never staged through the
+# eol=lf rule above. See docs/design/FONTS.md.
+site/**/*.woff2 binary
+site/**/*.woff binary

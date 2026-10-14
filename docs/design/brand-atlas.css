@@ -1,0 +1,46 @@
+/* Observatory kit, example brand block: "Atlas" (lagoon, sun, coral, reef).
+   NOT SERVED. It exists to show that the kit re-skins by replacing layer 1 of sc.css
+   (the :root block of colour values) and nothing else. To try it, swap this block in
+   for the brand block at the top of a copy of sc.css, then run:
+     node tools/contrast.mjs docs/design/brand-atlas.css
+   Every pair must meet its floor before the block is used anywhere. */
+
+:root {
+  /* ground and surfaces: a deep sea blue rather than StatCite's neutral near-black */
+  --bg: #07131c;
+  --bg-2: #0c1c27;
+  --card: #112532;
+  --sbar-fill: #0a1822;
+  --line: #1f3442;           /* hairlines, exempt from contrast floors */
+  --line-strong: #728b9c;    /* field and tab borders, control affordance (3:1 floor) */
+
+  /* text */
+  --text: #f2ede3;           /* warm paper white */
+  --text-2: #b9c4cc;
+  --text-3: #7f8f9a;
+  --link: #8ad8f0;
+
+  /* accent and the four families: lagoon, sun, coral, reef */
+  --accent: #3ad6c5;
+  --on-accent: #04201c;
+  --fam-1: #3ad6c5;
+  --fam-2: #ffc65a;
+  --fam-3: #ff7a66;
+  --fam-4: #5fd38a;
+
+  /* verdicts */
+  --v-match: #5fd38a;
+  --v-close: #ffc65a;
+  --v-mismatch: #ff7a66;
+  --v-cannot: #b9c4cc;
+
+  /* brand-specific aliases, if the pages use any (the kit itself reads only the names above) */
+  --fam-lagoon: var(--fam-1);
+  --fam-sun: var(--fam-2);
+  --fam-coral: var(--fam-3);
+  --fam-reef: var(--fam-4);
+  --err: var(--v-mismatch);
+  --warn: var(--v-close);
+  --dim: var(--text-2);
+  --faint: var(--text-3);
+}
