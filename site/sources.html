@@ -20,45 +20,20 @@
 <meta property="og:description" content="Served, flow-through, and refused sources with licence verdicts, verbatim bases, and verification dates.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://statcite.com/sources">
+<link rel="stylesheet" href="/assets/sc.css?v=20261014">
 <style>
-:root{
-  --bg:#0b0f14;--bg2:#10161d;--card:#141c25;--line:#22303d;
-  --text:#dbe4ec;--dim:#8fa1b0;--faint:#6b7f8e;
-  --accent:#4cc38a;--accent2:#7cb8ff;--warn:#e5b567;--err:#e0716f;
-  --mono:ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;
-  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,sans-serif;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6;font-size:16px}
-a{color:var(--accent2);text-decoration:none}
-a:hover{text-decoration:underline}
-p a,li a,td a{text-decoration:underline;text-underline-offset:2px}
-.wrap{max-width:1060px;margin:0 auto;padding:0 24px}
-nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0;border-bottom:1px solid var(--line)}
-.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px;color:var(--text)}
-nav .links{display:flex;gap:22px;font-size:14.5px;flex-wrap:wrap;row-gap:6px;justify-content:flex-end}
-nav .links a{color:var(--dim)}
-nav .links a:hover{color:var(--text);text-decoration:none}
 header{padding:56px 0 34px}
-h1{font-size:clamp(26px,4.5vw,38px);line-height:1.15;letter-spacing:-.02em;max-width:860px}
-.sub{margin-top:14px;font-size:17px;color:var(--dim);max-width:780px}
-section{padding:40px 0;border-top:1px solid var(--line)}
-h2{font-size:23px;letter-spacing:-.01em;margin-bottom:8px}
-.lead{color:var(--dim);margin-bottom:22px;max-width:780px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:14px}
+h1{max-width:860px}
+.card{margin-bottom:14px}
 .card h3{font-size:16.5px;margin-bottom:2px}
 .card .meta{font-family:var(--mono);font-size:12.5px;color:var(--faint);margin-bottom:10px}
-.card p{font-size:14.5px;color:var(--dim);margin-bottom:8px}
-.card .attr{font-family:var(--mono);font-size:13px;color:var(--text);background:#0d1319;border:1px solid var(--line);border-radius:6px;padding:8px 12px;margin:8px 0}
-.pill{display:inline-block;font-size:12px;font-family:var(--mono);border-radius:20px;padding:2px 11px;margin-left:10px;vertical-align:2px}
-.pill.served{color:var(--accent);border:1px solid #2a4a3a;background:#12241c}
-.pill.flow_through{color:var(--accent2);border:1px solid #2a3a52;background:#131c28}
-.pill.refused{color:var(--err);border:1px solid #4a2a2a;background:#241212}
+.card p{margin-bottom:8px}
+.card .attr{font-family:var(--mono);font-size:13px;color:var(--text);background:var(--bg-2);border:var(--hl);border-radius:6px;padding:8px 12px;margin:8px 0}
+.card:has(.pill.served){border-left:3px solid var(--accent)}
+.card:has(.pill.flow_through){border-left:3px solid var(--fam-1)}
+.card:has(.pill.refused){border-left:3px solid var(--v-mismatch)}
+.pill{margin-left:10px;vertical-align:2px;padding:0 8px;--cap:11px}
 .note{font-size:13.5px;color:var(--faint);max-width:780px}
-footer{border-top:1px solid var(--line);padding:32px 0 44px;color:var(--faint);font-size:13.5px}
-footer a{color:var(--dim)}
-.skip{position:absolute;left:-9999px;top:0;background:var(--accent);color:#08130d;padding:10px 18px;border-radius:0 0 8px 0;font-weight:600;z-index:10}
-.skip:focus{left:0;text-decoration:none}
 @media(max-width:640px){header{padding:40px 0 26px}}
 </style>
 <script type="application/ld+json">
@@ -96,22 +71,30 @@ footer a{color:var(--dim)}
 <a class="skip" href="#main-content">Skip to main content</a>
 <div class="wrap">
   <nav>
-    <a class="logo" href="/">StatCite</a>
+    <a class="logo" href="/">
+      <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#12241c"/><path d="M8 22V14M13.5 22V10M19 22V16M24.5 22V7" stroke="#3fd68f" stroke-width="3" stroke-linecap="round"/><circle cx="24.5" cy="7" r="2.6" fill="#6fb4ff"/></svg>
+      StatCite
+    </a>
     <div class="links"><a href="/guide">Guide</a><a href="/docs">Docs</a><a href="/bench">Benchmark</a><a href="/sources">Sources</a><a href="/#connect">Connect</a></div>
   </nav>
 
   <header id="main-content">
-    <h1>Data sources &amp; the licence ledger</h1>
+    <h1>Data sources &amp; the <span class="serif">licence ledger</span></h1>
     <p class="sub">Every source StatCite serves, and every source it evaluated and <em>refused</em>, with the licence verdict, the basis for it, and the date it was last checked against the source's own terms. A source enters the indicator registry only after its ledger entry exists with a "served" verdict. This page renders live from <a href="/v1/sources">/v1/sources</a>, so it cannot drift from what the API actually reports.</p>
   </header>
 
-  <section>
+  <section id="verdicts">
+    <div class="sbar" aria-hidden="true" data-nosnippet data-label="THE VERDICTS" data-tag="WHAT EACH WORD MEANS"><span class="tag" data-tag="WHAT EACH WORD MEANS"></span></div>
     <h2>How to read the verdicts</h2>
     <p class="lead">
       <span class="pill served">served</span> StatCite serves this source's data under the stated licence, and every response carries the required attribution.&nbsp;
       <span class="pill flow_through">flow_through</span> an aggregator, so each served series inherits its underlying provider's licence, and the citation names that provider.&nbsp;
       <span class="pill refused">refused</span> evaluated and deliberately not served. The entry says exactly why. Declining a source for licensing reasons is product information, not an internal detail.
     </p>
+  </section>
+
+  <section id="ledger-section">
+    <div class="sbar" aria-hidden="true" data-nosnippet data-label="THE LEDGER" data-tag="LIVE FROM /v1/sources"><span class="tag" data-tag="LIVE FROM /v1/sources"></span></div>
     <div id="ledger" aria-live="polite">
       <noscript><p class="lead">This page renders the ledger with JavaScript. Without it, read the same data directly at <a href="/v1/sources">/v1/sources</a>.</p></noscript>
 <!-- ledger:prerender:start -->
@@ -236,5 +219,6 @@ footer a{color:var(--dim)}
   });
 })();
 </script>
+<script src="/assets/sc.js?v=20261014" defer></script>
 </body>
 </html>

@@ -26,6 +26,13 @@ docs/VENTURE-CONTEXT.md
 # The owner's working backlog. It names the models and sessions doing the work
 # and points at the local-only venture context, so it stays off this public repo.
 docs/06_plan/
+# Compiled Python. A stale .pyc was published once; never again.
+__pycache__/
+*.pyc
+
+# The working design spec cites that backlog and the owner's working rules.
+# The public kit is docs/design/DESIGN-SYSTEM.md.
+docs/design/SPEC-*.md
 
 # Traffic snapshots. Public repo: publishing traffic figures is a business
 # decision, not a side effect of running a script.

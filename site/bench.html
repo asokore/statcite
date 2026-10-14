@@ -20,56 +20,15 @@
 <meta property="og:description" content="Pre-registered, primary-source-audited measurement of how often AI models get official economic statistics right from memory.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://statcite.com/bench">
+<link rel="stylesheet" href="/assets/sc.css?v=20261014">
 <style>
-:root{
-  --bg:#0b0f14;--bg2:#10161d;--card:#141c25;--line:#22303d;
-  --text:#dbe4ec;--dim:#8fa1b0;--faint:#6b7f8e;
-  --accent:#4cc38a;--accent2:#7cb8ff;--warn:#e5b567;--err:#e0716f;
-  --mono:ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;
-  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,sans-serif;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6;font-size:16px}
-a{color:var(--accent2);text-decoration:none}
-a:hover{text-decoration:underline}
-p a,li a,td a{text-decoration:underline;text-underline-offset:2px}
-.wrap{max-width:1060px;margin:0 auto;padding:0 24px}
-nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0;border-bottom:1px solid var(--line)}
-.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px;color:var(--text)}
-nav .links{display:flex;gap:22px;font-size:14.5px;flex-wrap:wrap;row-gap:6px;justify-content:flex-end}
-nav .links a{color:var(--dim)}
-nav .links a:hover{color:var(--text);text-decoration:none}
-header{padding:56px 0 34px}
-.badge{display:inline-block;font-size:12.5px;font-family:var(--mono);color:var(--accent);border:1px solid #2a4a3a;background:#12241c;border-radius:20px;padding:3px 12px;margin-bottom:18px}
-h1{font-size:clamp(26px,4.5vw,40px);line-height:1.15;letter-spacing:-.02em;max-width:880px}
-.sub{margin-top:14px;font-size:17.5px;color:var(--dim);max-width:800px}
-section{padding:42px 0;border-top:1px solid var(--line)}
-h2{font-size:23px;letter-spacing:-.01em;margin-bottom:8px}
-h3{font-size:16.5px;margin:18px 0 6px}
-.lead{color:var(--dim);margin-bottom:20px;max-width:800px}
+section p{color:var(--text-2);font-size:15px;margin-bottom:12px}
 p{max-width:800px}
-section p{color:var(--dim);font-size:15px;margin-bottom:12px}
-table{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0 4px}
-th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--dim);font-weight:600;font-size:13px}
-caption{caption-side:top;text-align:left;color:var(--dim);font-size:13px;padding:0 0 8px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:8px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px}
-.card h3{font-size:15.5px;margin:0 0 6px;font-family:var(--mono);color:var(--accent)}
-.card p{font-size:14px;color:var(--dim);margin:0}
-.note{font-size:13px;color:var(--faint);max-width:800px;margin-top:8px}
-blockquote{border-left:3px solid var(--line);padding:6px 0 6px 18px;margin:14px 0;color:var(--dim);font-size:15.5px;max-width:760px}
-.cta{margin-top:24px;display:flex;gap:12px;flex-wrap:wrap}
-.btn{display:inline-block;padding:11px 20px;border-radius:8px;font-weight:600;font-size:15px}
-.btn.primary{background:var(--accent);color:#08130d}
-.btn.primary:hover{filter:brightness(1.1);text-decoration:none}
-.btn.ghost{border:1px solid var(--line);color:var(--text)}
-.btn.ghost:hover{border-color:var(--faint);text-decoration:none}
-footer{border-top:1px solid var(--line);padding:32px 0 44px;color:var(--faint);font-size:13.5px}
-footer a{color:var(--dim)}
-.skip{position:absolute;left:-9999px;top:0;background:var(--accent);color:#08130d;padding:10px 18px;border-radius:0 0 8px 0;font-weight:600;z-index:10}
-.skip:focus{left:0;text-decoration:none}
-@media(max-width:640px){header{padding:40px 0 26px}.tscroll{overflow-x:auto}.tscroll.wide table{min-width:560px}.tscroll.wide td code,.tscroll.wide th code{overflow-wrap:normal;word-break:normal}}
+.note{font-size:13px;color:var(--text-3);max-width:800px;margin-top:8px}
+blockquote{border-left:3px solid var(--line);padding:6px 0 6px 18px;margin:14px 0;color:var(--text-2);font-size:15.5px;max-width:760px}
+.card h3{font-size:15.5px;font-family:var(--font-mono);color:var(--accent)}
+.tscroll{overflow-x:auto}
+.tscroll.wide table{min-width:560px}
 </style>
 <script type="application/ld+json">
 {
@@ -149,36 +108,39 @@ footer a{color:var(--dim)}
 <a class="skip" href="#main-content">Skip to main content</a>
 <div class="wrap">
   <nav>
-    <a class="logo" href="/">StatCite</a>
+    <a class="logo" href="/"><svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#12241c"/><path d="M8 22V14M13.5 22V10M19 22V16M24.5 22V7" stroke="#3fd68f" stroke-width="3" stroke-linecap="round"/><circle cx="24.5" cy="7" r="2.6" fill="#6fb4ff"/></svg>StatCite</a>
     <div class="links"><a href="/guide">Guide</a><a href="/docs">Docs</a><a href="/bench">Benchmark</a><a href="/sources">Sources</a><a href="/#connect">Connect</a></div>
   </nav>
 
   <header id="main-content">
     <span class="badge">pre-registered · primary-source-audited · deviations logged</span>
-    <h1>The AI Economic-Statistics Accuracy Benchmark</h1>
+    <h1>The AI Economic-Statistics <span class="serif">Accuracy</span> Benchmark</h1>
     <p class="sub">How often do AI models state official economic statistics correctly from memory, with no tools and no retrieval? A pre-registered measurement with frozen question banks, ground truth audited against the primary statistical APIs, and every protocol deviation logged in public. Run quarterly.</p>
   </header>
 
-  <section>
+  <section id="why">
+    <div class="sbar" aria-hidden="true" data-nosnippet data-label="WHY MEASURE" data-tag="THE INSTITUTIONAL CASE"><span class="tag" data-tag="THE INSTITUTIONAL CASE"></span></div>
     <h2>Why this needs measuring</h2>
     <p>Language models answer statistical questions fluently whether or not they know the number. That failure mode is now institutionally documented: the IMF's own paper introducing StatGPT, a retrieval platform backed by the IMF, World Bank, OECD, Eurostat, BIS and the UN statistical system. The paper justifies retrieval precisely because generative models <a href="https://www.imf.org/en/publications/departmental-papers-policy-papers/issues/2026/03/10/statgpt-ai-for-official-statistics-573514">"perform poorly at delivering official statistics"</a> (IMF Departmental Paper 2026/004). Independent studies point the same way: the EBU/BBC study of 3,000 AI news answers found significant issues in 45% of them, and the Tow Center found over 60% of AI search answers carried citation problems.</p>
     <p>What none of that research isolates is the specific, checkable case this benchmark measures: a model asserting a precise official figure, such as an inflation rate, a debt ratio or a GDP level, for a specific country and year, from parametric memory alone. Those are the numbers that end up in reports, briefs, and articles. Each one is verifiable against the official series, so the error rate can be measured instead of argued about.</p>
   </section>
 
-  <section>
+  <section id="game">
+    <div class="sbar" aria-hidden="true" data-nosnippet data-label="HARD TO GAME" data-tag="PRE-REGISTERED"><span class="tag" data-tag="PRE-REGISTERED"></span></div>
     <h2>What makes this benchmark hard to game</h2>
     <div class="grid">
-      <div class="card"><h3>Pre-registration first</h3><p>The methodology, scoring bands, and analysis plan are frozen and committed publicly before any model is called. Changes after the fact are logged as numbered deviations in a public file, never silently absorbed.</p></div>
-      <div class="card"><h3>Beacon-seeded draws</h3><p>Question banks are drawn with a seed derived from a pre-announced NIST Randomness Beacon pulse. The announcement is committed before the pulse exists, so the draw cannot be cherry-picked.</p></div>
-      <div class="card"><h3>Audited ground truth</h3><p>Every answer key value is frozen, then independently re-fetched from the primary statistical APIs (World Bank, IMF) by audit code that shares nothing with the serving path. Divergences fail the audit.</p></div>
-      <div class="card"><h3>Indivisible results</h3><p>By publication covenant, accuracy (Within-Tolerance Rate) is never quoted apart from the Confabulation Rate and the Answer Rate. A model that answers everything confidently and one that declines when unsure are different animals. One number would hide that.</p></div>
-      <div class="card"><h3>Revisions are not errors</h3><p>Official statistics get revised. A model whose answer matches an earlier official vintage is never scored as confabulating. StatCite's own verify tool extends the same courtesy to human claims.</p></div>
-      <div class="card"><h3>Raw outputs published</h3><p>Every model's raw responses ship with each run, so every scored verdict can be re-derived from the artifacts. Disputes are checkable, not rhetorical.</p></div>
+      <div class="card" data-fam="fam-2"><h3>Pre-registration first</h3><p>The methodology, scoring bands, and analysis plan are frozen and committed publicly before any model is called. Changes after the fact are logged as numbered deviations in a public file, never silently absorbed.</p></div>
+      <div class="card" data-fam="fam-2"><h3>Beacon-seeded draws</h3><p>Question banks are drawn with a seed derived from a pre-announced NIST Randomness Beacon pulse. The announcement is committed before the pulse exists, so the draw cannot be cherry-picked.</p></div>
+      <div class="card" data-fam="fam-2"><h3>Audited ground truth</h3><p>Every answer key value is frozen, then independently re-fetched from the primary statistical APIs (World Bank, IMF) by audit code that shares nothing with the serving path. Divergences fail the audit.</p></div>
+      <div class="card" data-fam="fam-2"><h3>Indivisible results</h3><p>By publication covenant, accuracy (Within-Tolerance Rate) is never quoted apart from the Confabulation Rate and the Answer Rate. A model that answers everything confidently and one that declines when unsure are different animals. One number would hide that.</p></div>
+      <div class="card" data-fam="fam-2"><h3>Revisions are not errors</h3><p>Official statistics get revised. A model whose answer matches an earlier official vintage is never scored as confabulating. StatCite's own verify tool extends the same courtesy to human claims.</p></div>
+      <div class="card" data-fam="fam-2"><h3>Raw outputs published</h3><p>Every model's raw responses ship with each run, so every scored verdict can be re-derived from the artifacts. Disputes are checkable, not rhetorical.</p></div>
     </div>
     <p class="note">Full methodology, covenant, deviations log, question banks, and scoring code: <a href="https://github.com/asokore/statcite/tree/main/bench">github.com/asokore/statcite/bench</a>.</p>
   </section>
 
-  <section>
+  <section id="results" data-fam="fam-3">
+    <div class="sbar" aria-hidden="true" data-nosnippet data-label="RESULTS" data-tag="RUN ONE, PUBLISHED"><span class="tag" data-tag="RUN ONE, PUBLISHED"></span></div>
     <h2>Run 1 results (published)</h2>
     <p class="lead">Six models across three vendors, 100 questions, answered from memory only. The three columns are a single unit, never quote one without the others.</p>
     <div class="tscroll wide" tabindex="0" role="region" aria-label="Benchmark run 1 results">
@@ -197,7 +159,8 @@ footer a{color:var(--dim)}
     <p>The plain reading: even the strongest models confabulate precise official statistics at meaningful rates when answering from memory. Roughly one in six to one in three answered-wrongly-with-confidence, depending on the model. That is the baseline <a href="/#try">verify_stat</a> exists to fix.</p>
   </section>
 
-  <section>
+  <section id="run2">
+    <div class="sbar" aria-hidden="true" data-nosnippet data-label="NEXT RUN" data-tag="IN PROGRESS"><span class="tag" data-tag="IN PROGRESS"></span></div>
     <h2>Run 2, pre-registered, in progress</h2>
     <p>Run 2 extends Run 1 with a mechanically applied model roster, a NIST-beacon-seeded fresh draw with a carried contamination-control panel, 25 null probes, an as-deployed settings arm, and a retrieval-delta arm. All of it was pre-registered in the public deviations log before any model was called.</p>
     <p>Per the pre-registered publication sequencing, Run 2 results are shared with the covered vendors for a courtesy-preview window before they are published here. No results appear anywhere until that window closes. When they do, the per-question data will be downloadable so every verdict can be checked.</p>
@@ -211,5 +174,6 @@ footer a{color:var(--dim)}
     <p>StatCite: official economic statistics with full citations. <a href="/">Home</a> · <a href="/docs">Docs</a> · <a href="/guide">Guide</a> · <a href="/sources">Sources</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
   </footer>
 </div>
+<script src="/assets/sc.js?v=20261014" defer></script>
 </body>
 </html>

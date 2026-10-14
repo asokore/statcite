@@ -1,6 +1,38 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>404: StatCite</title><link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<style>body{background:#0b0f14;color:#dbe4ec;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
-.b{text-align:center;padding:0 20px}h1{font-size:52px;margin:0;color:#4cc38a}p{color:#8fa1b0}a{color:#7cb8ff;text-decoration:none}nav .links{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 18px;margin:18px 0 8px}</style></head>
-<body><div class="b"><h1>404</h1><p>cannot_verify: no page at this path.</p><nav><div class="links"><a href="/guide">Guide</a><a href="/docs">Docs</a><a href="/bench">Benchmark</a><a href="/sources">Sources</a><a href="/#connect">Connect</a></div></nav><p><a href="/">Home</a> · <a href="/v1">API index</a></p></div></body></html>
+<link rel="stylesheet" href="/assets/sc.css?v=20261014">
+<style>.stage{--card-w:128px;position:relative;isolation:isolate;overflow:hidden;overflow:clip;padding:var(--band) 16px 40px}
+.b{position:relative;z-index:1;text-align:center}
+.b h1{font:800 96px/1 var(--font-display);letter-spacing:-.03em;color:var(--v-mismatch)}
+.b p{font:14px/1.5 var(--font-mono);color:var(--text-2);margin-top:12px}
+.b p+p{font:14px/1.5 var(--font-body);margin-top:20px}
+@media (min-width:640px){.stage{--ra-rx:300px;--ra-ry:122px;--ua:.0033;--card-w:152px;--card-h:36px;display:grid;place-items:center;min-height:380px;padding:48px 24px}
+.stage .orbit{top:50%}
+.stage .oc[data-ring=a]{offset-path:path("M 0 122 A 300 122 0 0 1 0 -122 A 300 122 0 0 1 0 122")}}</style>
+</head>
+<body data-ruler="off">
+<a class="skip" href="#main-content">Skip to main content</a>
+<div class="wrap">
+  <nav>
+    <a class="logo" href="/">
+      <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#12241c"/><path d="M8 22V14M13.5 22V10M19 22V16M24.5 22V7" stroke="#3fd68f" stroke-width="3" stroke-linecap="round"/><circle cx="24.5" cy="7" r="2.6" fill="#6fb4ff"/></svg>
+      StatCite
+    </a>
+    <div class="links"><a href="/guide">Guide</a><a href="/docs">Docs</a><a href="/bench">Benchmark</a><a href="/sources">Sources</a><a href="/#connect">Connect</a></div>
+  </nav>
+</div>
+<main id="main-content">
+  <div class="stage">
+    <div class="orbit sc-paused" aria-hidden="true" data-nosnippet>
+      <svg class="ring" data-ring="a" viewBox="-1 -1 2 2" preserveAspectRatio="none"><circle class="base" r="1" stroke-width="1"/><circle class="bezel" r="1" pathLength="360" stroke-dasharray="1 4"/><g class="arcs"><circle class="glow" r="1" pathLength="100" stroke-dasharray="8 92" stroke-dashoffset="0"/><circle class="glow" r="1" pathLength="100" stroke-dasharray="8 92" stroke-dashoffset="-25"/><circle class="glow" r="1" pathLength="100" stroke-dasharray="8 92" stroke-dashoffset="-50"/><circle class="glow" r="1" pathLength="100" stroke-dasharray="8 92" stroke-dashoffset="-75"/><circle r="1" pathLength="100" stroke-dasharray="8 92" stroke-dashoffset="0"/><circle r="1" pathLength="100" stroke-dasharray="8 92" stroke-dashoffset="-25"/><circle r="1" pathLength="100" stroke-dasharray="8 92" stroke-dashoffset="-50"/><circle r="1" pathLength="100" stroke-dasharray="8 92" stroke-dashoffset="-75"/></g></svg>
+      <span class="oc stamp" data-ring="a" data-mobile data-tag="VERDICT" data-label="cannot_verify" style="--i:0;--m:0;--n:4"></span>
+      <span class="oc stamp" data-ring="a" data-mobile data-tag="VERDICT" data-label="match" style="--i:1;--m:1;--n:4"></span>
+      <span class="oc stamp" data-ring="a" data-mobile data-tag="VERDICT" data-label="close" style="--i:2;--m:2;--n:4"></span>
+      <span class="oc stamp" data-ring="a" data-mobile data-tag="VERDICT" data-label="mismatch" style="--i:3;--m:3;--n:4"></span>
+    </div>
+    <div class="b"><h1>404</h1><p>cannot_verify: no page at this path.</p><p><a href="/">Home</a> · <a href="/v1">API index</a></p></div>
+  </div>
+</main>
+<script src="/assets/sc.js?v=20261014" defer></script>
+</body></html>
