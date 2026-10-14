@@ -102,6 +102,28 @@ export interface SeriesResult {
   stale_primary?: boolean;
   /** Clock year minus the served period's year. */
   stale_primary_years?: number;
+  /** What this figure is NOT, as codes (core/limitations.ts), derived only
+   * from structured fields. An empty list means none of the known conditions
+   * was detected. It is not a warranty. */
+  limitations?: Limitation[];
+}
+
+/** The closed set of limitation codes. Public API: add, never rename. Declared
+ * once here. The MCP output schema and openapi.json are asserted equal to it. */
+export const LIMITATION_CODES = [
+  "projection",
+  "fallback_source",
+  "stale_primary",
+  "modeled_estimate",
+  "rounded_source",
+  "computed_values",
+] as const;
+export type LimitationCode = (typeof LIMITATION_CODES)[number];
+
+/** One limit of a served figure. */
+export interface Limitation {
+  code: LimitationCode;
+  detail: string;
 }
 
 export type IndicatorKind =

@@ -14,6 +14,7 @@ import { parseTransform } from "./core/transforms.ts";
 import { UpstreamError, ShapeError } from "./core/upstream.ts";
 import { recordUsage, indicatorLabel, countryLabel, verdictLabel, type Outcome, seriesIdCountry } from "./core/analytics.ts";
 import { quoteInput } from "./core/text.ts";
+import { LIMITATION_CODES } from "./core/limitations.ts";
 
 type Json = Record<string, unknown>;
 
@@ -68,6 +69,20 @@ const SERIES_OUTPUT_SCHEMA = {
     fallback_reason: { type: "string", enum: ["transient", "definitive"] },
     stale_primary: { type: "boolean" },
     stale_primary_years: { type: "number" },
+    limitations: {
+      type: "array",
+      description:
+        "Codes for what this figure is NOT, each derived from a structured field of the result or from the indicator registry. An empty list means none of these conditions was detected. It is not a warranty.",
+      items: {
+        type: "object",
+        properties: {
+          code: { type: "string", enum: [...LIMITATION_CODES] },
+          detail: { type: "string" },
+        },
+        required: ["code", "detail"],
+        additionalProperties: false,
+      },
+    },
   },
   required: ["series_id", "name", "observations", "citation", "notes"],
   additionalProperties: true,

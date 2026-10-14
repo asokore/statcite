@@ -27,9 +27,27 @@ The differentiator is **verification, not lookup**: `verify_stat` checks a claim
 | Cursor | [**Install in Cursor**](https://cursor.com/en/install-mcp?name=statcite&config=eyJ1cmwiOiJodHRwczovL3N0YXRjaXRlLmNvbS9tY3AifQ==) · or `{"mcpServers":{"statcite":{"url":"https://statcite.com/mcp"}}}` |
 | VS Code | [**Install in VS Code**](https://vscode.dev/redirect/mcp/install?name=statcite&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fstatcite.com%2Fmcp%22%7D) · [Insiders](https://insiders.vscode.dev/redirect/mcp/install?name=statcite&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fstatcite.com%2Fmcp%22%7D&quality=insiders) · or `code --add-mcp '{"name":"statcite","type":"http","url":"https://statcite.com/mcp"}'` |
 | ChatGPT | Developer mode → add MCP server, No Authentication (implements the deep-research `search`/`fetch` pair) |
-| Cline / stdio-only | `npx -y mcp-remote@latest https://statcite.com/mcp` (see [llms-install.md](llms-install.md)) |
+| Cline / stdio-only | `npx -y mcp-remote@0.14.3 https://statcite.com/mcp` (pinned, so a client restart never pulls a new release. See [llms-install.md](llms-install.md)) |
 
 No signup, no API key, no OAuth.
+
+## Side effects
+
+StatCite is a remote server. Over HTTP, calling it installs nothing and runs nothing on your machine. This is what each kind of call does, and where.
+
+| Operation | Calls out from StatCite's server | Writes on your machine | Writes anywhere else | Recorded by StatCite |
+|---|---|---|---|---|
+| `get_indicator`, `get_series`, `compare_sources`, `country_snapshot`, `inflation_adjust`, `fx_convert`, `fetch` | Yes, to the official source APIs named in the citation (World Bank, IMF, ECB, BIS and DBnomics, with exchange rates through Frankfurter, a relay of ECB reference rates), plus the published CaribStat corpus of ECCB and Central Bank of Barbados series at asokore.github.io/caribstat | No | No | One aggregate usage row |
+| `verify_stat`, `verify_claims` | Yes, the same source APIs, to fetch the official figure | No | No | One aggregate usage row, with the verdict kind |
+| `search_indicators` | Only to DBnomics, and only when fewer than five results were found locally | No | No | One aggregate usage row |
+| `search` | No | No | No | One aggregate usage row |
+| `list_sources` | No | No | No | One aggregate usage row |
+| Connecting a client over HTTP | No | Only the server entry your client saves in its own config | No | Nothing |
+| The stdio bridge (`mcp-remote`) | No | `npx` downloads `mcp-remote` into the npm cache and runs it locally, and `mcp-remote` creates its own config folder (`~/.mcp-auth` unless `MCP_REMOTE_CONFIG_DIR` is set) | No | Nothing |
+
+The usage row holds the transport, the tool name, the registry indicator key, the ISO3 country code, the verify verdict kind, the outcome and the duration. Every one of those comes from a closed list, so nothing you type is stored. No IP address, user agent, header, session id, query text or claimed value is recorded. The code is [`server/src/core/analytics.ts`](server/src/core/analytics.ts) and the policy is at [statcite.com/privacy](https://statcite.com/privacy.html).
+
+Every `get_indicator` and `get_series` result also carries a `limitations` list: codes for what the figure is not, such as a projection, a fallback source's figure, a modelled estimate, a value rounded by the source or a number StatCite computed. Each code is read from a structured field of the result or from the indicator registry, and an empty list means none of those conditions was detected.
 
 ## Make your agent use it without being asked
 

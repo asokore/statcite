@@ -555,12 +555,12 @@ Authentication:  No authentication</pre>
       <p style="margin-top:10px">Then confirm it works with a test prompt: <em>“Using StatCite, verify that US inflation was 4.1% in 2023 and cite the official source.”</em></p>
     </div>
     <div id="t-stdio" class="tabpanel" role="tabpanel" aria-labelledby="tab-stdio" tabindex="0">
-      <p>Any stdio-only client, via <a href="https://github.com/geelen/mcp-remote">mcp-remote</a> (use ≥ 0.1.16):</p>
+      <p>Any stdio-only client, via <a href="https://github.com/geelen/mcp-remote">mcp-remote</a>:</p>
       <pre>{
   "mcpServers": {
     "statcite": {
       "command": "npx",
-      "args": ["-y", "mcp-remote@latest", "https://statcite.com/mcp"]
+      "args": ["-y", "mcp-remote@0.14.3", "https://statcite.com/mcp"]
     }
   }
 }</pre>

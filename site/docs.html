@@ -91,7 +91,7 @@ li{margin:4px 0}
   }
  },
  "programmingModel": "REST",
- "assemblyVersion": "1.14.2",
+ "assemblyVersion": "1.15.0",
  "about": {
   "@type": "SoftwareApplication",
   "@id": "https://statcite.com/#app"
@@ -132,7 +132,7 @@ li{margin:4px 0}
     <li><strong>ChatGPT:</strong> enable Developer mode, then add the MCP server with “No Authentication”. Availability varies by plan: full MCP apps are in beta on Business/Enterprise/Edu; Pro can connect MCP servers with read/fetch permissions in developer mode. StatCite is read-only, so that suffices. OpenAI no longer requires the <code>search</code>/<code>fetch</code> tool pair for connected servers, but StatCite implements it anyway. It remains the interface used by deep research and company knowledge.</li>
     <li><strong>Cursor:</strong> <code>{"mcpServers":{"statcite":{"url":"https://statcite.com/mcp"}}}</code> in <code>mcp.json</code>.</li>
     <li><strong>VS Code:</strong> <code>{"servers":{"statcite":{"type":"http","url":"https://statcite.com/mcp"}}}</code> in <code>.vscode/mcp.json</code>.</li>
-    <li><strong>stdio-only clients:</strong> <code>npx -y mcp-remote@latest https://statcite.com/mcp</code> (mcp-remote ≥ 0.1.16).</li>
+    <li><strong>stdio-only clients:</strong> <code>npx -y mcp-remote@0.14.3 https://statcite.com/mcp</code> (pinned, so a client restart never pulls a new release).</li>
   </ul>
 
   <h3 id="agent-rule">Make your agent use it without being asked</h3>
@@ -331,6 +331,7 @@ GET /health</pre>
 
   <h2 id="changelog">10. Changelog</h2>
   <ul>
+    <li><strong>1.15.0</strong>: Every <code>get_indicator</code> and <code>get_series</code> result carries a <code>limitations</code> list, codes for what the figure is not: <code>projection</code>, <code>fallback_source</code>, <code>stale_primary</code>, <code>modeled_estimate</code>, <code>rounded_source</code> and <code>computed_values</code>, each with a one-line <code>detail</code>. Each code is read from a structured field of the result or from the indicator registry, and an empty list means none of those conditions was detected. The README gains a side-effect table, and the stdio install line pins <code>mcp-remote@0.14.3</code>.</li>
     <li><strong>1.14.2</strong>: The Eastern Caribbean Central Bank stopped printing its "Data as at" stamp in late September 2026. An ECCB figure collected since then says the bank gave no currency date, and its citation names the date StatCite collected the copy served, labelled as StatCite's own. Stamped ECCB citations and Barbados citations are unchanged.</li>
     <li><strong>1.14.1</strong>: A World Bank outage now costs <code>country_snapshot</code> one retry series instead of two, about 1.2 seconds less waiting per snapshot. A single blip is still retried and recovered.</li>
     <li><strong>1.14.0</strong>: An outage now answers 502 on every route rather than 422 on four of them, a snapshot shortened by an unreachable source says so instead of claiming the economy publishes nothing, and a malformed upstream document is no longer reported as a StatCite crash. <code>poverty_headcount_intl</code> advertises the $3.00 a day, 2021 PPP line the World Bank actually serves, <code>tourism_receipts_exports</code> states that its series ends in 2020, and a "latest" value more than three years behind the clock names the sources StatCite did not consult. Prompts declare arguments and <code>prompts/get</code> uses them, <code>server/discover</code> carries identity at the top level, and tool results are no longer pretty-printed on the wire. Tables scroll on a phone, the Connect panels and the verifier form work without JavaScript, and the CaribStat pipeline refuses to publish a table whose period labels it could not read.</li>
