@@ -5,6 +5,35 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.15.0
+
+Every `get_indicator` and `get_series` result now carries a `limitations`
+list, on MCP and REST alike. Each entry is a code and a one-line `detail`
+saying what the figure is not:
+
+| Code | Fires when |
+|---|---|
+| `projection` | A returned value falls in the source's estimate/projection period |
+| `fallback_source` | A fallback source served the figure, with the reason |
+| `stale_primary` | The primary's latest value is years behind the clock |
+| `modeled_estimate` | The source publishes the series as a model output |
+| `rounded_source` | The IMF DataMapper served WEO values rounded to one decimal |
+| `computed_values` | StatCite computed the values with a transform |
+
+Each code is read from a structured field of the result or from the indicator
+registry. The prose in `notes` plays no part, so rewording a note cannot add or
+remove one. An empty list means none of these conditions was detected. It is
+not a warranty. The code list is declared once in `core/types.ts`, the type is
+derived from it, and a test asserts the MCP output schema and `openapi.json`
+carry the same list. Each rule has a test that fails when the rule is broken.
+
+The README gains a side-effect table: what each kind of call reaches, what it
+writes and where, and what StatCite records. The stdio install line on the
+README, `llms-install.md`, the site and the docs page now pins
+`mcp-remote@0.14.3` in place of `@latest`, so a client restart cannot pull a
+new release. The pinned bridge was run against the live server before the
+change.
+
 ## 1.14.2
 
 The Eastern Caribbean Central Bank stopped printing its "Data as at" stamp on

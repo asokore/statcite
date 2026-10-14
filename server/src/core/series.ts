@@ -18,6 +18,7 @@ import { eccbRelated } from "./eccb-related.ts";
 export { expectedWeoEdition } from "./weo-calendar.ts";
 import { expectedWeoEdition } from "./weo-calendar.ts";
 import { quoteInput } from "./text.ts";
+import { withLimitations } from "./limitations.ts";
 
 /**
  * Refuse an inverted year window before any upstream fetch.
@@ -595,7 +596,12 @@ function stalePrimaryNote(
   };
 }
 
+/** Public entry: the served series plus its `limitations` (core/limitations.ts). */
 export async function getIndicator(ctx: Ctx, key: string, countryInput: string, opts: SeriesOpts = {}): Promise<SeriesResult> {
+  return withLimitations(await getIndicatorCore(ctx, key, countryInput, opts), { transform: opts.transform });
+}
+
+async function getIndicatorCore(ctx: Ctx, key: string, countryInput: string, opts: SeriesOpts = {}): Promise<SeriesResult> {
   assertYearWindow(opts);
   const def = getIndicatorDef(key);
   if (!def) {
@@ -1076,7 +1082,16 @@ for (const d of INDICATORS) {
 }
 
 /** Get a raw series by explicit id: worldbank/CODE, fred/ID, dbnomics/PROVIDER/DATASET/SERIES, or a registry key. */
+/** Public entry: the served series plus its `limitations` (core/limitations.ts). */
 export async function getSeries(
+  ctx: Ctx,
+  seriesId: string,
+  opts: SeriesOpts & { country?: string } = {},
+): Promise<SeriesResult> {
+  return withLimitations(await getSeriesCore(ctx, seriesId, opts), { transform: opts.transform });
+}
+
+async function getSeriesCore(
   ctx: Ctx,
   seriesId: string,
   opts: SeriesOpts & { country?: string } = {},

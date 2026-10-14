@@ -23,6 +23,10 @@ package-lock.json
 # If absent after a fresh clone, the canonical copy lives in the owner's ace-wiki.
 docs/VENTURE-CONTEXT.md
 
+# The owner's working backlog. It names the models and sessions doing the work
+# and points at the local-only venture context, so it stays off this public repo.
+docs/06_plan/
+
 # Traffic snapshots. Public repo: publishing traffic figures is a business
 # decision, not a side effect of running a script.
 analytics/

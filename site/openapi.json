@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StatCite API",
-    "version": "1.14.2",
+    "version": "1.15.0",
     "description": "Official economic statistics with full citations, built for AI agents. Every numeric response includes a citation object (source, dataset, series_id, source_url, license, attribution, retrieved_at, citation_text). Free, no auth, read-only. MCP endpoint at https://statcite.com/mcp.",
     "contact": {
       "email": "hello@statcite.com",
@@ -1493,7 +1493,35 @@
               "transient",
               "definitive"
             ],
-            "description": "Present only alongside fallback_used: 'transient' means the primary failed temporarily and may serve a different value for the same query once recovered (verify_stat demotes such verifies to cannot_verify); 'definitive' means the primary permanently lacks this series/country (e.g. Taiwan in WDI), so the fallback is that combination's stable serving source and verifies are judged normally with disclosure."
+            "description": "Present only alongside fallback_used: 'transient' means a source ranked above the serving one failed temporarily and may serve a different value for the same query once recovered (verify_stat demotes such verifies to cannot_verify); 'definitive' means the primary permanently lacks this series/country (e.g. Taiwan in WDI), so the fallback is that combination's stable serving source and verifies are judged normally with disclosure. It is also set when the primary simply has no value for the requested period."
+          },
+          "limitations": {
+            "type": "array",
+            "description": "Codes for what this figure is NOT, each read from a structured field of the result or from the indicator registry: projection (values in the source's estimate/projection period), fallback_source, stale_primary, modeled_estimate (a published model output), rounded_source (IMF DataMapper WEO values rounded to one decimal) and computed_values (a StatCite transform). An empty list means none of these conditions was detected. It is not a warranty.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "enum": [
+                  "projection",
+                  "fallback_source",
+                  "stale_primary",
+                  "modeled_estimate",
+                  "rounded_source",
+                  "computed_values"
+                  ]
+                },
+                "detail": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "detail"
+              ],
+              "additionalProperties": false
+            }
           }
         }
       },

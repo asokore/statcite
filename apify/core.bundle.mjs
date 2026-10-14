@@ -2449,6 +2449,65 @@ function eccbRelated(key, iso3) {
   return f ? f(iso3) : void 0;
 }
 
+// ../server/src/core/limitations.ts
+var PROJECTION_MARK = / estimate\/projection$/;
+function wdiDefFor(seriesId) {
+  const m = /^worldbank\/(.+)$/i.exec(seriesId);
+  return m ? INDICATORS.find((d) => d.wb === m[1]) : void 0;
+}
+function dataMapperDataset(seriesId) {
+  const m = /^imf\/([A-Z0-9_]+)$/i.exec(seriesId);
+  if (!m) return void 0;
+  return INDICATORS.find((d) => d.datamapper?.[0] === m[1].toUpperCase())?.datamapper?.[1];
+}
+function deriveLimitations(r, opts = {}) {
+  const out = [];
+  const valued = r.observations.filter((o) => o.value != null);
+  const transformed = !!opts.transform && opts.transform !== "none";
+  const projected = valued.filter((o) => PROJECTION_MARK.test(o.note ?? ""));
+  if (projected.length) {
+    out.push({
+      code: "projection",
+      detail: `${projected.length} of ${valued.length} returned value(s) fall in the source's estimate/projection period (${projected[0].period}${projected.length > 1 ? ` to ${projected[projected.length - 1].period}` : ""}). The boundary is a heuristic, so earlier values may also be staff estimates.`
+    });
+  }
+  if (r.fallback_used) {
+    out.push({
+      code: "fallback_source",
+      detail: r.fallback_reason === "transient" ? "Served by a fallback source because a source ranked above it failed for this request. The same query can return a different source's value once that source recovers." : "Served by a fallback source because the primary had no data for this series, country or period. The fallback may use a different statistical definition."
+    });
+  }
+  if (r.stale_primary) {
+    out.push({
+      code: "stale_primary",
+      detail: `The latest value is ${r.stale_primary_years ?? "several"} year(s) behind the current year. This describes the serving source's own horizon only.`
+    });
+  }
+  if (wdiDefFor(r.series_id)?.modeled) {
+    out.push({
+      code: "modeled_estimate",
+      detail: "The source publishes this series as a modelled estimate, the output of a model."
+    });
+  }
+  if (dataMapperDataset(r.series_id) === "WEO") {
+    out.push({
+      code: "rounded_source",
+      detail: transformed ? "The IMF DataMapper serves WEO values rounded to one decimal place, and the values here are computed from those rounded inputs, so their rounding error can exceed 0.05 by a wide margin on small bases." : "The IMF DataMapper serves WEO values rounded to one decimal place, so a value can differ from the unrounded figure by up to 0.05."
+    });
+  }
+  if (transformed) {
+    out.push({
+      code: "computed_values",
+      detail: `StatCite computed these values (${opts.transform}) from the cited series. The source published the inputs.`
+    });
+  }
+  return out;
+}
+function withLimitations(r, opts = {}) {
+  r.limitations = deriveLimitations(r, opts);
+  return r;
+}
+
 // ../server/src/core/series.ts
 function assertYearWindow(opts) {
   const { start, end } = opts;
@@ -2844,6 +2903,9 @@ function stalePrimaryNote(ctx, def, country, result, opts, attempts, tried) {
   };
 }
 async function getIndicator(ctx, key, countryInput, opts = {}) {
+  return withLimitations(await getIndicatorCore(ctx, key, countryInput, opts), { transform: opts.transform });
+}
+async function getIndicatorCore(ctx, key, countryInput, opts = {}) {
   assertYearWindow(opts);
   const def = getIndicatorDef(key);
   if (!def) {
@@ -3106,6 +3168,9 @@ for (const d of INDICATORS) {
   if (d.datamapper) DM_CODE_INFO.set(d.datamapper[0], { dataset: d.datamapper[1], def: d });
 }
 async function getSeries(ctx, seriesId, opts = {}) {
+  return withLimitations(await getSeriesCore(ctx, seriesId, opts), { transform: opts.transform });
+}
+async function getSeriesCore(ctx, seriesId, opts = {}) {
   assertYearWindow(opts);
   const id = seriesId.trim();
   const lower = id.toLowerCase();

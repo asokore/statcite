@@ -36,7 +36,7 @@ Bridge with mcp-remote, no installation beyond npx:
   "mcpServers": {
     "statcite": {
       "command": "npx",
-      "args": ["-y", "mcp-remote@latest", "https://statcite.com/mcp"]
+      "args": ["-y", "mcp-remote@0.14.3", "https://statcite.com/mcp"]
     }
   }
 }
