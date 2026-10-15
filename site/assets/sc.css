@@ -16,7 +16,7 @@
 --fs-0:11px;--fs-1:12.5px;--fs-2:14px;--fs-3:16px;--fs-4:18px;--fs-5:22px;--fs-6:26px;--fs-7:38px;
 --sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;--sp-7:48px;--sp-8:64px;--sp-9:96px;
 --r-1:6px;--r-2:10px;--r-3:14px;--period-a:54s;--period-b:84s;--ticker-period:60s;--ease:ease-out;--hl:1px solid var(--line);
---ra-rx:130px;--ra-ry:70px;--rb-rx:76px;--rb-ry:38px;--ua:.0077;--ub:.0132;--card-w:118px;--card-h:30px;--g:14px;--band:220px}
+--ra-rx:130px;--ra-ry:70px;--rb-rx:76px;--rb-ry:38px;--ua:.0077;--ub:.0132;--card-w:118px;--card-h:30px;--g:14px;--band:220px;--scrim:color-mix(in srgb,var(--bg) 80%,transparent)}
 [data-fam=accent]{--f:var(--accent)}[data-fam=fam-1]{--f:var(--fam-1)}[data-fam=fam-2]{--f:var(--fam-2)}[data-fam=fam-3]{--f:var(--fam-3)}[data-fam=fam-4]{--f:var(--fam-4)}
 /* 3 PRIMITIVES */
 *,::before,::after{box-sizing:border-box}
@@ -164,7 +164,18 @@ section[id]:has(>.sbar){counter-increment:sec;padding-top:0;border-top:0}
 .pct{right:6px;top:-14px}
 .needle .label{left:6px;top:50%;translate:0 -50%;rotate:180deg;writing-mode:vertical-rl;letter-spacing:.16em;padding:0 3px}
 .progress{position:fixed;inset:0 0 auto;z-index:7;height:2px;background:var(--accent);transform-origin:0 0;transform:scaleX(0);pointer-events:none}
-/* Breakpoints, clockwise paths */
+/* Breakpoints, clockwise paths. A phone held upright: the orbit is a layer
+   behind the whole hero, wider than the screen. Ring a carries its eight cards,
+   ring b turns inside it with the four data-mobile cards. */
+@media (max-width:639px){
+.hero{--ra-rx:320px;--ra-ry:300px;--rb-rx:220px;--rb-ry:200px;--ua:.0031;--ub:.0045;--card-w:140px;--card-h:36px;--g:18px;padding:88px 16px 96px}
+.hero .spin{scale:1 .9375}
+.hero .spin[data-ring=b]{scale:1 .9091}
+.hero .oc{display:grid;--k:var(--i);--n:8;font-size:12px;offset-path:path("M 0 300 A 320 300 0 0 1 0 -300 A 320 300 0 0 1 0 300")}
+.hero .oc::before{display:block}
+.hero .oc[data-ring=b]{--k:var(--m);--n:4;--period:var(--period-b);offset-path:path("M 0 200 A 220 200 0 0 1 0 -200 A 220 200 0 0 1 0 200")}
+.hero .oc[data-ring=b]:not([data-mobile]){display:none}
+}
 @media (min-width:640px){
 :root{--ra-rx:300px;--ra-ry:110px;--ua:.0033;--card-w:140px;--card-h:36px;--g:18px;--band:300px}
 .wrap{padding:0 24px}
@@ -181,6 +192,24 @@ h2{font-size:26px}
 .compact{--ra-rx:300px;--ra-ry:110px;--ua:.0033;--card-w:160px}
 .compact .spin{scale:1 .3667}
 .compact .oc[data-ring=a]{offset-path:path("M 0 110 A 300 110 0 0 1 0 -110 A 300 110 0 0 1 0 110")}
+}
+/* A phone on its side keeps the headline in the first screen the same way */
+@media (min-width:640px) and (max-width:1023px) and (max-height:500px){
+.hero{--ra-rx:480px;--ra-ry:200px;--rb-rx:330px;--rb-ry:140px;--ua:.0021;--ub:.003;padding:24px 24px 48px}
+.hero .ring[data-ring=b]{display:block}
+.hero .spin{scale:1 .4167}
+.hero .spin[data-ring=b]{scale:1 .4242}
+.hero .oc{offset-path:path("M 0 200 A 480 200 0 0 1 0 -200 A 480 200 0 0 1 0 200")}
+.hero .oc[data-ring=b][data-mobile]{display:grid;--k:var(--m);--n:4;--period:var(--period-b);offset-path:path("M 0 140 A 330 140 0 0 1 0 -140 A 330 140 0 0 1 0 140")}
+}
+/* Layered hero: the headline and lead sit on a scrim of the page ground, so a
+   card passing under them shows at a fifth of its strength. Controls are solid,
+   so no card text reads through one */
+@media (max-width:639px),(max-width:1023px) and (max-height:500px){
+.hero .orbit{top:50%}
+.hero-copy{background:none}
+.hero :is(h1,.sub){background:var(--scrim);box-shadow:0 0 24px 8px var(--scrim)}
+.hero :is(.badge,.btn.ghost,#motion+label){background:var(--bg)}
 }
 @media (min-width:1024px){
 :root{--ra-rx:500px;--ra-ry:260px;--rb-rx:660px;--rb-ry:320px;--ua:.002;--ub:.0015;--card-w:152px;--card-h:40px;--g:20px}
