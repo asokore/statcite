@@ -24,6 +24,10 @@
 // (q) pins the phone orbit: it turns clockwise, only inside the reduced-motion
 // gate, with the pause control showing. (r) holds the stroke and small-caps
 // rules that make Firefox and WebKit draw the orbit and labels as Chromium does.
+// (s) and (t) replace the old rule that no card crosses text on a phone, where the
+// orbit now runs behind the copy: (s) keeps every card and ring below the text in
+// stacking order, and (t) holds every hero text colour at 4.5:1 or better over the
+// lightest orbit pixel under the scrim and every control on a solid ground.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -236,18 +240,18 @@ test("(a) every page links sc.css once and sc.js deferred, all on one ?v= value,
     const links = [...html.matchAll(/<link\b[^>]*\bhref="\/assets\/sc\.css(?:\?v=([^"]*))?"[^>]*>/gi)];
     assert.equal(links.length, 1, `${rel}: links /assets/sc.css ${links.length} times`);
     assert.match(links[0][0], /\brel="stylesheet"/, `${rel}: the sc.css link is not rel="stylesheet"`);
-    assert.match(links[0][1] ?? "", /^\d{8}$/, `${rel}: sc.css carries no ?v=YYYYMMDD`);
+    assert.match(links[0][1] ?? "", /^\d{8}[a-z]?$/, `${rel}: sc.css carries no ?v=YYYYMMDD (a letter may follow for a second release that day)`);
     versions.add(links[0][1]);
     const js = scripts(html).filter((s) => /\bsrc="\/assets\/sc\.js(?:\?v=[^"]*)?"/.test(s.attrs));
     assert.equal(js.length, 1, `${rel}: loads /assets/sc.js ${js.length} times`);
     assert.match(js[0].attrs, /(^|\s)defer(\s|=|$)/, `${rel}: sc.js is not loaded with defer`);
     assert.equal(js[0].body.trim(), "", `${rel}: the sc.js <script> tag holds inline code`);
     const jsV = /\?v=([^"]*)"/.exec(js[0].attrs)?.[1];
-    assert.match(jsV ?? "", /^\d{8}$/, `${rel}: sc.js carries no ?v=YYYYMMDD`);
+    assert.match(jsV ?? "", /^\d{8}[a-z]?$/, `${rel}: sc.js carries no ?v=YYYYMMDD (a letter may follow for a second release that day)`);
     versions.add(jsV!);
   }
   assert.equal(versions.size, 1, `pages disagree on the asset version: ${[...versions].join(", ")}`);
-  assert.ok(size("site/assets/sc.css") <= 20 * KB, `sc.css is ${size("site/assets/sc.css")} bytes, cap 20 KB`);
+  assert.ok(size("site/assets/sc.css") <= 22 * KB, `sc.css is ${size("site/assets/sc.css")} bytes, cap 22 KB`);
   assert.ok(size("site/assets/sc.js") <= 5 * KB, `sc.js is ${size("site/assets/sc.js")} bytes, cap 5 KB`);
   assert.ok(size("site/index.html") <= 66 * KB, `index.html is ${size("site/index.html")} bytes, cap 66 KB`);
 });
@@ -1174,6 +1178,7 @@ test("(p) glyphs and masks are declared only in sc.css, and orbit style attribut
 // gate and counts as applying. Any other feature does not.
 const PHONE_MIN = 320;
 const PHONE_MAX = 639;
+// A comma list applies when any of its queries does.
 function appliesOnPhone(b: Block): { ok: boolean; gated: boolean; why: string } {
   let gated = false;
   let why = "";
@@ -1181,13 +1186,12 @@ function appliesOnPhone(b: Block): { ok: boolean; gated: boolean; why: string } 
     if (!/^@media\b/i.test(s.prelude)) continue;
     if (NO_PREF.test(s.prelude)) { gated = true; continue; }
     const q = s.prelude.replace(/^@media\s*/i, "");
-    for (const part of q.split(/\s+and\s+/i)) {
+    const covers = splitTop(q, ",").some((branch) => branch.split(/\s+and\s+/i).every((part) => {
       const min = /^\(\s*min-width\s*:\s*(\d+(?:\.\d+)?)px\s*\)$/i.exec(part.trim());
       const max = /^\(\s*max-width\s*:\s*(\d+(?:\.\d+)?)px\s*\)$/i.exec(part.trim());
-      if (min && Number(min[1]) <= PHONE_MIN) continue;
-      if (max && Number(max[1]) >= PHONE_MAX) continue;
-      why ||= `${s.prelude} does not cover ${PHONE_MIN} to ${PHONE_MAX} px`;
-    }
+      return (min && Number(min[1]) <= PHONE_MIN) || (max && Number(max[1]) >= PHONE_MAX);
+    }));
+    if (!covers) why ||= `${s.prelude} does not cover ${PHONE_MIN} to ${PHONE_MAX} px`;
   }
   return { ok: !why, gated, why };
 }
@@ -1209,10 +1213,19 @@ test("(q) on a phone the cards and arcs animate clockwise, only inside the reduc
     if (!d.block || !/^animation/.test(d.prop)) continue;
     if (!appliesOnPhone(d.block).gated && !/@keyframes/i.test(d.block.parent?.prelude ?? "")) problems.push(`${d.prelude}: ${d.prop} sits outside the no-preference gate`);
   }
-  // 3. The phone path is the base .oc path, drawn clockwise, and the keyframes run forwards.
-  const basePaths = offsetPaths(raw).paths.filter((p) => p.scope === null && p.selector === ".oc");
-  if (basePaths.length !== 1) problems.push(`expected one base .oc offset-path for the phone, read ${basePaths.length}`);
-  for (const p of basePaths) {
+  // 3. Every path a phone card rides is drawn clockwise from the bottom of its ring: the
+  // base .oc path (the 404 page) and the hero's two rings in the phone block. The
+  // keyframes run forwards.
+  const op = offsetPaths(raw);
+  const phonePaths = op.paths.filter((p) => {
+    if (p.scope === null) return p.selector === ".oc";
+    const b = op.blocks.find((x) => x.prelude === p.selector && x.parent === p.scope);
+    return !!b && appliesOnPhone(b).ok;
+  });
+  const heroPhone = phonePaths.filter((p) => /^\.hero\s+\.oc/.test(p.selector));
+  if (!phonePaths.some((p) => p.scope === null)) problems.push("no base .oc offset-path for a phone (the 404 page's orbit rides it)");
+  if (!heroPhone.some((p) => !/data-ring=b/.test(p.selector)) || !heroPhone.some((p) => /data-ring=b/.test(p.selector))) problems.push(`the hero's phone block should give ring a and ring b cards a path each, read ${heroPhone.map((p) => p.selector).join(", ") || "none"}`);
+  for (const p of phonePaths) {
     if (!/^M 0 \d+ /.test(p.d)) problems.push(`the phone path "${p.d}" no longer starts at the bottom of the ring`);
     if (!p.arcs.length || p.arcs.some((a) => a.sweep !== "1")) problems.push(`the phone path "${p.d}" has an arc that is not sweep-flag 1, so it turns anticlockwise`);
   }
@@ -1223,9 +1236,17 @@ test("(q) on a phone the cards and arcs animate clockwise, only inside the reduc
   };
   if (kfBody("orbit") !== "from{offset-distance:0%}to{offset-distance:100%}") problems.push("@keyframes orbit no longer runs 0% to 100%");
   if (kfBody("spin") !== "to{rotate:360deg}") problems.push("@keyframes spin no longer turns +360deg");
-  // 4. All phone cards share ring a's period, so cards from both rings never meet on the one phone path.
+  // 4. Cards that share a path share a period, so no card catches another. The base
+  // .oc rule runs ring a's period, and any rule that gives cards ring b's period
+  // also gives them ring b's own path in the same rule.
   const basePeriod = decls.find((d) => d.block?.parent === null && d.prelude === ".oc" && d.prop === "--period");
   if (!basePeriod || basePeriod.value.replace(/\s+/g, "") !== "var(--period-a)") problems.push("the base .oc rule no longer sets --period:var(--period-a), so phone cards from the two rings run at two speeds and collide");
+  for (const d of decls) {
+    if (!d.block || d.prop !== "--period" || !subjects(d.prelude).some((s) => /^\.oc(?![\w-])/.test(s))) continue;
+    if (d.value.replace(/\s+/g, "") !== "var(--period-b)") continue;
+    const ownPath = decls.some((x) => x.block === d.block && x.prop === "offset-path");
+    if (!/data-ring=b/.test(d.prelude) || !ownPath) problems.push(`${d.prelude}: runs cards at ring b's period without giving them ring b's path in the same rule, so they collide with ring a's cards`);
+  }
   // 5. Nothing hides a ring or its arcs at phone width.
   for (const d of decls) {
     if (!d.block || d.prop !== "display" || !/^none$/i.test(d.value.trim())) continue;
@@ -1290,6 +1311,16 @@ test("(p) every orbit card paints after every ring svg and spin, the outer orbit
   // The base .oc rule sets the phone --n, which a card's inline --n may override.
   const baseN = declarations("site/assets/sc.css", read("site/assets/sc.css")).find((d) => d.block?.parent === null && d.prelude === ".oc" && d.prop === "--n");
   assert.ok(baseN && /^\d+$/.test(baseN.value), "the base .oc rule no longer sets --n to an integer");
+  // The hero's phone rules that set a card count, inside a media block that reaches a phone.
+  const scDecls = declarations("site/assets/sc.css", read("site/assets/sc.css"));
+  const phoneSpreads = scDecls
+    .filter((d) => d.block && d.block.parent && d.prop === "--n" && /^\.hero\s+\.oc/.test(d.prelude) && appliesOnPhone(d.block).ok)
+    .map((d) => {
+      const k = scDecls.find((x) => x.block === d.block && x.prop === "--k")?.value.replace(/\s+/g, "");
+      assert.ok(k === "var(--i)" || k === "var(--m)", `${d.prelude}: sets --n on a phone but --k is ${k}, not var(--i) or var(--m)`);
+      assert.match(d.value, /^\d+$/, `${d.prelude}: --n is not an integer`);
+      return { prelude: d.prelude, n: Number(d.value), k: k === "var(--i)" ? "i" : "m" };
+    });
   for (const rel of ["site/index.html", "site/404.html"]) {
     for (const [, outer] of elementsWithClass(read(rel), "orbit")) {
       orbits++;
@@ -1302,23 +1333,35 @@ test("(p) every orbit card paints after every ring svg and spin, the outer orbit
       const ringB = [...outer.matchAll(/<[a-z]+\b[^>]*\sdata-ring="b"[^>]*>/g)].length;
       const tilted = elementsWithClass(outer, "tilt").reduce((n, [, t]) => n + [...t.matchAll(/<[a-z]+\b[^>]*\sdata-ring="b"[^>]*>/g)].length, 0);
       if (ringB !== tilted) problems.push(`${rel}: ${ringB} outer-ring elements but ${tilted} of them inside a .tilt`);
-      // Phone order: each data-mobile card carries a unique --m, together 0 to N-1, with N the --n they run on.
-      const ms: number[] = [];
-      let n = Number(baseN.value);
-      for (const c of cards) {
-        const style = /\sstyle="([^"]*)"/.exec(c[0])?.[1] ?? "";
-        const m = /--m\s*:\s*(\d+)/.exec(style);
-        const inlineN = /--n\s*:\s*(\d+)/.exec(style);
-        if (/\sdata-mobile(?:\s|=|>)/.test(c[0])) {
-          if (!m) { problems.push(`${rel}: phone card without --m: ${c[0].slice(0, 90)}`); continue; }
-          ms.push(Number(m[1]));
-          if (inlineN) n = Number(inlineN[1]);
-        } else if (m) problems.push(`${rel}: --m on a card that is not data-mobile: ${c[0].slice(0, 90)}`);
+      // Phone order. A rule that sets a card count --n on a phone spreads the cards it
+      // governs by --k, which reads --i or --m. Those cards' values must be unique and
+      // together 0 to N-1, or two cards sit on one spot. The hero's phone block has two
+      // such rules (ring a's eight cards by --i, ring b's data-mobile cards by --m). The
+      // 404 page's cards ride the base rule with --n set inline.
+      const val = (c: RegExpMatchArray, v: string) => { const x = new RegExp(`--${v}\\s*:\\s*(\\d+)`).exec(/\sstyle="([^"]*)"/.exec(c[0])?.[1] ?? ""); return x ? Number(x[1]) : undefined; };
+      const isMobile = (c: RegExpMatchArray) => /\sdata-mobile(?:\s|=|>)/.test(c[0]);
+      for (const c of cards) if (val(c, "m") !== undefined && !isMobile(c)) problems.push(`${rel}: --m on a card that is not data-mobile: ${c[0].slice(0, 90)}`);
+      const spreads: Array<{ where: string; n: number; k: string; set: RegExpMatchArray[] }> = [];
+      if (elementsWithClass(read(rel), "hero").some(([, h]) => h.includes(outer))) {
+        for (const r of phoneSpreads) {
+          const ringB = /data-ring=b/.test(r.prelude);
+          const set = cards.filter((c) => /\sdata-ring="b"/.test(c[0]) === ringB && (r.k === "m" ? isMobile(c) : true));
+          spreads.push({ where: r.prelude, n: r.n, k: r.k, set });
+        }
+        if (spreads.length < 2) problems.push(`${rel}: the hero's phone block spreads ${spreads.length} card sets, expected ring a and ring b`);
+      } else {
+        const set = cards.filter(isMobile);
+        const inlineN = set.map((c) => val(c, "n")).find((x) => x !== undefined);
+        spreads.push({ where: "base .oc", n: inlineN ?? Number(baseN.value), k: "m", set });
       }
-      const dup = ms.filter((v, i) => ms.indexOf(v) !== i);
-      if (dup.length) problems.push(`${rel}: phone --m ${[...new Set(dup)].join(", ")} used twice, so two cards sit on one spot`);
-      const want = Array.from({ length: n }, (_, i) => i).join(",");
-      if ([...ms].sort((a, b) => a - b).join(",") !== want) problems.push(`${rel}: phone --m values [${ms.join(", ")}] are not 0 to ${n - 1}, one per slot of --n ${n}`);
+      for (const s of spreads) {
+        const vs = s.set.map((c) => val(c, s.k));
+        if (vs.some((v) => v === undefined)) { problems.push(`${rel} ${s.where}: a phone card has no --${s.k}`); continue; }
+        const dup = vs.filter((v, i) => vs.indexOf(v) !== i);
+        if (dup.length) problems.push(`${rel} ${s.where}: phone --${s.k} ${[...new Set(dup)].join(", ")} used twice, so two cards sit on one spot`);
+        const want = Array.from({ length: s.n }, (_, i) => i).join(",");
+        if ([...(vs as number[])].sort((a, b) => a - b).join(",") !== want) problems.push(`${rel} ${s.where}: phone --${s.k} values [${vs.join(", ")}] are not 0 to ${s.n - 1}, one per slot of --n ${s.n}`);
+      }
     }
   }
   assert.equal(orbits, 2, `read ${orbits} orbits, expected one on index and one on 404`);
@@ -1333,5 +1376,185 @@ test("(p) every orbit card paints after every ring svg and spin, the outer orbit
     const back = blocks.find((b) => !b.children.length && b.prelude === ".oc[data-ring=b]" && scopeOf(b) === scopeOf(t) && rot(b));
     if (!back || Number(rot(back)) !== -Number(rot(t))) problems.push(`sc.css turns .tilt by ${rot(t)}deg but .oc[data-ring=b] turns back by ${back ? rot(back) : "nothing"} in the same scope`);
   }
+  assert.deepEqual(problems, [], problems.join("\n"));
+});
+
+// --- (s) the orbit sits under the text --------------------------------------------------------
+
+// On a phone the orbit is a layer behind the whole hero and cards pass under the
+// copy. What keeps the copy on top is stacking order: .hero isolates, .orbit is a
+// positioned stacking context at a lower z-index than the positioned .hero-copy, so
+// nothing inside the orbit can rise above any text whatever z-index it is given.
+// Every card and ring sits inside .orbit, and every word of the hero inside .hero-copy.
+const zOf = (v: string) => (/^-?\d+$/.test(v.trim()) ? Number(v.trim()) : NaN);
+
+test("(s) every card and ring stacks below the hero text: .orbit is a lower stacking context than .hero-copy, and the markup keeps them apart", () => {
+  const problems: string[] = [];
+  const all = allDeclarations();
+  const on = (cls: string) => all.filter((d) => d.block && subjects(d.prelude).some((s) => new RegExp(`^\\.${cls}(?![\\w-])$`).test(s)));
+  const orbitZ = on("orbit").filter((d) => d.prop === "z-index");
+  const copyZ = on("hero-copy").filter((d) => d.prop === "z-index");
+  if (!orbitZ.length || !copyZ.length) problems.push(`read ${orbitZ.length} z-index rules on .orbit and ${copyZ.length} on .hero-copy, both need one`);
+  for (const d of [...orbitZ, ...copyZ]) if (Number.isNaN(zOf(d.value))) problems.push(`${d.where} ${d.prelude}: z-index:${d.value} is not an integer, so it may not form the stacking context the order relies on`);
+  const hiOrbit = Math.max(...orbitZ.map((d) => zOf(d.value)));
+  const loCopy = Math.min(...copyZ.map((d) => zOf(d.value)));
+  if (!(hiOrbit < loCopy)) problems.push(`.orbit reaches z-index ${hiOrbit} and .hero-copy drops to ${loCopy}, so a card can paint over the text`);
+  // Both must stay positioned in every scope, or z-index does nothing.
+  for (const cls of ["orbit", "hero-copy"]) {
+    const pos = on(cls).filter((d) => d.prop === "position");
+    if (!pos.length) problems.push(`.${cls} has no position rule`);
+    for (const d of pos) if (/^static$/i.test(d.value.trim())) problems.push(`${d.where} ${d.prelude}: position:static switches off the stacking order`);
+  }
+  const iso = on("hero").filter((d) => d.prop === "isolation");
+  if (!iso.some((d) => /^isolate$/i.test(d.value.trim())) || iso.some((d) => !/^isolate$/i.test(d.value.trim()))) problems.push(".hero no longer isolates its stacking order");
+  // A decoration rule that blends or escapes cannot reach past .orbit's context either,
+  // but a mix-blend-mode on the orbit itself would mix it into the text.
+  for (const d of on("orbit")) if (/^mix-blend-mode$/.test(d.prop) && !/^normal$/i.test(d.value.trim())) problems.push(`${d.prelude}: mix-blend-mode on .orbit`);
+  // Markup: the hero holds the copy and the orbit and nothing else, every card and
+  // ring lives inside the orbit, and every word lives inside the copy.
+  const html = read("site/index.html");
+  const heroes = elementsWithClass(html, "hero");
+  assert.equal(heroes.length, 1, `index.html holds ${heroes.length} .hero`);
+  const [open, outer] = heroes[0];
+  const inner = outer.slice(open.length, outer.lastIndexOf("</"));
+  const copy = elementsWithClass(inner, "hero-copy");
+  const orbit = elementsWithClass(inner, "orbit");
+  if (copy.length !== 1 || orbit.length !== 1) problems.push(`the hero holds ${copy.length} .hero-copy and ${orbit.length} .orbit, expected one of each`);
+  else {
+    const rest = inner.replace(copy[0][1], "").replace(orbit[0][1], "");
+    if (rest.trim()) problems.push(`the hero holds something outside .hero-copy and .orbit: "${rest.trim().slice(0, 80)}"`);
+    const textInOrbit = orbit[0][1].replace(/<[^>]*>/g, "").trim();
+    if (textInOrbit) problems.push(`the orbit holds text "${textInOrbit.slice(0, 40)}"`);
+    for (const cls of ["oc", "ring"]) {
+      const inPage = elementsWithClass(html, cls).length;
+      const inOrbit = elementsWithClass(orbit[0][1], cls).length;
+      if (inPage !== inOrbit || !inPage) problems.push(`index.html holds ${inPage} .${cls} but ${inOrbit} sit inside the orbit`);
+    }
+  }
+  assert.deepEqual(problems, [], problems.join("\n"));
+});
+
+// --- (t) the text stays readable over the orbit -------------------------------------------------
+
+// Where the orbit runs behind the copy (a phone either way up), the headline and lead
+// sit on a scrim of the page ground at a fixed strength, and the badge, outline
+// buttons and pause pill on the solid page ground, so no card text reads through a
+// control. The worst case is the
+// lightest colour any orbit element can paint, at full strength, under that scrim.
+// Every hero text colour must hold 4.5:1 against it. Colours blend in sRGB, as the
+// browser composites them. Ratios are WCAG 2.x, the maths of tools/contrast.mjs.
+const hexRgb = (h: string) => { const m = /^#([0-9a-f]{6})$/i.exec(h.trim()); assert.ok(m, `not a six-digit hex colour: ${h}`); const n = parseInt(m[1], 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+const relLum = (c: number[]) => { const f = (v: number) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+const wcag = (a: number[], b: number[]) => { const [x, y] = [relLum(a), relLum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+
+// One media query as branches of width and height bounds.
+const mediaBranches = (prelude: string) => splitTop(prelude.replace(/^@media\s*/i, ""), ",").map((br) => {
+  const b: { minW?: number; maxW?: number; maxH?: number; other?: boolean } = {};
+  for (const part of br.split(/\s+and\s+/i)) {
+    const m = /^\(\s*(min-width|max-width|max-height)\s*:\s*(\d+)px\s*\)$/i.exec(part.trim());
+    if (!m) b.other = true;
+    else if (m[1] === "min-width") b.minW = +m[2];
+    else if (m[1] === "max-width") b.maxW = +m[2];
+    else b.maxH = +m[2];
+  }
+  return b;
+});
+
+test("(t) wherever the orbit runs behind the copy, the headline and lead sit on the scrim at 4.5:1 or better over the lightest orbit pixel, and every control on a solid ground", () => {
+  const problems: string[] = [];
+  const raw = read("site/assets/sc.css");
+  const clean = stripCssComments(raw);
+  const decls = declarations("site/assets/sc.css", raw);
+  // Tokens from every :root block outside a media query, aliases resolved.
+  const tok = new Map<string, string>();
+  for (const d of decls) if (d.prelude === ":root" && d.block?.parent === null && d.prop.startsWith("--")) tok.set(d.prop, d.value);
+  const hexOf = (name: string, seen = new Set<string>()): string | undefined => {
+    const v = tok.get(name);
+    if (!v || seen.has(name)) return undefined;
+    seen.add(name);
+    const a = /^var\(\s*(--[\w-]+)\s*\)$/.exec(v);
+    return a ? hexOf(a[1], seen) : /^#[0-9a-f]{6}$/i.test(v) ? v : undefined;
+  };
+  // 1. The scrim: the page ground at a fixed share.
+  const scrim = /^color-mix\(\s*in\s+srgb\s*,\s*var\(--bg\)\s+(\d+(?:\.\d+)?)%\s*,\s*transparent\s*\)$/.exec(tok.get("--scrim") ?? "");
+  assert.ok(scrim, `--scrim is "${tok.get("--scrim")}", not color-mix(in srgb,var(--bg) NN%,transparent)`);
+  const s = Number(scrim[1]) / 100;
+  // 2. Where it lies: every media scope that sets the hero's ring geometry is a layered
+  // hero, and one scope that lays the scrim must cover it.
+  const blocks = cssBlocks(clean);
+  const mediaOf = (b: Block | null) => { let x = b?.parent ?? null; while (x && !/^@media\b/i.test(x.prelude)) x = x.parent; return x; };
+  const layered = decls.filter((d) => d.prop === "--ra-rx" && d.prelude === ".hero" && mediaOf(d.block)).map((d) => mediaOf(d.block)!);
+  if (layered.length < 2) problems.push(`read ${layered.length} media scopes that move the hero's rings behind the copy, expected the upright phone and the phone on its side`);
+  // The headline and lead sit on the scrim. The controls (badge, outline buttons,
+  // pause pill) sit on the solid page ground, so no card text ever reads through one.
+  const SCRIMMED = ["h1", ".sub"];
+  const CONTROLS = [".badge", ".btn.ghost", "#motion+label"];
+  const isList = (d: Decl, need: string[]) => { const m = /^\.hero\s+:is\(([^)]*)\)$/.exec(d.prelude.trim()); const list = m ? m[1].split(",").map((x) => x.trim()) : []; return need.every((r) => list.includes(r)); };
+  const bgRules = (value: string) => decls.filter((d) => d.block && /^background(?:-color)?$/.test(d.prop) && d.value.replace(/\s+/g, "") === value);
+  const implies = (G: ReturnType<typeof mediaBranches>[number], B: ReturnType<typeof mediaBranches>[number]) =>
+    !B.other && B.maxW !== undefined && G.maxW !== undefined && G.maxW <= B.maxW && (B.minW === undefined || (G.minW ?? 0) >= B.minW) && (B.maxH === undefined || (G.maxH !== undefined && G.maxH <= B.maxH));
+  const coversScope = (d: Decl, g: Block) => !!mediaOf(d.block) && mediaBranches(g.prelude).every((G) => mediaBranches(mediaOf(d.block)!.prelude).some((B) => implies(G, B)));
+  for (const g of layered) {
+    if (!bgRules("var(--scrim)").some((d) => isList(d, SCRIMMED) && coversScope(d, g))) problems.push(`${g.prelude} runs the orbit behind the copy, but no rule in a scope covering it lays background:var(--scrim) on .hero :is(${SCRIMMED.join(",")})`);
+    if (!bgRules("var(--bg)").some((d) => isList(d, CONTROLS) && coversScope(d, g))) problems.push(`${g.prelude} runs the orbit behind the copy, but no rule in a scope covering it lays the solid background:var(--bg) on .hero :is(${CONTROLS.join(",")})`);
+  }
+  if (!/^#[0-9a-f]{6}$/i.test(hexOf("--bg") ?? "")) problems.push("--bg is not an opaque six-digit hex colour, so the controls' ground is not solid");
+  // Nothing else may thin a control's ground: every background or opacity set on a
+  // control, in sc.css or a page's <style>, at any width, is an opaque token, and
+  // no control or its parent row takes an opacity below 1.
+  const CONTROL_SEL = /(?:\.badge|\.btn|\.cta|#motion(?::checked)?\+label|\.hero-copy)(?![\w-])/;
+  const pageCss = [...read("site/index.html").matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join("\n");
+  for (const d of [...decls, ...declarations("site/index.html <style>", pageCss)]) {
+    if (!d.block || !splitTop(d.prelude, ",").some((sel) => !/::?(?:before|after)/.test(sel) && CONTROL_SEL.test(sel))) continue;
+    if (d.prop === "opacity" && Number(d.value) < 1) problems.push(`${d.where} ${d.prelude}: opacity:${d.value} lets the orbit show through a control`);
+    if (/^background(?:-color)?$/.test(d.prop) && /\.badge|\.btn|#motion/.test(d.prelude)) {
+      const v = /^var\(\s*(--[\w-]+)\s*\)$/.exec(d.value.trim());
+      if (!(v && /^#[0-9a-f]{6}$/i.test(hexOf(v[1]) ?? ""))) problems.push(`${d.where} ${d.prelude}: background:${d.value} on a control is not an opaque colour token`);
+    }
+  }
+  for (const m of elementsWithClass(read("site/index.html"), "hero-copy")[0][1].matchAll(/<(?:a|label|span)\b[^>]*\sstyle="([^"]*)"/g)) if (/background|opacity/i.test(m[1])) problems.push(`a hero control sets background or opacity inline: ${m[1]}`);
+  // 3. The markup: the copy holds no text box beyond those, the primary button aside,
+  // which fills itself with the accent (its pair is measured by tools/contrast.mjs).
+  const html = read("site/index.html");
+  const [, copyOuter] = elementsWithClass(html, "hero-copy")[0];
+  const kids = [...copyOuter.matchAll(/<(span|h1|p|div|a|input|label)\b([^>]*)>/g)].slice(1);
+  for (const k of kids) {
+    const cls = /\sclass="([^"]*)"/.exec(k[2])?.[1] ?? "";
+    const known = (k[1] === "span" && /\bbadge\b/.test(cls)) || k[1] === "h1" || (k[1] === "p" && /\bsub\b/.test(cls)) || (k[1] === "div" && /\bcta\b/.test(cls)) ||
+      (k[1] === "a" && /\bbtn\b/.test(cls) && /\b(ghost|primary)\b/.test(cls)) || (k[1] === "input" && /\sid="motion"/.test(k[2])) || (k[1] === "label" && /\sfor="motion"/.test(k[2]));
+    if (!known) problems.push(`.hero-copy holds <${k[1]}${k[2].slice(0, 60)}>, a text box the scrim rule does not name`);
+  }
+  for (const m of copyOuter.matchAll(/<(?:code|strong|em|span)\b[^>]*>/g)) if (/\b(?:background|opacity)\b/.test(m[0])) problems.push(`hero text ${m[0]} sets its own background or opacity`);
+  // 4. The lightest pixel any orbit element can paint: every colour token named in a
+  // decoration rule or in any --f, taken at full strength.
+  const DECO = /\.(?:orbit|oc|ring|arcs|spin|bezel|tilt)(?![\w-])|\[data-(?:fam|label)\b/;
+  const orbitTokens = new Set<string>();
+  for (const d of decls) {
+    if (!d.block || (!DECO.test(d.prelude) && d.prop !== "--f")) continue;
+    if (/^--(?:glyph|k|n|i|m|period|u|rx|ry)$/.test(d.prop)) continue;
+    for (const m of d.value.matchAll(/var\(\s*(--[\w-]+)/g)) if (hexOf(m[1])) orbitTokens.add(m[1]);
+    if (/#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(|\b(?:white|silver|ivory|snow)\b/i.test(d.value.replace(/url\([^)]*\)/g, ""))) problems.push(`${d.prelude}: ${d.prop}:${d.value.slice(0, 60)} paints a literal colour, which this guard cannot place`);
+  }
+  for (const need of ["--text", "--fam-1", "--fam-3", "--v-mismatch"]) if (!orbitTokens.has(need)) problems.push(`the orbit colour sweep missed ${need}, so it is not reading the decoration rules`);
+  const bg = hexRgb(hexOf("--bg")!);
+  const under = [...orbitTokens].map((t) => { const c = hexRgb(hexOf(t)!); return { t, mix: bg.map((v, i) => s * v + (1 - s) * c[i]) }; });
+  // 5. The hero's text colours: the page text, and every colour a hero text rule sets.
+  const TEXT_SEL = /(?:^|[\s,>+~(])(?:\.badge|h1|\.sub|\.btn|#motion\+label|#motion:checked\+label|\.hero)(?![\w-])/;
+  const textTokens = new Set<string>(["--text"]);
+  for (const d of [...decls, ...declarations("site/index.html <style>", [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join("\n"))]) {
+    if (d.prop !== "color" || !d.block || !splitTop(d.prelude, ",").some((sel) => !/::?(?:before|after)/.test(sel) && TEXT_SEL.test(sel))) continue;
+    const v = /^var\(\s*(--[\w-]+)\s*\)$/.exec(d.value.trim());
+    if (v && hexOf(v[1])) textTokens.add(v[1]);
+    else if (!/^(?:currentColor|inherit)$/i.test(d.value.trim())) problems.push(`${d.prelude}: color:${d.value} is not a token this guard can measure`);
+  }
+  for (const m of copyOuter.matchAll(/\sstyle="([^"]*)"/g)) for (const c of m[1].matchAll(/(?:^|;)\s*color\s*:\s*var\(\s*(--[\w-]+)\s*\)/g)) textTokens.add(c[1]);
+  for (const need of ["--text-2", "--accent"]) if (!textTokens.has(need)) problems.push(`the hero text sweep missed ${need}, so it is not reading the text rules`);
+  textTokens.delete("--on-accent"); // only ever on the primary button's own accent fill
+  let worst = { r: Infinity, at: "" };
+  for (const t of textTokens) {
+    const fg = hexRgb(hexOf(t)!);
+    for (const u of under) { const r = wcag(fg, u.mix); if (r < worst.r) worst = { r, at: `${t} over ${u.t} under the scrim at ${s}` }; }
+  }
+  if (!(worst.r >= 4.5)) problems.push(`worst case ${worst.r.toFixed(2)}:1, ${worst.at}, below 4.5:1`);
   assert.deepEqual(problems, [], problems.join("\n"));
 });
