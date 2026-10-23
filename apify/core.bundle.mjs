@@ -2489,9 +2489,11 @@ function deriveLimitations(r, opts = {}) {
     });
   }
   if (r.stale_primary) {
+    const names = (r.stale_primary_unqueried ?? []).filter((s) => typeof s === "string" && s.length > 0);
+    const many = names.length > 1;
     out.push({
       code: "stale_primary",
-      detail: `The latest value is ${r.stale_primary_years ?? "several"} year(s) behind the current year. This describes the serving source's own horizon only.`
+      detail: names.length ? `The primary source answered, so StatCite did not query the other registry source${many ? "s" : ""} for this indicator: ${names.join(" and ")}. Whether ${many ? "they publish" : "it publishes"} a more recent period is not known here. Comparing sources shows each one's published range.` : "The primary source answered, so StatCite did not query the other registry sources for this indicator. Whether they publish a more recent period is not known here. Comparing sources shows each one's published range."
     });
   }
   if (opts.latestOnly && valued.length) {
@@ -2922,6 +2924,7 @@ function stalePrimaryNote(ctx, def, country, result, opts, attempts, tried) {
   const pointer = ctx.surface === "rest" ? `GET /v1/compare?indicator=${def.key}&country=${country.iso3}` : `compare_sources (indicator=${def.key}, country=${country.iso3})`;
   return {
     gap,
+    unqueried: others,
     text: `${tried[0].label} is the primary source for '${def.key}' and its most recent published observation for ${country.name} is ${period}, ${gap} years behind ${clockYear}. This registry entry also lists ${others.join(" and ")}. StatCite has not queried ${plural ? "them" : "it"} for this request, so whether ${plural ? "they publish" : "it publishes"} more recent periods is not known here. Use ${pointer} to see every source's published range before treating this as a current value.`
   };
 }
@@ -2974,6 +2977,7 @@ async function getIndicatorCore(ctx, key, countryInput, opts = {}) {
         if (staleNote) {
           result.stale_primary = true;
           result.stale_primary_years = staleNote.gap;
+          result.stale_primary_unqueried = staleNote.unqueried;
           result.notes.push(staleNote.text);
         }
       }

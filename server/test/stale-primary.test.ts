@@ -73,6 +73,28 @@ test("a 'latest' value years behind the clock says how far behind, and names wha
   assert.equal(r.fallback_used, undefined);
 });
 
+test("stale_primary and stale_latest say different things: the age once, the unqueried sources once", async () => {
+  onlyWorldBank(wbEndingAt(2017));
+  const r = await getIndicator(ctxAt(2026), "current_account_gdp", "BRB", { limit: 1 });
+  // The structured field the limitation is derived from, in precedence order.
+  assert.deepEqual(r.stale_primary_unqueried, ["IMF DataMapper API", "IMF WEO (via DBnomics)"]);
+  const lim = r.limitations ?? [];
+  const sp = lim.find((l) => l.code === "stale_primary");
+  const sl = lim.find((l) => l.code === "stale_latest");
+  assert.ok(sp && sl, `expected both codes, got ${lim.map((l) => l.code)}`);
+  assert.match(sl!.detail, /for 2017, 9 years before 2026/);
+  assert.match(sp!.detail, /IMF DataMapper API and IMF WEO \(via DBnomics\)/);
+  assert.doesNotMatch(sp!.detail, /\b9\b|2017/, "the gap belongs to stale_latest alone");
+  assert.notEqual(sp!.detail, sl!.detail);
+});
+
+test("CONTROL: no stale_primary, no unqueried list", async () => {
+  onlyWorldBank(wbEndingAt(2025));
+  const r = await getIndicator(ctxAt(2026), "current_account_gdp", "BRB", { limit: 1 });
+  assert.equal(r.stale_primary, undefined);
+  assert.equal(r.stale_primary_unqueried, undefined);
+});
+
 test("the pointer is the one the caller can actually use", async () => {
   // REST bodies naming MCP tools is a live defect in this repo's own review log.
   onlyWorldBank(wbEndingAt(2017));

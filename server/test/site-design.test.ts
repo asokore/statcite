@@ -28,6 +28,8 @@
 // orbit now runs behind the copy: (s) keeps every card and ring below the text in
 // stacking order, and (t) holds every hero text colour at 4.5:1 or better over the
 // lightest orbit pixel under the scrim and every control on a solid ground.
+// (u) holds the hero's overflow at clip on both axes at every phone size, so the
+// orbit, wider than a phone screen, never widens the page into a sideways scroll.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -1556,5 +1558,78 @@ test("(t) wherever the orbit runs behind the copy, the headline and lead sit on 
     for (const u of under) { const r = wcag(fg, u.mix); if (r < worst.r) worst = { r, at: `${t} over ${u.t} under the scrim at ${s}` }; }
   }
   if (!(worst.r >= 4.5)) problems.push(`worst case ${worst.r.toFixed(2)}:1, ${worst.at}, below 4.5:1`);
+  assert.deepEqual(problems, [], problems.join("\n"));
+});
+
+// --- (u) the hero clips the orbit on a phone ------------------------------------------------------
+
+// On a phone the orbit is wider than the screen (ring a is 640px across at 639px and
+// under). Only the hero's overflow clip keeps it from widening the page into a
+// sideways scroll. The cascade is evaluated per phone viewport: of the rules whose
+// whole selector is .hero and whose media scopes hold at that size, the last
+// overflow, overflow-x or overflow-y value per axis must be clip. Any other rule
+// that may reach the hero element (a compound naming .hero, a header or * rule, a
+// scope this guard cannot evaluate, a page <style> or the hero's style attribute)
+// may only ever set clip.
+test("(u) at every phone size the hero's overflow resolves to clip on both axes, and nothing else can unset it", () => {
+  const problems: string[] = [];
+  const raw = read("site/assets/sc.css");
+  const html = read("site/index.html");
+  const pageCss = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join("\n");
+  const decls = [...declarations("site/assets/sc.css", raw), ...declarations("site/index.html <style>", pageCss)];
+  const OVERFLOW = /^overflow(?:-x|-y)?$/;
+  // Phones upright and on their side, from the smallest common width to each breakpoint edge.
+  const VIEWPORTS: Array<[number, number]> = [[320, 568], [360, 740], [390, 844], [430, 932], [639, 900], [568, 320], [740, 360], [844, 390], [932, 430], [1023, 500]];
+  // Whether a block's at-rule ancestors hold at w x h: true, false, or undefined when
+  // one of them is not a plain width or height media query.
+  const holds = (b: Block | null, w: number, h: number): boolean | undefined => {
+    let known = true;
+    for (let x = b?.parent ?? null; x; x = x.parent) {
+      if (!/^@media\b/i.test(x.prelude)) { known = false; continue; }
+      const branches = mediaBranches(x.prelude);
+      const fits = branches.some((br) => !br.other && (br.minW === undefined || w >= br.minW) && (br.maxW === undefined || w <= br.maxW) && (br.maxH === undefined || h <= br.maxH));
+      const unsure = branches.some((br) => br.other);
+      if (!fits && !unsure) return false;
+      if (!fits) known = false;
+    }
+    return known ? true : undefined;
+  };
+  const axes = (d: Decl): { x?: string; y?: string } => {
+    const v = d.value.replace(/!important/i, "").trim().toLowerCase().split(/\s+/);
+    if (d.prop === "overflow-x") return { x: v[0] };
+    if (d.prop === "overflow-y") return { y: v[0] };
+    return { x: v[0], y: v[1] ?? v[0] };
+  };
+  const exactHero = (d: Decl) => splitTop(d.prelude, ",").some((sel) => sel.trim() === ".hero");
+  const mayReachHero = (d: Decl) => subjects(d.prelude).some((s) => /\.hero(?![\w-])/.test(s) || /^(?:header|\*)(?![\w-])/i.test(s.trim()));
+  for (const d of decls) {
+    if (!d.block || !OVERFLOW.test(d.prop) || !mayReachHero(d)) continue;
+    const { x, y } = axes(d);
+    const nonClip = [x, y].filter((a) => a !== undefined && a !== "clip" && a !== "hidden");
+    if (nonClip.length) problems.push(`${d.where} ${d.prelude}: ${d.prop}:${d.value} can reach the hero and does not clip`);
+    if (/!important/i.test(d.value)) problems.push(`${d.where} ${d.prelude}: ${d.prop}:${d.value} is !important, which this guard does not model`);
+  }
+  for (const [w, h] of VIEWPORTS) {
+    let x: string | undefined;
+    let y: string | undefined;
+    for (const d of decls) {
+      if (!d.block || !OVERFLOW.test(d.prop) || !exactHero(d)) continue;
+      const on = holds(d.block, w, h);
+      if (on === false) continue;
+      const a = axes(d);
+      if (on === undefined) {
+        // A scope this guard cannot evaluate may or may not apply, so it can never be the clip.
+        if ((a.x ?? "clip") !== "clip" || (a.y ?? "clip") !== "clip") problems.push(`${d.prelude} in an unevaluated scope sets ${d.prop}:${d.value}`);
+        continue;
+      }
+      if (a.x !== undefined) x = a.x;
+      if (a.y !== undefined) y = a.y;
+    }
+    if (x !== "clip" || y !== "clip") problems.push(`at ${w}x${h} the hero's overflow resolves to x:${x ?? "visible"} y:${y ?? "visible"}, so the orbit can widen the page`);
+  }
+  const heroTag = elementsWithClass(html, "hero")[0]?.[0] ?? "";
+  assert.ok(heroTag, "index.html holds no .hero");
+  const style = /\sstyle="([^"]*)"/.exec(heroTag)?.[1] ?? "";
+  if (/overflow|contain/i.test(style)) problems.push(`the hero's style attribute sets "${style}"`);
   assert.deepEqual(problems, [], problems.join("\n"));
 });

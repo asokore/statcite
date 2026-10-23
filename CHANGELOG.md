@@ -5,6 +5,35 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## 1.17.0
+
+`stale_primary` and `stale_latest` no longer repeat each other. Until now,
+whenever `stale_primary` fired, `stale_latest` fired beside it with the same
+gap. Syria's GDP growth came back with two codes that each said the 2022 value
+was 4 years old. Each code now says one thing. `stale_latest` carries the age
+of the value, as before. `stale_primary` names the other registry sources
+StatCite did not query for the request, such as the IMF DataMapper API and IMF
+WEO via DBnomics, and says that whether they publish a more recent period is
+not known. It no longer states the gap.
+
+Both codes still fire together. `stale_latest` marks every old latest-only
+value whatever the source, as 1.16.0 promised, so a caller who filters on it
+misses nothing. The names come from a new structured field,
+`stale_primary_unqueried`, which lists the source labels in precedence order
+and is set only with `stale_primary`. Prose in `notes` plays no part. The
+field is in the MCP output schema. `openapi.json` now documents
+`stale_primary`, `stale_primary_years` and `stale_primary_unqueried`, which it
+had left out.
+
+The IMF's own SDMX 3.0 WEO flow was measured as a replacement for the
+DataMapper API, which rounds WEO values to one decimal place. It stays off the
+live chain, because its payload carries no edition label and a single-economy
+call cannot anchor the projection boundary. The measurements and the decision
+are in `docs/IMF-SDMX-2026-10.md`.
+
+A site design test now fails if the phone hero loses its overflow clip, which
+keeps the orbit from widening the page into a sideways scroll.
+
 ## 1.16.0
 
 Two codes join the `limitations` list:

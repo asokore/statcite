@@ -77,9 +77,39 @@ test("fallback_source distinguishes transient from definitive", () => {
   assert.ok(!codes(base({ fallback_used: false })).includes("fallback_source"));
 });
 
-test("stale_primary carries the year gap", () => {
-  const s = deriveLimitations(base({ stale_primary: true, stale_primary_years: 7 })).find((l) => l.code === "stale_primary");
-  assert.match(s!.detail, /7 year\(s\) behind/);
+test("stale_primary names the unqueried sources from the structured list and leaves the age to stale_latest", () => {
+  // Syria GDP growth, live 2026-10-23: the World Bank's latest is 2022 and the
+  // IMF pair below it was never asked. stale_latest says how old the value is.
+  // stale_primary must say what stale_latest cannot: which sources were left out.
+  const r = base({
+    observations: [{ period: "2022", value: -0.1 }],
+    stale_primary: true,
+    stale_primary_years: 4,
+    stale_primary_unqueried: ["IMF DataMapper API", "IMF WEO (via DBnomics)"],
+  });
+  const lim = deriveLimitations(r, { latestOnly: true });
+  const sp = lim.find((l) => l.code === "stale_primary");
+  const sl = lim.find((l) => l.code === "stale_latest");
+  assert.ok(sp && sl, `both codes fire, got ${lim.map((l) => l.code)}`);
+  assert.match(sp!.detail, /other registry sources for this indicator: IMF DataMapper API and IMF WEO \(via DBnomics\)\./);
+  assert.match(sp!.detail, /Whether they publish a more recent period is not known here/);
+  // The duplicate this replaces: the same gap stated twice.
+  assert.doesNotMatch(sp!.detail, /\b4\b|year\(s\) behind|years before/);
+  assert.match(sl!.detail, /4 years before 2026/);
+  // It never claims an unqueried source is fresher.
+  assert.doesNotMatch(sp!.detail, /is fresher|are fresher|more recent data is available|publishes? later/i);
+  // One source reads in the singular.
+  const one = deriveLimitations(base({ stale_primary: true, stale_primary_unqueried: ["IMF DataMapper API"] })).find((l) => l.code === "stale_primary")!;
+  assert.match(one.detail, /other registry source for this indicator: IMF DataMapper API\. Whether it publishes/);
+});
+
+test("stale_primary without a readable source list says so generally and invents no names", () => {
+  for (const list of [undefined, [], ["", 7 as unknown as string]]) {
+    const s = deriveLimitations(base({ stale_primary: true, stale_primary_unqueried: list })).find((l) => l.code === "stale_primary");
+    assert.ok(s, `stale_primary still fires for ${JSON.stringify(list)}`);
+    assert.match(s!.detail, /did not query the other registry sources for this indicator\. Whether they publish/);
+    assert.doesNotMatch(s!.detail, /: |IMF|World Bank|undefined|\b7\b/);
+  }
 });
 
 test("modeled_estimate follows the registry flag, for registry and explicit WDI ids alike", () => {

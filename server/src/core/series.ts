@@ -565,7 +565,7 @@ function stalePrimaryNote(
   opts: SeriesOpts,
   attempts: Array<{ label: string }>,
   tried: Array<{ label: string }>,
-): { gap: number; text: string } | undefined {
+): { gap: number; text: string; unqueried: string[] } | undefined {
   // Only where the caller cannot see the horizon for themselves. A full series
   // shows its own end year, and a caller who pinned end_year asked for the old
   // period, so neither needs telling.
@@ -590,6 +590,7 @@ function stalePrimaryNote(
       : `compare_sources (indicator=${def.key}, country=${country.iso3})`;
   return {
     gap,
+    unqueried: others,
     text:
       `${tried[0].label} is the primary source for '${def.key}' and its most recent published observation for ${country.name} is ${period}, ${gap} years behind ${clockYear}. ` +
       `This registry entry also lists ${others.join(" and ")}. StatCite has not queried ${plural ? "them" : "it"} for this request, so whether ${plural ? "they publish" : "it publishes"} more recent periods is not known here. ` +
@@ -701,6 +702,7 @@ async function getIndicatorCore(ctx: Ctx, key: string, countryInput: string, opt
         if (staleNote) {
           result.stale_primary = true;
           result.stale_primary_years = staleNote.gap;
+          result.stale_primary_unqueried = staleNote.unqueried;
           result.notes.push(staleNote.text);
         }
       }
