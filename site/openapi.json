@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StatCite API",
-    "version": "1.16.0",
+    "version": "1.17.0",
     "description": "Official economic statistics with full citations, built for AI agents. Every numeric response includes a citation object (source, dataset, series_id, source_url, license, attribution, retrieved_at, citation_text). Free, no auth, read-only. MCP endpoint at https://statcite.com/mcp.",
     "contact": {
       "email": "hello@statcite.com",
@@ -1495,9 +1495,24 @@
             ],
             "description": "Present only alongside fallback_used: 'transient' means a source ranked above the serving one failed temporarily and may serve a different value for the same query once recovered (verify_stat demotes such verifies to cannot_verify); 'definitive' means the primary permanently lacks this series/country (e.g. Taiwan in WDI), so the fallback is that combination's stable serving source and verifies are judged normally with disclosure. It is also set when the primary simply has no value for the requested period."
           },
+          "stale_primary": {
+            "type": "boolean",
+            "description": "True when a latest_only request was answered by the primary source with a value more than 3 years behind the current year while the registry lists other sources for the indicator that StatCite did not query. It describes the primary's own horizon and does not claim that another source is more recent. Absent otherwise."
+          },
+          "stale_primary_years": {
+            "type": "number",
+            "description": "Present with stale_primary: the current year minus the year of the value served."
+          },
+          "stale_primary_unqueried": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Present with stale_primary: the other registry sources StatCite did not query for this request, in precedence order."
+          },
           "limitations": {
             "type": "array",
-            "description": "Codes for what this figure is NOT, each read from a structured field of the result or from the indicator registry: projection (values in the source's estimate/projection period), fallback_source, stale_primary, modeled_estimate (a published model output), rounded_source (IMF DataMapper WEO values rounded to one decimal), computed_values (a StatCite transform), stale_latest (a latest_only value more than 3 years older than its retrieval year) and outturn_unconfirmed (IMF values before the projection boundary StatCite infers, which the IMF data StatCite reads does not mark as outturns or staff estimates). An empty list means none of these conditions was detected. It is not a warranty.",
+            "description": "Codes for what this figure is NOT, each read from a structured field of the result or from the indicator registry: projection (values in the source's estimate/projection period), fallback_source, stale_primary (the primary answered a latest_only request with an old value and the other registry sources it names were left unqueried), modeled_estimate (a published model output), rounded_source (IMF DataMapper WEO values rounded to one decimal), computed_values (a StatCite transform), stale_latest (a latest_only value more than 3 years older than its retrieval year, with the gap) and outturn_unconfirmed (IMF values before the projection boundary StatCite infers, which the IMF data StatCite reads does not mark as outturns or staff estimates). An empty list means none of these conditions was detected. It is not a warranty.",
             "items": {
               "type": "object",
               "properties": {

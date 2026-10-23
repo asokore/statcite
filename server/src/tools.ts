@@ -69,6 +69,7 @@ const SERIES_OUTPUT_SCHEMA = {
     fallback_reason: { type: "string", enum: ["transient", "definitive"] },
     stale_primary: { type: "boolean" },
     stale_primary_years: { type: "number" },
+    stale_primary_unqueried: { type: "array", items: { type: "string" } },
     limitations: {
       type: "array",
       description:

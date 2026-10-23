@@ -102,6 +102,10 @@ export interface SeriesResult {
   stale_primary?: boolean;
   /** Clock year minus the served period's year. */
   stale_primary_years?: number;
+  /** Set with stale_primary: the labels of the other registry sources StatCite
+   * did not query for this request, in precedence order. This is what
+   * stale_primary adds over stale_latest, which already carries the age. */
+  stale_primary_unqueried?: string[];
   /** What this figure is NOT, as codes (core/limitations.ts), derived only
    * from structured fields. An empty list means none of the known conditions
    * was detected. It is not a warranty. */

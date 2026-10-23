@@ -8,7 +8,7 @@
 //
 // RULE: every entry is derived from a STRUCTURED field the code itself sets
 // or holds: an observation's projection marker, fallback_used and
-// fallback_reason, stale_primary, the registry's `modeled` flag, the registry's
+// fallback_reason, stale_primary and its stale_primary_unqueried list, the registry's `modeled` flag, the registry's
 // DataMapper dataset for an imf/ code, the series id of an IMF vintage, the
 // citation's retrieved_at, the latest-only request, and the transform. The prose in `notes`
 // is never read, so a reworded note can never add or drop a limitation. An
@@ -103,10 +103,19 @@ export function deriveLimitations(r: SeriesResult, opts: LimitationOpts = {}): L
     });
   }
 
+  // stale_latest carries the age of the value, and fires alongside this code.
+  // What stale_primary adds is the other registry sources left unqueried, so
+  // its detail names them from the structured list and never repeats the gap.
   if (r.stale_primary) {
+    const names = (r.stale_primary_unqueried ?? []).filter((s) => typeof s === "string" && s.length > 0);
+    const many = names.length > 1;
     out.push({
       code: "stale_primary",
-      detail: `The latest value is ${r.stale_primary_years ?? "several"} year(s) behind the current year. This describes the serving source's own horizon only.`,
+      detail: names.length
+        ? `The primary source answered, so StatCite did not query the other registry source${many ? "s" : ""} for this indicator: ${names.join(" and ")}. ` +
+          `Whether ${many ? "they publish" : "it publishes"} a more recent period is not known here. Comparing sources shows each one's published range.`
+        : "The primary source answered, so StatCite did not query the other registry sources for this indicator. " +
+          "Whether they publish a more recent period is not known here. Comparing sources shows each one's published range.",
     });
   }
 
