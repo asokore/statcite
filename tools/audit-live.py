@@ -203,10 +203,16 @@ def audit_seo():
             check("seo", f"{p} canonical resolves 200", code == 200, f"{cp} -> {code}")
         check("seo", f"{p} has meta description", bool(desc and desc.group(1).strip()), "missing")
         check("seo", f"{p} has og:image", bool(ogimg), "missing")
+        if ogimg:
+            # The card must serve as an image, or WhatsApp,
+            # Slack and LinkedIn show a bare link.
+            ist, ihdr, _ = get(ogimg.group(1))
+            ctype = {k.lower(): v for k, v in ihdr.items()}.get("content-type", "")
+            check("seo", f"{p} og:image serves as an image", ist == 200 and ctype.startswith("image/"), f"{ogimg.group(1)} -> {ist} {ctype}")
         check("seo", f"{p} has og:title", bool(ogtitle), "missing")
         check("seo", f"{p} has title", bool(title and title.group(1).strip()), "missing")
 
-    for asset in ["/favicon.ico", "/apple-touch-icon.png", "/og.png", "/favicon.svg", "/robots.txt", "/llms.txt", "/openapi.json"]:
+    for asset in ["/favicon.ico", "/apple-touch-icon.png", "/og.png", "/favicon.svg", "/robots.txt", "/llms.txt", "/openapi.json", "/assets/share.js"]:
         st, hdr, _ = get(asset)
         check("seo", f"{asset} serves", st == 200, f"status {st}")
 

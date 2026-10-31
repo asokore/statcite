@@ -12,11 +12,12 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://statcite.com/">
 <meta property="og:site_name" content="StatCite">
-<meta property="og:image" content="https://statcite.com/og.png">
+<meta property="og:image" content="https://statcite.com/share/og-home.jpg?v=20261031">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="StatCite: economic statistics your AI can actually cite. Every number ships with its source, dataset, series id and licence.">
-<meta name="twitter:image" content="https://statcite.com/og.png">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:alt" content="StatCite: economic figures your AI can check and cite. Every figure ships with a citation you can paste.">
+<meta name="twitter:image" content="https://statcite.com/share/og-home.jpg?v=20261031">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="StatCite: Check and cite economic statistics">
@@ -844,6 +845,8 @@ function copyText(id, btn){
         var cite=b.citation&&b.citation.citation_text?'<div class="cite">'+esc(b.citation.citation_text)+(src?' <a href="'+esc(src)+'" rel="noopener noreferrer">source ↗</a>':'')+'</div>':'';
         var verdict=VERDICTS[b.verdict]===1?b.verdict:'cannot_verify';
         out.innerHTML='<div class="card"><span class="v-'+verdict+'">'+esc(String(b.verdict).replace('_',' '))+'</span> '+esc(b.explanation||'')+extra+note+cite+'</div>';
+        // Hand the result to share.js. Never let the share layer cost the verdict.
+        try{ document.dispatchEvent(new CustomEvent('sc:verdict',{detail:{body:b,query:q.toString()}})); }catch(e){}
       })
       .catch(function(){
         out.innerHTML='<div class="card"><span class="v-cannot_verify">Network error.</span> Please try again.</div>';
@@ -853,5 +856,6 @@ function copyText(id, btn){
 })();
 </script>
 <script src="/assets/sc.js?v=20261015b" defer></script>
+<script src="/assets/share.js?v=20261031" defer></script>
 </body>
 </html>
