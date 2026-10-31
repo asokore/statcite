@@ -73,6 +73,11 @@
   Access-Control-Allow-Origin: *
 /apple-touch-icon.png
   Cache-Control: public, max-age=604800
+# Per-page link cards. Pages name them with a ?v= key, so a redrawn card is
+# a new URL to every unfurler and a week of caching cannot serve the old one.
+/share/*
+  Cache-Control: public, max-age=604800
+  Access-Control-Allow-Origin: *
 /favicon.ico
   Cache-Control: public, max-age=604800
 
