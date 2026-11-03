@@ -195,7 +195,13 @@ export function parseTable(html, { freq = "a" } = {}) {
       const n = Number(cleaned);
       return Number.isFinite(n) ? n : null;
     });
-    rows.push({ label, unit, values });
+    // A row with more cells than label, unit and one per period means the
+    // columns are split below the period (Trade in Services splits each year
+    // into imports and exports, then total, ECCU and other CARICOM: 72 value
+    // cells under 12 years). Taking the last cells would file 2026's
+    // sub-columns as 2015 to 2026, so the row is flagged and the sentinel
+    // refuses the table.
+    rows.push(cells.length > periods.length + 2 ? { label, unit, values, wide: cells.length } : { label, unit, values });
   }
   return periods ? { periods, periodsRaw, rows } : undefined;
 }

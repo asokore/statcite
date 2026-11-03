@@ -2086,6 +2086,13 @@ function selectRow(doc, want) {
 }
 async function fetchCaribstatSeries(id, opts = {}) {
   const parsed = parseCaribstatId(id);
+  const withheldBy = parsed.provider === "ECCB" ? CARIBSTAT_CATALOGUE.find((e) => e.provider === "ECCB" && e.table === parsed.table && e.withheld?.includes(parsed.iso3 ?? "")) : void 0;
+  if (withheldBy) {
+    throw new ToolError(
+      `No CaribStat series '${canonicalCaribstatBase(parsed)}'. The ECCB publishes ${withheldBy.title} for ${withheldBy.geographies} of its nine geographies. For ${ECCB_GEOGRAPHIES[parsed.iso3 ?? ""] ?? parsed.iso3} its table shows no figures, so nothing is collected. Not covered: ${withheldBy.withheld.join(", ")}.`,
+      { series_id: canonicalCaribstatBase(parsed), no_published_data: true, not_covered: withheldBy.withheld }
+    );
+  }
   const apiUrl = caribstatUrl(parsed, opts.origin ?? CARIBSTAT_ORIGIN);
   let doc;
   try {
@@ -2156,6 +2163,7 @@ function sanitiseDoc(doc) {
     series: doc.series.map((s) => ({ ...s, label: cleanLabel(s.label) }))
   };
 }
+var NA_2018_WITHHELD = ["GRD", "KNA", "XCU"];
 var CARIBSTAT_CATALOGUE = [
   {
     provider: "ECCB",
@@ -2173,7 +2181,8 @@ var CARIBSTAT_CATALOGUE = [
     freqs: ["a"],
     geographies: 9,
     sampleRow: "Total Public Sector Debt to GDP",
-    topics: ["debt to gdp", "debt ratio", "debt burden", "gdp"]
+    // No bare "gdp": it led "anguilla gdp" with a debt ratio. Review of 2026-11-03.
+    topics: ["debt to gdp", "debt ratio", "debt burden"]
   },
   {
     provider: "ECCB",
@@ -2219,6 +2228,75 @@ var CARIBSTAT_CATALOGUE = [
     geographies: 9,
     sampleRow: "Total Visitor Arrivals",
     topics: ["tourism", "visitors", "arrivals", "cruise", "stayover"]
+  },
+  // Added 2026-11-03 (A-061). The three national-accounts tables are 2018
+  // base-year and cover six geographies: Grenada, St Kitts and Nevis and the
+  // ECCU aggregate render an empty table there.
+  {
+    provider: "ECCB",
+    table: "gva-constant-prices",
+    title: "Gross Value Added by Economic Activity, Constant Prices (2018)",
+    freqs: ["a"],
+    geographies: 6,
+    withheld: NA_2018_WITHHELD,
+    sampleRow: "Gross Domestic Product (GDP) at Market Prices",
+    topics: ["gdp", "real gdp", "gross value added", "gva", "national accounts", "output", "sector"]
+  },
+  {
+    provider: "ECCB",
+    table: "gva-growth-constant-prices",
+    title: "Growth Rate of Gross Value Added, Constant Prices (2018)",
+    freqs: ["a"],
+    geographies: 6,
+    withheld: NA_2018_WITHHELD,
+    sampleRow: "Gross Domestic Product at Market Prices",
+    topics: ["gdp growth", "growth", "real growth", "economic growth", "sector growth", "national accounts"]
+  },
+  {
+    provider: "ECCB",
+    table: "gva-current-prices",
+    title: "Gross Value Added by Economic Activity, Current Prices (2018)",
+    freqs: ["a"],
+    geographies: 6,
+    withheld: NA_2018_WITHHELD,
+    sampleRow: "Gross Domestic Product (GDP) at Market Prices",
+    topics: ["nominal gdp", "gdp", "gross value added", "gva", "national accounts", "current prices"]
+  },
+  {
+    provider: "ECCB",
+    table: "balance-of-payments",
+    title: "Balance of Payments (Analytic Presentation)",
+    freqs: ["a"],
+    geographies: 9,
+    sampleRow: "Current Account as % of GDP",
+    topics: ["balance of payments", "current account", "bop", "exports", "imports", "external balance"]
+  },
+  {
+    provider: "ECCB",
+    table: "international-investment-position",
+    title: "International Investment Position (Summary)",
+    freqs: ["a"],
+    geographies: 9,
+    sampleRow: "Net International Investment Position",
+    topics: ["international investment position", "iip", "external assets", "external liabilities", "foreign investment"]
+  },
+  {
+    provider: "ECCB",
+    table: "trade-by-sitc",
+    title: "Trade Statistics by SITC",
+    freqs: ["a", "q", "m"],
+    geographies: 9,
+    sampleRow: "Trade Balance",
+    topics: ["trade", "trade balance", "merchandise trade", "exports", "imports", "re-exports", "sitc"]
+  },
+  {
+    provider: "ECCB",
+    table: "real-effective-exchange-rate",
+    title: "Real Effective Exchange Rate Index",
+    freqs: ["a", "q", "m"],
+    geographies: 9,
+    sampleRow: "REER",
+    topics: ["real effective exchange rate", "reer", "neer", "exchange rate", "competitiveness"]
   },
   // --- CBB ------------------------------------------------------------
   //
@@ -2373,37 +2451,77 @@ var ECCB_GEOGRAPHIES = {
   VCT: "St. Vincent and the Grenadines",
   XCU: "ECCU (currency union aggregate)"
 };
+var ECCB_GEOGRAPHY_WORDS = [
+  ["AIA", /\b(anguill(a|ans?|ians?))\b/g],
+  ["ATG", /\b(antiguans?|antigua|barbudans?|barbuda)\b/g],
+  ["DMA", /\b(dominica)\b/g],
+  ["GRD", /\b(grenada|grenadians?)\b/g],
+  ["KNA", /\b(kitts|kittitians?|nevis|nevisians?)\b/g],
+  ["LCA", /\b(lucia|lucians?)\b/g],
+  ["MSR", /\b(montserrat|montserratians?)\b/g],
+  ["VCT", /\b(vincent|vincentians?|grenadines)\b/g],
+  ["XCU", /\b(eccu|eastern caribbean|eccb|oecs)\b/g]
+];
+var BARBADOS_WORDS = /\b(barbados|bajans?|barbadians?|bdos|brb|cbb|cbob)\b/;
+var queryWords = (query) => ` ${query.toLowerCase().replace(/[^a-z0-9.]+/g, " ")} `;
+function eccbGeographiesIn(query) {
+  const q = queryWords(query);
+  const at = [];
+  for (const [code, re] of ECCB_GEOGRAPHY_WORDS) {
+    const first = [...q.matchAll(re)][0];
+    if (first) at.push([first.index ?? 0, code]);
+  }
+  if (at.length || /\bcaribbean\b/.test(q) || BARBADOS_WORDS.test(q)) {
+    for (const [code] of ECCB_GEOGRAPHY_WORDS) {
+      if (at.some(([, c]) => c === code)) continue;
+      const i = q.search(new RegExp(`\\b${code.toLowerCase()}\\b`));
+      if (i >= 0) at.push([i, code]);
+    }
+  }
+  const named = at.sort((a, b) => a[0] - b[0]).map(([, code]) => code);
+  if (named.some((c) => c !== "XCU") && !/\b(eccu|xcu|currency union)\b/.test(q)) return named.filter((c) => c !== "XCU");
+  return named;
+}
 function searchCaribstat(query, limit = 4) {
   const q = query.toLowerCase().trim();
   if (!q) return [];
-  let iso3;
-  for (const [code, name] of Object.entries(ECCB_GEOGRAPHIES)) {
-    if (q.includes(name.toLowerCase()) || q.includes(code.toLowerCase())) {
-      iso3 = code;
-      break;
-    }
-  }
-  const caribbeanIntent = /caribbean|eccu|eccb|barbados|antigua|anguilla|montserrat|grenada|dominica|lucia|kitts|nevis|vincent/i.test(q);
+  const named = eccbGeographiesIn(q);
+  const words = queryWords(q);
+  const w = words.trim();
+  if (!w) return [];
+  const caribbeanIntent = named.length > 0 || /\bcaribbean\b/.test(words) || BARBADOS_WORDS.test(words);
+  const barbadosOnly = BARBADOS_WORDS.test(words) && named.length === 0;
+  const eccbOnly = named.length > 0 && !BARBADOS_WORDS.test(words);
   const out = [];
   for (const e of CARIBSTAT_CATALOGUE) {
+    if (e.provider === "ECCB" && barbadosOnly) continue;
+    if (e.provider === "CBB" && eccbOnly) continue;
+    let iso3;
+    if (e.provider === "ECCB") {
+      const covered = named.filter((g) => !e.withheld?.includes(g));
+      if (named.length && !covered.length) continue;
+      iso3 = covered[0] ?? "AIA";
+    }
     let score = 0;
     for (const t of e.topics) {
-      if (q.includes(t)) score += t.split(" ").length * 2;
+      const tw = queryWords(t).trim();
+      if (tw && new RegExp(`\\b${tw.replace(/\./g, "\\.")}s?\\b`).test(words)) score += t.split(" ").length * 2;
     }
-    if (e.title.toLowerCase().includes(q)) score += 3;
-    if (score > 0 && !caribbeanIntent && !e.title.toLowerCase().includes(q)) continue;
+    const namesTable = words.includes(queryWords(e.title));
+    if (namesTable) score += 3;
+    if (score > 0 && !caribbeanIntent && !namesTable) continue;
     if (score === 0 && caribbeanIntent) score = 1;
     if (score === 0) continue;
-    const id = e.provider === "ECCB" ? `caribstat/ECCB/${e.table}/${iso3 ?? "AIA"}.${e.freqs?.[0] ?? "a"}` : `caribstat/CBB/${e.table}/${e.sheets?.[0]}`;
+    const id = e.provider === "ECCB" ? `caribstat/ECCB/${e.table}/${iso3}.${e.freqs?.[0] ?? "a"}` : `caribstat/CBB/${e.table}/${e.sheets?.[0]}`;
     out.push({
       entry: e,
       iso3,
       id,
       score,
-      why: e.provider === "ECCB" ? `${e.title}, ${e.geographies} ECCB geographies, ${(e.freqs ?? []).join("/")}` : `${e.title}, Barbados, ${(e.sheets ?? []).length} sheet(s)`
+      why: e.provider === "ECCB" ? `${e.title}, ${e.geographies} ECCB geographies${e.withheld?.length ? ` (not ${e.withheld.join(", ")})` : ""}, ${(e.freqs ?? []).join("/")}` : `${e.title}, Barbados, ${(e.sheets ?? []).length} sheet(s)`
     });
   }
-  return out.sort((a, b) => b.score - a.score).slice(0, limit).map(({ entry, iso3: iso32, id, why }) => ({ entry, iso3: iso32, id, why }));
+  return out.sort((a, b) => b.score - a.score).slice(0, limit).map(({ entry, iso3, id, why }) => ({ entry, iso3, id, why }));
 }
 var UNCTAD_GDP_FALLBACK = {
   AIA: { name: "Anguilla", slug: "anguilla" },
@@ -4577,7 +4695,7 @@ var SOURCES = [
   {
     id: "eccb",
     name: "Eastern Caribbean Central Bank statistics",
-    coverage: `ECCU monetary, fiscal, debt, tourism, interest-rate and CPI statistics for the eight ECCB member geographies and the currency union aggregate, annual, quarterly and monthly. It includes Anguilla and Montserrat, which are not World Bank reporting economies and appear in few other machine-readable sources. The figures are collected on a schedule from the ECCB's published tables. Figures collected while the bank printed its own "data as at" stamp carry it, kept separate from our retrieval time. The bank stopped printing that stamp in late September 2026, so figures collected since carry no currency claim from the bank, only the date StatCite collected them.`,
+    coverage: `ECCU monetary, fiscal, debt, tourism, interest-rate, CPI, national-accounts, balance-of-payments, trade and exchange-rate statistics for the eight ECCB member geographies and the currency union aggregate, annual, quarterly and monthly. The national accounts cover six of the nine geographies: for Grenada, St Kitts and Nevis and the union aggregate the bank's 2018 base-year tables showed no figures for any year from 2015 to 2026 when checked on 3 November 2026. It includes Anguilla and Montserrat, which are not World Bank reporting economies and appear in few other machine-readable sources. The figures are collected on a schedule from the ECCB's published tables. Figures collected while the bank printed its own "data as at" stamp carry it, kept separate from our retrieval time. The bank stopped printing that stamp in late September 2026, so figures collected since carry no currency claim from the bank, only the date StatCite collected them.`,
     access: "Scheduled collection to static JSON at github.com/asokore/caribstat, fetched and edge-cached like any other upstream",
     license: "ECCB website terms of use, plus written permission granted to the operator",
     license_verdict: "served",

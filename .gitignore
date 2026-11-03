@@ -75,6 +75,9 @@ caribstat/reference/
 # sync the local harvest there. It has its own .git and its own remote and
 # must never be mistaken for part of this repository.
 caribstat/.publish/
+# Coverage watch state (tools/watch.mjs): what the watch has already reported.
+# Kept outside caribstat/data/ so publish-run.mjs can never ship it.
+caribstat/.watch/
 
 # Raw source HTML captured for independent verification
 # (tools/eccb/capture.mjs). It is the publishers' material, not ours, and has

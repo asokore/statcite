@@ -16,7 +16,7 @@
 
 import { mkdir, writeFile, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
-import { openListing, extractItemLinks, resolveAttachment, downloadAttachment, publicationDateFromUrl, titleAgreesWithAttachment, publicationFamily, CBB_LISTINGS } from "./fetch.mjs";
+import { openListing, extractListingCards, resolveAttachment, downloadAttachment, publicationDateFromUrl, titleAgreesWithAttachment, publicationFamily, slugEdition, CBB_LISTINGS } from "./fetch.mjs";
 import { readXlsx } from "../xlsx.mjs";
 import { extractWorkbook } from "./tables.mjs";
 import { compareWithExisting, classifyChange, QUIET_STATES } from "../changed.mjs";
@@ -135,6 +135,78 @@ async function writeJson(file, doc) {
   await writeFile(file, JSON.stringify(doc, null, 2) + "\n", "utf8");
 }
 
+/** The CDN upload stamp in an attachment URL, "YYYY-MM-DD-HH-MM-SS". */
+export function uploadStamp(url) {
+  return /\/documents\/(\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})-/.exec(url ?? "")?.[1];
+}
+
+/**
+ * Which of two editions of one sheet is newer: the one whose figures reach a
+ * later period, and between two that reach the same period, the later upload
+ * (a correction). Periods within one sheet share a format ("1978-01",
+ * "2016-Q4", "2017"), so they compare as strings.
+ *
+ * WHY THE PERIOD FIRST. The upload stamp alone is the wrong clock. A
+ * correction to July uploaded after August would rank above August and roll
+ * the current file back, and a September edition uploaded before a late
+ * August correction would be refused for ever. Review of 2026-11-03.
+ */
+export function editionKey(doc) {
+  let last = "";
+  for (const s of doc?.series ?? []) {
+    for (const o of s.observations ?? []) if (o.value != null && String(o.period) > last) last = String(o.period);
+  }
+  return [last, uploadStamp(doc?.attachment_url) ?? doc?.published_at ?? ""];
+}
+const isOlder = (a, b) => (a[0] !== b[0] ? a[0] < b[0] : a[1] < b[1]);
+
+/**
+ * Store one sheet document and return its change state.
+ *
+ * An edition OLDER than the one held never replaces it. It goes to snapshots
+ * only and comes back as "older-than-held". Without this, one listing page
+ * that came back empty, a card date the parser could not read, or a slug
+ * variant that split one publication in two would select an older edition,
+ * label it "republished" and publish it over the newer file. The review of
+ * 2026-11-03 traced each of those three paths on that day's live cards.
+ * `--max-items N` relies on the same rule to deepen history without rolling
+ * the current file back.
+ */
+//
+// The comparison is per sheet, against the sheet's own held file (editionKey).
+// A sheet the held edition lacks has no file to compare with, so an older
+// workbook's copy comes in as "new". That is the bank's latest figure for that
+// sheet, cited to its own publication, so it is not a rollback. A run that
+// went backwards still fails, on the sheets the held edition does have.
+//
+// A re-read of the upload already held is that edition read again, so it
+// replaces the held file whatever period its figures now reach. That covers a
+// file the bank replaced in place and a parser fix that stops inventing a
+// value, the two cases --deep exists for. Review of 2026-11-03.
+export async function writeSheet(base, doc) {
+  let heldDoc;
+  try {
+    heldDoc = JSON.parse(await readFile(`${base}.json`, "utf8"));
+  } catch {
+    heldDoc = undefined;
+  }
+  const held = heldDoc && editionKey(heldDoc);
+  const sameUpload = Boolean(doc?.attachment_url) && heldDoc?.attachment_url === doc.attachment_url;
+  if (held && !sameUpload && isOlder(editionKey(doc), held)) {
+    const snap = path.join(base, "snapshots", `${doc.published_at}.json`);
+    try {
+      await readFile(snap);
+    } catch {
+      await writeJson(snap, doc);
+    }
+    return "older-than-held";
+  }
+  const state = await classifyChange(`${base}.json`, doc);
+  if (!QUIET_STATES.has(state)) await writeJson(path.join(base, "snapshots", `${doc.published_at}.json`), doc);
+  await writeJson(`${base}.json`, doc);
+  return state;
+}
+
 /**
  * Which attachment did we last ingest for this category?
  *
@@ -197,6 +269,67 @@ export async function heldPublication(dataDir, categoryId) {
  * keep as many publications as the listing declares. A listing that does not
  * declare `families` keeps the old single-publication behaviour exactly.
  */
+/**
+ * Cards from the listing and any `also` listings, newest first by card date.
+ * One listing keeps its own order (the CBB's, newest first). Several are
+ * merged by date, because "first on its own page" says nothing across pages.
+ * Undated cards go last rather than being dropped.
+ */
+export function mergeCards(pages) {
+  const seen = new Set();
+  const cards = [];
+  for (const page of pages) for (const c of page) if (!seen.has(c.url)) { seen.add(c.url); cards.push(c); }
+  if (pages.length > 1) {
+    cards.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+    // Two editions of one publication posted the same day would otherwise
+    // keep page order, and an older one on the first page would be taken as
+    // newest. Within each day, each publication's cards are re-ordered by the
+    // edition their slugs name, in the slots they already hold, so other
+    // publications keep their places. Review of 2026-11-03.
+    const slots = new Map();
+    cards.forEach((c, i) => {
+      const k = `${c.date}|${publicationFamily(c.url)}`;
+      if (!slots.has(k)) slots.set(k, []);
+      slots.get(k).push(i);
+    });
+    for (const idx of slots.values()) {
+      if (idx.length < 2) continue;
+      const sorted = idx.map((i) => cards[i]).sort((a, b) => slugEdition(b.url).localeCompare(slugEdition(a.url)));
+      idx.forEach((i, j) => { cards[i] = sorted[j]; });
+    }
+  }
+  return cards.map((c) => c.url);
+}
+
+/**
+ * Why a set of listing pages cannot be trusted to name the newest editions,
+ * or [] when it can. An `also` page with no cards would leave its publication
+ * to an older card on another page, and a card that could not be read may be
+ * the newest one. With several pages, an undated card cannot be placed in the
+ * date order at all.
+ */
+export function listingProblems(pages, paths) {
+  const problems = [];
+  pages.forEach((cards, i) => {
+    if (i > 0 && cards.length === 0) problems.push(`${paths[i]} showed 0 cards`);
+    if (cards.unreadable) problems.push(`${paths[i]}: ${cards.unreadable} card(s) could not be read`);
+    if (pages.length > 1 && cards.some((c) => !c.date)) problems.push(`${paths[i]}: a card has no readable date, so the pages cannot be merged by date`);
+  });
+  return problems;
+}
+
+async function listingItems(listing, firstHtml) {
+  const pages = [extractListingCards(firstHtml)];
+  for (const p of listing.also ?? []) {
+    await new Promise((r) => setTimeout(r, 800));
+    const { html } = await openListing(p);
+    pages.push(extractListingCards(html));
+  }
+  const problems = listingProblems(pages, [listing.path, ...(listing.also ?? [])]);
+  if (problems.length) throw new Error(problems.join("; "));
+  return mergeCards(pages);
+}
+
 export function selectItems(items, listing, maxItems = 1) {
   const wanted = listing?.families ?? 1;
   const byFamily = new Map();
@@ -213,8 +346,15 @@ export function selectItems(items, listing, maxItems = 1) {
 export async function ingestCategory(listing, { maxItems = 1, dataDir = DATA_DIR, gapMs = 1000, deep = false } = {}) {
   const retrievedAt = new Date().toISOString();
   const results = [];
-  const session = await openListing(listing.path);
-  const items = extractItemLinks(session.html, listing.path);
+  // A listing that cannot be opened or trusted fails on its own, and the
+  // other categories still run.
+  let session, items;
+  try {
+    session = await openListing(listing.path);
+    items = await listingItems(listing, session.html);
+  } catch (e) {
+    return { category: listing.id, retrievedAt, results: [{ ok: false, problems: [String(e.message ?? e)] }] };
+  }
   if (items.length === 0) {
     return { category: listing.id, retrievedAt, results: [{ ok: false, problems: ["listing returned no items — it may be a hub of sub-categories, not a listing"] }] };
   }
@@ -264,11 +404,15 @@ export async function ingestCategory(listing, { maxItems = 1, dataDir = DATA_DIR
           category: listing.id, title, sheetName: sheet.name, itemUrl, attachmentUrl, publishedAt, table: sheet, retrievedAt,
         });
         const base = path.join(dataDir, listing.id, slug(sheet.name));
-        const state = await classifyChange(`${base}.json`, doc);
-        if (!QUIET_STATES.has(state)) {
-          await writeJson(path.join(base, "snapshots", `${publishedAt}.json`), doc);
+        const state = await writeSheet(base, doc);
+        // With one edition per publication the item is the newest card, so an
+        // edition older than the one held means the listing went backwards (a
+        // withdrawn edition, a missed card). That is a failure, not a quiet
+        // success. Deeper history (--max-items 2+) expects older editions.
+        if (state === "older-than-held" && maxItems === 1) {
+          results.push({ item: itemUrl, sheet: sheet.name, ok: false, problems: [`the newest card is the ${publishedAt} edition, older than the one held; the held file was kept. The listing may have lost a card or the bank withdrew an edition.`] });
+          continue;
         }
-        await writeJson(`${base}.json`, doc);
         const obs = doc.series.reduce((a, s) => a + s.observations.filter((o) => o.value != null).length, 0);
         results.push({ item: itemUrl, sheet: sheet.name, ok: true, state, periods: doc.periods.length, series: doc.series.length, observations: obs, publishedAt });
       }

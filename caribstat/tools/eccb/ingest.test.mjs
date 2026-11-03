@@ -14,6 +14,7 @@ import { mkdtemp, rm, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { ingestTable } from "./ingest.mjs";
+import { tableById } from "./catalogue.mjs";
 
 const TABLE = "central-government-fiscal-accounts";
 const GEOS = [
@@ -53,6 +54,7 @@ function fakeBank(bank) {
     const body = new URLSearchParams(String(opts.body));
     const target = iso(body.get("country_code[]"));
     if (bank.failing?.includes(target)) return new Response("boom", { status: 500 });
+    if (bank.empty?.includes(target)) return new Response(`${stamp}<table><tr><th></th><th>Unit</th></tr></table>`, { status: 200 });
     const start = Number(body.get("start_date").slice(-4));
     const end = Number(body.get("end_date").slice(-4));
     return new Response(`${stamp}${table(target, range(start, end))}`, { status: 200 });
@@ -247,5 +249,24 @@ test("per-country tables never let our window excuse the bank's new period", () 
     assert.equal(r.results[0].state, "republished");
   } finally {
     globalThis.fetch = real;
+  }
+}));
+
+test("a withheld geography is not ingested, and the deep run fails the day it shows rows", () => scratch(async (dir) => {
+  const def = tableById.get(TABLE);
+  const before = def.withheld;
+  def.withheld = ["XCU"];
+  try {
+    const bank = { ...initialBank(), empty: ["XCU"] };
+    const r = await run(dir, bank, { deep: true, now: DAY1 });
+    assert.deepEqual(r.results.map((x) => [x.iso3, x.ok]), [["AIA", true]], "only the published geography is ingested");
+    assert.ok(!(await readdir(path.join(dir, TABLE, "a"))).includes("XCU.json"), "no file is written for a withheld geography");
+    bank.empty = [];
+    const later = await run(dir, bank, { deep: true, now: DAY4 });
+    const xcu = later.results.find((x) => x.iso3 === "XCU");
+    assert.equal(xcu?.ok, false, "rows on a withheld geography are a loud failure");
+    assert.match(xcu.problems[0], /declared withheld/);
+  } finally {
+    def.withheld = before;
   }
 }));

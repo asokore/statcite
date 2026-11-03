@@ -62,6 +62,10 @@ export function validateTable(def, table, dataAsAt, { stampPhrase = false } = {}
   if (!table) return ["no table element found in the response"];
   if (!table.periods?.length) problems.push("no period columns parsed");
   if (!table.rows?.length) problems.push("no data rows parsed");
+  const wide = (table.rows ?? []).filter((r) => r.wide);
+  if (wide.length) {
+    problems.push(`${wide.length} row(s) have more cells than the ${table.periods?.length} periods (e.g. "${wide[0].label}", ${wide[0].wide} cells): the columns are split below the period and cannot be read as one value per period`);
+  }
   for (const needle of def.sentinelRows ?? []) {
     if (!table.rows.some((r) => r.label.toLowerCase().startsWith(needle.toLowerCase()))) {
       problems.push(`expected row missing: "${needle}" — the source layout may have changed`);
@@ -258,6 +262,10 @@ export async function ingestTable(tableId, { freq = "a", geographies = ECCB_GEOG
       `table '${tableId}' does not publish frequency '${freq}' (has: ${def.frequencies.join(", ")}). This is a request error, not an absence of data.`,
     );
   }
+  // A withheld geography renders an empty table. It is not ingested, and the
+  // deep run below checks it still is empty.
+  const withheld = geographies.filter((g) => def.withheld?.includes(g.iso3));
+  geographies = geographies.filter((g) => !def.withheld?.includes(g.iso3));
   // `now` exists for tests; a real run always stamps its own clock.
   const retrievedAt = now ?? new Date().toISOString();
   const results = [];
@@ -360,6 +368,20 @@ export async function ingestTable(tableId, { freq = "a", geographies = ECCB_GEOG
       results.push({ iso3: g.iso3, ok: false, problems: [String(e.message ?? e)] });
     }
     await new Promise((r) => setTimeout(r, gapMs));
+  }
+
+  if (deep && !perCountry) {
+    for (const g of withheld) {
+      try {
+        const r = await fetchGeography(tableUrl(def, g.iso3), session, { countryCode: g.code, freq, startDate, endDate });
+        if (r.table?.rows?.length) {
+          results.push({ iso3: g.iso3, ok: false, problems: [`${r.table.rows.length} rows now published for a geography declared withheld; take it off the table's withheld list and ingest it`] });
+        }
+      } catch (e) {
+        results.push({ iso3: g.iso3, ok: false, problems: [`withheld check: ${String(e.message ?? e)}`] });
+      }
+      await new Promise((r) => setTimeout(r, gapMs));
+    }
   }
 
   // Record the check only when the whole table came back clean. A table with a

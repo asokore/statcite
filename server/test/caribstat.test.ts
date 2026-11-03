@@ -363,13 +363,142 @@ test("a Caribbean query finds the bank that publishes it", async () => {
     "a Barbados BOP query must reach the Central Bank of Barbados");
 });
 
+test("search never offers a geography a table withholds, and a request for one says why", async () => {
+  // Found 2026-11-03: "Grenada GDP" offered gva-constant-prices/GRD.a, which
+  // has no file because the ECCB's 2018 base-year table is empty for Grenada.
+  const { searchCaribstat, fetchCaribstatSeries, CARIBSTAT_CATALOGUE, ECCB_GEOGRAPHIES } = await import("../src/adapters/caribstat.ts");
+  const withholding = CARIBSTAT_CATALOGUE.filter((e) => e.withheld?.length);
+  assert.ok(withholding.length >= 3, "the national-accounts tables declare their withheld geographies");
+  for (const e of withholding) {
+    assert.equal(e.geographies, 9 - e.withheld!.length, `${e.table}: the geography count agrees with the withheld list`);
+    for (const iso3 of e.withheld!) {
+      const name = ECCB_GEOGRAPHIES[iso3].toLowerCase().replace(/\s*\(.*\)$/, "");
+      for (const q of [`${name} gdp growth`, `caribbean ${iso3.toLowerCase()} gross value added national accounts`]) {
+        const hits = searchCaribstat(q, 20);
+        assert.ok(!hits.some((h) => h.id.includes(`/${e.table}/${iso3}.`)), `'${q}' must not offer ${e.table}/${iso3}`);
+      }
+      const err = await fetchCaribstatSeries(`caribstat/ECCB/${e.table}/${iso3}.a`).catch((x) => x as Error);
+      assert.ok(err instanceof Error, `${e.table}/${iso3} must fail`);
+      assert.match(err.message, /shows no figures/, "the error names the real reason, not a frequency");
+      assert.match(JSON.stringify((err as any).details ?? {}), /no_published_data/);
+    }
+  }
+  const ok = searchCaribstat("anguilla gdp growth");
+  assert.ok(ok.some((h) => h.id === "caribstat/ECCB/gva-growth-constant-prices/AIA.a"), "a covered geography is still offered");
+  // The everyday spellings, not the catalogue names. Each names a withheld
+  // geography, so no withholding table may answer it under ANY geography: the
+  // Anguilla default would be another country's figures.
+  const spoken: Record<string, string[]> = {
+    KNA: ["st kitts gdp growth", "saint kitts and nevis gdp", "nevis national accounts", "nevisian gdp growth", "kittitian gdp", "caribbean kna gross value added national accounts", "st_kitts_gdp_growth"],
+    GRD: ["grenada gdp growth", "grenadian gdp"],
+    XCU: ["eccu gdp growth", "eastern caribbean currency union gross value added", "eastern caribbean gdp growth", "eccb gdp growth", "oecs gdp"],
+  };
+  // Each of these reaches the catalogue, so the leak check above cannot pass
+  // on an empty list.
+  for (const q of ["caribbean kna gross value added national accounts", "nevisian gdp growth", "eccb gdp growth", "st_kitts_gdp_growth"]) {
+    assert.ok(searchCaribstat(q, 20).length > 0, `'${q}' reaches the catalogue`);
+  }
+  for (const [iso3, qs] of Object.entries(spoken)) {
+    for (const q of qs) {
+      const leak = searchCaribstat(q, 20).filter((h) => withholding.some((e) => e.table === h.entry.table && e.withheld!.includes(iso3)));
+      assert.deepEqual(leak.map((h) => h.id), [], `'${q}' names ${iso3}, which these tables withhold`);
+    }
+  }
+});
+
+test("a geography is read from the words people use, as whole words", async () => {
+  const { eccbGeographyIn } = await import("../src/adapters/caribstat.ts");
+  const cases: Array<[string, string | undefined]> = [
+    ["st kitts debt", "KNA"], ["saint lucia inflation", "LCA"], ["st. vincent gdp", "VCT"], ["antigua debt", "ATG"],
+    ["eccu debt", "XCU"], ["st kitts and the eccu", "KNA"], ["dominica gdp", "DMA"],
+    ["dominican republic gdp", undefined], ["malaysia gdp", undefined], ["excuse rates", undefined],
+    ["grd exchange rate", undefined], ["vct tax relief", undefined], ["euro area currency union inflation", undefined],
+    ["caribbean grd debt", "GRD"], ["barbados and kna debt", "KNA"], ["grenada_debt", "GRD"], ["st-lucia-inflation", "LCA"],
+    ["nevisian gdp", "KNA"], ["vincentian debt", "VCT"], ["st lucian inflation", "LCA"], ["antiguan gdp", "ATG"],
+    ["montserratian tourism", "MSR"], ["anguillian debt", "AIA"], ["grenadian gdp", "GRD"],
+    ["eastern caribbean debt", "XCU"], ["eccb inflation", "XCU"], ["oecs gdp", "XCU"],
+    ["st lucia and grenada gdp growth", "LCA"], ["st kitts vs antigua debt", "KNA"],
+  ];
+  for (const [q, want] of cases) assert.equal(eccbGeographyIn(q), want, q);
+});
+
+test("search reads the query one way for intent and geography, and names the country it answers for", async () => {
+  // Review of 2026-11-03: a substring intent test took "dominican republic"
+  // for Dominica, two named members resolved in list order not query order,
+  // and code-only queries reached nothing.
+  const { searchCaribstat } = await import("../src/adapters/caribstat.ts");
+  assert.deepEqual(searchCaribstat("dominican republic inflation", 20), [], "neither bank covers the Dominican Republic");
+  assert.deepEqual(searchCaribstat("dominican republic gdp", 20), []);
+  const two = searchCaribstat("st lucia and grenada gdp growth", 20);
+  assert.ok(two.some((h) => h.id === "caribstat/ECCB/gva-growth-constant-prices/LCA.a"), "St Lucia is covered, so Grenada being withheld does not drop the table");
+  assert.ok(!two.some((h) => h.id.includes("/gva-") && h.id.includes("/GRD.")));
+  assert.ok(searchCaribstat("grenada and st lucia gdp growth", 20).some((h) => h.id === "caribstat/ECCB/gva-growth-constant-prices/LCA.a"),
+    "named second, St Lucia still answers for the table Grenada is withheld from");
+  assert.ok(searchCaribstat("st kitts vs antigua debt").every((h) => h.entry.provider !== "ECCB" || h.id.includes("/KNA.")), "the first named member leads");
+  assert.ok(searchCaribstat("caribbean aia debt").some((h) => h.id.includes("total-public-sector-debt/AIA")), "a code names the geography in a Caribbean query");
+  assert.ok(searchCaribstat("grenada_debt").some((h) => h.id.includes("total-public-sector-debt/GRD")), "separators read as spaces");
+  for (const h of searchCaribstat("caribbean gdp growth", 20)) {
+    if (h.entry.provider === "ECCB") assert.ok(h.iso3 && h.id.includes(`/${h.iso3}.`), `${h.id} carries the geography it answers for`);
+  }
+});
+
+test("a member named beside the bank or region is the geography, and Barbados never answers for it", async () => {
+  // A third review, 2026-11-03.
+  const { searchCaribstat, eccbGeographyIn } = await import("../src/adapters/caribstat.ts");
+  assert.equal(eccbGeographyIn("eccb inflation for grenada"), "GRD");
+  assert.equal(eccbGeographyIn("eastern caribbean central bank data on grenada debt"), "GRD");
+  assert.equal(eccbGeographyIn("eccu and grenada inflation"), "XCU", "naming the union itself still asks for it");
+  assert.equal(eccbGeographyIn("eastern caribbean currency union and grenada inflation"), "XCU", "and so does its full name");
+  assert.equal(eccbGeographyIn("eccb inflation"), "XCU");
+  assert.ok(searchCaribstat("eccb inflation for grenada").some((h) => h.id === "caribstat/ECCB/consumer-price-index/GRD.a"));
+  for (const q of ["grenada gdp growth", "st kitts gdp growth", "eccb gdp growth", "anguilla inflation", "st lucia exchange rate"]) {
+    const cbb = searchCaribstat(q, 20).filter((h) => h.entry.provider === "CBB");
+    assert.deepEqual(cbb.map((h) => h.id), [], `'${q}' names an ECCB geography and not Barbados`);
+  }
+  for (const q of ["barbados and grenada inflation", "brb vs grenada inflation", "cbb and eccb interest rates"]) {
+    const hits = searchCaribstat(q, 20);
+    assert.ok(hits.some((h) => h.entry.provider === "CBB") && hits.some((h) => h.entry.provider === "ECCB"), `'${q}' names both, so keeps both`);
+  }
+  // A topic scores as whole words: "pay" is not inside "payments", and a
+  // table that names a ratio does not lead a plain GDP question.
+  assert.ok(!searchCaribstat("barbados balance of payments").slice(0, 2).some((h) => h.entry.table === "the-wages-index"));
+  assert.ok(searchCaribstat("barbados interest rates").some((h) => h.entry.table === "interest-rates"), "a plural still scores");
+  assert.notEqual(searchCaribstat("anguilla gdp")[0]?.entry.table, "debt-to-gdp");
+  assert.ok(searchCaribstat("wages index").some((h) => h.entry.table === "the-wages-index"), "a query holding a whole title still names it");
+  // Separators read as spaces for topics too, not only for the geography.
+  for (const [q, id] of [["grenada_exchange_rate", "real-effective-exchange-rate/GRD"], ["grenada exchange rate", "real-effective-exchange-rate/GRD"],
+                         ["st_kitts_debt_to_gdp", "debt-to-gdp/KNA"]] as const) {
+    assert.ok(searchCaribstat(q)[0]?.id.includes(id), `'${q}' leads with ${id}, got ${searchCaribstat(q)[0]?.id}`);
+  }
+  assert.deepEqual(searchCaribstat("___"), [], "a query of separators alone matches nothing");
+});
+
+test("a Barbados query is never answered with an ECCB table", async () => {
+  // Barbados is not an ECCB member. Measured 2026-11-03: "Barbados GDP growth"
+  // ranked ECCB gva-growth-constant-prices/AIA.a above the CBB GDP table.
+  const { searchCaribstat } = await import("../src/adapters/caribstat.ts");
+  for (const q of ["barbados gdp growth", "barbados trade balance", "barbados exchange rate", "barbados inflation", "barbados current account", "bajan inflation", "bajan gdp growth", "barbadian gdp growth"]) {
+    const hits = searchCaribstat(q, 20);
+    assert.ok(!hits.some((h) => h.entry.provider === "ECCB"), `'${q}' returned ${hits.filter((h) => h.entry.provider === "ECCB").map((h) => h.id).join(", ")}`);
+  }
+  for (const q of ["barbados gdp growth", "barbadian gdp growth", "bajan gdp growth"]) {
+    assert.ok(searchCaribstat(q).some((h) => h.id.includes("CBB/gross-domestic-product")), `'${q}' reaches the CBB GDP table`);
+  }
+  for (const q of ["barbados and grenada debt", "barbados vs st kitts debt", "barbados and antigua debt", "barbados and eccu debt", "barbados vs the eastern caribbean debt", "barbados and the eccb debt"]) {
+    assert.ok(searchCaribstat(q, 20).some((h) => h.entry.provider === "ECCB"), `'${q}' names an ECCB geography as well, so it still reaches the ECCB`);
+  }
+});
+
 test("A GLOBAL QUERY IS NOT ANSWERED WITH NINE-COUNTRY REGIONAL TABLES", async () => {
   // The failure this prevents is subtle and would look like success: someone
   // asks about Japan or a generic topic and gets an EC$ table covering nine
   // small economies, ranked as though it answered the question. Regional data
   // needs regional intent, otherwise it stays out of the way.
   const { searchCaribstat } = await import("../src/adapters/caribstat.ts");
-  for (const q of ["japan gdp", "united states unemployment", "germany trade", "world population"]) {
+  for (const q of ["japan gdp", "united states unemployment", "germany trade", "world population",
+                 "grd exchange rate", "vct tax relief", "aia tax allowance", "msr carbon price", "lca emissions", "dma regulation",
+                 "euro area currency union inflation", "west african currency union exchange rate",
+                 "inflation", "gdp", "debt", "exchange rate", "tourism", "trade", "wages", "rates", "index", "survey", "a"]) {
     assert.equal(searchCaribstat(q).length, 0, `'${q}' must not return regional Caribbean tables`);
   }
 });
