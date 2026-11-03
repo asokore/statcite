@@ -391,6 +391,15 @@ export function selectRow(doc: CaribstatDoc, want?: string): { label: string; un
 /** Fetch one CaribStat series. */
 export async function fetchCaribstatSeries(id: string, opts: { origin?: string; ttlSeconds?: number } = {}): Promise<CaribstatSeries> {
   const parsed = parseCaribstatId(id);
+  const withheldBy = parsed.provider === "ECCB"
+    ? CARIBSTAT_CATALOGUE.find((e) => e.provider === "ECCB" && e.table === parsed.table && e.withheld?.includes(parsed.iso3 ?? ""))
+    : undefined;
+  if (withheldBy) {
+    throw new ToolError(
+      `No CaribStat series '${canonicalCaribstatBase(parsed)}'. The ECCB publishes ${withheldBy.title} for ${withheldBy.geographies} of its nine geographies. For ${ECCB_GEOGRAPHIES[parsed.iso3 ?? ""] ?? parsed.iso3} its table shows no figures, so nothing is collected. Not covered: ${withheldBy.withheld!.join(", ")}.`,
+      { series_id: canonicalCaribstatBase(parsed), no_published_data: true, not_covered: withheldBy.withheld },
+    );
+  }
   const apiUrl = caribstatUrl(parsed, opts.origin ?? CARIBSTAT_ORIGIN);
   // A 404 from the origin means THIS SERIES DOES NOT EXIST, not that the
   // upstream is broken. Letting it surface as a 502 "upstream data source
@@ -506,6 +515,10 @@ export interface CaribstatTable {
   sheets?: string[];
   /** Geographies, ECCB only. CBB is Barbados throughout. */
   geographies?: number;
+  /** ECCB geographies the bank renders as an empty table, so no file exists.
+   * Search never offers them, and a request for one says why. Mirrors
+   * `withheld` in caribstat/tools/eccb/catalogue.mjs. */
+  withheld?: string[];
   /** Words a person would actually search for. */
   topics: string[];
   /** A row label that RESOLVES. search prints it inside a usage string an
@@ -516,6 +529,10 @@ export interface CaribstatTable {
   sampleRow: string;
 }
 
+/** Grenada, St Kitts and Nevis and the ECCU aggregate: the 2018 base-year
+ * national-accounts tables rendered empty for them on 2026-11-03. */
+const NA_2018_WITHHELD = ["GRD", "KNA", "XCU"];
+
 export const CARIBSTAT_CATALOGUE: CaribstatTable[] = [
   {
     provider: "ECCB", table: "total-public-sector-debt", title: "Total Public Sector Debt",
@@ -525,7 +542,8 @@ export const CARIBSTAT_CATALOGUE: CaribstatTable[] = [
   {
     provider: "ECCB", table: "debt-to-gdp", title: "Debt to GDP",
     freqs: ["a"], geographies: 9, sampleRow: "Total Public Sector Debt to GDP",
-    topics: ["debt to gdp", "debt ratio", "debt burden", "gdp"],
+    // No bare "gdp": it led "anguilla gdp" with a debt ratio. Review of 2026-11-03.
+    topics: ["debt to gdp", "debt ratio", "debt burden"],
   },
   {
     provider: "ECCB", table: "central-government-fiscal-accounts", title: "Central Government Fiscal Accounts",
@@ -551,6 +569,44 @@ export const CARIBSTAT_CATALOGUE: CaribstatTable[] = [
     provider: "ECCB", table: "selected-tourism-statistics", title: "Selected Tourism Statistics",
     freqs: ["a", "q", "m"], geographies: 9, sampleRow: "Total Visitor Arrivals",
     topics: ["tourism", "visitors", "arrivals", "cruise", "stayover"],
+  },
+  // Added 2026-11-03 (A-061). The three national-accounts tables are 2018
+  // base-year and cover six geographies: Grenada, St Kitts and Nevis and the
+  // ECCU aggregate render an empty table there.
+  {
+    provider: "ECCB", table: "gva-constant-prices", title: "Gross Value Added by Economic Activity, Constant Prices (2018)",
+    freqs: ["a"], geographies: 6, withheld: NA_2018_WITHHELD, sampleRow: "Gross Domestic Product (GDP) at Market Prices",
+    topics: ["gdp", "real gdp", "gross value added", "gva", "national accounts", "output", "sector"],
+  },
+  {
+    provider: "ECCB", table: "gva-growth-constant-prices", title: "Growth Rate of Gross Value Added, Constant Prices (2018)",
+    freqs: ["a"], geographies: 6, withheld: NA_2018_WITHHELD, sampleRow: "Gross Domestic Product at Market Prices",
+    topics: ["gdp growth", "growth", "real growth", "economic growth", "sector growth", "national accounts"],
+  },
+  {
+    provider: "ECCB", table: "gva-current-prices", title: "Gross Value Added by Economic Activity, Current Prices (2018)",
+    freqs: ["a"], geographies: 6, withheld: NA_2018_WITHHELD, sampleRow: "Gross Domestic Product (GDP) at Market Prices",
+    topics: ["nominal gdp", "gdp", "gross value added", "gva", "national accounts", "current prices"],
+  },
+  {
+    provider: "ECCB", table: "balance-of-payments", title: "Balance of Payments (Analytic Presentation)",
+    freqs: ["a"], geographies: 9, sampleRow: "Current Account as % of GDP",
+    topics: ["balance of payments", "current account", "bop", "exports", "imports", "external balance"],
+  },
+  {
+    provider: "ECCB", table: "international-investment-position", title: "International Investment Position (Summary)",
+    freqs: ["a"], geographies: 9, sampleRow: "Net International Investment Position",
+    topics: ["international investment position", "iip", "external assets", "external liabilities", "foreign investment"],
+  },
+  {
+    provider: "ECCB", table: "trade-by-sitc", title: "Trade Statistics by SITC",
+    freqs: ["a", "q", "m"], geographies: 9, sampleRow: "Trade Balance",
+    topics: ["trade", "trade balance", "merchandise trade", "exports", "imports", "re-exports", "sitc"],
+  },
+  {
+    provider: "ECCB", table: "real-effective-exchange-rate", title: "Real Effective Exchange Rate Index",
+    freqs: ["a", "q", "m"], geographies: 9, sampleRow: "REER",
+    topics: ["real effective exchange rate", "reer", "neer", "exchange rate", "competitiveness"],
   },
   // --- CBB ------------------------------------------------------------
   //
@@ -670,37 +726,135 @@ export const ECCB_GEOGRAPHIES: Record<string, string> = {
   VCT: "St. Vincent and the Grenadines", XCU: "ECCU (currency union aggregate)",
 };
 
+/**
+ * Words that name each ECCB geography in a query, matched as whole words.
+ * The display names alone missed "st kitts", "saint lucia" and "eccu", so a
+ * question about a geography a table withholds got Anguilla's figures under
+ * a title naming no country. Review of 2026-11-03. Demonyms count
+ * ("nevisian", "vincentian"), except "dominican", which names the Dominican
+ * Republic as often as Dominica. The region's own names ("eastern caribbean",
+ * "eccb", "oecs") read as the union aggregate. A bare "currency union" does
+ * not: it named the euro area. A three-letter code counts only in a query
+ * that already reads as Caribbean, because GRD is also the drachma, VCT a
+ * UK trust and MSR the EU carbon reserve. A second review, 2026-11-03.
+ */
+const ECCB_GEOGRAPHY_WORDS: Array<[string, RegExp]> = [
+  ["AIA", /\b(anguill(a|ans?|ians?))\b/g],
+  ["ATG", /\b(antiguans?|antigua|barbudans?|barbuda)\b/g],
+  ["DMA", /\b(dominica)\b/g],
+  ["GRD", /\b(grenada|grenadians?)\b/g],
+  ["KNA", /\b(kitts|kittitians?|nevis|nevisians?)\b/g],
+  ["LCA", /\b(lucia|lucians?)\b/g],
+  ["MSR", /\b(montserrat|montserratians?)\b/g],
+  ["VCT", /\b(vincent|vincentians?|grenadines)\b/g],
+  ["XCU", /\b(eccu|eastern caribbean|eccb|oecs)\b/g],
+];
+
+/**
+ * Barbados, in each spelling, for the intent, Barbados-only and ECCB-only
+ * tests. The bank's own initials count too, since this service prints "CBB"
+ * in its result titles.
+ */
+const BARBADOS_WORDS = /\b(barbados|bajans?|barbadians?|bdos|brb|cbb|cbob)\b/;
+
+/**
+ * A query as words: lower case, with separators such as "_" and "-" turned
+ * into spaces, so "grenada_debt" reads as "grenada debt". Every geography
+ * and intent test reads this one form.
+ */
+const queryWords = (query: string) => ` ${query.toLowerCase().replace(/[^a-z0-9.]+/g, " ")} `;
+
+/** Every ECCB geography a query names, in the order the query names them. */
+export function eccbGeographiesIn(query: string): string[] {
+  const q = queryWords(query);
+  const at: Array<[number, string]> = [];
+  for (const [code, re] of ECCB_GEOGRAPHY_WORDS) {
+    const first = [...q.matchAll(re)][0];
+    if (first) at.push([first.index ?? 0, code]);
+  }
+  if (at.length || /\bcaribbean\b/.test(q) || BARBADOS_WORDS.test(q)) {
+    for (const [code] of ECCB_GEOGRAPHY_WORDS) {
+      if (at.some(([, c]) => c === code)) continue;
+      const i = q.search(new RegExp(`\\b${code.toLowerCase()}\\b`));
+      if (i >= 0) at.push([i, code]);
+    }
+  }
+  const named = at.sort((a, b) => a[0] - b[0]).map(([, code]) => code);
+  // "eccb" and "eastern caribbean" name the bank or the region, so a member
+  // named beside them is the geography asked about: "eccb inflation for
+  // grenada" is Grenada. "eccu", the code or "currency union" asks for
+  // the aggregate.
+  if (named.some((c) => c !== "XCU") && !/\b(eccu|xcu|currency union)\b/.test(q)) return named.filter((c) => c !== "XCU");
+  return named;
+}
+
+/** The first ECCB geography a query names, or undefined. */
+export function eccbGeographyIn(query: string): string | undefined {
+  return eccbGeographiesIn(query)[0];
+}
+
 /** Score a catalogue entry against a free-text query. */
 export function searchCaribstat(query: string, limit = 4): Array<{
   entry: CaribstatTable; iso3?: string; id: string; why: string;
 }> {
   const q = query.toLowerCase().trim();
   if (!q) return [];
-  let iso3: string | undefined;
-  for (const [code, name] of Object.entries(ECCB_GEOGRAPHIES)) {
-    if (q.includes(name.toLowerCase()) || q.includes(code.toLowerCase())) { iso3 = code; break; }
-  }
-  const caribbeanIntent = /caribbean|eccu|eccb|barbados|antigua|anguilla|montserrat|grenada|dominica|lucia|kitts|nevis|vincent/i.test(q);
+  const named = eccbGeographiesIn(q);
+  // One reading of the query for both questions. A substring test here once
+  // took "dominican republic" for Dominica while the geography test did not,
+  // and the gap sent Anguilla's figures. Review of 2026-11-03.
+  const words = queryWords(q);
+  const w = words.trim();
+  if (!w) return [];
+  const caribbeanIntent = named.length > 0 || /\bcaribbean\b/.test(words) || BARBADOS_WORDS.test(words);
+  // Barbados is not an ECCB member. A Barbados query that names no ECCB
+  // geography gets the Central Bank of Barbados tables only, never an
+  // Anguilla default.
+  const barbadosOnly = BARBADOS_WORDS.test(words) && named.length === 0;
+  // The mirror case: a query that names an ECCB geography and not Barbados
+  // is not answered with Barbados figures, even when the ECCB withholds the
+  // table it asked for. A third review, 2026-11-03.
+  const eccbOnly = named.length > 0 && !BARBADOS_WORDS.test(words);
   const out: Array<{ entry: CaribstatTable; iso3?: string; id: string; why: string; score: number }> = [];
   for (const e of CARIBSTAT_CATALOGUE) {
+    if (e.provider === "ECCB" && barbadosOnly) continue;
+    if (e.provider === "CBB" && eccbOnly) continue;
+    // No file exists for a withheld geography, so offering its id is a 404
+    // this service would have handed out itself. A table is offered under the
+    // first named geography it covers, and dropped when it covers none of
+    // them, rather than answering with another country's figures.
+    let iso3: string | undefined;
+    if (e.provider === "ECCB") {
+      const covered = named.filter((g) => !e.withheld?.includes(g));
+      if (named.length && !covered.length) continue;
+      iso3 = covered[0] ?? "AIA";
+    }
     let score = 0;
     for (const t of e.topics) {
-      if (q.includes(t)) score += t.split(" ").length * 2;
+      // Topics and titles read the same normalised words as the geography
+      // test, so "grenada_exchange_rate" scores like "grenada exchange rate".
+      const tw = queryWords(t).trim();
+      // Whole words, plural allowed: "pay" must not score inside "payments".
+      // queryWords leaves only [a-z0-9. ], so "." is the one character to escape.
+      if (tw && new RegExp(`\\b${tw.replace(/\./g, "\\.")}s?\\b`).test(words)) score += t.split(" ").length * 2;
     }
-    if (e.title.toLowerCase().includes(q)) score += 3;
+    // The query names the table only when it holds the whole title. Any
+    // substring let "inflation" or "debt" alone past the intent gate.
+    const namesTable = words.includes(queryWords(e.title));
+    if (namesTable) score += 3;
     // A topic alone is not enough: "inflation" must not surface a nine-country
     // regional table above the global registry key. Regional intent is required
     // unless the query names the table itself.
-    if (score > 0 && !caribbeanIntent && !e.title.toLowerCase().includes(q)) continue;
+    if (score > 0 && !caribbeanIntent && !namesTable) continue;
     if (score === 0 && caribbeanIntent) score = 1;
     if (score === 0) continue;
     const id = e.provider === "ECCB"
-      ? `caribstat/ECCB/${e.table}/${iso3 ?? "AIA"}.${e.freqs?.[0] ?? "a"}`
+      ? `caribstat/ECCB/${e.table}/${iso3}.${e.freqs?.[0] ?? "a"}`
       : `caribstat/CBB/${e.table}/${e.sheets?.[0]}`;
     out.push({
       entry: e, iso3, id, score,
       why: e.provider === "ECCB"
-        ? `${e.title}, ${e.geographies} ECCB geographies, ${(e.freqs ?? []).join("/")}`
+        ? `${e.title}, ${e.geographies} ECCB geographies${e.withheld?.length ? ` (not ${e.withheld.join(", ")})` : ""}, ${(e.freqs ?? []).join("/")}`
         : `${e.title}, Barbados, ${(e.sheets ?? []).length} sheet(s)`,
     });
   }

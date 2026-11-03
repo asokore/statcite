@@ -62,7 +62,7 @@ for (const t of targets) {
     if (x.ok) {
       sheets++;
       observations += x.observations ?? 0;
-      console.log(`  ${x.state === "unchanged" ? "same" : x.state === "new" ? "NEW " : x.state === "republished" ? "PUB " : "qry "} ${String(x.sheet).slice(0, 28).padEnd(28)} ${String(x.periods).padStart(4)} periods, ${String(x.series).padStart(3)} series, ${String(x.observations).padStart(6)} obs  pub ${x.publishedAt}`);
+      console.log(`  ${x.state === "unchanged" ? "same" : x.state === "new" ? "NEW " : x.state === "republished" ? "PUB " : x.state === "older-than-held" ? "OLD " : "qry "} ${String(x.sheet).slice(0, 28).padEnd(28)} ${String(x.periods).padStart(4)} periods, ${String(x.series).padStart(3)} series, ${String(x.observations).padStart(6)} obs  pub ${x.publishedAt}`);
     } else {
       failures++;
       console.log(`  FAIL ${String(x.sheet ?? "(item)").slice(0, 28).padEnd(28)} ${x.problems.join(" | ").slice(0, 90)}`);

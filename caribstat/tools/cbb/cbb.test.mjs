@@ -11,16 +11,21 @@ import assert from "node:assert/strict";
 import {
   extractCsrfToken,
   extractItemLinks,
+  extractListingCards,
   extractAttachment,
   publicationDateFromUrl,
   extractTitle,
   titleAgreesWithAttachment,
   publicationFamily,
+  slugEdition,
   CBB_LISTINGS,
   CBB_UNRESOLVED_CATEGORIES,
   CBB_HUBS,
 } from "./fetch.mjs";
-import { selectItems, validateTable } from "./ingest.mjs";
+import { selectItems, validateTable, mergeCards, listingProblems, writeSheet } from "./ingest.mjs";
+import { mkdtemp, rm, readFile, readdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 const BOILERPLATE = `
   <a href="https://cdn.centralbank.org.bb/documents/2022-04-21-04-57-32-Government-of-Barbados-Tradeable-Bonds-FAQ-1.pdf">Bonds FAQ</a>
@@ -33,11 +38,16 @@ const ITEM_PAGE = `<html><head><meta name="csrf-token" content="TOKEN1234567890"
   <a href="https://cdn.centralbank.org.bb/documents/2026-05-03-15-36-54-C2C4DCSystemFebruary2026.xlsx" data-viewtype="download">Download</a>
 </body></html>`;
 
+// Card markup as the CBB serves it (read 2026-11-03). The second card links
+// under /news/statistics-1/ although it is shown on /news/statistics: that is
+// how the newest editions of seven tables were filed from mid-2026.
+const card = (date, href) =>
+  `<div class="col-sm-6 col-lg-4 gap"> <div class="-items"> <div class="-textblock"> <div class="date-wrap"> <div class="date">${date}</div> </div> <div class="-ntitle"> t </div> <a href="${href}" class="link" title="Read More">Read More</a> </div> </div> </div>`;
 const LISTING = `<html><head><meta name="csrf-token" content="LISTTOKEN"></head><body>
-  <a href="https://www.centralbank.org.bb/news/statistics/investments-provisional-2014-april-2026">Investments</a>
-  <a href="https://www.centralbank.org.bb/news/statistics/selected-indicators-of-depository-corporations-february-2026">Indicators</a>
   <a href="https://www.centralbank.org.bb/news/statistics">Statistics</a>
-  <a href="https://www.centralbank.org.bb/news/tourism/long-stay-arrivals">Other category</a>
+  <a href="https://www.centralbank.org.bb/news/tourism/long-stay-arrivals">Other category, in the navigation</a>
+  ${card("06 Jul 2026", "https://www.centralbank.org.bb/news/statistics/investments-provisional-2014-april-2026")}
+  ${card("30 Sep 2026", "https://www.centralbank.org.bb/news/statistics-1/selected-indicators-of-depository-corporations-july-2026")}
   ${BOILERPLATE}
 </body></html>`;
 
@@ -46,12 +56,143 @@ test("the CSRF token is read from the meta tag", () => {
   assert.equal(extractCsrfToken("<html>no token</html>"), undefined, "absent must be undefined, not empty string");
 });
 
-test("item links are scoped to their listing and exclude the listing itself", () => {
+test("items are the listing's own cards, wherever their links point, and nothing else on the page", () => {
   const items = extractItemLinks(LISTING, "/news/statistics");
-  assert.equal(items.length, 2);
-  assert.ok(items.every((i) => i.includes("/news/statistics/")));
+  assert.deepEqual(items, [
+    "https://www.centralbank.org.bb/news/statistics/investments-provisional-2014-april-2026",
+    "https://www.centralbank.org.bb/news/statistics-1/selected-indicators-of-depository-corporations-july-2026",
+  ], "a card filed under another path is still this listing's item");
   assert.ok(!items.includes("https://www.centralbank.org.bb/news/statistics"), "the listing page is not one of its own items");
-  assert.ok(!items.some((i) => i.includes("/news/tourism/")), "another category's items must not leak in");
+  assert.ok(!items.some((i) => i.includes("/news/tourism/")), "a link outside the cards is not an item");
+  assert.deepEqual(extractListingCards(LISTING).map((c) => c.date), ["2026-07-06", "2026-09-30"]);
+});
+
+test("several listings merge newest first by card date, one listing keeps its own order", () => {
+  const a = [{ url: "u/apr", date: "2026-07-06" }, { url: "u/feb", date: "2026-05-04" }];
+  const b = [{ url: "u/jul", date: "2026-10-02" }, { url: "u/apr", date: "2026-07-06" }, { url: "u/x", date: null }];
+  assert.deepEqual(mergeCards([a, b]), ["u/jul", "u/apr", "u/feb", "u/x"]);
+  assert.deepEqual(mergeCards([[{ url: "late", date: "2026-01-01" }, { url: "early", date: "2026-09-01" }]]), ["late", "early"]);
+});
+
+test("two editions posted the same day on different pages merge by the edition they name", () => {
+  const S = "https://www.centralbank.org.bb/news/statistics-1/";
+  const first = [{ url: `${S}selected-indicators-of-depository-corporations-july-2026`, date: "2026-09-30" },
+    { url: `${S}investments-provisional-2014-april-2026`, date: "2026-09-30" }];
+  const also = [{ url: `${S}selected-indicators-of-depository-corporations-august-2026`, date: "2026-09-30" }];
+  const merged = mergeCards([first, also]);
+  assert.deepEqual(merged, [`${S}selected-indicators-of-depository-corporations-august-2026`,
+    `${S}investments-provisional-2014-april-2026`, `${S}selected-indicators-of-depository-corporations-july-2026`],
+    "August takes July's slot and the other publication keeps its place");
+  const s = CBB_LISTINGS.find((l) => l.id === "statistics");
+  assert.ok(selectItems(merged, s).includes(`${S}selected-indicators-of-depository-corporations-august-2026`));
+  assert.ok(!selectItems(merged, s).some((u) => u.endsWith("-july-2026")));
+});
+
+test("a slug's edition is its last year and last month or quarter", () => {
+  assert.equal(slugEdition("investments-provisional-2014-april-2026"), "2026-04");
+  assert.equal(slugEdition("financial-soundness-indicators-2016q4-2026q1"), "2026-03");
+  assert.equal(slugEdition("/news/statistics-1/trade-in-goods-june-2026-g1-g4"), "2026-06");
+  assert.equal(slugEdition("annual-statistical-digest-2025"), "2025-00");
+  assert.equal(slugEdition("exchange-rates"), "");
+});
+
+test("a card is read only from its own Read More link, in any URL form, and an unreadable card is counted", () => {
+  const forms = [
+    "http://www.centralbank.org.bb/news/statistics-1/a-june-2026",
+    "https://centralbank.org.bb/news/Statistics-1/b-may-2026",
+    "/news/statistics-1/c-april-2026?utm=x",
+  ];
+  const cards = extractListingCards(forms.map((h) => card("01 Jun 2026", h)).join(""));
+  assert.deepEqual(cards.map((c) => c.url), [
+    "https://www.centralbank.org.bb/news/statistics-1/a-june-2026",
+    "https://www.centralbank.org.bb/news/Statistics-1/b-may-2026",
+    "https://www.centralbank.org.bb/news/statistics-1/c-april-2026",
+  ]);
+  assert.equal(cards.unreadable, 0);
+  // The last card has no news link. It must not borrow the navigation link after it.
+  const html = card("02 Jun 2026", "/news/statistics/x-june-2026") +
+    `<div class="-items"><div class="date">01 Jun 2026</div><a href="https://cdn.centralbank.org.bb/documents/f.pdf" class="link">PDF</a></div>` +
+    `<a href="/news/tourism/long-stay-cruise-arrivals-june-2025">nav</a>`;
+  const r = extractListingCards(html);
+  assert.deepEqual(r.map((c) => c.url), ["https://www.centralbank.org.bb/news/statistics/x-june-2026"]);
+  assert.equal(r.unreadable, 1, "the card that could not be read is counted, not dropped");
+});
+
+test("card dates in long, short and Sept forms are read", () => {
+  const dates = ["27 October 2026", "30 Sept 2026", "06 Jul 2026", "5 May. 2026", "Oct 2026"];
+  assert.deepEqual(extractListingCards(dates.map((d, i) => card(d, `/news/s/x-${i}`)).join("")).map((c) => c.date),
+    ["2026-10-27", "2026-09-30", "2026-07-06", "2026-05-05", null]);
+});
+
+test("an also page with no cards, an unreadable card, or an undated card across pages stops the listing", () => {
+  const ok = [{ url: "a", date: "2026-10-01" }];
+  const empty = [];
+  const bad = Object.assign([{ url: "b", date: "2026-09-01" }], { unreadable: 1 });
+  const undated = [{ url: "c", date: null }];
+  const paths = ["/news/statistics", "/news/also"];
+  assert.deepEqual(listingProblems([ok, ok], paths), []);
+  assert.deepEqual(listingProblems([undated], ["/news/one"]), [], "one listing keeps its own order, so an undated card is fine");
+  assert.match(listingProblems([ok, empty], paths)[0], /\/news\/also showed 0 cards/);
+  assert.match(listingProblems([bad, ok], paths)[0], /1 card\(s\) could not be read/);
+  assert.match(listingProblems([ok, undated], paths)[0], /no readable date/);
+});
+
+test("an older edition never replaces the one held and goes to snapshots only", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "cbb-older-"));
+  try {
+    const base = path.join(dir, "statistics", "loans-deposits");
+    const doc = (at, v) => ({ published_at: at, periods: ["2026-01"], series: [{ id: "s", observations: [{ period: "2026-01", value: v }] }] });
+    assert.equal(await writeSheet(base, doc("2026-10-27", 2)), "new");
+    assert.equal(await writeSheet(base, doc("2026-05-04", 1)), "older-than-held");
+    const current = JSON.parse(await readFile(`${base}.json`, "utf8"));
+    assert.equal(current.published_at, "2026-10-27", "the newer file is still the current one");
+    assert.ok((await readdir(path.join(base, "snapshots"))).includes("2026-05-04.json"), "the older edition is kept as history");
+    assert.equal(await writeSheet(base, doc("2026-11-01", 3)), "republished", "a newer edition still replaces it");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("an edition is newer by the period its figures reach, then by upload time", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "cbb-order-"));
+  try {
+    const CDN = "https://cdn.centralbank.org.bb/documents/";
+    // Figures to `last` (a later month is left empty, as workbooks do), uploaded at `stamp`.
+    const doc = (last, stamp, v) => ({
+      published_at: stamp.slice(0, 10), attachment_url: `${CDN}${stamp}-Book.xlsx`,
+      periods: ["2026-06", "2026-07", "2026-08", "2026-09", "2026-10"],
+      series: [{ id: "s", observations: ["2026-06", "2026-07", "2026-08", "2026-09", "2026-10"].map((p) => ({ period: p, value: p <= last ? v : null })) }],
+    });
+    const base = path.join(dir, "cat", "sheet");
+    const current = async () => JSON.parse(await readFile(`${base}.json`, "utf8"));
+    assert.equal(await writeSheet(base, doc("2026-08", "2026-10-27-10-00-00", 8)), "new");
+    assert.equal(await writeSheet(base, doc("2026-07", "2026-11-03-09-00-00", 7)), "older-than-held",
+      "a correction to July uploaded after August does not roll the August edition back");
+    assert.equal((await current()).series[0].observations[0].value, 8);
+    assert.equal(await writeSheet(base, doc("2026-08", "2026-11-05-09-00-00", 81)), "republished", "a later upload of the same period is a correction and replaces it");
+    assert.equal(await writeSheet(base, doc("2026-08", "2026-11-04-09-00-00", 80)), "older-than-held", "an earlier upload of the same period does not");
+    assert.equal(await writeSheet(base, doc("2026-09", "2026-11-04-12-00-00", 9)), "republished",
+      "September is accepted although its file was uploaded before the August correction");
+    assert.equal((await current()).series[0].observations[0].value, 9);
+    assert.equal(await writeSheet(base, doc("2026-09", "2026-11-04-12-00-00", 9)), "unchanged", "a deep re-read of the held upload is not refused");
+    const reread = await writeSheet(base, doc("2026-08", "2026-11-04-12-00-00", 9));
+    assert.ok(!["older-than-held", "unchanged"].includes(reread), `a re-read of the held upload that now ends earlier replaces it, got ${reread}`);
+    assert.equal((await current()).series[0].observations[3].value, null, "the September value the re-read no longer holds is gone");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("a card date must name a real month and a real day", () => {
+  const dates = ["28 Octember 2026", "31 Feb 2026", "29 Feb 2028", "1 Ma 2026", "1 Mar 2026", "30&nbsp;Sept 2026", "28  Oct 2026"];
+  assert.deepEqual(extractListingCards(dates.map((d, i) => card(d, `/news/s/x-${i}`)).join("")).map((c) => c.date),
+    [null, null, "2028-02-29", null, "2026-03-01", "2026-09-30", "2026-10-28"]);
+});
+
+test("statistics reads both publications from every listing that shows them", () => {
+  const s = CBB_LISTINGS.find((l) => l.id === "statistics");
+  assert.equal(s.families, 2);
+  assert.deepEqual(s.also, ["/news/investments-based-on-supplementary-schedules", "/news/selected-indicators-of-depository-corporations"]);
 });
 
 test("THE ATTACHMENT TRAP: the spreadsheet wins over the boilerplate PDFs", () => {
@@ -209,6 +350,13 @@ test("an edition stamp is stripped from a slug, the publication name is not", ()
   assert.equal(publicationFamily("long-stay-cruise-arrivals-december-2023"), "long-stay-cruise-arrivals");
   assert.equal(publicationFamily("labour-statistics-1975-2023-q1-2024"), "labour-statistics");
   assert.equal(publicationFamily("wages-index-2017-1"), "wages-index");
+  // Stamps in the middle, as the CBB writes several slugs (2026-11-03).
+  assert.equal(publicationFamily("trade-in-goods-june-2026-g1-g4"), "trade-in-goods-g1-g4");
+  assert.equal(publicationFamily("trade-in-goods-may-2025-g1-g4"), "trade-in-goods-g1-g4");
+  assert.equal(publicationFamily("exchange-rates-september-2026-e3-e4"), "exchange-rates-e3-e4");
+  assert.equal(publicationFamily("loan-assets-and-deposit-liability-july-2026-b2c-b4d"), "loan-assets-and-deposit-liability-b2c-b4d");
+  assert.equal(publicationFamily("financial-soundness-indicators-2016q4-2026q1"), "financial-soundness-indicators");
+  assert.equal(publicationFamily("monetary-base-and-net-domestic-assets-december-2025-1"), "monetary-base-and-net-domestic-assets");
   assert.equal(
     publicationFamily("https://www.centralbank.org.bb/news/statistics/investments-provisional-2014-april-2026"),
     "investments-provisional",

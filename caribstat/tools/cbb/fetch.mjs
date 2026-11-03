@@ -78,7 +78,12 @@ export const CDN = "https://cdn.centralbank.org.bb";
  * rather than a gap to be filled.
  */
 export const CBB_LISTINGS = [
-  { id: "statistics", path: "/news/statistics", title: "Statistics", families: 2 },
+  // `also`: further listings that show the same publications. Since mid-2026
+  // the newest editions of both statistics publications appear only on these
+  // two (July 2026 investments, August 2026 indicators, against April and
+  // February on /news/statistics), so the ingest merges all three by card date.
+  { id: "statistics", path: "/news/statistics", title: "Statistics", families: 2,
+    also: ["/news/investments-based-on-supplementary-schedules", "/news/selected-indicators-of-depository-corporations"] },
   { id: "gross-domestic-product", path: "/news/gross-domestic-product", title: "Gross Domestic Product" },
   { id: "inflation-and-retail-price-index", path: "/news/inflation-and-retail-price-index", title: "Inflation and Retail Price Index" },
   { id: "labour-statistics", path: "/news/labour-statistics", title: "Labour Statistics" },
@@ -92,12 +97,14 @@ export const CBB_LISTINGS = [
   // recovers their children by subtracting the site-wide navigation that every
   // page links. Ten had items; eight are here.
   //
-  // TWO ARE DELIBERATELY ABSENT. `selected-indicators-of-depository-corporations`
-  // and `investments-based-on-supplementary-schedules` are the SAME two
-  // publications the `statistics` listing already carries, reached by a second
-  // path, and the statistics route holds the NEWER edition of each (February
-  // and April 2026 against January and March). Adding them would publish two
-  // vintages of one series with nothing to say which wins.
+  // TWO ARE NOT LISTINGS OF THEIR OWN. `selected-indicators-of-depository-
+  // corporations` and `investments-based-on-supplementary-schedules` carry the
+  // SAME two publications as `statistics`. As separate listings they would
+  // publish two vintages of one series with nothing to say which wins, so they
+  // are read as `also` paths of `statistics` and the newest edition by card
+  // date wins. Until 2026-11-03 they were left out on the August 2026 reading
+  // that /news/statistics held the newer editions. By November it held the
+  // older ones.
   { id: "international-reserves", path: "/news/international-reserves", title: "International Reserves" },
   { id: "commercial-banks-deposit-liabilities", path: "/news/commercial-banks-deposit-liabilities", title: "Commercial Banks: Loan Assets and Deposit Liabilities" },
   { id: "depository-corporations-survey", path: "/news/depository-corporations-survey", title: "Depository Corporations Survey" },
@@ -210,10 +217,64 @@ export function extractCsrfToken(html) {
 }
 
 /** Item page links for one listing page's HTML. */
-export function extractItemLinks(html, listingPath) {
-  const esc = listingPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const abs = new RegExp(`https://www\\.centralbank\\.org\\.bb${esc}/[^"'#?<> ]+`, "g");
-  return [...new Set([...html.matchAll(abs)].map((m) => m[0]))];
+/**
+ * The items a listing shows, read from its own cards, newest first, with each
+ * card's date.
+ *
+ * WHY CARDS AND NOT THE LISTING'S PATH. Until 2026-11-03 an item counted only
+ * if its URL sat under the listing's own path (/news/depository-corporations-
+ * survey/...). Some time after May 2026 the CBB began filing new editions
+ * under /news/statistics-1/, /news/monetary-base/ and /news/interest-rates-
+ * policies/ while still showing them on the old listing. Every new edition was
+ * discarded, the old ones were re-read and matched what was held, and seven
+ * tables reported "same" for months: trade in goods stuck at May 2025 with June
+ * 2026 out, the Depository Corporations Survey at January 2026 with August out.
+ * The card is what the listing says it lists, wherever its link points. Links
+ * outside the cards (navigation, footer, other categories) are not items.
+ */
+//
+// The link is read only from the card's own "Read More" anchor (class="link"),
+// so a card with no news link cannot borrow the next navigation link on the
+// page. A card that cannot be read is counted in `unreadable` on the returned
+// array: it may be the newest edition, and the caller fails the listing rather
+// than treat the next card down as newest.
+export function extractListingCards(html) {
+  const out = [];
+  const seen = new Set();
+  out.unreadable = 0;
+  for (const card of String(html).split(/class="-items"/).slice(1)) {
+    const a = /<a\b(?=[^>]*\bclass="link")[^>]*\bhref="(?:https?:\/\/(?:www\.)?centralbank\.org\.bb)?(\/news\/[A-Za-z0-9-]+\/[^"#?]+)[^"]*"/.exec(card);
+    if (!a) {
+      out.unreadable++;
+      continue;
+    }
+    const url = BASE + a[1].replace(/\/+$/, "");
+    if (seen.has(url)) continue;
+    seen.add(url);
+    out.push({ url, date: cardDate(/class="date"[^>]*>([^<]*)</.exec(card)?.[1]) });
+  }
+  return out;
+}
+
+const MONTH_NAMES = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+/**
+ * A CBB card date to YYYY-MM-DD: "27 Oct 2026", "27 October 2026", "30 Sept 2026".
+ * The month must be the start of a real month name (three letters or more) and
+ * the day must exist in that month. Anything else is null, never a guess.
+ */
+export function cardDate(s) {
+  const m = /^(\d{1,2}) ([A-Za-z]{3,9})\.? (\d{4})$/.exec(String(s ?? "").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim());
+  if (!m) return null;
+  const i = MONTH_NAMES.findIndex((n) => n.startsWith(m[2].toLowerCase()));
+  if (i < 0) return null;
+  const iso = `${m[3]}-${String(i + 1).padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  const d = new Date(`${iso}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(iso) ? iso : null;
+}
+
+/** Item URLs a listing shows, newest first. The listing path is kept for callers and no longer filters. */
+export function extractItemLinks(html, listingPath) { // eslint-disable-line no-unused-vars
+  return extractListingCards(html).map((c) => c.url);
 }
 
 /**
@@ -286,10 +347,18 @@ export function titleAgreesWithAttachment(title, attachmentUrl) {
  * stays, which is what keeps "investments" and "selected indicators of
  * depository corporations" apart.
  */
+//
+// Stamps in the middle come off too: the CBB writes some editions as
+// trade-in-goods-june-2026-g1-g4, exchange-rates-september-2026-e3-e4 and
+// financial-soundness-indicators-2016q4-2026q1, and until 2026-11-03 each of
+// those counted as its own publication, so --max-items N fetched one edition.
+// The table codes after the stamp (g1-g4, e3-e4) are identity and stay.
 export function publicationFamily(slugOrUrl) {
   const slug = String(slugOrUrl ?? "").split("/").filter(Boolean).pop() ?? "";
   const MONTHS = /^(january|february|march|april|may|june|july|august|september|october|november|december)$/i;
-  const parts = slug.split("-");
+  const STAMP = (t) => MONTHS.test(t) || /^\d{4}$/.test(t) || /^q[1-4]$/i.test(t) || /^\d{4}q[1-4]$/i.test(t);
+  const all = slug.split("-");
+  const parts = all.some(STAMP) ? all.filter((t, i) => !STAMP(t) || i === 0) : all;
   while (parts.length > 1) {
     const last = parts[parts.length - 1];
     if (/^\d{4}$/.test(last) || MONTHS.test(last) || /^q[1-4]$/i.test(last) || /^\d{1,2}$/.test(last)) {
@@ -299,6 +368,28 @@ export function publicationFamily(slugOrUrl) {
     break;
   }
   return parts.join("-");
+}
+
+/**
+ * The edition a slug names, as YYYY-MM for sorting, or "" when it names none.
+ * The last year and the last month or quarter win, so a range such as
+ * investments-provisional-2014-april-2026 reads as 2026-04 and
+ * financial-soundness-indicators-2016q4-2026q1 as 2026-03.
+ */
+export function slugEdition(slugOrUrl) {
+  const slug = String(slugOrUrl ?? "").split("/").filter(Boolean).pop() ?? "";
+  let year = "";
+  let month = 0;
+  for (const t of slug.toLowerCase().split("-")) {
+    const yq = /^(\d{4})q([1-4])$/.exec(t);
+    if (yq) { year = yq[1]; month = Number(yq[2]) * 3; continue; }
+    if (/^(19|20)\d{2}$/.test(t)) { year = t; continue; }
+    const q = /^q([1-4])$/.exec(t);
+    if (q) { month = Number(q[1]) * 3; continue; }
+    const m = MONTH_NAMES.indexOf(t);
+    if (m >= 0) month = m + 1;
+  }
+  return year ? `${year}-${String(month).padStart(2, "0")}` : "";
 }
 
 /** The spreadsheet attachment on an item page, or undefined. */
@@ -352,27 +443,6 @@ export async function fetchPage(session, page, listingPath) {
   if (!res.ok) throw new Error(`CBB fetchdata HTTP ${res.status} (page ${page}) — check that every filter field is present and EMPTY`);
   const json = await res.json();
   return typeof json?.html === "string" ? json.html : "";
-}
-
-/** Discover item pages for one listing, following pagination. */
-export async function discoverItems(listingPath, { maxPages = 3, gapMs = 800 } = {}) {
-  const session = await openListing(listingPath);
-  const items = new Set(extractItemLinks(session.html, listingPath));
-  for (let page = 2; page <= maxPages; page++) {
-    await new Promise((r) => setTimeout(r, gapMs));
-    let frag;
-    try {
-      frag = await fetchPage(session, page, listingPath);
-    } catch {
-      break;
-    }
-    const found = extractItemLinks(frag, listingPath);
-    if (found.length === 0) break;
-    const before = items.size;
-    for (const f of found) items.add(f);
-    if (items.size === before) break; // pagination looped; stop rather than spin
-  }
-  return { session, items: [...items] };
 }
 
 /** Resolve one item page to its spreadsheet attachment. */

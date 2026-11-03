@@ -43,7 +43,15 @@ export const COUNTRY_SLUGS = {
  * @property {string[]} frequencies frequencies the site actually links
  * @property {string[]} sentinelRows row labels that MUST be present — the shape
  *   sentinel. If these vanish the source changed and the run must fail loud.
+ * @property {string[]} [withheld] geographies the bank renders as an empty
+ *   table. They are not ingested, and the deep run fails loud the day one of
+ *   them shows rows, so a new publication is never left uncollected.
  */
+
+/** Grenada, St Kitts and Nevis and the ECCU aggregate rendered an empty table
+ * on all three 2018 base-year national-accounts tables on 2026-11-03, for
+ * every year asked (2015-2026). */
+const NA_2018_WITHHELD = ["GRD", "KNA", "XCU"];
 
 /** @type {TableDef[]} */
 export const TABLES = [
@@ -93,6 +101,71 @@ export const TABLES = [
     path: "mfs-interest-rates/interest-rates-on-deposits-and-loans",
     frequencies: ["a", "q", "m"],
     sentinelRows: [],
+  },
+  // Phase 2, A-061 (2026-11-03): national accounts and the external sector,
+  // enumerated from the live category pages that day. National accounts are
+  // annual only. The 2018 base-year tables are taken, not the older base.
+  // Sentinel rows were read from the captured annual tables (2015-2026) of
+  // every geography that day, not from the titles.
+  {
+    id: "gva-constant-prices",
+    title: "Gross Value Added by Economic Activity in Constant Prices (base year 2018)",
+    path: "national-accounts/gross-value-added-by-economic-activity-in-constant-prices-base-year-2018",
+    frequencies: ["a"],
+    sentinelRows: ["Agriculture, forestry and fishing", "Gross Value Added (GVA) at Basic Prices", "Gross Domestic Product (GDP) at Market Prices"],
+    withheld: NA_2018_WITHHELD,
+  },
+  {
+    id: "gva-growth-constant-prices",
+    title: "Growth Rate of Gross Value Added by Economic Activity in Constant Prices (base year 2018)",
+    path: "national-accounts/growth-rate-of-gross-value-added-by-economic-activity-in-constant-prices-base-year-2018",
+    frequencies: ["a"],
+    sentinelRows: ["Agriculture, forestry and fishing", "Gross Value Added at Basic Prices", "Gross Domestic Product at Market Prices"],
+    withheld: NA_2018_WITHHELD,
+  },
+  {
+    id: "gva-current-prices",
+    title: "Gross Value Added by Economic Activity in Current Prices (base year 2018)",
+    path: "national-accounts/gross-value-added-by-economic-activity-in-current-prices-base-year-2018",
+    frequencies: ["a"],
+    sentinelRows: ["Agriculture, forestry and fishing", "Gross Value Added (GVA) at Basic Prices", "Gross Domestic Product (GDP) at Market Prices"],
+    withheld: NA_2018_WITHHELD,
+  },
+  {
+    id: "balance-of-payments",
+    title: "Balance of Payments (Analytic Presentation)",
+    path: "external-sector/balance-of-payments-analytic-presentation",
+    frequencies: ["a"],
+    // Each label is matched as a prefix, so each must match one row only:
+    // a bare "Current Account" would also match the % of GDP row.
+    sentinelRows: ["Current Account as % of GDP", "Balance on Goods and Services", "Capital Account - Credit", "Net errors and omissions"],
+  },
+  {
+    id: "international-investment-position",
+    title: "International Investment Position (Summary)",
+    path: "external-sector/international-investment-position-summary",
+    frequencies: ["a"],
+    sentinelRows: ["Net International Investment Position", "Total Assets", "Total Liabilities"],
+  },
+  // Trade in Services (external-sector/trade-in-services-tis) is NOT here. Its
+  // columns split each year into imports and exports, then total, ECCU and
+  // other CARICOM (72 value cells under 12 years), and parseTable reads one
+  // value per period. Found 2026-11-03 after a first ingest had filed 2026's
+  // sub-columns as 2015 to 2026; the files were deleted unpublished and the
+  // sentinel now refuses that shape. It needs a parser for split columns first.
+  {
+    id: "trade-by-sitc",
+    title: "Trade Statistics by SITC",
+    path: "external-sector/trade-statistics-by-sitc",
+    frequencies: ["a", "q", "m"],
+    sentinelRows: ["Trade Balance", "Total Imports", "Total Exports"],
+  },
+  {
+    id: "real-effective-exchange-rate",
+    title: "Real Effective Exchange Rate Index",
+    path: "external-sector/real-effective-exchange-rate-index",
+    frequencies: ["a", "q", "m"],
+    sentinelRows: ["REER", "NEER"],
   },
   {
     id: "consumer-price-index",

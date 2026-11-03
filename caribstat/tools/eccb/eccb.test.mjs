@@ -100,6 +100,21 @@ test("SENTINEL fires when an expected row disappears (source redesign)", () => {
   assert.ok(problems.some((p) => /Total Revenue and Grants/.test(p)), `expected a missing-row problem, got: ${problems.join("; ")}`);
 });
 
+test("SENTINEL fires when the columns are split below the period (Trade in Services shape)", () => {
+  // Trimmed from the live table of 2026-11-03: each year spans imports and
+  // exports, each of those total, ECCU and other CARICOM.
+  const years = ["2025", "2026"];
+  const sub = ["1,153.66", "52.42", "48.53", "2,561.74", "199.48", "250.68"];
+  const html = `<table><tr><th></th><th>Unit</th>${years.map((y) => `<th colspan="6">${y}</th>`).join("")}</tr>` +
+    `<tr>${years.map(() => "<th colspan=\"3\">Imports</th><th colspan=\"3\">Exports</th>").join("")}</tr>` +
+    `<tr><td>Total EBOPS Services</td><td>EC$M</td>${years.map(() => sub.map((v) => `<td>${v}</td>`).join("")).join("")}</tr></table>`;
+  const t = parseTable(html);
+  assert.equal(t.periods.length, 2);
+  const problems = validateTable({ sentinelRows: [] }, t, undefined);
+  assert.ok(problems.some((p) => /split below the period/.test(p)), `expected a split-column problem, got: ${problems.join("; ")}`);
+  assert.deepEqual(validateTable(FISCAL, parseTable(FIXTURE), "28 July 2026"), [], "a one-cell-per-period table is not flagged");
+});
+
 test("SENTINEL fires when every value fails to parse (number format changed)", () => {
   const weird = FIXTURE.replace(/7,338\.30|8,422\.29|8,093\.70|6,947\.50|7,915\.58|7,621\.44|4,811\.62|5,320\.15|5,637\.32|\(120\.45\)|15\.20/g, "n/a");
   const problems = validateTable(FISCAL, parseTable(weird), "28 July 2026");
