@@ -12,7 +12,7 @@ import { fetchFredSeries, fredAvailable } from "../adapters/fred.ts";
 import { fetchDataMapperSeries, fetchDataMapperMetadata, computeBoundaryYear, parseEditionLabel } from "../adapters/datamapper.ts";
 import { worldBankCitation, dbnomicsCitation, fredCitation, imfDataMapperCitation, sdmxCitation, caribstatCitation } from "./citations.ts";
 import { fetchSdmxSeries, BIS_POLICY_RATE_AREAS } from "../adapters/sdmx.ts";
-import { fetchCaribstatSeries, inferFrequency, searchCaribstat, searchUnctadGap, CARIBSTAT_ENABLED } from "../adapters/caribstat.ts";
+import { fetchBankReviews, fetchCaribstatSeries, inferFrequency, reviewNotice, searchCaribstat, searchUnctadGap, CARIBSTAT_ENABLED } from "../adapters/caribstat.ts";
 import { isTransientUpstreamError, UpstreamError, hostStateOf } from "./upstream.ts";
 import { eccbRelated } from "./eccb-related.ts";
 export { expectedWeoEdition } from "./weo-calendar.ts";
@@ -1215,6 +1215,17 @@ async function getSeriesCore(
           `. Add '#Row Label' to the series id to choose one.`,
       );
     }
+    // Read only after the series has succeeded, never alongside it. A refused
+    // series would answer while this read was in flight, workerd would tear the
+    // read down, and its in-flight entry would hang every later caller in the
+    // isolate. Reproduced under workerd in review, 2026-11-05.
+    const notice = reviewNotice(await fetchBankReviews(), {
+      provider: c.provider,
+      iso3: c.doc.country.iso3,
+      source: c.doc.source,
+      observations: c.observations,
+    });
+    if (notice) caribNotes.push(notice);
     // The bank's own currency stamp, where it printed one, travels separately
     // from our retrieval time all the way into the citation. These two dates
     // differ by weeks and presenting ours as the data's currency would

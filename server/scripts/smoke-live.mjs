@@ -227,5 +227,22 @@ for (const path of [
   console.log(`${ok ? "PASS" : "FAIL"}${retried ? " (after retries)" : ""} GET ${path} -> ${status} ${body.slice(0, 110).replace(/\s+/g, " ")}`);
 }
 
+// The review notice is best effort, so its file going missing is otherwise
+// silent: series keep working and the notices just stop.
+{
+  const { ok, detail, retried } = await withRetry(async () => {
+    try {
+      const res = await fetch("https://asokore.github.io/caribstat/data/reviews.json");
+      const list = res.ok ? (await res.json())?.reviews : null;
+      const n = Array.isArray(list) ? list.filter((r) => r?.bank && r.url).length : 0;
+      return { ok: n > 0, detail: `${res.status}, ${n} entries` };
+    } catch (e) {
+      return { ok: false, detail: e.message };
+    }
+  });
+  if (!ok) failures++;
+  console.log(`${ok ? "PASS" : "FAIL"}${retried ? " (after retries)" : ""} caribstat reviews.json ${detail}`);
+}
+
 console.log(failures === 0 ? "\nSMOKE: ALL PASS" : `\nSMOKE: ${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

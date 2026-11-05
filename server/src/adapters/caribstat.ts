@@ -461,6 +461,131 @@ const PROVIDER_HOME: Record<string, string> = {
   cbb: "https://www.centralbank.org.bb",
 };
 
+/** One review or outlook from data/reviews.json. Holds no figures. */
+export interface BankReview {
+  bank: string;
+  geography: string;
+  kind: string;
+  title: string;
+  posted: string;
+  /** The month the publication runs to, YYYY-MM. */
+  covers_to: string;
+  url: string;
+}
+
+/** A title and link reach text agents repeat, so each entry is checked here. */
+function cleanReview(raw: unknown): BankReview[] {
+  const r = (raw ?? {}) as Partial<Record<keyof BankReview, unknown>>;
+  if (![r.bank, r.geography, r.kind, r.title, r.posted, r.covers_to, r.url].every((f) => typeof f === "string")) return [];
+  const home = PROVIDER_HOME[(r.bank as string).toLowerCase()];
+  const url = httpsUrl(r.url);
+  // The notice quotes the title, so the title cannot close that quotation.
+  const title = cleanLabel(r.title, 200).replace(/"/g, "'");
+  const posted = r.posted as string;
+  const covers = r.covers_to as string;
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const ok =
+    home !== undefined && title.length > 0 && url?.startsWith(`${home}/`) &&
+    /^[A-Z]{3}$/.test(r.geography as string) &&
+    (r.kind === "review" || r.kind === "outlook") &&
+    /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(posted) &&
+    /^\d{4}-(0[1-9]|1[0-2])$/.test(covers) &&
+    // A publication cannot run past the month it was posted, nor be posted in
+    // the future. Checked here so one bad entry cannot flag every series.
+    posted <= tomorrow &&
+    covers <= posted.slice(0, 7);
+  return ok ? [{ ...(r as BankReview), title, url: url as string }] : [];
+}
+
+// How long to stop asking after a failed read. Failures are not cached by
+// fetchJson, and this runs on every CaribStat series, cached ones included.
+const REVIEWS_BACKOFF_MS = 5 * 60 * 1000;
+let reviewsBackoffUntil = 0;
+
+/** Test hook. */
+export function _clearReviewsBackoff(): void {
+  reviewsBackoffUntil = 0;
+}
+
+/**
+ * The reviews and outlooks the coverage watch last listed. Best effort: this
+ * only feeds a notice, so a failure leaves the notice out and never fails the
+ * series. One attempt, then a pause, so a dead file costs one short wait.
+ */
+export async function fetchBankReviews(opts: { origin?: string } = {}): Promise<BankReview[]> {
+  if (Date.now() < reviewsBackoffUntil) return [];
+  try {
+    const url = `${opts.origin ?? CARIBSTAT_ORIGIN}/data/reviews.json?v=${CARIBSTAT_CACHE_EPOCH}`;
+    const doc = (await fetchJson(url, {
+      ttlSeconds: 21600,
+      timeoutMs: 2000,
+      retry: false,
+      validate: (d) => Array.isArray((d as { reviews?: unknown } | null)?.reviews),
+    })) as { reviews: unknown[] };
+    return doc.reviews.flatMap(cleanReview);
+  } catch (e) {
+    reviewsBackoffUntil = Date.now() + REVIEWS_BACKOFF_MS;
+    console.warn(`caribstat reviews unavailable, notices off for 5 minutes: ${e instanceof Error ? e.message : String(e)}`);
+    return [];
+  }
+}
+
+/** The month a CaribStat period ends: 2023, 2023-Q2 or 2023-06. */
+function periodEnd(period: string): { month: string; annual: boolean } | undefined {
+  const m = /^(\d{4})(?:-(\d{2})|-Q([1-4]))?$/.exec(period);
+  if (!m) return undefined;
+  if (m[3]) return { month: `${m[1]}-${String(Number(m[3]) * 3).padStart(2, "0")}`, annual: false };
+  return { month: `${m[1]}-${m[2] ?? "12"}`, annual: !m[2] };
+}
+
+const monthCount = (ym: string) => Number(ym.slice(0, 4)) * 12 + Number(ym.slice(5, 7));
+
+// A review reports the current economy. A table that stopped more than five
+// years before it was discontinued, not overtaken: an October 1965 base index
+// ending in 1980 cannot continue in a 2026 review. The slowest live tables this
+// exists for ran about three years behind on 2026-11-03.
+const REVIEW_REACH_MONTHS = 60;
+
+/**
+ * Tell the caller when the bank has posted a review or outlook running past
+ * the end of this series. The figures in those PDFs are not served (see
+ * docs/DECISION-pdf-review-figures-2026-11.md), so this says only that the
+ * publication exists and may be newer, and makes no claim about any value.
+ *
+ * Compared on the month the publication runs to, not its posting date. A review
+ * is posted weeks after its period closes, so a series current to that period
+ * would otherwise be flagged. A last period that cannot be read gives no notice,
+ * and nor does a table too old for a review to continue.
+ */
+export function reviewNotice(
+  reviews: BankReview[],
+  series: { provider: string; iso3: string; source: string; observations: Observation[] },
+): string | undefined {
+  let end: { month: string; annual: boolean } | undefined;
+  let lastPeriod = "";
+  for (const o of series.observations) {
+    if (o.value === null) continue;
+    const e = periodEnd(o.period);
+    if (e === undefined) return undefined;
+    if (end === undefined || e.month > end.month) {
+      end = e;
+      lastPeriod = o.period;
+    }
+  }
+  if (end === undefined) return undefined;
+  const { month, annual } = end;
+  // A year's total stays current until a later whole year has closed, because
+  // a review to June 2026 cannot extend an annual 2025 row.
+  const answered = annual ? `${Number(month.slice(0, 4)) + 1}-11` : month;
+  const newer = reviews
+    .filter((r) => r.bank === series.provider && r.geography === series.iso3 && r.covers_to > answered)
+    .filter((r) => monthCount(r.covers_to) - monthCount(month) <= REVIEW_REACH_MONTHS)
+    .sort((a, b) => b.kind.localeCompare(a.kind));
+  if (newer.length === 0) return undefined;
+  const named = newer.map((r) => `"${r.title}" (posted ${r.posted}, ${r.url})`).join(" and ");
+  return `This series ends at ${lastPeriod}. ${series.source} has posted ${named}, which may hold newer figures. StatCite does not serve figures from ${newer.length > 1 ? "these publications" : "that publication"}.`;
+}
+
 /**
  * Third-party text from the mirror goes into citations that agents are told
  * to reproduce verbatim. Control characters and line breaks are removed and

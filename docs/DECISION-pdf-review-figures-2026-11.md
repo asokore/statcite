@@ -25,13 +25,20 @@ Option 3 now. Option 2 only later, and only under the rules below. Option 1 is r
 
 ## What option 3 does
 
-Where a CBB or ECCB series ends before the bank's latest review or outlook was posted, the response carries a notice. It names that publication, its posting date and its link, and says the publication may hold newer figures than the series. The notice makes no claim about any value. It tells the reader that something newer exists and where to find it.
+Where a CBB or ECCB series ends before the period the bank's latest review or outlook runs to, the response carries a notice. It names that publication, its posting date and its link, and says the publication may hold newer figures than the series. The notice makes no claim about any value. It tells the reader that something newer exists and where to find it.
 
-The coverage watch (`caribstat/tools/watch.mjs`) lists these publications when it runs, and the scheduled collection runs it after each ingest. A run on 3 November listed both CBB documents above. Building the notice is A-063:
+The test is the period the publication runs to, not its posting date. This decision first said posting date, and A-063 narrowed it. A review is posted weeks after its period closes, so a series current to that period would have been flagged, and so would nearly every monthly table. The January to September 2026 review, posted on 28 October, runs to September 2026. An item naming no period, such as the Outlook, takes the last full quarter before it was posted.
 
-- the watch writes the reviews and outlooks it finds (bank, title, posting date, link) to a small published file under `caribstat/data/`
-- the server attaches the notice when a series' last period ends before that posting date
-- a test shows the notice appears for a stale series and not for a current one.
+Two more limits came out of review. Measured on the corpus on 5 November 2026, the rule above still flagged 1,462 of 1,524 CBB rows, which is noise. An annual row stays current until a later whole year has closed, since a review to June 2026 cannot extend an annual 2025 total. A table that stopped more than five years before the publication gets no notice, because it was discontinued rather than overtaken: an October 1965 base index ending in 1980 will not continue in a 2026 review. With both limits the same measure gave 655 of 1,524 CBB rows and 639 of 6,732 ECCB rows, down from 2,321.
+
+The coverage watch (`caribstat/tools/watch.mjs`) lists these publications when it runs, and the scheduled collection runs it after each ingest. A run on 3 November listed both CBB documents above. A-063 built the notice:
+
+- the watch keeps the newest review and outlook per bank and geography (title, posting date, link and the month it runs to) in `caribstat/data/reviews.json`, which is published with the corpus
+- the file is merged and never rebuilt, because the sites show recent items only, so an older item cannot replace a newer one
+- the server attaches the notice when a series' last period with a value ends before that month
+- the notice is best effort: it is read only after the series has succeeded, and if the file cannot be read the series is served without it, at the cost of one short wait every five minutes. The live smoke test fails if the file disappears
+- it travels on series responses (REST `/v1/series`, MCP `get_series`, and `verify_stat` and `verify_claims`, which read through them). `compare_sources` and `country_snapshot` report one value for one period and carry no notice
+- the tests show the notice appears for a stale series and not for a current one.
 
 ## Rules if option 2 is ever used
 
