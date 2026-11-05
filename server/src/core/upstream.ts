@@ -221,9 +221,11 @@ export async function fetchJson(
     accept?: string;
     maxBytes?: number;
     hostState?: Map<string, number>;
+    /** False for an optional extra a caller must not wait on: one attempt, no pauses. */
+    retry?: boolean;
   } = {},
 ): Promise<unknown> {
-  const { ttlSeconds = 21600, timeoutMs = 8000, validate, accept, maxBytes = MAX_UPSTREAM_BYTES, hostState } = opts;
+  const { ttlSeconds = 21600, timeoutMs = 8000, validate, accept, maxBytes = MAX_UPSTREAM_BYTES, hostState, retry = true } = opts;
   // `accept` and the timeouts are part of the key: BIS returns SDMX XML for a
   // plain application/json Accept, so sharing across accept values would be the
   // silent-corruption class the override exists to prevent, and a 5s status
@@ -244,7 +246,7 @@ export async function fetchJson(
       if (e instanceof UpstreamError) throw e;
     }
   }
-  const started = attemptFetchJson(url, { ttlSeconds, timeoutMs, validate, accept, maxBytes, hostState });
+  const started = attemptFetchJson(url, { ttlSeconds, timeoutMs, validate, accept, maxBytes, hostState, retry });
   inflight.set(key, started);
   try {
     return await started;
@@ -262,6 +264,7 @@ async function attemptFetchJson(
     accept,
     maxBytes = MAX_UPSTREAM_BYTES,
     hostState,
+    retry = true,
   }: {
     ttlSeconds?: number;
     timeoutMs?: number;
@@ -269,6 +272,7 @@ async function attemptFetchJson(
     accept?: string;
     maxBytes?: number;
     hostState?: Map<string, number>;
+    retry?: boolean;
   } = {},
 ): Promise<unknown> {
   const host = hostKey(url);
@@ -285,7 +289,7 @@ async function attemptFetchJson(
   if (hit && hit.exp > now && (!validate || validate(hit.data))) return hit.data;
 
   let lastErr: unknown;
-  const maxAttempts = hostSpent() ? 1 : RETRY_DELAYS_MS.length + 1;
+  const maxAttempts = hostSpent() || !retry ? 1 : RETRY_DELAYS_MS.length + 1;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const isLastAttempt = attempt === maxAttempts - 1;
     // The timer covers the whole attempt, body read included. It used to be

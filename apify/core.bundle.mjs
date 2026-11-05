@@ -1106,7 +1106,7 @@ var ShapeError = class extends Error {
 };
 var inflight = /* @__PURE__ */ new Map();
 async function fetchJson(url, opts = {}) {
-  const { ttlSeconds = 21600, timeoutMs = 8e3, validate, accept, maxBytes = MAX_UPSTREAM_BYTES, hostState } = opts;
+  const { ttlSeconds = 21600, timeoutMs = 8e3, validate, accept, maxBytes = MAX_UPSTREAM_BYTES, hostState, retry = true } = opts;
   const key = JSON.stringify([ttlSeconds, timeoutMs, maxBytes, accept ?? "", url]);
   const flight = inflight.get(key);
   if (flight) {
@@ -1117,7 +1117,7 @@ async function fetchJson(url, opts = {}) {
       if (e instanceof UpstreamError) throw e;
     }
   }
-  const started = attemptFetchJson(url, { ttlSeconds, timeoutMs, validate, accept, maxBytes, hostState });
+  const started = attemptFetchJson(url, { ttlSeconds, timeoutMs, validate, accept, maxBytes, hostState, retry });
   inflight.set(key, started);
   try {
     return await started;
@@ -1131,7 +1131,8 @@ async function attemptFetchJson(url, {
   validate,
   accept,
   maxBytes = MAX_UPSTREAM_BYTES,
-  hostState
+  hostState,
+  retry = true
 } = {}) {
   const host = hostKey(url);
   const hostSpent = () => hostState !== void 0 && (hostState.get(host) ?? 0) >= HOST_FAILURE_LIMIT;
@@ -1140,7 +1141,7 @@ async function attemptFetchJson(url, {
   const now = Date.now();
   if (hit && hit.exp > now && (!validate || validate(hit.data))) return hit.data;
   let lastErr;
-  const maxAttempts = hostSpent() ? 1 : RETRY_DELAYS_MS.length + 1;
+  const maxAttempts = hostSpent() || !retry ? 1 : RETRY_DELAYS_MS.length + 1;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const isLastAttempt = attempt === maxAttempts - 1;
     const controller = new AbortController();
@@ -2139,6 +2140,67 @@ var PROVIDER_HOME = {
   eccb: "https://www.eccb-centralbank.org",
   cbb: "https://www.centralbank.org.bb"
 };
+function cleanReview(raw) {
+  const r = raw ?? {};
+  if (![r.bank, r.geography, r.kind, r.title, r.posted, r.covers_to, r.url].every((f) => typeof f === "string")) return [];
+  const home = PROVIDER_HOME[r.bank.toLowerCase()];
+  const url = httpsUrl(r.url);
+  const title = cleanLabel(r.title, 200).replace(/"/g, "'");
+  const posted = r.posted;
+  const covers = r.covers_to;
+  const tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+  const ok = home !== void 0 && title.length > 0 && url?.startsWith(`${home}/`) && /^[A-Z]{3}$/.test(r.geography) && (r.kind === "review" || r.kind === "outlook") && /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(posted) && /^\d{4}-(0[1-9]|1[0-2])$/.test(covers) && // A publication cannot run past the month it was posted, nor be posted in
+  // the future. Checked here so one bad entry cannot flag every series.
+  posted <= tomorrow && covers <= posted.slice(0, 7);
+  return ok ? [{ ...r, title, url }] : [];
+}
+var REVIEWS_BACKOFF_MS = 5 * 60 * 1e3;
+var reviewsBackoffUntil = 0;
+async function fetchBankReviews(opts = {}) {
+  if (Date.now() < reviewsBackoffUntil) return [];
+  try {
+    const url = `${opts.origin ?? CARIBSTAT_ORIGIN}/data/reviews.json?v=${CARIBSTAT_CACHE_EPOCH}`;
+    const doc = await fetchJson(url, {
+      ttlSeconds: 21600,
+      timeoutMs: 2e3,
+      retry: false,
+      validate: (d) => Array.isArray(d?.reviews)
+    });
+    return doc.reviews.flatMap(cleanReview);
+  } catch (e) {
+    reviewsBackoffUntil = Date.now() + REVIEWS_BACKOFF_MS;
+    console.warn(`caribstat reviews unavailable, notices off for 5 minutes: ${e instanceof Error ? e.message : String(e)}`);
+    return [];
+  }
+}
+function periodEnd(period) {
+  const m = /^(\d{4})(?:-(\d{2})|-Q([1-4]))?$/.exec(period);
+  if (!m) return void 0;
+  if (m[3]) return { month: `${m[1]}-${String(Number(m[3]) * 3).padStart(2, "0")}`, annual: false };
+  return { month: `${m[1]}-${m[2] ?? "12"}`, annual: !m[2] };
+}
+var monthCount = (ym) => Number(ym.slice(0, 4)) * 12 + Number(ym.slice(5, 7));
+var REVIEW_REACH_MONTHS = 60;
+function reviewNotice(reviews, series) {
+  let end;
+  let lastPeriod = "";
+  for (const o of series.observations) {
+    if (o.value === null) continue;
+    const e = periodEnd(o.period);
+    if (e === void 0) return void 0;
+    if (end === void 0 || e.month > end.month) {
+      end = e;
+      lastPeriod = o.period;
+    }
+  }
+  if (end === void 0) return void 0;
+  const { month, annual } = end;
+  const answered = annual ? `${Number(month.slice(0, 4)) + 1}-11` : month;
+  const newer = reviews.filter((r) => r.bank === series.provider && r.geography === series.iso3 && r.covers_to > answered).filter((r) => monthCount(r.covers_to) - monthCount(month) <= REVIEW_REACH_MONTHS).sort((a, b) => b.kind.localeCompare(a.kind));
+  if (newer.length === 0) return void 0;
+  const named = newer.map((r) => `"${r.title}" (posted ${r.posted}, ${r.url})`).join(" and ");
+  return `This series ends at ${lastPeriod}. ${series.source} has posted ${named}, which may hold newer figures. StatCite does not serve figures from ${newer.length > 1 ? "these publications" : "that publication"}.`;
+}
 function sanitiseDoc(doc) {
   const home = PROVIDER_HOME[String(doc.source_id ?? "").toLowerCase()] ?? PROVIDER_HOME[doc.country?.iso3 === "BRB" ? "cbb" : "eccb"];
   return {
@@ -3405,6 +3467,13 @@ async function getSeriesCore(ctx, seriesId, opts = {}) {
         `No row was named, so this is the table's first row, '${c.label}'. The table has ${c.defaultRow.rows.length} rows: ` + shown.join(" | ") + (c.defaultRow.rows.length > shown.length ? " | ..." : "") + `. Add '#Row Label' to the series id to choose one.`
       );
     }
+    const notice = reviewNotice(await fetchBankReviews(), {
+      provider: c.provider,
+      iso3: c.doc.country.iso3,
+      source: c.doc.source,
+      observations: c.observations
+    });
+    if (notice) caribNotes.push(notice);
     const citation = caribstatCitation(ctx, {
       source: c.doc.source,
       sourceUrl: c.doc.source_url,

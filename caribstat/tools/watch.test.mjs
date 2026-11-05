@@ -11,6 +11,7 @@ import path from "node:path";
 import {
   cbbDate, parseCbbNews, parseCbbListingLinks, parseEccbStatLinks, parseEccbSections, parseEccbDocs,
   collectedEccbTables, decide, keyOf, CBB_NON_STATISTICAL, STATE_FILE, BASELINE_DAYS, REPEAT_DAYS,
+  reviewFrom, mergeReviews, unplacedReviews, validReview, lastFullQuarter, REVIEWS_FILE,
 } from "./watch.mjs";
 
 // Card markup as the CBB serves it on /news (read 2026-11-03).
@@ -243,4 +244,149 @@ test("statistical categories are not on the non-statistical list", () => {
 test("the state file lives outside data/, where the publish step cannot ship it", () => {
   assert.ok(!STATE_FILE.split(path.sep).includes("data"), STATE_FILE);
   assert.ok(STATE_FILE.endsWith(path.join("caribstat", ".watch", "state.json")), STATE_FILE);
+});
+
+// --- reviews and outlooks for the StatCite notice (A-063) --------------------
+
+const cbbItem = (category, title, date = "2026-10-28", extra = {}) => ({ bank: "cbb", category, title, date, url: `https://www.centralbank.org.bb/news/${category}/x`, ...extra });
+const eccbItem = (title, date = "2026-09-04") => ({ bank: "eccb", category: "economic-and-financial-review", title, date, url: `https://www.eccb-centralbank.org/documents/${date}-x.pdf` });
+
+test("the reviews file is published data, and the state file is not", () => {
+  assert.equal(path.basename(path.dirname(REVIEWS_FILE)), "data");
+  assert.notEqual(path.dirname(REVIEWS_FILE), path.dirname(STATE_FILE));
+});
+
+test("CBB reviews run to the period their title names", () => {
+  const r = reviewFrom(cbbItem("economic-reviews", "Central Bank of Barbados' Review of Barbados' Economy: January-September 2026"));
+  assert.equal(r.bank, "CBB");
+  assert.equal(r.geography, "BRB");
+  assert.equal(r.kind, "review");
+  assert.equal(r.covers_to, "2026-09");
+  assert.equal(r.posted, "2026-10-28");
+  assert.equal(reviewFrom(cbbItem("economic-reviews", "Review of Barbados' Economy: January-June 2026")).covers_to, "2026-06");
+  assert.equal(reviewFrom(cbbItem("economic-reviews", "Review of the Economy January to March 2026")).covers_to, "2026-03");
+  assert.equal(reviewFrom(cbbItem("economic-reviews", "Review of the Economy: January-December 2025", "2026-04-02")).covers_to, "2025-12");
+  assert.equal(reviewFrom(cbbItem("economic-reviews", "Central Bank of Barbados' Review of Barbados' Economy in 2025", "2026-04-02")).covers_to, "2025-12");
+});
+
+test("reviews filed as press releases count when the title names the period", () => {
+  const r = reviewFrom(cbbItem("general-press-release", "Central Bank of Barbados' Review of the Barbados Economy January-June 2023", "2023-07-28"));
+  assert.equal(r.kind, "review");
+  assert.equal(r.covers_to, "2023-06");
+  assert.equal(reviewFrom(cbbItem("general-press-release", "Central Bank of Barbados' Review of the Barbados Economy in 2022", "2023-01-30")).covers_to, "2022-12");
+});
+
+test("a review shown on the economic-reviews listing but filed elsewhere still counts", () => {
+  const r = reviewFrom(cbbItem("statistics-1", "Review of Barbados' Economy: January-March 2026", "2026-04-28", { listing: "economic-reviews" }));
+  assert.equal(r?.covers_to, "2026-03");
+});
+
+test("an outlook takes the last full quarter before it was posted", () => {
+  const r = reviewFrom(cbbItem("general-press-release", "Outlook for Barbados' Economy (Updated October 2026)", "2026-10-30"));
+  assert.equal(r.kind, "outlook");
+  assert.equal(r.covers_to, "2026-09");
+  for (const title of ["Updated Outlook for Barbados' Economy", "The Outlook for Barbados\u2019 Economy", "Barbados' Economic Outlook (Updated October 2026)"]) {
+    assert.equal(reviewFrom(cbbItem("general-press-release", title))?.kind, "outlook", title);
+  }
+  assert.equal(lastFullQuarter("2026-10-30"), "2026-09");
+  assert.equal(lastFullQuarter("2026-09-30"), "2026-06");
+  assert.equal(lastFullQuarter("2026-01-15"), "2025-12");
+  assert.equal(lastFullQuarter("2026-03-31"), "2025-12");
+  assert.equal(lastFullQuarter("2026-04-01"), "2026-03");
+  assert.equal(lastFullQuarter("2026-12-31"), "2026-09");
+});
+
+test("a period after the posting month is a misread title, not coverage", () => {
+  assert.equal(reviewFrom(cbbItem("economic-reviews", "Review of the Economy: January-September 2026", "2026-05-02")).covers_to, "2026-03");
+});
+
+test("near misses are not reviews", () => {
+  assert.equal(reviewFrom(cbbItem("general-press-release", "Quarterly Review of Barbados' Economy Coming October 28")), null);
+  assert.equal(reviewFrom(cbbItem("general-press-release", "Outlook for Barbados' Economy Coming January 5")), null);
+  assert.equal(reviewFrom(cbbItem("general-press-release", "Outlook for Barbados Tourism Remains Strong Says Governor")), null);
+  assert.equal(reviewFrom(cbbItem("statistics-1", "Outlook for Barbados' Trade Data Release")), null);
+  assert.equal(reviewFrom(cbbItem("general-press-release", "Governor Comments on the Review of Barbados' Economy")), null);
+  assert.equal(reviewFrom(cbbItem("general-press-release", "Governor Comments on the Review of Barbados' Economy in 2025")), null);
+  assert.equal(reviewFrom(cbbItem("general-press-release", "Central Bank to Release Review of Barbados' Economy for January-September 2026 on October 28")), null);
+  assert.equal(reviewFrom(cbbItem("economic-reviews", "Upcoming Review of Barbados' Economy January-September 2026")), null);
+  assert.equal(reviewFrom(cbbItem("general-press-release", "Review of Barbados' Economy: A Statement by the Governor")), null);
+  assert.equal(reviewFrom(cbbItem("speech", "Outlook for Barbados' Economy in 2026")), null);
+  assert.equal(reviewFrom(cbbItem("speech", "Barbados' Economic Performance & Outlook for 2026")), null);
+  assert.equal(reviewFrom(cbbItem("book-reviews", "Book Review: Good Economics for Hard Times")), null);
+  assert.equal(reviewFrom(cbbItem("economic-reviews", "Notice of a change of date")), null);
+  assert.equal(reviewFrom(cbbItem("economic-reviews", "Review of the Economy in 2025", null)), null);
+  assert.equal(reviewFrom({ ...eccbItem("Final ECCU EFR June 2026 Anguilla"), category: "financial-stability-report" }), null);
+});
+
+test("every ECCB review file-name form seen on 2026-11-05 lands on its geography and period", () => {
+  const cases = [
+    ["Final ECCU EFR June 2026 ECCU FULL REPORT", "XCU", "2026-06"],
+    ["Final ECCU EFR June 2026 SAINTVINCENTANDTHEGRENADINES", "VCT", "2026-06"],
+    ["Final ECCUEFRJune2026 St. Kitts and Nevis", "KNA", "2026-06"],
+    ["Final ECCU EFR June 2026 Montserrat", "MSR", "2026-06"],
+    ["Final ECCU EFR June 2026 Grenada", "GRD", "2026-06"],
+    ["Final ECCUEFRJune2026 Dominica", "DMA", "2026-06"],
+    ["FInal ECCU EFR June 2026 Antigua and Barbuda 2", "ATG", "2026-06"],
+    ["Final ECCU EFR June 2026 Anguilla", "AIA", "2026-06"],
+    ["Saint Lucia EFR June 2026", "LCA", "2026-06"],
+    ["ECCU EFR June 2026 SAINT VINCENT AND THE GRENADINES", "VCT", "2026-06"],
+    ["ECCBLIB 1502657 v3 AEFR2025ECCUREVISED", "XCU", "2025-12"],
+    ["AEFR 2025 St Lucia final", "LCA", "2025-12"],
+    ["AEFR 2025 St Kitts and Nevis final", "KNA", "2025-12"],
+    ["AEFR 2025 Saint Vincent and the Grenadines final", "VCT", "2025-12"],
+    ["AEFR 2025 Antigua and Barbuda final", "ATG", "2025-12"],
+    ["RSDAD AEFR2024 Anguilla", "AIA", "2024-12"],
+  ];
+  for (const [title, geography, covers_to] of cases) {
+    const r = reviewFrom(eccbItem(title));
+    assert.equal(r?.geography, geography, title);
+    assert.equal(r.covers_to, covers_to, title);
+    assert.equal(r.bank, "ECCB");
+    assert.equal(r.kind, "review");
+  }
+  assert.equal(reviewFrom(eccbItem("Final ECCU EFR June 2026 Anguilla")).title, "Economic and Financial Review, June 2026 (Anguilla)");
+  assert.equal(reviewFrom(eccbItem("AEFR 2025 Grenada final")).title, "Annual Economic and Financial Review 2025 (Grenada)");
+  assert.equal(reviewFrom(eccbItem("Final ECCU EFR June 2026 Antigua & Barbuda"))?.geography, "ATG");
+});
+
+test("an ECCB review that cannot be placed is counted, not guessed", () => {
+  const titles = [
+    "EFR June 2026 Grenada and Dominica", "EFR summary for Grenada", "Press note", "EFR June 2026 Statistical Annex",
+    "Final ECCU EFR June 2026 Statistical Annex", "Final ECCU EFR June 2026 Executive Summary", "Final ECCU EFR June 2026 SVG", "Final ECCU EFR June 2026 Monserrat",
+    "Final ECCU EFR June 2026 Grenada Statistical Annex", "EFR 2026 Grenada", "Saint Lucia EFR 2026 June", "Saint Lucia EFR 2025 June", "Final ECCU EFR June 2027 Anguilla",
+  ];
+  const items = [...titles.map((t, i) => ({ ...eccbItem(t), url: `https://x.test/${i}.pdf` })), eccbItem("AEFR 2025 Grenada final")];
+  assert.deepEqual(unplacedReviews(items).map((i) => i.title), titles);
+});
+
+test("a CBB title that looks like a review but is not placed is listed once, and non-statistical items are not", () => {
+  const miss = cbbItem("general-press-release", "Outlook for the Economy of Barbados, 2027");
+  const items = [miss, { ...miss }, cbbItem("speech", "Outlook for 2027"), cbbItem("book-reviews", "Review of a Book"), cbbItem("general-press-release", "New Banknote Released")];
+  assert.deepEqual(unplacedReviews(items).map((i) => i.title), [miss.title]);
+  assert.deepEqual(unplacedReviews([cbbItem("economic-reviews", "Review of Barbados' Economy in 2025", "2026-02-01")]), []);
+});
+
+test("a held entry this run could not have written is refused, so it cannot block true reviews", () => {
+  const good = { bank: "ECCB", geography: "AIA", kind: "review", title: "t", url: "u", posted: "2026-09-04", covers_to: "2026-06" };
+  assert.equal(validReview(good), true);
+  for (const over of [{ covers_to: undefined }, { covers_to: "9999-99" }, { covers_to: 202606 }, { covers_to: "2026-10" }, { posted: "soon" }, { title: "" }, { url: undefined }, { bank: undefined }]) {
+    assert.equal(validReview({ ...good, ...over }), false, JSON.stringify(over));
+  }
+  assert.equal(validReview(null), false);
+});
+
+test("the merge keeps the newest per bank, geography and kind, and an older item never replaces it", () => {
+  const r = (over) => ({ bank: "CBB", geography: "BRB", kind: "review", title: "t", posted: "2026-07-30", covers_to: "2026-06", url: "u", ...over });
+  const newest = r({ posted: "2026-10-28", covers_to: "2026-09", title: "newer" });
+  const old = r({});
+  assert.deepEqual(mergeReviews([newest], [old]), [newest]);
+  assert.deepEqual(mergeReviews([old], [newest]), [newest]);
+  const reposted = r({ posted: "2026-08-02", title: "reposted" });
+  assert.deepEqual(mergeReviews([old], [reposted]), [reposted]);
+  const late = r({ posted: "2026-11-01", covers_to: "2026-03", title: "late posting of an older period" });
+  assert.deepEqual(mergeReviews([old], [late]), [old]);
+  const outlook = r({ kind: "outlook" });
+  const aia = r({ bank: "ECCB", geography: "AIA" });
+  assert.equal(mergeReviews([old, outlook, aia], []).length, 3);
+  assert.deepEqual(mergeReviews([old, outlook, aia], []), mergeReviews([aia, old], [outlook]));
 });

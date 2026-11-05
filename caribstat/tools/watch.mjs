@@ -3,7 +3,7 @@
 // collect?
 //
 //   node tools/watch.mjs              # read both sites, report, remember what was seen
-//   node tools/watch.mjs --no-save    # report only, leave the state file alone
+//   node tools/watch.mjs --no-save    # report only, leave the state and reviews files alone
 //
 // WHY. The collectors answer "did a table we read change". They cannot answer
 // "did the bank publish something we never read", because they only open the
@@ -44,8 +44,15 @@
 // card that cannot be parsed is reported as a failure and exits 1. An empty
 // answer is never read as "nothing was published": that is the claim the
 // collectors made and could not support.
+//
+// It also keeps data/reviews.json, the newest review and outlook per bank and
+// geography. That file IS published: StatCite reads it to tell a caller when a
+// series ends before a newer PDF review (A-063). It holds a title, a posting
+// date, a link and the month the publication runs to, and never a figure from
+// one. The sites show recent items only, so it is merged, never rebuilt, and an
+// older item can never replace a newer one.
 
-import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, readdir, rename } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { CBB_LISTINGS, CBB_HUBS, openListing, fetchPage, publicationFamily, cardDate } from "./cbb/fetch.mjs";
@@ -55,6 +62,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
 export const STATE_FILE = path.join(ROOT, ".watch", "state.json");
 const DATA = path.join(ROOT, "data");
+export const REVIEWS_FILE = path.join(DATA, "reviews.json");
 
 const CBB = "https://www.centralbank.org.bb";
 const ECCB = "https://www.eccb-centralbank.org";
@@ -90,6 +98,7 @@ const clean = (t) =>
     .replace(/&amp;/g, "&")
     .replace(/&#0?39;|&apos;|&rsquo;|&#8217;/g, "'")
     .replace(/&quot;/g, '"')
+    .replace(/&ndash;|&#8211;|&mdash;|&#8212;/g, "-")
     .replace(/&nbsp;/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -165,6 +174,121 @@ export function parseEccbDocs(html, section) {
     });
   }
   return [...seen.values()];
+}
+
+const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+const month2 = (name) => String(MONTHS.indexOf(name.toLowerCase()) + 1).padStart(2, "0");
+
+/** The last full quarter before a date, for a publication naming no period. */
+export function lastFullQuarter(date) {
+  const year = Number(date.slice(0, 4));
+  const q = Math.floor((Number(date.slice(5, 7)) - 1) / 3) * 3;
+  return q === 0 ? `${year - 1}-12` : `${year}-${String(q).padStart(2, "0")}`;
+}
+
+// Compact file-name text, as the ECCB spells it. "Vincent" and "Kitts" cover
+// both the St and Saint forms.
+const ECCB_REVIEW_GEOGRAPHIES = [
+  ["AIA", "anguilla"], ["ATG", "antigua"], ["DMA", "dominica"], ["GRD", "grenada"],
+  ["KNA", "kitts"], ["LCA", "lucia"], ["MSR", "montserrat"], ["VCT", "vincent"],
+];
+
+function eccbReview(it) {
+  const t = it.title.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  if (/annex|summary/.test(t)) return null;
+  const hits = ECCB_REVIEW_GEOGRAPHIES.filter(([, word]) => t.includes(word));
+  if (hits.length > 1) return null;
+  // Nearly every file name opens "ECCU EFR", member or not, so that prefix is
+  // no evidence. The union's own report says ECCU again after it.
+  const geography = hits[0]?.[0] ?? (t.replace(/eccu(?=a?efr)/, "").includes("eccu") ? "XCU" : null);
+  if (!geography) return null;
+  const name = ECCB_GEOGRAPHIES.find((g) => g.iso3 === geography)?.name ?? geography;
+  // The file name is the only title the section gives, so the name is built.
+  // Read on the spaced title: compacted, "Lucia EFR 2026" reads as AEFR 2026.
+  const annual = /\baefr\s*(\d{4})/i.exec(it.title);
+  if (annual) return { geography, covers_to: `${annual[1]}-12`, title: `Annual Economic and Financial Review ${annual[1]} (${name})` };
+  const half = new RegExp(`efr(${MONTHS.join("|")})(\\d{4})`).exec(t);
+  if (!half) return null;
+  const label = half[1][0].toUpperCase() + half[1].slice(1);
+  return { geography, covers_to: `${half[2]}-${month2(half[1])}`, title: `Economic and Financial Review, ${label} ${half[2]} (${name})` };
+}
+
+function cbbReview(it) {
+  // The bank announces a release first: "Quarterly Review of Barbados' Economy
+  // Coming October 28".
+  if (/\b(?:up)?coming\b/i.test(it.title)) return null;
+  const outlook =
+    /^(?:the |updated )?(?:outlook for (?:the )?barbados['\u2019]?s? economy|barbados['\u2019]? economic outlook)\b/i.test(it.title) &&
+    !CBB_NON_STATISTICAL.has(it.category);
+  const listed = (it.category === "economic-reviews" || it.listing === "economic-reviews") && /\breview\b/i.test(it.title);
+  // Until 2023 the reviews were filed as press releases. There the title must
+  // open on the review and name its period, so a release about one does not pass.
+  const released =
+    it.category === "general-press-release" &&
+    /^(?:central bank of barbados['\u2019]? )?review of (?:the )?(?:barbados['\u2019]? )?economy\b/i.test(it.title);
+  if (!outlook && !listed && !released) return null;
+  const review = listed || released;
+  const part = /january\s*(?:-|\u2013|to)\s*(march|june|september|december)\s+(\d{4})/i.exec(it.title);
+  const whole = /\b(?:in|for)\s+(\d{4})\b/i.exec(it.title);
+  const named = review ? (part ? `${part[2]}-${month2(part[1])}` : whole ? `${whole[1]}-12` : null) : null;
+  if (released && !listed && !outlook && !named) return null;
+  // A period after the posting month is a misread title, not coverage.
+  const covers_to = named && named <= it.date.slice(0, 7) ? named : lastFullQuarter(it.date);
+  return { geography: "BRB", kind: outlook ? "outlook" : "review", covers_to, title: it.title };
+}
+
+/**
+ * Whether a listed item is a review or outlook the notice can point to.
+ * covers_to is the month the publication runs to. An item naming no period
+ * takes the last full quarter before it was posted, so a monthly series that
+ * is simply current is not flagged by every document posted after it.
+ * Returns null for anything else, and for an undated item.
+ */
+export function reviewFrom(it) {
+  if (!it.date) return null;
+  if (it.bank === "cbb") {
+    const r = cbbReview(it);
+    return r && { bank: "CBB", ...r, posted: it.date, url: it.url };
+  }
+  if (it.bank === "eccb" && it.category === "economic-and-financial-review") {
+    const r = eccbReview(it);
+    // A period after the posting month is a misread name, and held as the
+    // newest it would block every true review after it.
+    if (!r || r.covers_to > it.date.slice(0, 7)) return null;
+    return { bank: "ECCB", kind: "review", ...r, posted: it.date, url: it.url };
+  }
+  return null;
+}
+
+/** Likely reviews reviewFrom could not place, so a renamed title shows up. */
+export function unplacedReviews(items) {
+  const likely = (it) =>
+    it.bank === "eccb"
+      ? it.category === "economic-and-financial-review"
+      : !CBB_NON_STATISTICAL.has(it.category) && it.category !== "book-reviews" && /\boutlook\b|\breview of\b/i.test(it.title);
+  const seen = new Map();
+  for (const it of items) if (likely(it) && !reviewFrom(it)) seen.set(keyOf(it.url), it);
+  return [...seen.values()];
+}
+
+/** Whether a held entry is one this run could have written. */
+export const validReview = (r) =>
+  Boolean(r?.bank && r.geography && r.kind && r.title && r.url) &&
+  /^\d{4}-(0[1-9]|1[0-2])$/.test(r.covers_to) &&
+  /^\d{4}-(0[1-9]|1[0-2])-\d{2}$/.test(r.posted) &&
+  r.covers_to <= r.posted.slice(0, 7);
+
+const newerReview = (a, b) =>
+  a.covers_to !== b.covers_to ? a.covers_to > b.covers_to : a.posted !== b.posted ? a.posted > b.posted : a.url > b.url;
+
+/** The newest per bank, geography and kind, across the file and this run. */
+export function mergeReviews(held, found) {
+  const best = new Map();
+  for (const r of [...held, ...found]) {
+    const key = `${r.bank}|${r.geography}|${r.kind}`;
+    if (!best.has(key) || newerReview(r, best.get(key))) best.set(key, r);
+  }
+  return [...best.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, r]) => r);
 }
 
 /** The ECCB table paths the catalogue collects, in the same category/table form. */
@@ -416,6 +540,24 @@ async function main() {
   const collectedTables = collectedEccbTables();
   const r = decide({ items: [...cbbItems, ...docs], offeredTables: offered, held: await readHeld(), collectedTables, state, today });
 
+  let heldReviewsText = "";
+  let heldReviews = [];
+  let reviewsOk = true;
+  try {
+    heldReviewsText = await readFile(REVIEWS_FILE, "utf8");
+    heldReviews = JSON.parse(heldReviewsText).reviews;
+    if (!Array.isArray(heldReviews) || !heldReviews.every(validReview)) throw new Error("no valid reviews list");
+  } catch (e) {
+    heldReviews = [];
+    if (e.code !== "ENOENT") {
+      failures.push(`${REVIEWS_FILE} unreadable (${e.message}); not overwritten, fix or remove it by hand`);
+      reviewsOk = false;
+    }
+  }
+  const allItems = [...cbbItems, ...docs];
+  const reviews = mergeReviews(heldReviews, allItems.map(reviewFrom).filter(Boolean));
+  const unplaced = unplacedReviews(allItems);
+
   console.log(`WATCH ${today}${state ? "" : ` (first run: items older than ${BASELINE_DAYS} days recorded, not listed)`}`);
   for (const n of notes) console.log(`  ${n}`);
   const other = r.report.filter((it) => it.bank === "cbb" && CBB_NON_STATISTICAL.has(it.category));
@@ -439,6 +581,9 @@ async function main() {
     console.log(`\nCOLLECTED TABLES NO LONGER LINKED FROM THE MENU: ${r.missing.length}`);
     for (const t of r.missing) console.log(`  ${t}`);
   }
+  console.log(`\nREVIEWS AND OUTLOOKS HELD FOR THE NOTICE: ${reviews.length}`);
+  for (const x of reviews) console.log(`  ${x.bank.padEnd(4)} ${x.geography} ${x.kind.padEnd(7)} to ${x.covers_to}, posted ${x.posted}  ${x.title}`);
+  for (const x of unplaced) console.log(`  NOT PLACED ${x.date} ${x.title}\n             ${x.url}`);
   if (failures.length) {
     console.log(`\nWATCH INCOMPLETE: ${failures.length} problem(s). What is above is partial, not "nothing new".`);
     for (const f of failures) console.log(`  FAIL ${f}`);
@@ -446,6 +591,18 @@ async function main() {
   if (save && stateOk) {
     await mkdir(path.dirname(STATE_FILE), { recursive: true });
     await writeFile(STATE_FILE, JSON.stringify({ version: 2, watched_at: new Date().toISOString(), first_seen: r.first_seen }, null, 2) + "\n");
+  }
+  // Written even after a partial read: a merge can only add what was seen.
+  // No run date in the file, so a run that found nothing new publishes nothing.
+  if (reviewsOk) {
+    const text = JSON.stringify({ version: 1, reviews }, null, 2) + "\n";
+    // Whole or not at all: a half-written file would stop the corpus publish.
+    if (save && text !== heldReviewsText) {
+      const tmp = path.join(path.dirname(STATE_FILE), "reviews.json.tmp");
+      await mkdir(path.dirname(tmp), { recursive: true });
+      await writeFile(tmp, text);
+      await rename(tmp, REVIEWS_FILE);
+    }
   }
   process.exit(failures.length ? 1 : 0);
 }
