@@ -1107,24 +1107,53 @@ var ShapeError = class extends Error {
   }
 };
 var inflight = /* @__PURE__ */ new Map();
+var FLIGHT_SLACK_MS = 500;
+var MAX_FLIGHT_JOINS = 2;
+function flightLimitMs(timeoutMs, retry) {
+  if (!retry) return timeoutMs + FLIGHT_SLACK_MS;
+  const pauses = RETRY_DELAYS_MS.reduce((sum, ms) => sum + ms, 0) * retryDelayScale;
+  return (RETRY_DELAYS_MS.length + 1) * timeoutMs + pauses + FLIGHT_SLACK_MS;
+}
+var FLIGHT_ABANDONED = {};
+async function joinFlight(promise, leftMs) {
+  if (leftMs <= 0) return FLIGHT_ABANDONED;
+  let timer = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(FLIGHT_ABANDONED), leftMs);
+      })
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 async function fetchJson(url, opts = {}) {
   const { ttlSeconds = 21600, timeoutMs = 8e3, validate, accept, maxBytes = MAX_UPSTREAM_BYTES, hostState, retry = true } = opts;
   const key = JSON.stringify([ttlSeconds, timeoutMs, maxBytes, accept ?? "", url]);
-  const flight = inflight.get(key);
-  if (flight) {
+  for (let joins = 0, flight = inflight.get(key); flight && joins < MAX_FLIGHT_JOINS; joins++, flight = inflight.get(key)) {
     try {
-      const data = await flight;
+      const data = await joinFlight(flight.promise, flight.deadline - Date.now());
+      if (data === FLIGHT_ABANDONED) {
+        if (inflight.get(key) === flight) inflight.delete(key);
+        continue;
+      }
       if (!validate || validate(data)) return data;
     } catch (e) {
       if (e instanceof UpstreamError) throw e;
     }
+    break;
   }
-  const started = attemptFetchJson(url, { ttlSeconds, timeoutMs, validate, accept, maxBytes, hostState, retry });
+  const started = {
+    promise: attemptFetchJson(url, { ttlSeconds, timeoutMs, validate, accept, maxBytes, hostState, retry }),
+    deadline: Date.now() + flightLimitMs(timeoutMs, retry)
+  };
   inflight.set(key, started);
   try {
-    return await started;
+    return await started.promise;
   } finally {
-    inflight.delete(key);
+    if (inflight.get(key) === started) inflight.delete(key);
   }
 }
 async function attemptFetchJson(url, {

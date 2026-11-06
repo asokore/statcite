@@ -402,3 +402,175 @@ test("a failing host is retried after a real pause", async () => {
     _setRetryDelayScale(0);
   }
 });
+
+// A Worker can drop a request's pending work without settling it, so a joiner
+// must not wait on the flight for ever. Node cannot tear a request down, so a
+// fetch that never settles and ignores its abort stands in for that here. The
+// real teardown was run under workerd for A-065.
+test("a joiner gives up on a flight that never settles, and fetches for itself", async () => {
+  _clearMemCache();
+  const url = "https://hang.example/a";
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    if (calls === 1) return new Promise<Response>(() => {});
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  }) as typeof fetch;
+  void fetchJson(url, { timeoutMs: 20 }).catch(() => {});
+  const t0 = Date.now();
+  assert.deepEqual(await fetchJson(url, { timeoutMs: 20 }), { ok: true });
+  assert.equal(calls, 2);
+  assert.ok(Date.now() - t0 < 5000, "the wait is bounded by the flight's own limit");
+});
+
+test("a caller arriving after the limit has passed does not wait at all", async (t) => {
+  _clearMemCache();
+  const url = "https://hang.example/b";
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    if (calls === 1) return new Promise<Response>(() => {});
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  }) as typeof fetch;
+  void fetchJson(url, { timeoutMs: 20 }).catch(() => {});
+  const realNow = Date.now;
+  t.after(() => { Date.now = realNow; });
+  Date.now = () => realNow() + 60_000;
+  const timers: number[] = [];
+  const realTimeout = globalThis.setTimeout;
+  t.after(() => { globalThis.setTimeout = realTimeout; });
+  globalThis.setTimeout = ((fn: () => void, ms?: number) => { timers.push(ms ?? 0); return realTimeout(fn, ms); }) as typeof setTimeout;
+  assert.deepEqual(await fetchJson(url, { timeoutMs: 20 }), { ok: true });
+  assert.ok(timers.length > 0 && timers.every((ms) => ms === 20), `only the caller's own attempt timer, saw ${timers.join()}`);
+});
+
+test("callers stuck on a dead flight share one replacement", async () => {
+  _clearMemCache();
+  const url = "https://hang.example/e";
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    if (calls === 1) return new Promise<Response>(() => {});
+    await new Promise((r) => setTimeout(r, 20));
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  }) as typeof fetch;
+  void fetchJson(url, { timeoutMs: 20 }).catch(() => {});
+  const answers = await Promise.all([1, 2, 3].map(() => fetchJson(url, { timeoutMs: 20 })));
+  assert.deepEqual(answers, [{ ok: true }, { ok: true }, { ok: true }]);
+  assert.equal(calls, 2, "one dead flight and one replacement");
+});
+
+test("a joiner waits out every attempt and pause of a live flight", async () => {
+  _clearMemCache();
+  _setRetryDelayScale(1);
+  try {
+    const url = "https://hang.example/f";
+    let calls = 0;
+    globalThis.fetch = (async (_: unknown, init?: RequestInit) => {
+      const n = ++calls;
+      if (n < 3) {
+        return new Promise<Response>((_ok, fail) => {
+          init?.signal?.addEventListener("abort", () => fail(new DOMException("aborted", "AbortError")));
+        });
+      }
+      await new Promise((r) => setTimeout(r, 250));
+      return new Response(JSON.stringify({ n }), { status: 200 });
+    }) as typeof fetch;
+    // Two attempts of 600 and pauses of 300 and 900 put the third answer near
+    // 2650 ms. The limit is 3500. Without the attempts or the pauses it is 2300.
+    const [a, b] = await Promise.all([fetchJson(url, { timeoutMs: 600 }), fetchJson(url, { timeoutMs: 600 })]);
+    assert.deepEqual(a, { n: 3 });
+    assert.deepEqual(b, { n: 3 });
+    assert.equal(calls, 3, "the joiner never gave up on the live flight");
+  } finally {
+    _setRetryDelayScale(0);
+  }
+});
+
+test("a flight that will not retry is only waited on for one attempt", async (t) => {
+  _clearMemCache();
+  const url = "https://hang.example/g";
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    if (calls === 1) return new Promise<Response>(() => {});
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  }) as typeof fetch;
+  void fetchJson(url, { timeoutMs: 50, retry: false }).catch(() => {});
+  const timers: number[] = [];
+  const realTimeout = globalThis.setTimeout;
+  t.after(() => { globalThis.setTimeout = realTimeout; });
+  globalThis.setTimeout = ((fn: () => void, ms?: number) => { timers.push(ms ?? 0); return realTimeout(fn, ms); }) as typeof setTimeout;
+  assert.deepEqual(await fetchJson(url, { timeoutMs: 50 }), { ok: true });
+  assert.ok(Math.max(...timers) > 50, `the caller joined the flight, saw ${timers.join()}`);
+  assert.ok(Math.max(...timers) <= 550, `the wait stops at one attempt plus the slack, saw ${timers.join()}`);
+});
+
+test("a chain of dead flights holds a caller for two joins at most", async (t) => {
+  _clearMemCache();
+  const url = "https://hang.example/h";
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    if (calls <= 3) return new Promise<Response>(() => {});
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  }) as typeof fetch;
+  void fetchJson(url, { timeoutMs: 200 }).catch(() => {});
+  const joins: number[] = [];
+  const realTimeout = globalThis.setTimeout;
+  t.after(() => { globalThis.setTimeout = realTimeout; });
+  globalThis.setTimeout = ((fn: () => void, ms?: number) => {
+    if ((ms ?? 0) > 200) joins.push(ms ?? 0);
+    return realTimeout(fn, ms);
+  }) as typeof setTimeout;
+  const first = await Promise.race([1, 2, 3].map(() => fetchJson(url, { timeoutMs: 200 })));
+  assert.deepEqual(first, { ok: true });
+  // Three callers join the dead flight. One replaces it, and the other two join
+  // that. A third join would make six.
+  assert.equal(joins.length, 5, `join timers: ${joins.join()}`);
+});
+
+test("a flight that answers is shared, not repeated", async () => {
+  _clearMemCache();
+  const url = "https://hang.example/c";
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    await new Promise((r) => setTimeout(r, 30));
+    return new Response(JSON.stringify({ n: calls }), { status: 200 });
+  }) as typeof fetch;
+  const [a, b] = await Promise.all([fetchJson(url, { timeoutMs: 1000 }), fetchJson(url, { timeoutMs: 1000 })]);
+  assert.deepEqual(a, b);
+  assert.equal(calls, 1);
+});
+
+test("an abandoned flight that settles late leaves its successor's entry alone", async () => {
+  _clearMemCache();
+  const url = "https://hang.example/d";
+  let release: ((r: Response) => void) | undefined;
+  let finishSecond: ((r: Response) => void) | undefined;
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    if (calls === 1) return new Promise<Response>((r) => { release = r; });
+    if (calls === 2) return new Promise<Response>((r) => { finishSecond = r; });
+    return new Response(JSON.stringify({ third: true }), { status: 200 });
+  }) as typeof fetch;
+  const body = (o: unknown) => new Response(JSON.stringify(o), { status: 200 });
+  const first = fetchJson(url, { timeoutMs: 200_000 }).catch(() => null);
+  await new Promise((r) => setTimeout(r, 5));
+  const realNow = Date.now;
+  Date.now = () => realNow() + 10_000_000;
+  const second = fetchJson(url, { timeoutMs: 200_000 });
+  Date.now = realNow;
+  await new Promise((r) => setTimeout(r, 5));
+  const joiner = fetchJson(url, { timeoutMs: 200_000 });
+  release!(body({ first: true }));
+  await first;
+  const third = fetchJson(url, { timeoutMs: 200_000 });
+  finishSecond!(body({ second: true }));
+  assert.deepEqual(await second, { second: true });
+  assert.deepEqual(await joiner, { second: true });
+  assert.deepEqual(await third, { second: true }, "the third caller joined the successor");
+  assert.equal(calls, 2);
+});
