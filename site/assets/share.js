@@ -278,7 +278,12 @@ navigator.share({files:[f]}).catch(function(e){if(e&&e.name!=="AbortError")hint(
 els.link.addEventListener("click",function(){
 if(!cur)return;navigator.share({title:cur.title,text:cur.text,url:cur.url}).catch(function(){});
 });
-els.copy.addEventListener("click",function(){if(cur)copy(cur.url).then(function(ok){hint(ok?"Link copied.":"Copy failed. The link is "+cur.url);});});
+/* A result copies its sentence with the link, so a bare paste still says what
+   was checked. The WhatsApp route sends the same two parts in the same order.
+   The clipboard then holds more than a URL, so copied turns false and the story
+   flow stops offering it for a Link sticker. */
+function copied(c){return function(ok){if(ok&&c.result){c.copied=false;c.sentence=true;}if(c===cur)hint(ok?(c.result?"Result and link copied.":"Link copied."):"Copy failed. The link is "+c.url);};}
+els.copy.addEventListener("click",function(){if(cur)copy(cur.result?cur.text+" "+cur.url:cur.url).then(copied(cur));});
 els.save.addEventListener("click",function(e){
 if(!els.save.getAttribute("href")){e.preventDefault();hint("The image is still being made.");return;}
 hint("Downloading the image. Post it as a story from your phone, and add the link with a sticker.");
@@ -295,7 +300,7 @@ function open(spec){
 if(!dlg)build();
 opener=spec.from||d.activeElement;
 var url=spec.url||canonical(),title=spec.title||d.title,text=spec.text||title;
-cur={url:url,title:title,text:text,file:null,copied:false};
+cur={url:url,title:title,text:text,file:null,copied:false,result:spec.kind==="result"};
 var mine=cur;
 els.h.textContent=spec.heading||"Share this page";
 /* The story button only where a phone share sheet with story targets exists. */
@@ -304,10 +309,11 @@ try{files=touch&&!!navigator.canShare&&!!w.File&&navigator.canShare({files:[new 
 /* There, the link goes to the clipboard now, inside the tap that opened the
    dialog, for the Link sticker. Once a share sheet takes focus, some browsers
    refuse the clipboard. Elsewhere only Copy link writes to it. */
-if(files)copy(url).then(function(ok){mine.copied=ok;});
+if(files)copy(url).then(function(ok){mine.copied=ok&&!mine.sentence;});
 /* Every button keeps its place while the image is made, so nothing moves under a finger. */
 els.story.hidden=!files;els.story.disabled=true;els.save.hidden=false;els.save.className=files?"btn ghost":"btn primary";
 els.link.hidden=!navigator.share;
+els.copy.textContent=cur.result?"Copy result and link":"Copy link";
 els.prev.removeAttribute("src");els.save.removeAttribute("href");
 hint("Making the story image…");
 els.wa.href="https://wa.me/?text="+encodeURIComponent(text+" "+url);
@@ -324,7 +330,7 @@ els.prev.src=data;els.save.href=data;
 els.prev.alt=spec.kind==="result"?"Story image of this verification result":"Story image for this page";
 if(story)cur.file=f;
 els.story.disabled=!story;if(!story){els.story.hidden=true;els.save.className="btn primary";}
-hint(story?(mine.copied?"The link is copied, ready for a Link sticker.":""):"Save the image, then post it as a story from your phone's gallery.");
+hint(story?(mine.copied?"The link is copied, ready for a Link sticker.":mine.sentence?"Result and link copied.":""):"Save the image, then post it as a story from your phone's gallery.");
 });
 }).catch(function(){if(mine===cur)hint("The story image could not be drawn here. The link options still work.");});
 }
@@ -367,7 +373,7 @@ d.addEventListener("sc:verdict",function(e){
 var R=e.detail&&e.detail.body,q=e.detail&&e.detail.query,card=d.querySelector("#try-result .card");
 if(!R||!card||!q||!{match:1,close:1,mismatch:1}[R.verdict])return;
 var url=location.origin+"/?"+q+"#try",cn=(R.country&&R.country.name)||"",sn=(R.series&&R.series.name)||"";
-var text=cn+", "+sn+", "+R.period+": claimed "+num(R.claimed_value)+", official "+num(R.official_value)+". Verdict: "+R.verdict+". Checked with StatCite.";
+var text=cn+", "+sn+", "+R.period+": claimed "+num(R.claimed_value)+", official "+(R.is_projection?"estimate or projection ":"")+num(R.official_value)+". Verdict: "+R.verdict+". Checked with StatCite.";
 var btn=el("button","btn ghost share-result","Share this result",card);btn.type="button";
 btn.addEventListener("click",function(){open({kind:"result",data:R,url:url,text:text,title:"StatCite verification",heading:"Share this result",from:btn});});
 });
