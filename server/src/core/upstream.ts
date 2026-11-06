@@ -198,7 +198,43 @@ export function isMemCached(url: string): boolean {
 }
 
 /** Flights in progress, keyed by everything that changes the bytes fetched. */
-const inflight = new Map<string, Promise<unknown>>();
+const inflight = new Map<string, { promise: Promise<unknown>; deadline: number }>();
+
+/** Beyond the arithmetic below, so a flight on its last attempt is not cut off by a timer's rounding. */
+const FLIGHT_SLACK_MS = 500;
+
+/** How many flights one caller will wait on before fetching for itself. */
+const MAX_FLIGHT_JOINS = 2;
+
+/** The longest a live flight can run: every attempt timing out, plus every pause. */
+function flightLimitMs(timeoutMs: number, retry: boolean): number {
+  if (!retry) return timeoutMs + FLIGHT_SLACK_MS;
+  const pauses = RETRY_DELAYS_MS.reduce((sum, ms) => sum + ms, 0) * retryDelayScale;
+  return (RETRY_DELAYS_MS.length + 1) * timeoutMs + pauses + FLIGHT_SLACK_MS;
+}
+
+/** Compared by identity, so no parsed body can be mistaken for it. */
+const FLIGHT_ABANDONED = {};
+
+/**
+ * A Worker tears down a request's pending work when it responds, so a flight
+ * started there can stop with its promise unsettled. The joiner's own timer
+ * still runs, which is why the wait lives here and not inside the attempt.
+ */
+async function joinFlight(promise: Promise<unknown>, leftMs: number): Promise<unknown> {
+  if (leftMs <= 0) return FLIGHT_ABANDONED;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<typeof FLIGHT_ABANDONED>((resolve) => {
+        timer = setTimeout(() => resolve(FLIGHT_ABANDONED), leftMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /**
  * Fetch JSON, sharing an identical request that is already in the air.
@@ -232,10 +268,15 @@ export async function fetchJson(
   // probe must not inherit an adapter's 8s wait. `validate` is deliberately not
   // in the key: the body is the same, and each joiner re-checks it below.
   const key = JSON.stringify([ttlSeconds, timeoutMs, maxBytes, accept ?? "", url]);
-  const flight = inflight.get(key);
-  if (flight) {
+  // A loop, so callers stuck on one dead flight share its replacement. The cap
+  // stops a chain of dead flights holding one caller beyond two limits.
+  for (let joins = 0, flight = inflight.get(key); flight && joins < MAX_FLIGHT_JOINS; joins++, flight = inflight.get(key)) {
     try {
-      const data = await flight;
+      const data = await joinFlight(flight.promise, flight.deadline - Date.now());
+      if (data === FLIGHT_ABANDONED) {
+        if (inflight.get(key) === flight) inflight.delete(key);
+        continue;
+      }
       // Same body, this caller's own shape contract.
       if (!validate || validate(data)) return data;
     } catch (e) {
@@ -245,13 +286,18 @@ export async function fetchJson(
       // this caller makes its own attempt.
       if (e instanceof UpstreamError) throw e;
     }
+    break;
   }
-  const started = attemptFetchJson(url, { ttlSeconds, timeoutMs, validate, accept, maxBytes, hostState, retry });
+  const started = {
+    promise: attemptFetchJson(url, { ttlSeconds, timeoutMs, validate, accept, maxBytes, hostState, retry }),
+    deadline: Date.now() + flightLimitMs(timeoutMs, retry),
+  };
   inflight.set(key, started);
   try {
-    return await started;
+    return await started.promise;
   } finally {
-    inflight.delete(key);
+    // An abandoned flight that settles late must not take its successor's entry with it.
+    if (inflight.get(key) === started) inflight.delete(key);
   }
 }
 
