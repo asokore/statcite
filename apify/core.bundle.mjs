@@ -1,4 +1,6 @@
 // ../server/src/core/types.ts
+var bankFutureNote = (period) => `The ECCB shades ${period} as future data on this table and does not define the term, so do not treat it as a final figure.`;
+var isBankFutureNote = (note) => /^The ECCB shades \S+ as future data/.test(note ?? "");
 var ToolError = class extends Error {
   details;
   code;
@@ -2020,7 +2022,7 @@ function inferFrequency(periods) {
   if (/^\d{4}-\d{2}$/.test(p)) return "m";
   return "a";
 }
-var CARIBSTAT_CACHE_EPOCH = "2026-08-15a";
+var CARIBSTAT_CACHE_EPOCH = "2026-11-06a";
 function caribstatUrl(p, origin = CARIBSTAT_ORIGIN) {
   const v = `?v=${CARIBSTAT_CACHE_EPOCH}`;
   const enc = (path) => path.split("/").map(encodeURIComponent).join("/");
@@ -2037,6 +2039,11 @@ function withOccurrence(row, n, total) {
 }
 function docRef(d) {
   return d.table_id || [d.category, d.sheet].filter(Boolean).join("/") || d.source_id || "unknown table";
+}
+var ROW_LIST_LIMIT = 40;
+function rowList(labels, format = (l) => l, separator = " | ") {
+  const shown = labels.slice(0, ROW_LIST_LIMIT).map(format).join(separator);
+  return labels.length > ROW_LIST_LIMIT ? `${shown}${separator}... and ${labels.length - ROW_LIST_LIMIT} more` : shown;
 }
 function selectRow(doc, want) {
   if (!doc.series?.length) {
@@ -2076,17 +2083,29 @@ function selectRow(doc, want) {
   if (prefixed.length === 1) return prefixed[0];
   if (prefixed.length > 1) {
     throw new ToolError(
-      `Row selector '${want}' is ambiguous in ${docRef(doc)}/${doc.country.iso3}: it matches ${prefixed.length} rows (${prefixed.map((s) => `"${s.label}"`).join(", ")}). Use the exact label.`,
+      `Row selector '${want}' is ambiguous in ${docRef(doc)}/${doc.country.iso3}: it matches ${prefixed.length} rows (${rowList(
+        prefixed.map((s) => s.label),
+        (l) => `"${l}"`,
+        ", "
+      )}). Use the exact label.`,
       { table: docRef(doc), country: doc.country.iso3, matches: prefixed.map((s) => s.label) }
     );
   }
+  const near = doc.series.map((s) => s.label).filter((l) => l.toLowerCase().includes(want.toLowerCase()));
   throw new ToolError(
-    `No row '${want}' in ${docRef(doc)}/${doc.country.iso3}. Available rows: ${doc.series.map((s) => s.label).join(" | ")}`,
+    near.length ? `No row '${want}' in ${docRef(doc)}/${doc.country.iso3}, but ${near.length} row(s) contain those words: ${rowList(near)}. Use the exact label.` : `No row '${want}' in ${docRef(doc)}/${doc.country.iso3}. Available rows: ${rowList(doc.series.map((s) => s.label))}`,
     { table: docRef(doc), country: doc.country.iso3, available_rows: doc.series.map((s) => s.label) }
   );
 }
 async function fetchCaribstatSeries(id, opts = {}) {
   const parsed = parseCaribstatId(id);
+  const needsRow = !parsed.row && parsed.provider === "ECCB" ? CARIBSTAT_CATALOGUE.find((e) => e.provider === "ECCB" && e.table === parsed.table && e.rowRequired) : void 0;
+  if (needsRow) {
+    throw new ToolError(
+      `${needsRow.title} needs a row. ${needsRow.rowRequired} Add one to the id, e.g. '${canonicalCaribstatBase(parsed)}#${needsRow.sampleRow}'.`,
+      { series_id: canonicalCaribstatBase(parsed), example_row: needsRow.sampleRow }
+    );
+  }
   const withheldBy = parsed.provider === "ECCB" ? CARIBSTAT_CATALOGUE.find((e) => e.provider === "ECCB" && e.table === parsed.table && e.withheld?.includes(parsed.iso3 ?? "")) : void 0;
   if (withheldBy) {
     throw new ToolError(
@@ -2119,6 +2138,8 @@ async function fetchCaribstatSeries(id, opts = {}) {
   }
   doc = sanitiseDoc(doc);
   const row = selectRow(doc, parsed.row);
+  const future = new Set(Array.isArray(doc.future_periods) ? doc.future_periods : []);
+  const observations = future.size ? row.observations.map((o) => future.has(o.period) && o.value !== null ? { ...o, note: bankFutureNote(o.period) } : o) : row.observations;
   let defaultRow;
   if (!parsed.row && doc.series.length > 1) {
     const same = doc.series.filter((s) => s.label === row.label).length;
@@ -2128,7 +2149,7 @@ async function fetchCaribstatSeries(id, opts = {}) {
     doc,
     label: row.label,
     unit: row.unit,
-    observations: row.observations,
+    observations,
     apiUrl,
     canonicalBase: canonicalCaribstatBase(parsed),
     rowSelected: Boolean(parsed.row),
@@ -2341,6 +2362,18 @@ var CARIBSTAT_CATALOGUE = [
     geographies: 9,
     sampleRow: "Net International Investment Position",
     topics: ["international investment position", "iip", "external assets", "external liabilities", "foreign investment"]
+  },
+  {
+    // Each source row publishes as six series, one per direction and partner,
+    // so a row label reads "4. Travel: Exports: Of Which: ECCU".
+    provider: "ECCB",
+    table: "trade-in-services",
+    title: "Trade in Services (TIS)",
+    freqs: ["a"],
+    geographies: 9,
+    sampleRow: "Total EBOPS Services: Exports: TOTAL",
+    rowRequired: "Each service has six rows, named '{service}: Imports|Exports: TOTAL', '...: Of Which: ECCU' or '...: Of Which: Other CARICOM Countries'.",
+    topics: ["trade in services", "services exports", "services imports", "exports of services", "imports of services", "travel services", "travel exports", "travel imports", "transport services", "financial services", "ebops", "intra-regional trade"]
   },
   {
     provider: "ECCB",
@@ -2655,6 +2688,13 @@ function deriveLimitations(r, opts = {}) {
       detail: `${projected.length} of ${valued.length} returned value(s) fall in the source's estimate/projection period (${projected[0].period}${projected.length > 1 ? ` to ${projected[projected.length - 1].period}` : ""}). The boundary is a heuristic, so earlier values may also be staff estimates.`
     });
   }
+  const shaded = valued.filter((o) => isBankFutureNote(o.note));
+  if (shaded.length) {
+    out.push({
+      code: "projection",
+      detail: `${shaded.length} of ${valued.length} returned value(s) fall in a period the ECCB shades as future data (${shaded.map((o) => o.period).join(", ")}). The bank does not define the term.`
+    });
+  }
   const unmarked = valued.length - projected.length;
   if (unmarked > 0 && imfInferredBoundary(r.series_id)) {
     out.push({
@@ -2759,8 +2799,10 @@ function finishSeries(result, opts) {
   obs = obs.slice(a, b);
   if (opts.limit === 1) {
     const nonNull = obs.filter((o) => o.value != null);
-    const outturns = nonNull.filter((o) => !/projection/i.test(o.note ?? ""));
-    if (outturns.length && nonNull.length > outturns.length) {
+    const outturns = nonNull.filter((o) => !/projection/i.test(o.note ?? "") && !isBankFutureNote(o.note));
+    if (outturns.length && nonNull.some((o) => isBankFutureNote(o.note))) {
+      result.notes.push("Latest value before the periods the ECCB shades as future data shown.");
+    } else if (outturns.length && nonNull.length > outturns.length) {
       result.notes.push("Latest value not marked as a projection shown; later IMF estimate/projection periods exist for this series.");
     }
     obs = (outturns.length ? outturns : nonNull).slice(-1);
@@ -3474,6 +3516,8 @@ async function getSeriesCore(ctx, seriesId, opts = {}) {
       observations: c.observations
     });
     if (notice) caribNotes.push(notice);
+    const shaded = c.observations.filter((o) => isBankFutureNote(o.note)).map((o) => o.period);
+    if (shaded.length) caribNotes.push(bankFutureNote(shaded.join(", ")));
     const citation = caribstatCitation(ctx, {
       source: c.doc.source,
       sourceUrl: c.doc.source_url,
@@ -3628,7 +3672,7 @@ async function searchIndicators(ctx, query, opts = {}) {
         id: hit.id,
         title: `${hit.entry.provider}: ${hit.entry.title}${hit.iso3 ? `, ${hit.iso3}` : ""}`,
         description: `${hit.why}. Regional central bank data, not a registry indicator: values are on the publishing bank's own definitions.`,
-        usage: ctx.surface === "rest" ? `GET /v1/series?id=${hit.id}&row=${encodeURIComponent(hit.entry.sampleRow)} (or percent-encode the '#' row selector as %23)` : `get_series(series_id="${hit.id}") \u2014 add '#Row Label' to pick a row, e.g. '#${hit.entry.sampleRow}'`
+        usage: ctx.surface === "rest" ? `GET /v1/series?id=${hit.id}&row=${encodeURIComponent(hit.entry.sampleRow)} (or percent-encode the '#' row selector as %23)` : hit.entry.rowRequired ? `get_series(series_id="${hit.id}#${hit.entry.sampleRow}"). This table needs a row: ${hit.entry.rowRequired}` : `get_series(series_id="${hit.id}") \u2014 add '#Row Label' to pick a row, e.g. '#${hit.entry.sampleRow}'`
       });
     }
   }
@@ -4401,9 +4445,10 @@ async function verifyStat(ctx, p) {
     };
   }
   const official = matched.value;
-  const isProjection = /WEO|Fiscal Monitor/i.test(matched.note ?? "") && /estimate|projection/i.test(matched.note ?? "");
+  const bankFuture = isBankFutureNote(matched.note);
+  const isProjection = bankFuture || /WEO|Fiscal Monitor/i.test(matched.note ?? "") && /estimate|projection/i.test(matched.note ?? "");
   const registryDef = isRegistry ? getIndicatorDef(p.indicator) : void 0;
-  const observationStatus = imfHeuristicSeries ? isProjection ? "projection" : "estimate_or_actual" : registryDef?.modeled ? "modeled_estimate" : isRegistry || result.series_id.startsWith("worldbank/") ? "actual" : "unknown";
+  const observationStatus = bankFuture ? "projection" : imfHeuristicSeries ? isProjection ? "projection" : "estimate_or_actual" : registryDef?.modeled ? "modeled_estimate" : isRegistry || result.series_id.startsWith("worldbank/") ? "actual" : "unknown";
   const diff = p.claimed_value - official;
   const relPct = official !== 0 ? diff / Math.abs(official) * 100 : null;
   const ratio = official !== 0 ? p.claimed_value / official : null;
@@ -4479,7 +4524,7 @@ async function verifyStat(ctx, p) {
   }
   const unitText = result.unit ? ` ${result.unit}` : "";
   const projKind = /Fiscal Monitor/i.test(matched.note ?? "") ? "IMF Fiscal Monitor" : "IMF WEO";
-  const officialLabel = isProjection ? `official (${projKind} projection)` : "official";
+  const officialLabel = bankFuture ? "official (a period the ECCB shades as future data)" : isProjection ? `official (${projKind} projection)` : "official";
   const explanation = verdict === "match" ? `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period}, consistent (${why}).` : verdict === "close" ? `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period}. In the right neighborhood but not exact (${why}). Cite the official value.` : `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period}, materially different (${why}).` + (diagnostics.length ? " See diagnostics for likely causes." : "");
   return {
     verdict,
@@ -4764,7 +4809,7 @@ var SOURCES = [
   {
     id: "eccb",
     name: "Eastern Caribbean Central Bank statistics",
-    coverage: `ECCU monetary, fiscal, debt, tourism, interest-rate, CPI, national-accounts, balance-of-payments, trade and exchange-rate statistics for the eight ECCB member geographies and the currency union aggregate, annual, quarterly and monthly. The national accounts cover six of the nine geographies: for Grenada, St Kitts and Nevis and the union aggregate the bank's 2018 base-year tables showed no figures for any year from 2015 to 2026 when checked on 3 November 2026. It includes Anguilla and Montserrat, which are not World Bank reporting economies and appear in few other machine-readable sources. The figures are collected on a schedule from the ECCB's published tables. Figures collected while the bank printed its own "data as at" stamp carry it, kept separate from our retrieval time. The bank stopped printing that stamp in late September 2026, so figures collected since carry no currency claim from the bank, only the date StatCite collected them.`,
+    coverage: `ECCU monetary, fiscal, debt, tourism, interest-rate, CPI, national-accounts, balance-of-payments, trade in goods and services and exchange-rate statistics for the eight ECCB member geographies and the currency union aggregate, annual, quarterly and monthly. The national accounts cover six of the nine geographies: for Grenada, St Kitts and Nevis and the union aggregate the bank's 2018 base-year tables showed no figures for any year from 2015 to 2026 when checked on 3 November 2026. It includes Anguilla and Montserrat, which are not World Bank reporting economies and appear in few other machine-readable sources. The figures are collected on a schedule from the ECCB's published tables. Figures collected while the bank printed its own "data as at" stamp carry it, kept separate from our retrieval time. The bank stopped printing that stamp in late September 2026, so figures collected since carry no currency claim from the bank, only the date StatCite collected them.`,
     access: "Scheduled collection to static JSON at github.com/asokore/caribstat, fetched and edge-cached like any other upstream",
     license: "ECCB website terms of use, plus written permission granted to the operator",
     license_verdict: "served",

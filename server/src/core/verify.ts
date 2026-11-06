@@ -2,7 +2,7 @@
 // The differentiating tool: verdict + diagnosis + canonical citation.
 
 import type { Citation, Ctx } from "./types.ts";
-import { ToolError } from "./types.ts";
+import { ToolError, isBankFutureNote } from "./types.ts";
 import { getIndicator, getIndicatorAsOf, getIndicatorAtEdition, requireCountry } from "./series.ts";
 import { getSeries } from "./series.ts";
 import { getIndicatorDef } from "./indicators.ts";
@@ -36,7 +36,8 @@ export interface VerifyResult {
   claimed_value: number;
   official_value: number | null;
   /** True when the matched official observation is an IMF WEO/Fiscal Monitor
-   * estimate/projection, not a final outturn. Kept for compatibility;
+   * estimate/projection, or a period the ECCB shades as future data, not a
+   * final outturn. Kept for compatibility;
    * observation_status carries the finer-grained classification. */
   is_projection: boolean;
   /** See ObservationStatus. is_projection === (observation_status === "projection"). */
@@ -305,7 +306,8 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
   }
 
   const official = matched.value!;
-  const isProjection = /WEO|Fiscal Monitor/i.test(matched.note ?? "") && /estimate|projection/i.test(matched.note ?? "");
+  const bankFuture = isBankFutureNote(matched.note);
+  const isProjection = bankFuture || (/WEO|Fiscal Monitor/i.test(matched.note ?? "") && /estimate|projection/i.test(matched.note ?? ""));
   // "actual" is asserted only for series StatCite curates or can classify (registry
   // WB outturn series, explicit worldbank/ WDI ids). Two carve-outs keep it honest:
   // registry indicators flagged `modeled` (ILO-modeled unemployment/participation —
@@ -314,7 +316,9 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
   // (OECD Economic Outlook via DBnomics) whose values are NOT outturns — those
   // stay "unknown" rather than gaining a false positive "actual" label.
   const registryDef = isRegistry ? getIndicatorDef(p.indicator) : undefined;
-  const observationStatus: ObservationStatus = imfHeuristicSeries
+  const observationStatus: ObservationStatus = bankFuture
+    ? "projection"
+    : imfHeuristicSeries
     ? isProjection
       ? "projection"
       : "estimate_or_actual"
@@ -442,7 +446,7 @@ export async function verifyStat(ctx: Ctx, p: VerifyParams): Promise<VerifyResul
 
   const unitText = result.unit ? ` ${result.unit}` : "";
   const projKind = /Fiscal Monitor/i.test(matched.note ?? "") ? "IMF Fiscal Monitor" : "IMF WEO";
-  const officialLabel = isProjection ? `official (${projKind} projection)` : "official";
+  const officialLabel = bankFuture ? "official (a period the ECCB shades as future data)" : isProjection ? `official (${projKind} projection)` : "official";
   const explanation =
     verdict === "match"
       ? `Claimed ${fmt(p.claimed_value)} vs ${officialLabel} ${fmt(official)}${unitText} for ${period}, consistent (${why}).`

@@ -160,6 +160,145 @@ export function normalisePeriod(label, freq = "a") {
   return s;
 }
 
+/** One cell's text as a number, or null for the bank's missing-value marks. */
+function parseValue(v) {
+  const cleaned = v.replace(/,/g, "").replace(/[()]/g, (m2) => (m2 === "(" ? "-" : ""));
+  if (cleaned === "" || /^[-–—]$/.test(cleaned) || /^n\.?a\.?$/i.test(cleaned)) return null;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** The bank's class for a shaded value cell. It shades the last column of every
+ * annual table and no quarterly or monthly one (measured across 29 captured
+ * tables on 2026-11-06). The page calls it future data and never defines it,
+ * so it is carried as the bank's marking and not read as a projection method. */
+const FUTURE_CELL = /\bbg-future-data\b/;
+
+/** What the bank prints for "no figure", as opposed to something unreadable. */
+const MISSING_MARK = /^(?:[-–—]*|n[./]?a\.?)$/i;
+
+const spanOf = (attrs, name) => Number(new RegExp(`(?:^|\\s)${name}=["']?(\\d+)`, "i").exec(attrs)?.[1] ?? 1);
+
+/**
+ * Lay header rows out on a grid, so a cell is found by its column and never by
+ * how many cells came before it. colspan and rowspan repeat a cell across what
+ * it covers, and an empty cell keeps its place.
+ */
+function gridOf(section) {
+  const grid = [];
+  const carried = [];
+  for (const tr of section.match(/<tr[\s\S]*?<\/tr>/gi) ?? []) {
+    const row = [];
+    let col = 0;
+    const skipCarried = () => {
+      while (carried[col]?.left > 0) {
+        row[col] = carried[col].text;
+        carried[col].left -= 1;
+        col += 1;
+      }
+    };
+    for (const m of tr.matchAll(/<t[hd]\b([^>]*)>[\s\S]*?<\/t[hd]>/gi)) {
+      skipCarried();
+      const across = spanOf(m[1], "colspan");
+      const down = spanOf(m[1], "rowspan");
+      const text = stripTags(m[0]);
+      for (let i = 0; i < across; i++) {
+        row[col] = text;
+        if (down > 1) carried[col] = { text, left: down - 1 };
+        col += 1;
+      }
+    }
+    // A row that stops short still owes the cells carried past its end, or
+    // they would leak into the next row and shift it.
+    for (; col < carried.length; col++) {
+      if (carried[col]?.left > 0) {
+        row[col] = carried[col].text;
+        carried[col].left -= 1;
+      }
+    }
+    grid.push(row);
+  }
+  return grid;
+}
+
+/**
+ * Read a table whose periods split into sub-columns, as one row per source row
+ * and sub-column, each with one value per period. Trade in Services splits
+ * every year into imports and exports, then total, ECCU and other CARICOM.
+ *
+ * Each column's meaning comes from the header cells above it, and the columns
+ * under every period must be exactly `split.columns`, in order. Anything this
+ * reader cannot place with certainty goes in `problems`, so the sentinel refuses
+ * the table rather than guessing. Reading "the last N cells" is what put 2026's
+ * sub-columns under 2015 to 2026 on the first attempt.
+ */
+export function parseSplitTable(html, { freq = "a", split }) {
+  // A commented-out row is not one the bank publishes.
+  const table = /<table[\s\S]*?<\/table>/i.exec(html.replace(/<!--[\s\S]*?-->/g, ""))?.[0];
+  const head = table && /<thead[\s\S]*?<\/thead>/i.exec(table);
+  if (!head) return undefined;
+  const headGrid = gridOf(head[0]);
+  if (!headGrid[0]?.length) return undefined;
+  // Label, then unit, then values, as on every table here. Fixed rather than
+  // inferred from the first period-like cell, which a mark on the first year
+  // would have moved, dropping that year and every unit in silence.
+  const firstValue = 2;
+  const width = headGrid[0].length;
+  const problems = [];
+  if (!/^unit$/i.test(headGrid[0][1] ?? "")) problems.push(`second column is "${headGrid[0][1]}", expected the unit`);
+  const columns = [];
+  for (let c = firstValue; c < width; c++) {
+    const tiers = headGrid.map((r) => (r[c] ?? "").replace(/:\s*$/, ""));
+    const path = tiers.filter((t, i) => t !== "" && t !== tiers[i - 1]);
+    columns.push({ raw: path[0] ?? "", sub: path.slice(1).join(": ") });
+  }
+  const periodsRaw = [...new Set(columns.map((c) => c.raw))];
+  for (const p of periodsRaw) {
+    const subs = columns.filter((c) => c.raw === p).map((c) => c.sub);
+    if (!isPeriodLabel(p)) problems.push(`header cell "${p}" is not a period`);
+    if (subs.join(" | ") !== split.columns.join(" | ")) {
+      problems.push(`sub-columns under ${p} are "${subs.join(" | ")}", expected "${split.columns.join(" | ")}"`);
+    }
+  }
+  if (problems.length) return { periods: [], periodsRaw, rows: [], problems };
+  const periods = periodsRaw.map((p) => normalisePeriod(p, freq));
+  const at = new Map(columns.map((c, i) => [`${c.raw}|${c.sub}`, firstValue + i]));
+  const shaded = new Set();
+  const rows = [];
+  for (const tr of table.slice(head.index + head[0].length).match(/<tr[\s\S]*?<\/tr>/gi) ?? []) {
+    const parts = [...tr.matchAll(/<t[hd]\b([^>]*)>[\s\S]*?<\/t[hd]>/gi)];
+    const cells = parts.map((m) => stripTags(m[0]));
+    if (cells.every((c) => c === "")) continue;
+    const base = cells[0];
+    if (!base) {
+      problems.push(`a row has no label: "${cells.filter(Boolean).slice(0, 3).join(" | ")}"`);
+      continue;
+    }
+    // A merged cell cannot be one value under two headings, and a full-width
+    // note is not a row of figures.
+    if (parts.some((m) => spanOf(m[1], "colspan") > 1 || spanOf(m[1], "rowspan") > 1)) {
+      problems.push(`row "${base}" has a merged cell`);
+      continue;
+    }
+    if (cells.length !== width) {
+      problems.push(`row "${base}" has ${cells.length} cells, the header has ${width}`);
+      continue;
+    }
+    const unit = cells[1];
+    for (const sub of split.columns) {
+      const values = periodsRaw.map((p) => {
+        const col = at.get(`${p}|${sub}`);
+        const value = parseValue(cells[col]);
+        if (value === null && !MISSING_MARK.test(cells[col])) problems.push(`"${base}: ${sub}" ${p}: cannot read "${cells[col]}"`);
+        if (FUTURE_CELL.test(parts[col][1])) shaded.add(p);
+        return value;
+      });
+      rows.push({ label: `${base}: ${sub}`, unit, values, base, sub });
+    }
+  }
+  return { periods, periodsRaw, rows, problems, futurePeriods: periods.filter((_, i) => shaded.has(periodsRaw[i])) };
+}
+
 /**
  * Parse the rendered statistics table into { periods, periodsRaw, rows }.
  * Row shape on this site is: label | unit | value-per-period.
@@ -168,16 +307,22 @@ export function normalisePeriod(label, freq = "a") {
  * quarterly as "Mar 2024" and monthly as "Jan 2024". A parser that only
  * recognised 4-digit years returned NO TABLE at q and m — caught loudly by the
  * sentinel rather than silently, which is the system working as intended.
+ *
+ * A table the catalogue declares as `split` goes to parseSplitTable. Every
+ * other table is held to one value per period.
  */
-export function parseTable(html, { freq = "a" } = {}) {
+export function parseTable(html, { freq = "a", split } = {}) {
+  if (split) return parseSplitTable(html, { freq, split });
   const table = /<table[\s\S]*?<\/table>/i.exec(html);
   if (!table) return undefined;
   const trs = table[0].match(/<tr[\s\S]*?<\/tr>/gi) ?? [];
   let periods;
   let periodsRaw;
   const rows = [];
+  const future = new Set();
   for (const tr of trs) {
-    const cells = (tr.match(/<t[hd][\s\S]*?<\/t[hd]>/gi) ?? []).map(stripTags).filter((c) => c !== "");
+    const raw = (tr.match(/<t[hd][\s\S]*?<\/t[hd]>/gi) ?? []).filter((c) => stripTags(c) !== "");
+    const cells = raw.map(stripTags);
     if (cells.length === 0) continue;
     // Header: the row whose trailing cells all look like period labels.
     if (!periods && cells.length > 1 && cells.every((c, i) => i === 0 || isPeriodLabel(c))) {
@@ -189,21 +334,18 @@ export function parseTable(html, { freq = "a" } = {}) {
     const label = cells[0];
     const unit = cells.length === periods.length + 2 ? cells[1] : undefined;
     const valueCells = cells.slice(cells.length - periods.length);
-    const values = valueCells.map((v) => {
-      const cleaned = v.replace(/,/g, "").replace(/[()]/g, (m2) => (m2 === "(" ? "-" : ""));
-      if (cleaned === "" || /^[-–—]$/.test(cleaned) || /^n\.?a\.?$/i.test(cleaned)) return null;
-      const n = Number(cleaned);
-      return Number.isFinite(n) ? n : null;
+    const values = valueCells.map(parseValue);
+    raw.slice(raw.length - periods.length).forEach((c, i) => {
+      if (FUTURE_CELL.test(/<t[hd][^>]*>/i.exec(c)?.[0] ?? "")) future.add(periods[i]);
     });
     // A row with more cells than label, unit and one per period means the
-    // columns are split below the period (Trade in Services splits each year
-    // into imports and exports, then total, ECCU and other CARICOM: 72 value
-    // cells under 12 years). Taking the last cells would file 2026's
-    // sub-columns as 2015 to 2026, so the row is flagged and the sentinel
-    // refuses the table.
+    // columns are split below the period, as Trade in Services' are. Taking
+    // the last cells would file the final year's sub-columns as whole years,
+    // so the row is flagged and the sentinel refuses the table until the
+    // catalogue declares it `split`.
     rows.push(cells.length > periods.length + 2 ? { label, unit, values, wide: cells.length } : { label, unit, values });
   }
-  return periods ? { periods, periodsRaw, rows } : undefined;
+  return periods ? { periods, periodsRaw, rows, futurePeriods: periods.filter((p) => future.has(p)) } : undefined;
 }
 
 /** ECCB's date inputs take DD/MM/YYYY. A bare year is accepted here for
@@ -249,7 +391,7 @@ export async function openTableSession(tableUrl, freq = "a") {
  * A 419 is reported as a handshake failure explicitly, because it is the one
  * status here that means "our request was malformed", not "source refused".
  */
-export async function fetchGeography(tableUrl, { token, cookies }, { countryCode, freq = "a", startDate, endDate }) {
+export async function fetchGeography(tableUrl, { token, cookies }, { countryCode, freq = "a", startDate, endDate, split }) {
   // Field shapes read off the live form, not assumed (each of these was wrong
   // on the first attempt and produced an opaque HTTP 500, not a validation
   // message):
@@ -283,5 +425,5 @@ export async function fetchGeography(tableUrl, { token, cookies }, { countryCode
     );
   }
   if (!res.ok) throw new Error(`ECCB POST ${res.status} for country_code=${countryCode}`);
-  return { html, table: parseTable(html, { freq }), dataAsAt: extractDataAsAt(html), stampPhrase: mentionsDataAsAt(html) };
+  return { html, table: parseTable(html, { freq, split }), dataAsAt: extractDataAsAt(html), stampPhrase: mentionsDataAsAt(html) };
 }

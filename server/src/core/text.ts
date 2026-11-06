@@ -32,7 +32,7 @@ export function stripControls(value: string): string {
  * Third-party text (a table title, a row label, a source name) made safe to
  * place in a citation an agent is told to reproduce: control characters and
  * line breaks become single spaces, and the length is capped. The longest real
- * CaribStat label is 106 characters, so the cap never trims legitimate text.
+ * CaribStat label is 129 characters, so the cap never trims legitimate text.
  *
  * Runs of ordinary spaces are kept. Some Central Bank of Barbados labels carry
  * two spaces, and those exact labels are the row selectors earlier responses

@@ -15,7 +15,7 @@
 // empty list means none of these conditions was detected. It is not a warranty
 // that the figure has no other limits.
 
-import { LIMITATION_CODES, type Limitation, type SeriesResult } from "./types.ts";
+import { LIMITATION_CODES, isBankFutureNote, type Limitation, type SeriesResult } from "./types.ts";
 import { INDICATORS } from "./indicators.ts";
 
 export { LIMITATION_CODES };
@@ -75,6 +75,16 @@ export function deriveLimitations(r: SeriesResult, opts: LimitationOpts = {}): L
         `${projected.length} of ${valued.length} returned value(s) fall in the source's estimate/projection period ` +
         `(${projected[0].period}${projected.length > 1 ? ` to ${projected[projected.length - 1].period}` : ""}). ` +
         "The boundary is a heuristic, so earlier values may also be staff estimates.",
+    });
+  }
+
+  const shaded = valued.filter((o) => isBankFutureNote(o.note));
+  if (shaded.length) {
+    out.push({
+      code: "projection",
+      detail:
+        `${shaded.length} of ${valued.length} returned value(s) fall in a period the ECCB shades as future data ` +
+        `(${shaded.map((o) => o.period).join(", ")}). The bank does not define the term.`,
     });
   }
 

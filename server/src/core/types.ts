@@ -37,6 +37,12 @@ export interface Ctx {
   _hostState?: Map<string, number>;
 }
 
+/** The note on a value the ECCB shades as future data. The bank's page never
+ * defines the term, so this states the marking and draws no firmer conclusion. */
+export const bankFutureNote = (period: string) =>
+  `The ECCB shades ${period} as future data on this table and does not define the term, so do not treat it as a final figure.`;
+export const isBankFutureNote = (note?: string) => /^The ECCB shades \S+ as future data/.test(note ?? "");
+
 export interface Observation {
   /** Period label: "2024", "2024Q1", or "2024-05" / "2024-05-01" depending on frequency. */
   period: string;

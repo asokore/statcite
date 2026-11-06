@@ -38,7 +38,7 @@
 
 import { fetchJson } from "../core/upstream.ts";
 import { quoteInput, cleanLabel, httpsUrl } from "../core/text.ts";
-import { ToolError } from "../core/types.ts";
+import { ToolError, bankFutureNote } from "../core/types.ts";
 import type { Observation } from "../core/types.ts";
 
 /** Both providers served since 2026-08-14; each ledger entry in
@@ -92,6 +92,8 @@ export interface CaribstatDoc {
   retrieved_at: string;
   periods: string[];
   periods_raw?: string[];
+  /** Periods the bank shades as future data on its own table. */
+  future_periods?: string[];
   series: Array<{ label: string; unit?: string; observations: Observation[] }>;
 }
 
@@ -147,7 +149,7 @@ export interface ParsedId {
  * another path on the mirror host, which was reproducible before 1.12.3.
  */
 const ID_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
-/** Longest accepted row selector. The longest real label is 106 characters. */
+/** Longest accepted row selector. The longest real label is 129 characters. */
 export const MAX_ROW_SELECTOR = 200;
 
 function malformedId(id: string, why: string, example: string): ToolError {
@@ -261,7 +263,7 @@ export function inferFrequency(periods: string[] | undefined): string {
  * Bump it whenever published data is CORRECTED, not on ordinary refreshes,
  * which the six-hour TTL handles by itself.
  */
-export const CARIBSTAT_CACHE_EPOCH = "2026-08-15a";
+export const CARIBSTAT_CACHE_EPOCH = "2026-11-06a";
 
 export function caribstatUrl(p: ParsedId, origin = CARIBSTAT_ORIGIN): string {
   // CBB is one geography and its axis is the PUBLICATION, not the country, so
@@ -308,6 +310,14 @@ function withOccurrence<T extends { label: string }>(row: T, n: number, total: n
  */
 function docRef(d: CaribstatDoc): string {
   return d.table_id || [d.category, d.sheet].filter(Boolean).join("/") || d.source_id || "unknown table";
+}
+
+/** Labels shown in an error message. Trade in Services has 408 rows. REST and
+ * MCP also carry the full list in the error's details. */
+const ROW_LIST_LIMIT = 40;
+function rowList(labels: string[], format: (l: string) => string = (l) => l, separator = " | "): string {
+  const shown = labels.slice(0, ROW_LIST_LIMIT).map(format).join(separator);
+  return labels.length > ROW_LIST_LIMIT ? `${shown}${separator}... and ${labels.length - ROW_LIST_LIMIT} more` : shown;
 }
 
 /** Pick a row by label. Exact match first, then a case-insensitive prefix — a
@@ -376,14 +386,21 @@ export function selectRow(doc: CaribstatDoc, want?: string): { label: string; un
   if (prefixed.length === 1) return prefixed[0];
   if (prefixed.length > 1) {
     throw new ToolError(
-      `Row selector '${want}' is ambiguous in ${docRef(doc)}/${doc.country.iso3}: it matches ${prefixed.length} rows (${prefixed
-        .map((s) => `"${s.label}"`)
-        .join(", ")}). Use the exact label.`,
+      `Row selector '${want}' is ambiguous in ${docRef(doc)}/${doc.country.iso3}: it matches ${prefixed.length} rows (${rowList(
+        prefixed.map((s) => s.label),
+        (l) => `"${l}"`,
+        ", ",
+      )}). Use the exact label.`,
       { table: docRef(doc), country: doc.country.iso3, matches: prefixed.map((s) => s.label) },
     );
   }
+  // A row can be named by the words inside its label: "Travel" for
+  // "4. Travel: Exports: TOTAL". Never selected, because six rows carry that word.
+  const near = doc.series.map((s) => s.label).filter((l) => l.toLowerCase().includes(want.toLowerCase()));
   throw new ToolError(
-    `No row '${want}' in ${docRef(doc)}/${doc.country.iso3}. Available rows: ${doc.series.map((s) => s.label).join(" | ")}`,
+    near.length
+      ? `No row '${want}' in ${docRef(doc)}/${doc.country.iso3}, but ${near.length} row(s) contain those words: ${rowList(near)}. Use the exact label.`
+      : `No row '${want}' in ${docRef(doc)}/${doc.country.iso3}. Available rows: ${rowList(doc.series.map((s) => s.label))}`,
     { table: docRef(doc), country: doc.country.iso3, available_rows: doc.series.map((s) => s.label) },
   );
 }
@@ -391,6 +408,17 @@ export function selectRow(doc: CaribstatDoc, want?: string): { label: string; un
 /** Fetch one CaribStat series. */
 export async function fetchCaribstatSeries(id: string, opts: { origin?: string; ttlSeconds?: number } = {}): Promise<CaribstatSeries> {
   const parsed = parseCaribstatId(id);
+  const needsRow = !parsed.row && parsed.provider === "ECCB"
+    ? CARIBSTAT_CATALOGUE.find((e) => e.provider === "ECCB" && e.table === parsed.table && e.rowRequired)
+    : undefined;
+  if (needsRow) {
+    // The first row of this table is one direction and one partner. Serving it
+    // to a bare id would judge an export claim against imports.
+    throw new ToolError(
+      `${needsRow.title} needs a row. ${needsRow.rowRequired} Add one to the id, e.g. '${canonicalCaribstatBase(parsed)}#${needsRow.sampleRow}'.`,
+      { series_id: canonicalCaribstatBase(parsed), example_row: needsRow.sampleRow },
+    );
+  }
   const withheldBy = parsed.provider === "ECCB"
     ? CARIBSTAT_CATALOGUE.find((e) => e.provider === "ECCB" && e.table === parsed.table && e.withheld?.includes(parsed.iso3 ?? ""))
     : undefined;
@@ -432,6 +460,10 @@ export async function fetchCaribstatSeries(id: string, opts: { origin?: string; 
 
   doc = sanitiseDoc(doc);
   const row = selectRow(doc, parsed.row);
+  const future = new Set(Array.isArray(doc.future_periods) ? doc.future_periods : []);
+  const observations = future.size
+    ? row.observations.map((o) => (future.has(o.period) && o.value !== null ? { ...o, note: bankFutureNote(o.period) } : o))
+    : row.observations;
   // No row named in a multi-row table. The first row is served, but the
   // caller must be told, because for debt-to-gdp the first row is central
   // government rather than the headline total, and for the Barbados RPI table
@@ -445,7 +477,7 @@ export async function fetchCaribstatSeries(id: string, opts: { origin?: string; 
     doc,
     label: row.label,
     unit: row.unit,
-    observations: row.observations,
+    observations,
     apiUrl,
     canonicalBase: canonicalCaribstatBase(parsed),
     rowSelected: Boolean(parsed.row),
@@ -644,6 +676,9 @@ export interface CaribstatTable {
    * Search never offers them, and a request for one says why. Mirrors
    * `withheld` in caribstat/tools/eccb/catalogue.mjs. */
   withheld?: string[];
+  /** Set when no one row can stand for the table, so a bare id is refused. The
+   * text tells the caller how the rows are named. */
+  rowRequired?: string;
   /** Words a person would actually search for. */
   topics: string[];
   /** A row label that RESOLVES. search prints it inside a usage string an
@@ -722,6 +757,14 @@ export const CARIBSTAT_CATALOGUE: CaribstatTable[] = [
     provider: "ECCB", table: "international-investment-position", title: "International Investment Position (Summary)",
     freqs: ["a"], geographies: 9, sampleRow: "Net International Investment Position",
     topics: ["international investment position", "iip", "external assets", "external liabilities", "foreign investment"],
+  },
+  {
+    // Each source row publishes as six series, one per direction and partner,
+    // so a row label reads "4. Travel: Exports: Of Which: ECCU".
+    provider: "ECCB", table: "trade-in-services", title: "Trade in Services (TIS)",
+    freqs: ["a"], geographies: 9, sampleRow: "Total EBOPS Services: Exports: TOTAL",
+    rowRequired: "Each service has six rows, named '{service}: Imports|Exports: TOTAL', '...: Of Which: ECCU' or '...: Of Which: Other CARICOM Countries'.",
+    topics: ["trade in services", "services exports", "services imports", "exports of services", "imports of services", "travel services", "travel exports", "travel imports", "transport services", "financial services", "ebops", "intra-regional trade"],
   },
   {
     provider: "ECCB", table: "trade-by-sitc", title: "Trade Statistics by SITC",
