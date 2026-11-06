@@ -16,6 +16,15 @@ defect has been found. Parsing is.
     python tools/eccb/verify_independent.py    # compares against data/eccb
 
 Exit status is 1 if any cell disagrees, so this can gate a release.
+
+SPLIT COLUMNS. Trade in Services splits each year into six sub-columns. The
+first version of this file zipped the same 12 year headers as the first version
+of the parser, so two "independent" readers agreed on the wrong data. The two
+now share no method. The JS reader walks the header cells above each column.
+parse_split below takes the width of a year from the top header row and reaches
+each value by arithmetic, then checks the result against the arithmetic of the
+table itself and against the Balance of Payments, which publishes the same
+totals in a table with no split columns to misread.
 """
 
 import html as htmllib
@@ -113,7 +122,123 @@ def parse(raw, freq="a"):
     return header, rows
 
 
+SPLIT_DIRECTIONS = ["Imports", "Exports"]
+SPLIT_PARTNERS = ["TOTAL", "Of Which: ECCU", "Of Which: Other CARICOM Countries"]
+
+
+def spanned_cells(tr):
+    """(text, colspan) for each cell of a row, blanks included."""
+    found = []
+    for attrs, body in re.findall(r"<t[hd]\b([^>]*)>([\s\S]*?)</t[hd]>", tr, re.I):
+        span = re.search(r"colspan=[\"']?(\d+)", attrs, re.I)
+        text = htmllib.unescape(re.sub(r"<[^>]+>", " ", body))
+        found.append((re.sub(r"\s+", " ", text).strip(), int(span.group(1)) if span else 1))
+    return found
+
+
+def parse_split(raw):
+    """(years, [(published label, values by year)]) or (None, reason)."""
+    table = re.search(r"<table[\s\S]*?</table>", raw, re.I)
+    if not table:
+        return None, "no <table> element in the page"
+    trs = re.findall(r"<tr[\s\S]*?</tr>", table.group(0), re.I)
+    if len(trs) < 5:
+        return None, "too few rows for a four-tier header"
+    tiers = [spanned_cells(tr) for tr in trs[:4]]
+    tops = [(t, s) for t, s in tiers[0] if re.fullmatch(r"(19|20)\d{2}", t)]
+    if not tops or {s for _, s in tops} != {6}:
+        return None, f"top header is not whole years of six columns: {tiers[0][:4]}"
+    years = [t for t, _ in tops]
+    if [t for t, _ in tiers[1]] != SPLIT_DIRECTIONS * len(years):
+        return None, "second header tier is not imports then exports for every year"
+    if [t for t, _ in tiers[2]] != ["TOTAL", "Of Which:"] * (2 * len(years)):
+        return None, "third header tier is not total then of-which for every direction"
+    if [t for t, _ in tiers[3]] != ["ECCU", "Other CARICOM Countries"] * (2 * len(years)):
+        return None, "fourth header tier is not ECCU then other CARICOM for every direction"
+    rows = []
+    for tr in trs[4:]:
+        row = [t for t, _ in spanned_cells(tr)]
+        if len(row) == 0:
+            continue
+        if len(row) != 2 + 6 * len(years):
+            return None, f"row {row[0]!r} has {len(row)} cells"
+        for d, direction in enumerate(SPLIT_DIRECTIONS):
+            for p, partner in enumerate(SPLIT_PARTNERS):
+                offsets = [2 + 6 * y + 3 * d + p for y in range(len(years))]
+                rows.append((f"{row[0]}: {direction}: {partner}", [to_number(row[i]) for i in offsets]))
+    return years, rows
+
+
+def split_identities(where, iso3, years, rows):
+    """What must hold whichever parser read the table. Returns problems."""
+    by_label = dict(rows)
+    out = []
+    if iso3 == "XCU":
+        # The union has no trade with itself, which is the one outside fact
+        # that tells the ECCU column from the other CARICOM column.
+        for direction in SPLIT_DIRECTIONS:
+            for year, value in zip(years, by_label[f"Total EBOPS Services: {direction}: Of Which: ECCU"]):
+                if value not in (0.0, None):
+                    out.append(("UNION WITH ITSELF", where, f"{direction} {year}", value, 0))
+    bases = list(dict.fromkeys(label.split(": Imports:")[0].split(": Exports:")[0] for label, _ in rows))
+    categories = [b for b in bases if re.match(r"\d+\. ", b)]
+    for direction in SPLIT_DIRECTIONS:
+        for partner in SPLIT_PARTNERS:
+            head = by_label[f"Total EBOPS Services: {direction}: {partner}"]
+            for i, year in enumerate(years):
+                if not isinstance(head[i], float):
+                    continue
+                total = sum(v for v in (by_label[f"{b}: {direction}: {partner}"][i] for b in categories) if isinstance(v, float))
+                if abs(total - head[i]) > 0.07:
+                    out.append(("CATEGORY SUM", where, f"{direction} {partner} {year}", total, head[i]))
+        for base in bases:
+            whole = by_label[f"{base}: {direction}: TOTAL"]
+            a = by_label[f"{base}: {direction}: Of Which: ECCU"]
+            b = by_label[f"{base}: {direction}: Of Which: Other CARICOM Countries"]
+            for i, year in enumerate(years):
+                if all(isinstance(v, float) for v in (whole[i], a[i], b[i])) and a[i] + b[i] - whole[i] > 0.02:
+                    out.append(("PARTS OVER TOTAL", where, f"{base} {direction} {year}", a[i] + b[i], whole[i]))
+    return out
+
+
+def against_balance_of_payments(where, iso3, freq, years, rows):
+    """The Balance of Payments publishes the same totals one value per period,
+    so a swapped or shifted column shows here even if every identity holds.
+    Credit is exports, and credit less the balance is imports."""
+    path = os.path.join(DATA, "balance-of-payments", freq, f"{iso3}.json")
+    if not os.path.exists(path):
+        return [("NO BOP TO COMPARE", where, "", "", "")]
+    with open(path, encoding="utf8") as fh:
+        bop = {s["label"]: {o["period"]: o["value"] for o in s["observations"]} for s in json.load(fh)["series"]}
+    credit, balance = bop.get("Services Credit (Exports)"), bop.get("Balance on Services")
+    if not credit or not balance:
+        return [("BOP ROWS MISSING", where, "", "", "")]
+    by_label = dict(rows)
+    exports = by_label["Total EBOPS Services: Exports: TOTAL"]
+    imports = by_label["Total EBOPS Services: Imports: TOTAL"]
+    out = []
+    for i, year in enumerate(years):
+        if credit.get(year) is None or balance.get(year) is None:
+            continue
+        if not isinstance(exports[i], float) or not isinstance(imports[i], float):
+            out.append(("HEADLINE NOT A NUMBER", where, year, exports[i], imports[i]))
+            continue
+        if abs(exports[i] - credit[year]) > 0.015:
+            out.append(("BOP EXPORTS", where, year, exports[i], credit[year]))
+        if abs(imports[i] - (credit[year] - balance[year])) > 0.015:
+            out.append(("BOP IMPORTS", where, year, imports[i], credit[year] - balance[year]))
+    return out
+
+
+# Tables whose periods split into sub-columns, from the catalogue's split field.
+# Kept as a literal so this file reads nothing from the code it audits.
+SPLIT_TABLES = {"trade-in-services"}
+
+
 def main() -> int:
+    # --table limits the run to one table, so a release can gate on the table it
+    # changed. Older captures of other tables disagree with later revisions.
+    only = sys.argv[sys.argv.index("--table") + 1] if "--table" in sys.argv else None
     if not os.path.isdir(CAPTURE):
         print(f"No captures at {CAPTURE}. Run: node tools/eccb/capture.mjs --all")
         return 2
@@ -125,18 +250,25 @@ def main() -> int:
             rel = os.path.relpath(os.path.join(root, name), CAPTURE)
             table_id, freq, iso3 = rel.replace("\\", "/").split("/")
             iso3 = iso3[:-5]
+            if only and table_id != only:
+                continue
             published = os.path.join(DATA, table_id, freq, f"{iso3}.json")
             if not os.path.exists(published):
                 problems.append(("NOT PUBLISHED", rel, "", "", ""))
                 continue
             files += 1
             with open(os.path.join(root, name), encoding="utf8", errors="replace") as fh:
-                header, rows = parse(fh.read(), freq)
+                raw = fh.read()
+            is_split = table_id in SPLIT_TABLES
+            header, rows = parse_split(raw) if is_split else parse(raw, freq)
             doc = json.load(open(published, encoding="utf8"))
             where = f"{table_id}/{freq}/{iso3}"
             if header is None:
                 problems.append(("SOURCE UNREADABLE", where, str(rows), "", ""))
                 continue
+            if is_split:
+                problems.extend(split_identities(where, iso3, header, rows))
+                problems.extend(against_balance_of_payments(where, iso3, freq, header, rows))
             # Compare the OVERLAP of periods rather than demanding identical
             # windows. Tables in this corpus were collected with different date
             # ranges, so an exact-match rule reports a capture-configuration

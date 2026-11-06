@@ -2,7 +2,7 @@
 // and cross-source search.
 
 import type { Citation, Ctx, ErrorCode, IndicatorDef, Observation, SeriesResult } from "./types.ts";
-import { ToolError, nowIso } from "./types.ts";
+import { ToolError, bankFutureNote, isBankFutureNote, nowIso } from "./types.ts";
 import { integratedTerritoryNote, INTEGRATED_TERRITORIES, resolveCountry, suggestCountries, type Country } from "./countries.ts";
 import { getIndicatorDef, searchIndicatorDefs, INDICATORS } from "./indicators.ts";
 import { applyTransform, filterPeriodRange, type Transform } from "./transforms.ts";
@@ -112,8 +112,10 @@ function finishSeries(result: SeriesResult, opts: SeriesOpts): SeriesResult {
     // "Latest" semantics: prefer the most recent published outturn over a
     // projection (e.g. IMF WEO forward years); fall back to any latest value.
     const nonNull = obs.filter((o) => o.value != null);
-    const outturns = nonNull.filter((o) => !/projection/i.test(o.note ?? ""));
-    if (outturns.length && nonNull.length > outturns.length) {
+    const outturns = nonNull.filter((o) => !/projection/i.test(o.note ?? "") && !isBankFutureNote(o.note));
+    if (outturns.length && nonNull.some((o) => isBankFutureNote(o.note))) {
+      result.notes.push("Latest value before the periods the ECCB shades as future data shown.");
+    } else if (outturns.length && nonNull.length > outturns.length) {
       // Deliberately NOT "latest published outturn": the IMF's true latest-actual
       // year varies by country/series and the boundary here is a heuristic, so
       // this value may itself be a staff estimate (design D11).
@@ -1226,6 +1228,8 @@ async function getSeriesCore(
       observations: c.observations,
     });
     if (notice) caribNotes.push(notice);
+    const shaded = c.observations.filter((o) => isBankFutureNote(o.note)).map((o) => o.period);
+    if (shaded.length) caribNotes.push(bankFutureNote(shaded.join(", ")));
     // The bank's own currency stamp, where it printed one, travels separately
     // from our retrieval time all the way into the citation. These two dates
     // differ by weeks and presenting ours as the data's currency would
@@ -1472,7 +1476,9 @@ export async function searchIndicators(ctx: Ctx, query: string, opts: { includeD
         description: `${hit.why}. Regional central bank data, not a registry indicator: values are on the publishing bank's own definitions.`,
         usage: ctx.surface === "rest"
           ? `GET /v1/series?id=${hit.id}&row=${encodeURIComponent(hit.entry.sampleRow)} (or percent-encode the '#' row selector as %23)`
-          : `get_series(series_id="${hit.id}") — add '#Row Label' to pick a row, e.g. '#${hit.entry.sampleRow}'`,
+          : hit.entry.rowRequired
+            ? `get_series(series_id="${hit.id}#${hit.entry.sampleRow}"). This table needs a row: ${hit.entry.rowRequired}`
+            : `get_series(series_id="${hit.id}") — add '#Row Label' to pick a row, e.g. '#${hit.entry.sampleRow}'`,
       });
     }
   }

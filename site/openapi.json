@@ -1565,7 +1565,7 @@
           },
           "is_projection": {
             "type": "boolean",
-            "description": "True when the matched official observation is an IMF WEO/Fiscal Monitor estimate/projection, not a final outturn. Kept for compatibility; observation_status carries the finer-grained classification."
+            "description": "True when the matched official observation is an IMF WEO/Fiscal Monitor estimate/projection, or a period the ECCB shades as future data, not a final outturn. Kept for compatibility; observation_status carries the finer-grained classification."
           },
           "observation_status": {
             "type": "string",
@@ -1576,7 +1576,7 @@
               "projection",
               "unknown"
             ],
-            "description": "The honest status of the matched observation, as one of five values. 'actual' means a series StatCite classifies as outturn data (registry World Bank indicators not flagged as modelled, and explicit worldbank/ WDI ids), subject to routine revision. 'modeled_estimate' (added 1.4.1) means the registry flags the indicator as a modelled series, such as the World Bank's ILO-modelled unemployment and labour force participation estimates. That is a published figure, but a model output rather than a measured outturn. 'estimate_or_actual' means an IMF WEO/Fiscal Monitor observation before the projection boundary. The IMF's true latest-actual year varies by country and is not exposed by the data path, so recent values may be staff estimates, and this should never be read as a confirmed actual. 'projection' means at or after the heuristic boundary. 'unknown' means no observation matched the period, or the series is an explicit id outside StatCite's classification. Arbitrary DBnomics series can be forecast datasets, so consult the source."
+            "description": "The honest status of the matched observation, as one of five values. 'actual' means a series StatCite classifies as outturn data (registry World Bank indicators not flagged as modelled, and explicit worldbank/ WDI ids), subject to routine revision. 'modeled_estimate' (added 1.4.1) means the registry flags the indicator as a modelled series, such as the World Bank's ILO-modelled unemployment and labour force participation estimates. That is a published figure, but a model output rather than a measured outturn. 'estimate_or_actual' means an IMF WEO/Fiscal Monitor observation before the projection boundary. The IMF's true latest-actual year varies by country and is not exposed by the data path, so recent values may be staff estimates, and this should never be read as a confirmed actual. 'projection' means at or after the heuristic boundary, or a period the ECCB shades as future data, which carries status_method as_published. 'unknown' means no observation matched the period, or the series is an explicit id outside StatCite's classification. Arbitrary DBnomics series can be forecast datasets, so consult the source."
           },
           "status_method": {
             "type": "string",

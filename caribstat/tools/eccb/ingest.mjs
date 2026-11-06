@@ -49,6 +49,115 @@ export function parseDataAsAt(stamp) {
   return d.toISOString().slice(0, 10);
 }
 
+/** How far a split table's arithmetic may miss through rounding alone. Parts
+ * are three printed values, the sum of categories thirteen, each off by up to
+ * 0.005. Measured on nine geographies on 2026-11-06: parts never exceeded their
+ * total by more than 0.01 and categories never missed the headline by more
+ * than 0.02. */
+const PARTS_TOLERANCE = 0.02;
+const SUM_TOLERANCE = 0.07;
+/** Two printed values, each off by up to 0.005, plus a third where imports are
+ * derived from credit and balance. Measured gap on 2026-11-06: 0.01. */
+const CROSS_TOLERANCE = 0.015;
+
+/**
+ * Sentinels a split table needs beyond the header check. The header says what
+ * a column claims to be and the arithmetic says whether its values behave like
+ * that: a column read one place out fails here even with a perfect header.
+ */
+export function splitProblems(split, table) {
+  const problems = [...(table.problems ?? [])];
+  const rows = table.rows ?? [];
+  const bySub = new Map();
+  for (const r of rows) bySub.set(r.sub, [...(bySub.get(r.sub) ?? []), r]);
+  for (const { whole, parts } of split.parts) {
+    for (const w of bySub.get(whole) ?? []) {
+      w.values.forEach((total, i) => {
+        const shares = parts.map((sub) => bySub.get(sub)?.find((r) => r.base === w.base)?.values[i]);
+        if (total == null || shares.some((v) => v == null)) return;
+        const sum = shares.reduce((a, b) => a + b, 0);
+        if (sum - total > PARTS_TOLERANCE) {
+          problems.push(`"${w.label}" ${table.periods[i]}: its parts sum to ${sum.toFixed(2)}, above the total of ${total}`);
+        }
+      });
+    }
+  }
+  for (const [sub, list] of bySub) {
+    const headline = list.find((r) => r.base === split.headline);
+    if (!headline) {
+      problems.push(`no "${split.headline}" row under "${sub}"`);
+      continue;
+    }
+    const components = list.filter((r) => split.components.test(r.base));
+    headline.values.forEach((total, i) => {
+      const sum = components.reduce((a, r) => a + (r.values[i] ?? 0), 0);
+      if (total == null) {
+        // A lost headline must not excuse the check that would have caught it.
+        if (sum !== 0) problems.push(`"${headline.label}" ${table.periods[i]} is missing while its categories sum to ${sum.toFixed(2)}`);
+        return;
+      }
+      if (Math.abs(sum - total) > SUM_TOLERANCE) {
+        problems.push(`"${headline.label}" ${table.periods[i]}: the categories sum to ${sum.toFixed(2)}, the headline is ${total}`);
+      }
+    });
+  }
+  return problems;
+}
+
+/**
+ * Checks a split table against what it must agree with outside itself. Every
+ * sentinel above reads the table's own header and arithmetic, so a body that
+ * disagrees with its header, imports under exports or a year out, passes them
+ * all. The Balance of Payments prints the same totals with no split columns to
+ * misread, and the union aggregate nets out trade inside the union.
+ *
+ * Refusal is the safe failure: a table whose sibling has not caught up keeps
+ * its last good file and the run says why.
+ */
+export async function crossCheckProblems(split, table, iso3, freq, dataDir) {
+  const { sameTotals, unionZero } = split;
+  const problems = [];
+  const row = (label) => table.rows.find((r) => r.label === label);
+  const file = path.join(dataDir, sameTotals.table, freq, `${iso3}.json`);
+  let other;
+  try {
+    other = JSON.parse(await readFile(file, "utf8"));
+  } catch {
+    return [`${sameTotals.table} for ${iso3} could not be read, so the totals cannot be checked`];
+  }
+  const series = (label) => new Map(other.series?.find((s) => s.label === label)?.observations.map((o) => [o.period, o.value]));
+  const credit = series(sameTotals.credit);
+  const balance = series(sameTotals.balance);
+  if (!credit.size || !balance.size) return [`${sameTotals.table} for ${iso3} has no "${sameTotals.credit}" or "${sameTotals.balance}" row`];
+  let compared = 0;
+  const compare = (label, expected) => {
+    const r = row(label);
+    if (!r) {
+      problems.push(`no "${label}" row to compare with ${sameTotals.table}`);
+      return;
+    }
+    table.periods.forEach((p, i) => {
+      const want = expected(p);
+      if (r.values[i] == null || want == null || Number.isNaN(want)) return;
+      compared += 1;
+      if (Math.abs(r.values[i] - want) > CROSS_TOLERANCE) {
+        problems.push(`"${label}" ${p} is ${r.values[i]}, ${sameTotals.table} implies ${want.toFixed(2)}`);
+      }
+    });
+  };
+  compare(sameTotals.exports, (p) => credit.get(p));
+  compare(sameTotals.imports, (p) => (credit.get(p) == null || balance.get(p) == null ? null : credit.get(p) - balance.get(p)));
+  if (!compared && !problems.length) problems.push(`no period could be compared with ${sameTotals.table} for ${iso3}`);
+  if (iso3 === unionZero.iso3) {
+    for (const label of unionZero.rows) {
+      const r = row(label);
+      if (!r) problems.push(`no "${label}" row in the union aggregate`);
+      else if (r.values.some((v) => v !== 0 && v !== null)) problems.push(`"${label}" should be zero in the union aggregate, read ${r.values.join(", ")}`);
+    }
+  }
+  return problems;
+}
+
 /**
  * Shape sentinel. Returns a list of problems; empty means the payload looks
  * like what this table is supposed to be.
@@ -71,6 +180,7 @@ export function validateTable(def, table, dataAsAt, { stampPhrase = false } = {}
       problems.push(`expected row missing: "${needle}" — the source layout may have changed`);
     }
   }
+  if (def.split) problems.push(...splitProblems(def.split, table));
   const numeric = (table.rows ?? []).flatMap((r) => r.values).filter((v) => v != null);
   if (numeric.length === 0) problems.push("every cell parsed to null — number formatting may have changed");
   // An ABSENT stamp is no longer a shape failure: the bank withdrew it from
@@ -108,6 +218,9 @@ export function buildDocument({ def, iso3, name, freq, url, table, dataAsAt, ret
     // preserving the original would destroy the ability to prove what the bank
     // actually printed.
     periods_raw: table.periodsRaw,
+    // Periods the bank shades as future data. Its marking, kept so the Worker
+    // can say so rather than serve them as settled figures.
+    ...(table.futurePeriods?.length ? { future_periods: table.futurePeriods } : {}),
     series: table.rows.map((r) => ({
       label: r.label,
       unit: r.unit,
@@ -229,6 +342,12 @@ export async function storedContentAgrees(def, freq, geographies, dataDir, { liv
   if (series.length !== liveTable.rows.length) {
     return { ok: false, why: `${shown.iso3}: live page has ${liveTable.rows.length} rows, stored has ${series.length}` };
   }
+  // The shading moves at new year with no value changing, so equal values
+  // alone would leave a settled year marked as future, or the reverse.
+  const heldFuture = (shownDoc.future_periods ?? []).filter((p) => liveTable.periods.includes(p));
+  if (heldFuture.join() !== (liveTable.futurePeriods ?? []).join()) {
+    return { ok: false, why: `${shown.iso3}: the bank shades "${(liveTable.futurePeriods ?? []).join(", ")}" live, stored has "${heldFuture.join(", ")}"` };
+  }
   for (let i = 0; i < series.length; i++) {
     const live = liveTable.rows[i];
     if (series[i].label !== live.label) return { ok: false, why: `${shown.iso3}: row ${i + 1} is "${live.label}" live, "${series[i].label}" stored` };
@@ -316,7 +435,7 @@ export async function ingestTable(tableId, { freq = "a", geographies = ECCB_GEOG
           : ledgerAllowsContentSkip(ledger, ledgerKey, { window, now: retrievedAt });
         agree = gate.ok
           ? await storedContentAgrees(def, freq, geographies, dataDir, {
-              liveTable: parseTable(session.html, { freq }),
+              liveTable: parseTable(session.html, { freq, split: def.split }),
               defaultCountryCode: session.defaultCountryCode,
               lastFullFetchAt: gate.lastFullFetchAt,
             })
@@ -335,7 +454,21 @@ export async function ingestTable(tableId, { freq = "a", geographies = ECCB_GEOG
     }
   }
 
-  for (const g of geographies) {
+  // A split table reads the union aggregate first. Only the union can show a
+  // partner swap, and a swap would touch every geography, so its failure has to
+  // stop the others before they are written.
+  const union = def.split?.unionZero.iso3;
+  const ordered = union ? [...geographies.filter((g) => g.iso3 === union), ...geographies.filter((g) => g.iso3 !== union)] : geographies;
+  // Records a failure, and says whether the rest of the table has to stop.
+  const failed = (g, problems) => {
+    results.push({ iso3: g.iso3, ok: false, problems });
+    if (g.iso3 !== union) return false;
+    for (const other of ordered.filter((x) => x !== g)) {
+      results.push({ iso3: other.iso3, ok: false, problems: ["not read: the union aggregate failed"] });
+    }
+    return true;
+  };
+  for (const g of ordered) {
     const url = tableUrl(def, g.iso3);
     try {
       // Per-country tables live on distinct URLs, so the CSRF session cannot be
@@ -345,12 +478,13 @@ export async function ingestTable(tableId, { freq = "a", geographies = ECCB_GEOG
         sessionUrl = url;
       }
       const r = isPerCountry(def)
-        ? { html: session.html, table: parseTable(session.html, { freq }), dataAsAt: session.dataAsAt, stampPhrase: session.stampPhrase }
-        : await fetchGeography(url, session, { countryCode: g.code, freq, startDate, endDate });
+        ? { html: session.html, table: parseTable(session.html, { freq, split: def.split }), dataAsAt: session.dataAsAt, stampPhrase: session.stampPhrase }
+        : await fetchGeography(url, session, { countryCode: g.code, freq, startDate, endDate, split: def.split });
 
       const problems = validateTable(def, r.table, r.dataAsAt, { stampPhrase: r.stampPhrase });
+      if (def.split && !problems.length) problems.push(...(await crossCheckProblems(def.split, r.table, g.iso3, freq, dataDir)));
       if (problems.length) {
-        results.push({ iso3: g.iso3, ok: false, problems });
+        if (failed(g, problems)) break;
         continue;
       }
       const doc = buildDocument({ def, iso3: g.iso3, name: g.name, freq, url, table: r.table, dataAsAt: r.dataAsAt, retrievedAt });
@@ -365,7 +499,7 @@ export async function ingestTable(tableId, { freq = "a", geographies = ECCB_GEOG
       await writeJson(latestFile, doc);
       results.push({ iso3: g.iso3, ok: true, state, rows: doc.series.length, periods: doc.periods.length, dataAsAt: doc.data_as_at });
     } catch (e) {
-      results.push({ iso3: g.iso3, ok: false, problems: [String(e.message ?? e)] });
+      if (failed(g, [String(e.message ?? e)])) break;
     }
     await new Promise((r) => setTimeout(r, gapMs));
   }

@@ -799,3 +799,37 @@ test("a CBB error names the workbook it came from, not 'undefined'", async () =>
   }
   assert.equal(bare.details.table, "cbb");
 });
+
+test("a table of hundreds of rows does not repeat them all in the error message", () => {
+  const labels = Array.from({ length: 408 }, (_, i) => `${i + 1}. Service: Exports: TOTAL`);
+  const doc = {
+    table_id: "trade-in-services",
+    country: { iso3: "AIA", name: "Anguilla" },
+    series: labels.map((label) => ({ label, observations: [] })),
+  } as never;
+  const fail = (want: string) => {
+    try {
+      selectRow(doc, want);
+    } catch (e) {
+      return e as Error & { details: { available_rows?: string[]; matches?: string[] } };
+    }
+    throw new Error("expected a refusal");
+  };
+  const none = fail("Nothing like this");
+  assert.ok(none.message.length < 1500, `message is ${none.message.length} characters`);
+  assert.match(none.message, /\.\.\. and 368 more$/);
+  assert.equal(none.details.available_rows?.length, 408, "the full list stays in the details");
+  const prefix = fail("1");
+  assert.match(prefix.message, /it matches 111 rows/);
+  assert.match(prefix.message, /\.\.\. and 71 more/);
+  assert.equal(prefix.details.matches?.length, 111);
+});
+
+test("a short table's error still lists every row, with no truncation note", () => {
+  const doc = {
+    table_id: "debt-to-gdp",
+    country: { iso3: "AIA", name: "Anguilla" },
+    series: ["Alpha", "Beta"].map((label) => ({ label, observations: [] })),
+  } as never;
+  assert.throws(() => selectRow(doc, "Gamma"), (e: Error) => /Available rows: Alpha \| Beta$/.test(e.message));
+});

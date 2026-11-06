@@ -147,12 +147,47 @@ export const TABLES = [
     frequencies: ["a"],
     sentinelRows: ["Net International Investment Position", "Total Assets", "Total Liabilities"],
   },
-  // Trade in Services (external-sector/trade-in-services-tis) is NOT here. Its
-  // columns split each year into imports and exports, then total, ECCU and
-  // other CARICOM (72 value cells under 12 years), and parseTable reads one
-  // value per period. Found 2026-11-03 after a first ingest had filed 2026's
-  // sub-columns as 2015 to 2026; the files were deleted unpublished and the
-  // sentinel now refuses that shape. It needs a parser for split columns first.
+  {
+    id: "trade-in-services",
+    title: "Trade in Services (TIS)",
+    path: "external-sector/trade-in-services-tis",
+    frequencies: ["a"],
+    sentinelRows: ["Total EBOPS Services: Imports: TOTAL", "Total EBOPS Services: Exports: TOTAL", "4. Travel: Exports: TOTAL"],
+    // Each year splits into imports and exports, then total, ECCU and other
+    // CARICOM: 72 value cells under 12 years, so each source row publishes as
+    // six series. See parseSplitTable.
+    split: {
+      columns: [
+        "Imports: TOTAL",
+        "Imports: Of Which: ECCU",
+        "Imports: Of Which: Other CARICOM Countries",
+        "Exports: TOTAL",
+        "Exports: Of Which: ECCU",
+        "Exports: Of Which: Other CARICOM Countries",
+      ],
+      parts: [
+        { whole: "Imports: TOTAL", parts: ["Imports: Of Which: ECCU", "Imports: Of Which: Other CARICOM Countries"] },
+        { whole: "Exports: TOTAL", parts: ["Exports: Of Which: ECCU", "Exports: Of Which: Other CARICOM Countries"] },
+      ],
+      headline: "Total EBOPS Services",
+      components: /^\d+\. /,
+      // The Balance of Payments prints the same totals, and comes first in this
+      // list, so a normal run reads it before this table.
+      sameTotals: {
+        table: "balance-of-payments",
+        credit: "Services Credit (Exports)",
+        balance: "Balance on Services",
+        exports: "Total EBOPS Services: Exports: TOTAL",
+        imports: "Total EBOPS Services: Imports: TOTAL",
+      },
+      // The union aggregate has no trade with itself. Other partner columns have
+      // no outside figure to agree with, so this is what tells ECCU from CARICOM.
+      unionZero: {
+        iso3: "XCU",
+        rows: ["Total EBOPS Services: Imports: Of Which: ECCU", "Total EBOPS Services: Exports: Of Which: ECCU"],
+      },
+    },
+  },
   {
     id: "trade-by-sitc",
     title: "Trade Statistics by SITC",

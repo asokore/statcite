@@ -10,7 +10,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { ingestTable } from "./ingest.mjs";
@@ -270,3 +270,105 @@ test("a withheld geography is not ingested, and the deep run fails the day it sh
     def.withheld = before;
   }
 }));
+
+// --- a split table, end to end --------------------------------------------
+
+const TIS_CELLS = ["219.69", "25.75", "20.67", "423.47", "20.53", "9.67"];
+const tisHtml = (shadedClass = "") => {
+  const cells = TIS_CELLS.map((c) => `<td${shadedClass}>${c}</td>`).join("");
+  return '<meta name="csrf-token" content="tok"><input type="hidden" id="hdnUtrCountry" value="1">' +
+    '<table><thead><tr><th rowspan="4"></th><th rowspan="4">Unit</th><th colspan="6">2015</th></tr>' +
+    '<tr><th colspan="3">Imports</th><th colspan="3">Exports</th></tr>' +
+    '<tr><th rowspan="2">TOTAL</th><th colspan="2">Of Which:</th><th rowspan="2">TOTAL</th><th colspan="2">Of Which:</th></tr>' +
+    "<tr><th>ECCU</th><th>Other CARICOM Countries</th><th>ECCU</th><th>Other CARICOM Countries</th></tr></thead><tbody>" +
+    `<tr><td>Total EBOPS Services</td><td>EC$M</td>${cells}</tr><tr><td>4. Travel</td><td>EC$M</td>${cells}</tr></tbody></table>`;
+};
+async function ingestTis(dir, { credit, balance, shadedClass }) {
+  await mkdir(path.join(dir, "balance-of-payments", "a"), { recursive: true });
+  const obs = (value) => [{ period: "2015", value }];
+  await writeFile(path.join(dir, "balance-of-payments", "a", "AIA.json"), JSON.stringify({ series: [
+    { label: "Services Credit (Exports)", observations: obs(credit) },
+    { label: "Balance on Services", observations: obs(balance) },
+  ] }));
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => new Response(tisHtml(shadedClass), { status: 200, headers: { "set-cookie": "s=1" } });
+  try {
+    return await ingestTable("trade-in-services", { freq: "a", geographies: [GEOS[0]], dataDir: dir, gapMs: 0, startDate: 2015, endDate: 2015, deep: true, now: DAY1 });
+  } finally {
+    globalThis.fetch = original;
+  }
+}
+
+test("a split table that disagrees with the Balance of Payments is refused end to end, and writes nothing", async () => {
+  await scratch(async (dir) => {
+    const r = await ingestTis(dir, { credit: 219.69, balance: -203.78 });
+    assert.equal(r.results[0].ok, false);
+    assert.ok(r.results[0].problems.some((p) => /Exports: TOTAL" 2015 is 423\.47, balance-of-payments implies 219\.69/.test(p)), JSON.stringify(r.results[0]));
+    await assert.rejects(() => readFile(path.join(dir, "trade-in-services", "a", "AIA.json")));
+  });
+});
+
+test("a split table that agrees is written as one series per sub-column, with the bank's shading", async () => {
+  await scratch(async (dir) => {
+    const r = await ingestTis(dir, { credit: 423.47, balance: 203.78, shadedClass: ' class="bg-future-data"' });
+    assert.equal(r.results[0].ok, true, JSON.stringify(r.results[0]));
+    const doc = JSON.parse(await readFile(path.join(dir, "trade-in-services", "a", "AIA.json"), "utf8"));
+    assert.equal(doc.series.length, 12);
+    assert.deepEqual(doc.future_periods, ["2015"]);
+    assert.equal(doc.series.find((x) => x.label === "4. Travel: Exports: Of Which: Other CARICOM Countries").observations[0].value, 9.67);
+  });
+});
+
+test("a failure on the union aggregate stops a split table before any geography is written", async () => {
+  await scratch(async (dir) => {
+    await mkdir(path.join(dir, "balance-of-payments", "a"), { recursive: true });
+    const bop = JSON.stringify({ series: [
+      { label: "Services Credit (Exports)", observations: [{ period: "2015", value: 423.47 }] },
+      { label: "Balance on Services", observations: [{ period: "2015", value: 203.78 }] },
+    ] });
+    for (const iso3 of ["AIA", "XCU"]) await writeFile(path.join(dir, "balance-of-payments", "a", iso3 + ".json"), bop);
+    const original = globalThis.fetch;
+    globalThis.fetch = async () => new Response(tisHtml(), { status: 200, headers: { "set-cookie": "s=1" } });
+    let r;
+    try {
+      // Anguilla comes first in the list and must still wait for the union,
+      // whose ECCU column is not zero on this page.
+      r = await ingestTable("trade-in-services", { freq: "a", geographies: GEOS, dataDir: dir, gapMs: 0, startDate: 2015, endDate: 2015, deep: true, now: DAY1 });
+    } finally {
+      globalThis.fetch = original;
+    }
+    assert.deepEqual(r.results.map((x) => [x.iso3, x.ok]), [["XCU", false], ["AIA", false]]);
+    assert.match(r.results[0].problems.join(), /should be zero in the union aggregate/);
+    assert.match(r.results[1].problems.join(), /union aggregate failed/);
+    await assert.rejects(() => readFile(path.join(dir, "trade-in-services", "a", "AIA.json")));
+  });
+});
+
+test("a network failure on the union aggregate stops a split table too", async () => {
+  await scratch(async (dir) => {
+    await mkdir(path.join(dir, "balance-of-payments", "a"), { recursive: true });
+    const bop = JSON.stringify({ series: [
+      { label: "Services Credit (Exports)", observations: [{ period: "2015", value: 423.47 }] },
+      { label: "Balance on Services", observations: [{ period: "2015", value: 203.78 }] },
+    ] });
+    for (const iso3 of ["AIA", "XCU"]) await writeFile(path.join(dir, "balance-of-payments", "a", iso3 + ".json"), bop);
+    const original = globalThis.fetch;
+    let posts = 0;
+    // Only the first request for data fails, so a run that carried on would
+    // read Anguilla and write it.
+    globalThis.fetch = async (url, init) => {
+      if (init?.method === "POST" && ++posts === 1) throw new Error("connection reset");
+      return new Response(tisHtml(), { status: 200, headers: { "set-cookie": "s=1" } });
+    };
+    let r;
+    try {
+      r = await ingestTable("trade-in-services", { freq: "a", geographies: GEOS, dataDir: dir, gapMs: 0, startDate: 2015, endDate: 2015, deep: true, now: DAY1 });
+    } finally {
+      globalThis.fetch = original;
+    }
+    assert.equal(posts, 1, "nothing further was requested");
+    assert.deepEqual(r.results.map((x) => [x.iso3, x.ok]), [["XCU", false], ["AIA", false]]);
+    assert.match(r.results[0].problems.join(), /connection reset/);
+    await assert.rejects(() => readFile(path.join(dir, "trade-in-services", "a", "AIA.json")));
+  });
+});

@@ -68,8 +68,8 @@ for (const def of targets) {
       // reads exactly like "this source has stopped publishing" and cost a
       // false alarm on 2026-08-15.
       const r = isPerCountry(def)
-        ? { html: session.html, table: parseTable(session.html, { freq }) }
-        : await fetchGeography(url, session, { countryCode: g.code, freq, startDate, endDate });
+        ? { html: session.html, table: parseTable(session.html, { freq, split: def.split }) }
+        : await fetchGeography(url, session, { countryCode: g.code, freq, startDate, endDate, split: def.split });
       const dir = path.join(OUT, def.id, freq);
       mkdirSync(dir, { recursive: true });
       writeFileSync(path.join(dir, `${g.iso3}.html`), r.html);

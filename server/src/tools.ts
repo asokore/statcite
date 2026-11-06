@@ -383,7 +383,7 @@ export const TOOLS: ToolDef[] = [
         start_year: { type: "integer", description: "First year to include (optional)." },
         end_year: { type: "integer", description: "Last year to include (optional)." },
         transform: { type: "string", enum: TRANSFORMS, description: "Optional transform computed by StatCite." },
-        latest_only: { type: "boolean", description: "Return only the most recent non-null observation." },
+        latest_only: { type: "boolean", description: "Return only the most recent non-null observation, preferring one not marked as a projection or as a period the source shades as future data." },
         strict_source: {
           type: "boolean",
           description:
@@ -557,7 +557,7 @@ export const TOOLS: ToolDef[] = [
       properties: {
         series_id: { type: "string", description: "e.g. 'worldbank/NY.GDP.MKTP.KD.ZG', 'imf/NGDP_RPCH', 'dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change'." },
         country: { type: "string", description: "Required for worldbank/* series." },
-        latest_only: { type: "boolean", description: "Return only the most recent non-null observation." },
+        latest_only: { type: "boolean", description: "Return only the most recent non-null observation, preferring one not marked as a projection or as a period the source shades as future data." },
         start_year: { type: "integer" },
         end_year: { type: "integer" },
         transform: { type: "string", enum: TRANSFORMS },
