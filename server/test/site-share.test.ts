@@ -16,6 +16,9 @@
 //     different figure: no 0 for a small value, no 1,000m, no runaway digits.
 // (i) only the Copy link button, or the phone story flow that needs the link
 //     for a sticker, writes to the visitor's clipboard.
+// (j) a result's Copy button carries the result sentence with the link, says
+//     so on its label, and a page or a story sticker still gets the bare link.
+// (k) the result sentence labels a projection, on every route that sends it.
 //
 // Each guard was mutation-tested when written: the thing it protects was broken
 // in a copy of the tree, this file was pointed at the copy with
@@ -151,6 +154,51 @@ test("(i) the clipboard is written only by Copy link, or on a phone where the st
   assert.deepEqual(bad, [], "copy() runs somewhere a visitor did not ask for it");
   // files must mean this browser can share a file, not only that canShare exists.
   assert.match(js, /files=touch&&!!navigator\.canShare&&!!w\.File&&navigator\.canShare\(\{files:\[new File\(/, "files no longer probes canShare with a real File");
+});
+
+test("(j) a result copies its sentence with the link, and a page copies the link alone", () => {
+  const js = read("site/assets/share.js").replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/.*$/gm, " ");
+  const handler = js.match(/els\.copy\.addEventListener\("click",function\(\)\{[^\n]*/)?.[0] ?? "";
+  assert.ok(handler, "the Copy button handler has moved");
+  assert.ok(handler.includes('copy(cur.result?cur.text+" "+cur.url:cur.url).then(copied(cur))'), "Copy no longer carries the result sentence, or a page copies more than its link");
+  assert.ok(js.includes('result:spec.kind==="result"'), "cur.result no longer follows the result dialog");
+  assert.equal((js.match(/els\.copy\.textContent=/g) || []).length, 1, "a second write can change the Copy label");
+  assert.ok(js.includes('els.copy.textContent=cur.result?"Copy result and link":"Copy link"'), "the button no longer says what it copies");
+  // The story flow's early copy stays the bare link, because a Link sticker takes a URL.
+  assert.ok(js.includes("if(files)copy(url)"), "the phone story flow no longer copies the bare link");
+  // After a result copy the clipboard is not a URL, so the sticker hints must stop.
+  assert.ok(js.includes("if(files)copy(url).then(function(ok){mine.copied=ok&&!mine.sentence;})"), "a late bare-link write can bring the sticker hints back");
+  assert.ok(js.includes('hint(cur.copied?"Link copied. In Instagram'), "the story button no longer reads copied");
+  assert.ok(js.includes('hint(story?(mine.copied?"The link is copied, ready for a Link sticker.":mine.sentence?"Result and link copied.":"")'), "the finished image no longer reads what the clipboard holds");
+  // Run the real callback, as (h) runs the real num().
+  const done = js.match(/function copied\(c\)\{[^\n]*/)?.[0] ?? "";
+  assert.ok(done, "copied() has moved");
+  const load = (cur: object, shown: string[]) =>
+    new Function("cur", "hint", `${done};return copied;`)(cur, (t: string) => shown.push(t)) as (c: object) => (ok: boolean) => void;
+  type Copied = { result: boolean; copied: boolean; sentence?: boolean; url: string };
+  const result: Copied = { result: true, copied: true, url: "u" };
+  const shown: string[] = [];
+  load(result, shown)(result)(false);
+  assert.deepEqual(shown, ["Copy failed. The link is u"], "a failed copy must say so");
+  assert.equal(result.copied, true, "a failed copy left the bare link on the clipboard");
+  load(result, shown)(result)(true);
+  assert.equal(shown[1], "Result and link copied.");
+  assert.equal(result.copied, false, "the story flow can still offer a sentence for a Link sticker");
+  assert.equal(result.sentence, true);
+  const page: Copied = { result: false, copied: true, url: "u" };
+  load(page, shown)(page)(true);
+  assert.equal(shown[2], "Link copied.");
+  assert.equal(page.copied, true, "a page copy leaves the bare link in place");
+  load({}, shown)(page)(true);
+  assert.equal(shown.length, 3, "a slow copy can write its hint over a newer dialog");
+});
+
+test("(k) the shared sentence does not call a projection an official figure", () => {
+  const js = read("site/assets/share.js").replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/.*$/gm, " ");
+  const lines = js.split("\n").filter((l) => l.includes("var text=cn+"));
+  assert.equal(lines.length, 1, "the result sentence has moved or been doubled");
+  assert.ok(lines[0].includes('", official "+(R.is_projection?"estimate or projection ":"")+num(R.official_value)'), "a projection reaches the shared sentence unlabelled");
+  assert.ok(js.includes('open({kind:"result",data:R,url:url,text:text,'), "the result dialog no longer sends this sentence");
 });
 
 test("(g) site/_headers caches /share/*", () => {
