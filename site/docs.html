@@ -128,6 +128,18 @@ li{margin:4px 0}
   <p>Connecting the server puts the tools on the shelf. It does not make an agent reach for them, and a model that is confident about a figure will usually answer from memory. One standing rule fixes that. Paste it into <code>CLAUDE.md</code> or <code>AGENTS.md</code>, into Cursor Settings &rarr; Rules, or into your ChatGPT project instructions:</p>
   <pre>Before stating any country-level economic figure, get it from StatCite (get_indicator) or check it (verify_stat), even if you think you know it, and include the citation_text it returns.</pre>
 
+  <h3 id="claude-dashboard">A live, cited dashboard in Claude</h3>
+  <p>Where your Claude account offers dashboards, a dashboard can call a connector's tool each time someone opens it. With StatCite connected, the page can fetch its figures from StatCite on every open.</p>
+  <ol>
+    <li>Connect StatCite as above.</li>
+    <li>Ask Claude for the dashboard in one or two sentences that name the question it answers and the exact series it should use:
+      <pre>Build a dashboard of total public sector debt to GDP for the ECCU and its eight members, from StatCite's get_series with series_id caribstat/ECCB/debt-to-gdp/{ISO3}.a#Total Public Sector Debt to GDP (XCU for the ECCU), showing the latest year against 2019 and each citation.citation_text under the table.</pre>
+      Name the row as well as the table. The bank's debt table lists central government debt first, and a call that names no row gets that row.</li>
+    <li>Ask for the citations to stay on the page. Each answer carries <code>citation.citation_text</code> beside its observations, so name it in the request.</li>
+    <li>Say how to treat the newest year. An IMF projection, or a year the Eastern Caribbean Central Bank shades as future data in its table, carries a note on that observation. The page can skip those years or show them with their note.</li>
+  </ol>
+  <p>Anyone you share the dashboard with needs StatCite connected on their own Claude account to see the figures. Without it, the figures fail to load.</p>
+
   <h2 id="concepts">2. Core concepts</h2>
   <p><strong>Registry indicators</strong> are friendly keys (<code>inflation_cpi</code>, <code>gdp_growth</code>, <code>govt_debt_gdp</code>, …) curated by an economist and mapped to authoritative series with fallbacks: World Bank WDI for cross-country annual data, the IMF DataMapper API (current-vintage WEO/Fiscal Monitor, with DBnomics as a vintage-pinned fallback) for fiscal series and gap-filling. A handful of US-only high-frequency registry keys (<code>us_fed_funds_rate</code> and similar) exist for FRED but are permanently disabled, see §8.</p>
   <p><strong>Explicit series ids</strong> address any supported series directly: <code>worldbank/NY.GDP.MKTP.KD.ZG</code> (needs <code>country</code>), <code>imf/NGDP_RPCH</code> (needs <code>country</code>; current-vintage IMF data), <code>dbnomics/IMF/WEO:latest/BRB.NGDP_RPCH.pcent_change</code> (a specific dated DBnomics edition, e.g. <code>WEO:2025-04</code>, is the reproducibility instrument for pinning an exact vintage). <code>fred/…</code> ids are recognized but always decline, FRED is disabled (§8).</p>

@@ -648,6 +648,24 @@ test("README and docs publish the copy-paste agent rule", () => {
   assert.match(docs, /id="agent-rule"/, "docs rule needs a linkable anchor");
 });
 
+test("docs dashboard recipe keeps its anchor and its sharing caveat", () => {
+  // A reader without the connector sees an empty dashboard, so the recipe must
+  // keep saying that sharing needs StatCite on the other account too.
+  const docs = readFileSync(new URL("../../site/docs.html", import.meta.url), "utf8");
+  const head = /<h3\b[^>]*\bid="claude-dashboard"[^>]*>/.exec(docs);
+  assert.ok(head, "docs needs the dashboard recipe anchor");
+  assert.doesNotMatch(head[0], /\bhidden\b/, "the recipe heading must not be hidden");
+  const before = docs.slice(0, head.index);
+  assert.ok(before.lastIndexOf("<!--") <= before.lastIndexOf("-->"), "the recipe must not sit inside an HTML comment");
+  const end = docs.indexOf("<h2", head.index);
+  assert.ok(end > head.index, "the recipe must end before the next section");
+  const section = docs.slice(head.index, end);
+  assert.match(section, /<ol>[\s\S]*<\/ol>/, "the recipe steps must be a closed list");
+  assert.match(section, /<pre>Build a dashboard[^<]*#Total Public Sector Debt to GDP[^<]*<\/pre>/, "the example prompt must name the headline row");
+  assert.match(section, /Ask for the citations to stay on the page\.\s+Each answer carries <code>citation\.citation_text<\/code>/, "recipe must keep the citation step");
+  assert.match(section, /<p>Anyone you share the dashboard with needs StatCite connected on their own Claude account to see the figures\./, "recipe must keep the sharing caveat");
+});
+
 test("every registry label is published verbatim in site/docs.html and site/llms-full.txt", () => {
   // The drift had two halves and this guards the second. The World Bank rebased
   // SI.POV.DDAY to $3.00 a day in 2021 PPP; the served payload takes its name
