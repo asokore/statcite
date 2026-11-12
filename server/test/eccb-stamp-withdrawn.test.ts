@@ -157,7 +157,7 @@ const GOLDEN_STAMPED = {
   series_name: "Central Government Debt, Anguilla (annual)",
   source_url: ECCB_URL,
   api_url: "https://origin.test/data/eccb/total-public-sector-debt/a/AIA.json",
-  license: "Reproduced with the publishing central bank's permission; see the source entry in /v1/sources for the scope of that grant",
+  license: "See the source entry in /v1/sources for the licence terms",
   attribution: "Source: Eastern Caribbean Central Bank",
   retrieved_at: "2026-09-30",
   citation_text:
@@ -188,7 +188,7 @@ const GOLDEN_CBB = {
   series_name: "1. CURRENT ACCOUNT, Barbados (annual)",
   source_url: "https://www.centralbank.org.bb/news/x",
   api_url: "https://origin.test/data/cbb/x/y.json",
-  license: "Reproduced with the publishing central bank's permission; see the source entry in /v1/sources for the scope of that grant",
+  license: "See the source entry in /v1/sources for the licence terms",
   attribution: "Source: Central Bank of Barbados",
   retrieved_at: "2026-09-30",
   citation_text:

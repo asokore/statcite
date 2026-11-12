@@ -550,23 +550,19 @@ test("no document claims a source is refused when the ledger serves it", async (
   );
 });
 
-test("the ECCB and CBB entries keep disclosing that they rest on an attestation", async () => {
-  // These two are the only served sources whose basis is the operator's word
-  // rather than the publisher's own terms quoted verbatim. That is legitimate
-  // and it is disclosed. What must never happen is the disclosure being tidied
-  // away, leaving them looking as well-evidenced as entries that quote their
-  // source. If the grant text arrives and the note is rewritten around it,
-  // this test should be updated deliberately, not deleted quietly.
+test("the ECCB and CBB entries state how they are served and claim no permission", async () => {
+  // Until 2026-11-12 these notes disclosed that serving rested on permission
+  // the operator obtained. The owner removed that wording from every public
+  // surface on 2026-11-12, deliberately. The notes now say how StatCite serves
+  // the banks' tables, and this test keeps the permission claim from creeping
+  // back and the serving description from being tidied away.
   const { SOURCES } = await import("../src/core/sources.ts");
   for (const id of ["eccb", "cbb"]) {
     const entry = SOURCES.find((s) => s.id === id);
     assert.ok(entry, `${id} must exist in the ledger`);
     assert.equal(entry.license_verdict, "served", `${id} verdict`);
-    assert.match(
-      entry.license_note,
-      /operator/i,
-      `${id} must say whose confirmation the verdict rests on, not imply a verbatim grant`,
-    );
+    assert.doesNotMatch(`${entry.license} ${entry.license_note}`, /permission|granted/i, `${id} must not claim permission`);
+    assert.match(entry.license_note, /with attribution and a link back to the source table/, `${id} must say how values are served`);
     assert.ok(entry.license_verified_on, `${id} must carry a verification date`);
   }
 });

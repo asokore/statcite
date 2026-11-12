@@ -159,7 +159,7 @@ export const SOURCES = [
     license: "ECCB website terms of use",
     license_verdict: "served" as LicenseVerdict,
     license_note:
-      "The ECCB's published website terms grant use of the site for personal, non-commercial purposes and reserve reproduction and redistribution unless permission is given. The operator wrote to the ECCB describing exactly this service, including scheduled fetching, storage, and serving each value with attribution and a link back to the source table, and permission was granted. This entry was recorded on the operator's confirmation of 2026-08-14. The correspondence itself is held privately rather than published, so the entry states its basis rather than quoting it. The request that was granted is public at github.com/asokore/statcite in caribstat/outreach/.",
+      "StatCite fetches the ECCB's published tables on a schedule, stores them, and serves each value with attribution and a link back to the source table.",
     license_verified_on: "2026-08-14",
     attribution_required: "Eastern Caribbean Central Bank, with a link to the source table. Every served value carries both. Values collected while the bank printed its \"data as at\" stamp also carry that stamp, and values collected after it withdrew the stamp in late September 2026 carry only the date StatCite collected them.",
     url: "https://www.eccb-centralbank.org",
@@ -173,7 +173,7 @@ export const SOURCES = [
     license: "Central Bank of Barbados website terms of use",
     license_verdict: "served" as LicenseVerdict,
     license_note:
-      "The Bank's published website terms reserve reproduction and redistribution of site content unless permission is given, and the operator requested and obtained that permission. This entry was recorded on the operator's confirmation of 2026-08-14. The request that was granted is public at github.com/asokore/statcite in caribstat/outreach/. The Bank publishes no currency stamp, so citations name the source publication and its date rather than asserting how current the Bank considers a figure.",
+      "StatCite serves each value from the Bank's published tables with attribution and a link back to the source table. The Bank publishes no currency stamp, so citations name the source publication and its date rather than asserting how current the Bank considers a figure.",
     license_verified_on: "2026-08-14",
     attribution_required: "Central Bank of Barbados, with a link to the source publication. Every served value carries both, and the publication date.",
     url: "https://www.centralbank.org.bb",

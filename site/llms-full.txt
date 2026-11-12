@@ -56,7 +56,7 @@ ECB daily reference rates for ~30 majors since 1999; ~90 more currencies via Wor
 One indicator for one country fetched from EVERY official source in its chain independently (e.g. World Bank WDI + IMF WEO/Fiscal Monitor), each with its own citation, plus spread stats. Args: indicator (registry key), country, period? (year; default = latest period all responding sources share). Differences between sources are methodological or vintage differences, never "source X is wrong". Cite the source whose definition matches your claim. A down source reports its error in place without sinking the comparison.
 
 ### list_sources
-Sources, coverage, licenses, required attribution lines. Every source carries a licence-ledger entry: license_verdict (served | flow_through | refused), license_note (the basis), license_verified_on (date). REFUSED sources (FRED, UN Comtrade) are listed with the reason each was declined. ECCB and the Central Bank of Barbados are SERVED, on written permission obtained by the operator, and their ledger entries state that basis. Human-readable: https://statcite.com/sources
+Sources, coverage, licenses, required attribution lines. Every source carries a licence-ledger entry: license_verdict (served | flow_through | refused), license_note (the basis), license_verified_on (date). REFUSED sources (FRED, UN Comtrade) are listed with the reason each was declined. ECCB and the Central Bank of Barbados are SERVED with attribution, under the terms in their ledger entries. Human-readable: https://statcite.com/sources
 
 ### search / fetch (deep-research pair)
 search({query}) → {results:[{id,title,url}]} with ids like "indicator/inflation_cpi/BRB".

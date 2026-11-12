@@ -398,7 +398,7 @@ export function caribstatCitation(
     series_name: `${opts.rowLabel}, ${opts.countryName} (${freqWord})`,
     source_url: opts.sourceUrl,
     api_url: opts.apiUrl,
-    license: "Reproduced with the publishing central bank's permission; see the source entry in /v1/sources for the scope of that grant",
+    license: "See the source entry in /v1/sources for the licence terms",
     attribution: `Source: ${opts.source}`,
     retrieved_at: date,
     citation_text:
