@@ -94,10 +94,9 @@ serves it. A doc asserting the opposite of what `/v1/sources` publishes is
 worse than either position on its own, which is why this is being corrected
 rather than quietly dropped.
 
-The published entries state their basis plainly: **the operator's confirmation**
-that permission was requested and granted, with the outbound request public in
-`caribstat/outreach/`. They do not claim a verbatim grant, so the ledger is
-honest about how strong its own evidence is.
+Since 2026-11-12 the published entries say how StatCite serves each bank's
+tables, with attribution and a link back to the source table. They make no
+claim about permission.
 
 **What would still improve it.** Every other ledger entry quotes the source's
 own terms verbatim with a verification date. These two rest on an attestation.
@@ -616,8 +615,7 @@ committing the harvest here would make a claim the site publishes about itself
 untrue. **That quotation is retired.** The operator wrote to both banks
 describing this service and obtained permission, and the ledger entries for
 `eccb` and `cbb` were flipped to `"license_verdict": "served"` on 2026-08-14
-with their basis recorded. The requests that were granted are public in
-`caribstat/outreach/`. Verified against the live ledger on 2026-08-15.
+with their basis recorded. Verified against the live ledger on 2026-08-15.
 
 So redistribution is no longer the reason. The reason now is simply that the
 data has ONE canonical home and this is not it: the collected JSON is published

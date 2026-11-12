@@ -18,11 +18,9 @@ were flipped to **`served`** on 2026-08-14 and the live ledger at
 and the deployment asserted opposite things about a published legal claim,
 which is worse than either position on its own.
 
-What the published entries actually say is that the basis is *the operator's
-confirmation* that permission was requested and granted, with the outbound
-request public in `caribstat/outreach/`. That is disclosed in the entry rather
-than dressed up as a verbatim grant, so the ledger is honest about the strength
-of its own evidence.
+Since 2026-11-12 the published entries say how StatCite serves each bank's
+tables, with attribution and a link back to the source table. They make no
+claim about permission.
 
 **Still worth having, and still outstanding.** Every other entry in the ledger
 carries a verbatim quote and a verification date taken from the source's own
