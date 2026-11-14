@@ -45,6 +45,7 @@ import { SOURCES } from "./core/sources.ts";
 import { sidsCountries } from "./core/countries.ts";
 import { readBodyCapped, MAX_BODY_BYTES } from "./body.ts";
 import { quoteInput, promptArgText } from "./core/text.ts";
+import { CITATION_CARD_URI, CITATION_CARD_HTML, MCP_APP_MIME, CARD_TOOLS } from "./ui/citation-card.ts";
 
 export const SERVER_VERSION = "1.17.0";
 
@@ -277,6 +278,17 @@ const RESOURCES = [
     description: "The 39 states on the UN OHRLLS SIDS list with their ISO3 codes. A data-availability grouping for small-economy coverage, never a ranking. Upstream coverage varies by source and series.",
     mimeType: "text/plain",
     text: sidsResourceText,
+  },
+  {
+    // MCP Apps view (src/ui/citation-card.ts). Hosts without MCP Apps never
+    // read it. No `_meta.ui.csp` on purpose: the host's default policy then
+    // blocks every network connection from the page.
+    uri: CITATION_CARD_URI,
+    name: "citation-card",
+    title: "Citation card (MCP Apps view)",
+    description: "Interactive view for get_indicator, get_series and verify_stat in hosts that support MCP Apps: the figure, the verdict where there is one, and the citation with a copy button. Makes no network requests.",
+    mimeType: MCP_APP_MIME,
+    text: () => CITATION_CARD_HTML,
   },
 ];
 
@@ -569,6 +581,12 @@ async function dispatchCore(
             inputSchema: t.inputSchema,
             ...(t.outputSchema ? { outputSchema: t.outputSchema } : {}),
             annotations: { title: t.title, readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+            // MCP Apps link. Sent to every client, as the stateless server
+            // cannot remember an initialize-time capability, and the same
+            // pattern Anthropic's MCP Apps quickstart uses. Hosts without
+            // MCP Apps ignore _meta. The flat "ui/resourceUri" key is the
+            // deprecated form, kept for hosts that still read it.
+            ...(CARD_TOOLS.has(t.name) ? { _meta: { ui: { resourceUri: CITATION_CARD_URI }, "ui/resourceUri": CITATION_CARD_URI } } : {}),
           })),
         }),
       };

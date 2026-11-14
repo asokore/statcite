@@ -65,7 +65,7 @@ fetch({id}) → {id,title,text,url,metadata}; text contains recent observations 
 ## MCP prompts and resources
 
 Prompts (prompts/list, prompts/get): fact_check (extract every macro claim from a text, verify with verify_claims, report verdicts with citations), country_brief (fully cited one-country brief), cite_this_stat (verify one figure, return a citation-ready sentence).
-Resources (resources/list, resources/read): statcite://registry/indicators (all keys/labels/units/source chains), statcite://registry/sources (licences + required attributions), statcite://registry/sids (the UN OHRLLS Small Island Developing States list, a data-availability grouping, never a ranking).
+Resources (resources/list, resources/read): statcite://registry/indicators (all keys/labels/units/source chains), statcite://registry/sources (licences + required attributions), statcite://registry/sids (the UN OHRLLS Small Island Developing States list, a data-availability grouping, never a ranking), ui://statcite/citation-card (an MCP Apps view, text/html;profile=mcp-app, linked from get_indicator, get_series and verify_stat through _meta.ui.resourceUri. It shows the figure with its citation and makes no network requests).
 
 ## REST endpoints (GET unless noted)
 
