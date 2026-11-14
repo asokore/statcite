@@ -213,7 +213,7 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
     );
   } else if (!dayDate) {
     notes.push(
-      "One or both currencies are outside the ECB daily set; converted via USD using the latest annual-average official rate(s). For pegged currencies (e.g. BBD at 2.00/USD, XCD at 2.70/USD) this is exact.",
+      "One or both currencies are outside the ECB daily set; converted via USD using the latest annual-average official rate(s). For a currency with a fixed US dollar peg (e.g. BBD at 2.00/USD, XCD at 2.70/USD) the annual average normally equals the peg, so the result follows the peg rate up to floating-point rounding.",
     );
   }
   if (precision === "mixed") notes.push("Mixed precision: one leg is a daily ECB rate, the other an annual average, treat the result as approximate.");

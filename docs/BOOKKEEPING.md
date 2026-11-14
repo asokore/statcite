@@ -23,8 +23,8 @@ curl -s https://statcite.com/v1/status | head -20
 # 3. GitHub interest
 gh repo view asokore/statcite --json stargazerCount,openIssues
 
-# 4. Apify revenue + events: Console → Actors → statcite → Insights
-#    (no CLI surface for earnings; screenshot the month)
+# 4. Apify events: Console → Actors → statcite → Insights
+#    (no CLI surface for earnings; revenue goes in the private table, below)
 
 # 5. Smithery installs (the only public install counter we have)
 #    https://smithery.ai/server/asokore-beckles/statcite
@@ -34,9 +34,13 @@ gh repo view asokore/statcite --json stargazerCount,openIssues
 
 Append one row per month. A spreadsheet is fine; so is this file.
 
-| Month | Req/day (sampled) | verify_stat share | GitHub stars | Apify events | Apify revenue | Hours spent | Notes |
-|---|---|---|---|---|---|---|---|
-| 2026-08 | | | | | | | v1.5.0–v1.7.0 shipped; growth plan Phase 1 executed |
+Revenue and hours are not recorded here, because this repository is public.
+They go in the local table at `docs/06_plan/BOOKKEEPING-PRIVATE.md`, which is
+gitignored.
+
+| Month | Req/day (sampled) | verify_stat share | GitHub stars | Apify events | Notes |
+|---|---|---|---|---|---|
+| 2026-08 | | | | | v1.5.0–v1.7.0 shipped; growth plan Phase 1 executed |
 
 **`verify_stat` share is the thesis metric.** The strategy claims verification
 is the differentiator, not lookup. If verify calls stay a trivial fraction of

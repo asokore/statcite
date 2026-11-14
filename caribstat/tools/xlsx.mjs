@@ -26,8 +26,18 @@ import { inflateRawSync } from "node:zlib";
 const EOCD_SIG = 0x06054b50;
 const CEN_SIG = 0x02014b50;
 
+// Inflation caps, so a hostile or corrupt archive (a zip bomb) cannot exhaust
+// memory. Each deflated entry may inflate to at most the size its central
+// directory declares, and never past MAX_ENTRY_BYTES. The whole archive may
+// inflate to at most MAX_TOTAL_BYTES. Measured 2026-11-14 on the ten sample
+// workbooks in caribstat/reference/sample: largest entry 16,126,072 bytes,
+// largest archive 24,960,684 bytes inflated, highest ratio 13 to 1. The caps
+// leave about eight times headroom.
+export const MAX_ENTRY_BYTES = 128 * 1024 * 1024;
+export const MAX_TOTAL_BYTES = 256 * 1024 * 1024;
+
 /** Parse the ZIP container into a Map of entry name -> raw bytes. */
-export function unzip(buf) {
+export function unzip(buf, { maxEntryBytes = MAX_ENTRY_BYTES, maxTotalBytes = MAX_TOTAL_BYTES } = {}) {
   // EOCD is at the end, but a trailing comment can push it back up to 64KB.
   let eocd = -1;
   for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65557); i--) {
@@ -38,11 +48,13 @@ export function unzip(buf) {
   const count = buf.readUInt16LE(eocd + 10);
   let ptr = buf.readUInt32LE(eocd + 16);
   const out = new Map();
+  let total = 0;
 
   for (let n = 0; n < count; n++) {
     if (buf.readUInt32LE(ptr) !== CEN_SIG) break;
     const method = buf.readUInt16LE(ptr + 10);
     const compSize = buf.readUInt32LE(ptr + 20);
+    const size = buf.readUInt32LE(ptr + 24);
     const nameLen = buf.readUInt16LE(ptr + 28);
     const extraLen = buf.readUInt16LE(ptr + 30);
     const commentLen = buf.readUInt16LE(ptr + 32);
@@ -55,7 +67,30 @@ export function unzip(buf) {
     const lExtraLen = buf.readUInt16LE(localOff + 28);
     const dataStart = localOff + 30 + lNameLen + lExtraLen;
     const raw = buf.subarray(dataStart, dataStart + compSize);
-    out.set(name, method === 0 ? raw : inflateRawSync(raw));
+    let data;
+    if (method === 0) {
+      data = raw;
+    } else {
+      // 0xFFFFFFFF means ZIP64, whose real size lives in an extra field this
+      // reader does not parse, so only the hard cap applies to it.
+      const declared = size === 0xffffffff ? maxEntryBytes : size;
+      if (declared > maxEntryBytes) {
+        throw new Error(`zip entry ${name} declares ${size} bytes, over the ${maxEntryBytes}-byte cap`);
+      }
+      try {
+        data = inflateRawSync(raw, { maxOutputLength: Math.max(declared, 1) });
+      } catch (e) {
+        if (e && e.code === "ERR_BUFFER_TOO_LARGE") {
+          throw new Error(`zip entry ${name} inflates past its declared ${declared} bytes, refused as corrupt or hostile`);
+        }
+        throw e;
+      }
+    }
+    total += data.length;
+    if (total > maxTotalBytes) {
+      throw new Error(`zip archive inflates past the ${maxTotalBytes}-byte cap at entry ${name}`);
+    }
+    out.set(name, data);
 
     ptr += 46 + nameLen + extraLen + commentLen;
   }

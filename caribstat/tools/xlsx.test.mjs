@@ -8,8 +8,40 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { crc32 } from "node:zlib";
-import { unzip, parseSharedStrings, parseSheet, readXlsx } from "./xlsx.mjs";
+import { crc32, deflateRawSync } from "node:zlib";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { unzip, parseSharedStrings, parseSheet, readXlsx, MAX_ENTRY_BYTES, MAX_TOTAL_BYTES } from "./xlsx.mjs";
+
+/** Build a one-entry DEFLATED zip whose central directory declares `declared`
+ * as the uncompressed size, which may be a lie, as in a zip bomb. */
+function makeDeflatedZip(name, data, declared = data.length) {
+  const nameBuf = Buffer.from(name, "utf8");
+  const comp = deflateRawSync(data);
+  const lh = Buffer.alloc(30);
+  lh.writeUInt32LE(0x04034b50, 0);
+  lh.writeUInt16LE(20, 4);
+  lh.writeUInt16LE(8, 8);
+  lh.writeUInt32LE(comp.length, 18);
+  lh.writeUInt32LE(declared, 22);
+  lh.writeUInt16LE(nameBuf.length, 26);
+  const ch = Buffer.alloc(46);
+  ch.writeUInt32LE(0x02014b50, 0);
+  ch.writeUInt16LE(20, 6);
+  ch.writeUInt16LE(8, 10);
+  ch.writeUInt32LE(comp.length, 20);
+  ch.writeUInt32LE(declared, 24);
+  ch.writeUInt16LE(nameBuf.length, 28);
+  ch.writeUInt32LE(0, 42);
+  const localPart = Buffer.concat([lh, nameBuf, comp]);
+  const centralPart = Buffer.concat([ch, nameBuf]);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(1, 8);
+  eocd.writeUInt16LE(1, 10);
+  eocd.writeUInt32LE(centralPart.length, 12);
+  eocd.writeUInt32LE(localPart.length, 16);
+  return Buffer.concat([localPart, centralPart, eocd]);
+}
 
 /** Build a stored-only zip from { name: string-content } pairs. */
 function makeZip(files) {
@@ -134,4 +166,44 @@ test("sheets resolve through r:id, preserving workbook order and names", () => {
   assert.deepEqual(wb.sheets.map((s) => s.name), ["Loans&Deposits", "Second"]);
   assert.equal(wb.sheets[0].rows[0][0], "January 2012");
   assert.equal(wb.sheets[1].rows[0][0], 7, "a leading-slash rel target must resolve too");
+});
+
+// --- Inflation caps (zip-bomb defence) -------------------------------------
+
+test("a deflated entry with an honest declared size inflates intact", () => {
+  const data = Buffer.from("<x>" + "1,".repeat(5000) + "</x>");
+  const z = unzip(makeDeflatedZip("a.xml", data));
+  assert.equal(z.get("a.xml").toString(), data.toString());
+});
+
+test("an entry that inflates past its declared size is refused", () => {
+  const bomb = Buffer.alloc(4 * 1024 * 1024); // 4 MiB of zeros, a few KB deflated
+  const zip = makeDeflatedZip("bomb.xml", bomb, 1024);
+  assert.ok(zip.length < 64 * 1024, "the fixture should be small on disk");
+  assert.throws(() => unzip(zip), /inflates past its declared 1024 bytes/);
+});
+
+test("an entry declaring more than the per-entry cap is refused before inflating", () => {
+  const data = Buffer.alloc(2048);
+  assert.throws(() => unzip(makeDeflatedZip("big.xml", data), { maxEntryBytes: 1024 }), /declares 2048 bytes, over the 1024-byte cap/);
+  assert.equal(unzip(makeDeflatedZip("big.xml", data), { maxEntryBytes: 4096 }).get("big.xml").length, 2048);
+});
+
+test("the archive total is capped across entries", () => {
+  const zip = makeZip({ "a.xml": "x".repeat(600), "b.xml": "y".repeat(600) });
+  assert.throws(() => unzip(zip, { maxTotalBytes: 1000 }), /inflates past the 1000-byte cap at entry b\.xml/);
+  assert.equal(unzip(zip, { maxTotalBytes: 1200 }).size, 2);
+});
+
+test("the default caps are far above the largest real workbook measured", () => {
+  // Measured 2026-11-14: largest entry 16,126,072 bytes, largest archive 24,960,684.
+  assert.ok(MAX_ENTRY_BYTES >= 16_126_072 * 4);
+  assert.ok(MAX_TOTAL_BYTES >= 24_960_684 * 4);
+});
+
+const SAMPLE_DIR = new URL("../reference/sample/", import.meta.url);
+test("every local sample workbook still opens under the default caps", { skip: !existsSync(SAMPLE_DIR) && "samples are local-only (gitignored)" }, () => {
+  const files = readdirSync(SAMPLE_DIR).filter((f) => f.endsWith(".xlsx"));
+  assert.ok(files.length > 0);
+  for (const f of files) assert.ok(unzip(readFileSync(new URL(f, SAMPLE_DIR))).size > 0, f);
 });
