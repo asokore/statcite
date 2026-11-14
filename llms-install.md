@@ -62,7 +62,8 @@ curl "https://statcite.com/v1/status"
 - 12 read-only tools (lookup, verification, batch fact-checking, cross-source
   comparison, FX/inflation utilities, deep-research `search`/`fetch`)
 - 3 prompts (`fact_check`, `country_brief`, `cite_this_stat`)
-- 3 resources (indicator registry, source licence ledger, SIDS country list)
+- 4 resources (indicator registry, source licence ledger, SIDS country list,
+  and a citation card view for hosts that render MCP Apps)
 - 48 curated indicators (42 active), 200+ economies
 
 Full agent-facing reference: https://statcite.com/llms-full.txt

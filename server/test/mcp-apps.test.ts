@@ -1,7 +1,7 @@
 // MCP Apps citation card (src/ui/citation-card.ts, backlog A-072).
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { installFetchStub, mcpCall } from "./helpers.ts";
+import { installFetchStub, mcpCall, mcpTool } from "./helpers.ts";
 import { CITATION_CARD_HTML, CITATION_CARD_URI, MCP_APP_MIME, CARD_TOOLS } from "../src/ui/citation-card.ts";
 
 beforeEach(() => installFetchStub());
@@ -77,4 +77,161 @@ test("the card implements the handshake fields the SDK sends", () => {
   assert.match(CITATION_CARD_HTML, /notify\("ui\/notifications\/initialized"\)/);
   assert.match(CITATION_CARD_HTML, /"ui\/notifications\/tool-result"/);
   assert.match(CITATION_CARD_HTML, /event\.source !== window\.parent/, "messages from other windows must be ignored");
+});
+
+// ---------------------------------------------------------------------------
+// Runtime: execute the card's own script against stub window and document
+// objects and feed it real tools/call results. String checks above cannot see
+// a broken handshake, a misread field or a rounded figure. These can.
+
+type Card = ReturnType<typeof runCard>;
+
+function runCard(html = CITATION_CARD_HTML) {
+  const script = html.split("<script>")[1].split("</script>")[0];
+  const sent: any[] = [];
+  const copied: string[] = [];
+  let listener: ((e: any) => void) | null = null;
+  const els = new Map<string, any>();
+  const makeEl = (id: string) => ({
+    id, textContent: "", hidden: false, onclick: null as null | (() => void), children: [] as any[],
+    get firstChild() { return this.children[0] ?? null; },
+    appendChild(c: any) { this.children.push(c); },
+    removeChild(c: any) { this.children.splice(this.children.indexOf(c), 1); },
+  });
+  const rootStyle: Record<string, string> = {};
+  const documentElement = {
+    clientWidth: 420,
+    // Height follows the text on the page, so a render that changes content changes the size.
+    getBoundingClientRect: () => ({ height: 100 + [...els.values()].reduce((a, e) => a + String(e.textContent).length, 0) }),
+    style: { colorScheme: "", setProperty: (k: string, v: string) => { rootStyle[k] = v; } },
+  };
+  const parent = { postMessage: (m: unknown) => sent.push(JSON.parse(JSON.stringify(m))) };
+  const win = {
+    parent,
+    addEventListener: (t: string, fn: (e: any) => void) => { if (t === "message") listener = fn; },
+    getSelection: () => ({ removeAllRanges() {}, addRange() {} }),
+  };
+  const doc = {
+    getElementById: (id: string) => { if (!els.has(id)) els.set(id, makeEl(id)); return els.get(id); },
+    createElement: (tag: string) => makeEl(tag),
+    createRange: () => ({ selectNodeContents() {} }),
+    documentElement,
+  };
+  const nav = { clipboard: { writeText: (t: string) => { copied.push(t); return Promise.resolve(); } } };
+  new Function("window", "document", "navigator", "ResizeObserver", script)(win, doc, nav, undefined);
+  return {
+    sent, copied, rootStyle, documentElement,
+    text: (id: string) => String(doc.getElementById(id).textContent),
+    el: (id: string) => doc.getElementById(id),
+    notes: () => (doc.getElementById("notes").children as any[]).map((c) => String(c.textContent)),
+    deliver: (data: unknown, source: unknown = parent) => listener!({ source, data }),
+  };
+}
+
+const tick = () => new Promise((r) => setImmediate(r));
+const asReturned = (v: number) => v.toLocaleString("en-GB", { maximumFractionDigits: 20 });
+
+async function handshake(card: Card, hostContext?: unknown) {
+  const init = card.sent[0];
+  card.deliver({ jsonrpc: "2.0", id: init.id, result: { protocolVersion: "2026-01-26", hostContext } });
+  await tick();
+}
+
+async function showTool(card: Card, name: string, args: Record<string, unknown>) {
+  const { rpc, payload } = await mcpTool(name, args);
+  card.deliver({ jsonrpc: "2.0", method: "ui/notifications/tool-result", params: rpc.result });
+  return payload;
+}
+
+test("runtime: initialize, then initialized only after the reply, then size-changed; host theme applied", async () => {
+  const card = runCard();
+  assert.equal(card.sent.length, 1);
+  assert.equal(card.sent[0].method, "ui/initialize");
+  assert.equal(card.sent[0].params.protocolVersion, "2026-01-26");
+  assert.ok(card.sent[0].params.appInfo?.name && card.sent[0].params.appCapabilities);
+  await handshake(card, { theme: "dark", styles: { variables: { "--color-text-primary": "#eee", "not a var": "x" } } });
+  const methods = card.sent.map((m) => m.method);
+  assert.deepEqual(methods.slice(0, 3), ["ui/initialize", "ui/notifications/initialized", "ui/notifications/size-changed"]);
+  assert.equal(card.documentElement.style.colorScheme, "dark");
+  assert.equal(card.rootStyle["--color-text-primary"], "#eee");
+  assert.equal(card.rootStyle["not a var"], undefined);
+  card.deliver({ jsonrpc: "2.0", method: "ui/notifications/host-context-changed", params: { theme: "light" } });
+  assert.equal(card.documentElement.style.colorScheme, "light");
+});
+
+test("runtime: messages from another window are ignored; host requests get ping/teardown {} and others -32601", async () => {
+  const card = runCard();
+  await handshake(card);
+  card.deliver({ jsonrpc: "2.0", method: "ui/notifications/tool-result", params: { structuredContent: { name: "Planted" } } }, {});
+  assert.notEqual(card.text("head"), "Planted", "a message from another window was rendered");
+  card.deliver({ jsonrpc: "2.0", id: 77, method: "tools/call", params: {} });
+  card.deliver({ jsonrpc: "2.0", id: 78, method: "ping" });
+  card.deliver({ jsonrpc: "2.0", id: 79, method: "ui/resource-teardown", params: {} });
+  const reply = (id: number) => card.sent.find((m) => m.id === id && !m.method);
+  assert.equal(reply(77).error.code, -32601);
+  assert.deepEqual(reply(78).result, {});
+  assert.deepEqual(reply(79).result, {});
+});
+
+test("runtime: get_indicator headline is the latest value not marked as a projection, with its note", async () => {
+  const card = runCard();
+  await handshake(card);
+  const payload = await showTool(card, "get_indicator", { indicator: "govt_debt_gdp", country: "USA" });
+  const obs = (payload.observations as Array<{ period: string; value: number | null; note?: string }>).filter((o) => o.value != null);
+  const projected = obs.filter((o) => /projection/i.test(o.note ?? ""));
+  assert.ok(projected.length > 0, "fixture must contain projection periods, or this test proves nothing");
+  const outturn = obs.filter((o) => !/projection/i.test(o.note ?? "")).at(-1)!;
+  assert.equal(card.text("value"), asReturned(outturn.value!));
+  assert.match(card.text("period"), new RegExp(`period ${outturn.period}$`));
+  assert.ok(card.notes().some((n) => /projection/i.test(n)), "the card must say later periods are projections");
+  assert.equal(card.text("ctext"), payload.citation.citation_text);
+  assert.ok(card.sent.some((m) => m.method === "ui/notifications/size-changed"));
+});
+
+test("runtime: verify_stat shows the claimed figure unrounded, the verdict and the citation", async () => {
+  const card = runCard();
+  await handshake(card);
+  const payload = await showTool(card, "verify_stat", { indicator: "inflation_cpi", country: "BRB", period: "2023", claimed_value: 4.123456 });
+  assert.ok(payload.verdict, `verify_stat returned no verdict: ${JSON.stringify(payload).slice(0, 300)}`);
+  assert.match(card.text("period"), /claimed 4\.123456$/);
+  if (typeof payload.official_value === "number") assert.equal(card.text("value"), asReturned(payload.official_value));
+  assert.equal(card.el("verdict").hidden, false);
+  assert.match(card.text("verdict"), new RegExp(String(payload.verdict).replace(/_/g, " ")));
+  assert.equal(card.text("ctext"), payload.citation.citation_text);
+});
+
+test("runtime: a transformed series shows and copies the computed-by-StatCite notice", async () => {
+  const card = runCard();
+  await handshake(card);
+  const payload = await showTool(card, "get_indicator", { indicator: "inflation_cpi", country: "BRB", transform: "yoy" });
+  const notices: string[] = payload.citation?.notices ?? [];
+  assert.ok(notices.some((n) => /computed by StatCite/.test(n)), "fixture result lacks the derivation notice");
+  assert.equal(card.el("cnotice").hidden, false);
+  assert.match(card.text("cnotice"), /computed by StatCite/);
+  card.el("copy").onclick!();
+  assert.equal(card.copied.length, 1);
+  assert.ok(card.copied[0].startsWith(payload.citation.citation_text));
+  assert.match(card.copied[0], /computed by StatCite/, "the notice must travel with the copied citation");
+});
+
+test("runtime: a tool error shows the error message, not raw JSON", async () => {
+  const card = runCard();
+  await handshake(card);
+  await showTool(card, "get_indicator", { indicator: "no_such_indicator", country: "USA" });
+  assert.equal(card.text("head"), "StatCite returned an error");
+  assert.ok(card.text("sub").length > 0);
+  assert.doesNotMatch(card.text("sub"), /^\{/);
+});
+
+test("mutation: the runtime test catches a card that rounds the claimed figure", async () => {
+  const anchor = "maximumFractionDigits: 20";
+  assert.ok(CITATION_CARD_HTML.includes(anchor), "anchor missing, mutation cannot apply");
+  const mutated = CITATION_CARD_HTML.replace(anchor, () => "maximumFractionDigits: 3");
+  assert.notEqual(mutated, CITATION_CARD_HTML, "mutation did not apply");
+  const card = runCard(mutated);
+  await handshake(card);
+  const payload = await showTool(card, "verify_stat", { indicator: "inflation_cpi", country: "BRB", period: "2023", claimed_value: 4.123456 });
+  assert.ok(payload.verdict, "no verdict, so this mutation test would pass vacuously");
+  assert.match(card.text("period"), /claimed 4\.123/, "the mutated card must still render the claim");
+  assert.doesNotMatch(card.text("period"), /claimed 4\.123456$/, "rounding went undetected");
 });
