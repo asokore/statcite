@@ -73,7 +73,7 @@ button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
 (function () {
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
-  var nextId = 1, pending = {}, lastSize = "";
+  var nextId = 1, pending = {}, lastSize = "", ready = false;
   var DOT = " " + String.fromCharCode(183) + " ";
   function send(msg) { window.parent.postMessage(msg, "*"); }
   function request(method, params) {
@@ -138,12 +138,13 @@ button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     if (sc.verdict) {
       var hasOfficial = typeof sc.official_value === "number";
       set("value", hasOfficial ? fmt(sc.official_value) : "No official value");
-      set("period", (hasOfficial ? "Official value for " : "Period ") + (sc.period || "") + (sc.claimed_value != null ? ", claimed " + fmt(sc.claimed_value) : ""));
+      set("period", (hasOfficial ? (sc.fallback_used ? "Indicative value for " : "Official value for ") : "Period ") + (sc.period || "") + (sc.claimed_value != null ? ", claimed " + fmt(sc.claimed_value) : ""));
       $("verdict").hidden = false;
       set("verdict", "Verdict: " + String(sc.verdict).replace(/_/g, " "));
       if (sc.explanation) { set("explain", sc.explanation); $("explain").hidden = false; }
       if (sc.is_projection) notes.push("The source marks this period as a projection or future data, not a final figure.");
       if (sc.fallback_used) notes.push("This official value came from a fallback source, not the primary one.");
+      if (Array.isArray(sc.diagnostics)) sc.diagnostics.forEach(function (d) { notes.push(d); });
       if (sc.as_of && sc.as_of.resolved_vintage) notes.push("Checked against the archived edition " + sc.as_of.resolved_vintage + (sc.as_of.requested ? " as of " + sc.as_of.requested : "") + ", not today's data.");
     } else {
       var obs = Array.isArray(sc.observations) ? sc.observations.filter(function (o) { return o && o.value != null; }) : [];
@@ -187,7 +188,10 @@ button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
     set("copy", "Selected. Use your copy shortcut");
   }
+  // No size is sent before the host has answered ui/initialize, so the first
+  // size-changed always follows ui/notifications/initialized.
   function resize() {
+    if (!ready) return;
     var root = document.documentElement;
     var w = Math.ceil(root.clientWidth), h = Math.ceil(root.getBoundingClientRect().height);
     var key = w + "x" + h;
@@ -231,7 +235,7 @@ button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     appCapabilities: { availableDisplayModes: ["inline"] },
     appInfo: { name: "StatCite citation card", version: "1.0.0" },
     protocolVersion: "2026-01-26"
-  }).then(function (res) { applyHost(res && res.hostContext); notify("ui/notifications/initialized"); resize(); }, function () { resize(); });
+  }).then(function (res) { applyHost(res && res.hostContext); notify("ui/notifications/initialized"); ready = true; resize(); }, function () { ready = true; resize(); });
 })();
 </script>
 </body></html>`;

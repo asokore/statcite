@@ -86,7 +86,15 @@ test("the card implements the handshake fields the SDK sends", () => {
 
 type Card = ReturnType<typeof runCard>;
 
-function runCard(html = CITATION_CARD_HTML) {
+/** A ResizeObserver stub that fires its callback as soon as observe() is
+ * called, as a browser does on the next frame, usually before the host has
+ * answered ui/initialize. */
+class EagerResizeObserver {
+  constructor(private cb: () => void) {}
+  observe() { this.cb(); }
+}
+
+function runCard(html = CITATION_CARD_HTML, resizeObserver: unknown = undefined) {
   const script = html.split("<script>")[1].split("</script>")[0];
   const sent: any[] = [];
   const copied: string[] = [];
@@ -118,7 +126,7 @@ function runCard(html = CITATION_CARD_HTML) {
     documentElement,
   };
   const nav = { clipboard: { writeText: (t: string) => { copied.push(t); return Promise.resolve(); } } };
-  new Function("window", "document", "navigator", "ResizeObserver", script)(win, doc, nav, undefined);
+  new Function("window", "document", "navigator", "ResizeObserver", script)(win, doc, nav, resizeObserver);
   return {
     sent, copied, rootStyle, documentElement,
     text: (id: string) => String(doc.getElementById(id).textContent),
@@ -183,7 +191,7 @@ test("runtime: get_indicator headline is the latest value not marked as a projec
   const outturn = obs.filter((o) => !/projection/i.test(o.note ?? "")).at(-1)!;
   assert.equal(card.text("value"), asReturned(outturn.value!));
   assert.match(card.text("period"), new RegExp(`period ${outturn.period}$`));
-  assert.ok(card.notes().some((n) => /projection/i.test(n)), "the card must say later periods are projections");
+  assert.ok(card.notes().includes("Later periods in this result are marked as projections or future data."), "the card's own projection line is missing");
   assert.equal(card.text("ctext"), payload.citation.citation_text);
   assert.ok(card.sent.some((m) => m.method === "ui/notifications/size-changed"));
 });
@@ -194,7 +202,8 @@ test("runtime: verify_stat shows the claimed figure unrounded, the verdict and t
   const payload = await showTool(card, "verify_stat", { indicator: "inflation_cpi", country: "BRB", period: "2023", claimed_value: 4.123456 });
   assert.ok(payload.verdict, `verify_stat returned no verdict: ${JSON.stringify(payload).slice(0, 300)}`);
   assert.match(card.text("period"), /claimed 4\.123456$/);
-  if (typeof payload.official_value === "number") assert.equal(card.text("value"), asReturned(payload.official_value));
+  assert.equal(typeof payload.official_value, "number", "fixture must return an official value");
+  assert.equal(card.text("value"), asReturned(payload.official_value));
   assert.equal(card.el("verdict").hidden, false);
   assert.match(card.text("verdict"), new RegExp(String(payload.verdict).replace(/_/g, " ")));
   assert.equal(card.text("ctext"), payload.citation.citation_text);
@@ -221,6 +230,52 @@ test("runtime: a tool error shows the error message, not raw JSON", async () => 
   assert.equal(card.text("head"), "StatCite returned an error");
   assert.ok(card.text("sub").length > 0);
   assert.doesNotMatch(card.text("sub"), /^\{/);
+});
+
+test("runtime: with a ResizeObserver, no size-changed goes out before initialized, and one follows it", async () => {
+  const card = runCard(CITATION_CARD_HTML, EagerResizeObserver);
+  assert.deepEqual(card.sent.map((m) => m.method), ["ui/initialize"], "something was sent before the host replied");
+  await handshake(card);
+  const methods = card.sent.map((m) => m.method);
+  assert.deepEqual(methods.slice(0, 3), ["ui/initialize", "ui/notifications/initialized", "ui/notifications/size-changed"]);
+});
+
+test("runtime: verify disclosures (null official value, fallback, projection, as_of, diagnostics) all reach the card", async () => {
+  const card = runCard();
+  await handshake(card);
+  const deliver = (sc: Record<string, unknown>) =>
+    card.deliver({ jsonrpc: "2.0", method: "ui/notifications/tool-result", params: { content: [{ type: "text", text: "{}" }], structuredContent: sc } });
+  deliver({ verdict: "cannot_verify", official_value: null, claimed_value: 2, period: "1900", explanation: "x", citation: { citation_text: "C." } });
+  assert.equal(card.text("value"), "No official value");
+  assert.equal(card.text("period"), "Period 1900, claimed 2");
+  deliver({
+    verdict: "cannot_verify", official_value: 1.5, claimed_value: 1.5, period: "2024", explanation: "See diagnostics for likely causes.",
+    fallback_used: true, is_projection: true, diagnostics: ["Scale slip: the claim is 100 times the official value."],
+    as_of: { requested: "2019-04", resolved_vintage: "WEO_2018_OCT" }, citation: { citation_text: "C." },
+  });
+  assert.match(card.text("period"), /^Indicative value for 2024/);
+  const n = card.notes();
+  assert.ok(n.includes("Scale slip: the claim is 100 times the official value."), "diagnostics missing");
+  assert.ok(n.some((x) => /fallback source/.test(x)), "fallback note missing");
+  assert.ok(n.some((x) => /projection or future data/.test(x)), "projection note missing");
+  assert.ok(n.some((x) => /WEO_2018_OCT as of 2019-04/.test(x)), "as_of note missing");
+});
+
+test("runtime: an ECCB future-data note is not taken as the headline; cancel resets the card", async () => {
+  const card = runCard();
+  await handshake(card);
+  const future = "The ECCB shades 2026 as future data on this table and does not define the term, so do not treat it as a final figure.";
+  card.deliver({
+    jsonrpc: "2.0", method: "ui/notifications/tool-result",
+    params: { structuredContent: { name: "Real GDP growth", observations: [{ period: "2025", value: 3.1 }, { period: "2026", value: 4.2, note: future }], citation: { citation_text: "C." } } },
+  });
+  assert.equal(card.text("value"), asReturned(3.1));
+  assert.match(card.text("period"), /period 2025$/);
+  card.deliver({ jsonrpc: "2.0", method: "ui/notifications/tool-cancelled", params: {} });
+  assert.equal(card.text("head"), "The tool call was cancelled");
+  assert.equal(card.text("value"), "");
+  assert.equal(card.el("cite").hidden, true);
+  assert.equal(card.el("notes").hidden, true);
 });
 
 test("mutation: the runtime test catches a card that rounds the claimed figure", async () => {
