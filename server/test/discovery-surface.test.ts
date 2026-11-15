@@ -19,6 +19,7 @@ const NAMED_AS: Record<string, RegExp> = {
   bis: /BIS/,
   eccb: /Eastern Caribbean Central Bank/,
   cbb: /Central Bank of Barbados/,
+  usd_pegs: /legal US dollar pegs/,
 };
 
 test("every served source is named in list_sources, search_indicators and the server instructions", async () => {
@@ -35,7 +36,7 @@ test("every served source is named in list_sources, search_indicators and the se
     assert.match(listSources, re, `list_sources description must name ${id}`);
     assert.match(instructions, re, `instructions must name ${id}`);
     // Search covers indicators and tables, not FX rates.
-    if (id !== "ecb_fx" && id !== "imf_sdmx_vintage") assert.match(search, re, `search_indicators description must name ${id}`);
+    if (id !== "ecb_fx" && id !== "imf_sdmx_vintage" && id !== "usd_pegs") assert.match(search, re, `search_indicators description must name ${id}`);
   }
 });
 

@@ -1755,6 +1755,23 @@ function ecbFxCitation(ctx, opts) {
     ]
   });
 }
+function usdPegCitation(peg) {
+  const date = peg.sourceRead;
+  return withExports({
+    source: peg.authority,
+    dataset: "Official fixed exchange rate (US dollar peg)",
+    series_id: `peg/${peg.currency}USD`,
+    series_name: `${peg.currency} fixed parity against the US dollar, ${peg.parityAsPublished}`,
+    source_url: peg.sourceUrl,
+    license: "A legal exchange-rate parity is a published fact, not a licensed dataset. Attribute the issuing authority",
+    attribution: `Source: ${peg.authority}`,
+    retrieved_at: date,
+    citation_text: `${peg.authority}, ${peg.sourceTitle}: ${peg.currency} fixed to the US dollar at ${peg.parityAsPublished}, ${peg.effectiveFromAsPublished ? `in force since ${peg.effectiveFromAsPublished}` : `confirmed by this source from ${peg.effectiveFrom}`}. ${retrievedVia(date)} ${peg.sourceUrl}`,
+    notices: [
+      `StatCite read this source on ${peg.sourceRead} and applies the parity as a fixed constant. It does not re-read the source on each request.`
+    ]
+  });
+}
 function sdmxCitation(ctx, opts) {
   const date = today(ctx);
   const source = opts.provider === "BIS" ? "Bank for International Settlements" : opts.provider === "IMF" ? "International Monetary Fund" : "European Central Bank";
@@ -4047,6 +4064,148 @@ async function getEcbAnnualAverage(base, symbol, year) {
   return { average: values.reduce((a, b) => a + b, 0) / values.length, days: values.length, apiUrl };
 }
 
+// ../server/src/core/pegs.ts
+var USD_PEGS = [
+  {
+    // Read 2026-11-15. "...fixed to the US dollar at a rate of USD1.00 to
+    // BBD2.00." The page is dated 5 July 2016 and says "it was on this day in
+    // 1975" that the change was announced.
+    currency: "BBD",
+    lcu: 2,
+    usd: 1,
+    parityAsPublished: "USD1.00 to BBD2.00",
+    effectiveFrom: "1975-07-05",
+    effectiveFromAsPublished: "5 July 1975",
+    authority: "Central Bank of Barbados",
+    sourceTitle: "Fixed for Forty-One Years, press release of 5 July 2016",
+    sourceUrl: "https://www.centralbank.org.bb/news/general-press-release/fixed-for-forty-one-years",
+    sourceRead: "2026-11-15"
+  },
+  {
+    // Read 2026-11-15. "On 7 July 1976 ... the governments of the Eastern
+    // Caribbean Currency Union fixed the value of the Eastern Caribbean dollar
+    // at EC$2.70 to US$1.00".
+    currency: "XCD",
+    lcu: 2.7,
+    usd: 1,
+    parityAsPublished: "EC$2.70 to US$1.00",
+    effectiveFrom: "1976-07-07",
+    effectiveFromAsPublished: "7 July 1976",
+    authority: "Eastern Caribbean Central Bank",
+    sourceTitle: "50 Years of the EC Dollar's Peg",
+    sourceUrl: "https://www.eccb-centralbank.org/50-years-of-the-ec-dollar-s-peg",
+    sourceRead: "2026-11-15"
+  },
+  {
+    // Read 2026-11-15. "Since May 1976, Belize has maintained a fixed exchange
+    // rate of BZ$2.00 to US$1.00." The source names the month only.
+    currency: "BZD",
+    lcu: 2,
+    usd: 1,
+    parityAsPublished: "BZ$2.00 to US$1.00",
+    effectiveFrom: "1976-06-01",
+    effectiveFromAsPublished: "May 1976",
+    authority: "Central Bank of Belize",
+    sourceTitle: "Monetary Policy",
+    sourceUrl: "https://www.centralbank.org.bz/home/core-functions/monetary-policy",
+    sourceRead: "2026-11-15"
+  },
+  {
+    // Read 2026-11-15. The bank "started its operations on January 1, 1986"
+    // and "the Aruban florin was brought into circulation, pegged to the U.S.
+    // dollar at a rate of Afl. 1.79 = US$ 1.00. This exchange rate has remained
+    // unchanged since then."
+    currency: "AWG",
+    lcu: 1.79,
+    usd: 1,
+    parityAsPublished: "Afl. 1.79 = US$ 1.00",
+    effectiveFrom: "1986-01-01",
+    effectiveFromAsPublished: "January 1, 1986",
+    authority: "Centrale Bank van Aruba",
+    sourceTitle: "A brief history",
+    sourceUrl: "https://www.cbaruba.org/about-us-a-brief-history-of-the-bank/",
+    sourceRead: "2026-11-15"
+  },
+  {
+    // Read 2026-11-15. "On 31 July 1972, the Bermuda dollar exchange was fixed
+    // on par with the United States dollar". Page dated 20 February 2019.
+    currency: "BMD",
+    lcu: 1,
+    usd: 1,
+    parityAsPublished: "on par with the United States dollar",
+    effectiveFrom: "1972-07-31",
+    effectiveFromAsPublished: "31 July 1972",
+    authority: "Bermuda Monetary Authority",
+    sourceTitle: "Bermuda Monetary Authority Celebrating 50 Years",
+    sourceUrl: "https://www.bma.bm/documents-centre/documents-news-and-press-releases/general-all-sectors/bermuda-monetary-authority-celebrating-50-years",
+    sourceRead: "2026-11-15"
+  },
+  {
+    // Read 2026-11-15. "Cayman Islands currency is issued on demand only
+    // against United States currency at the rate of one Cayman Islands dollar
+    // per 1.20 US dollars." The report gives no start date, so effectiveFrom is
+    // the first day of the financial year it covers (1 July 2011 to 30 June
+    // 2012). Earlier periods stay on the World Bank rail.
+    currency: "KYD",
+    lcu: 1,
+    usd: 1.2,
+    parityAsPublished: "one Cayman Islands dollar per 1.20 US dollars",
+    effectiveFrom: "2011-07-01",
+    effectiveFromAsPublished: null,
+    authority: "Cayman Islands Monetary Authority",
+    sourceTitle: "Annual Report 2011-12",
+    sourceUrl: "https://www.cima.ky/upimages/publicationdoc/AnnualReportandAu_1499163437.pdf",
+    sourceRead: "2026-11-15"
+  },
+  {
+    // Read 2026-11-15. "SAMA remains committed to maintaining the exchange rate
+    // at the official rate of 3.75 riyals to the dollar". The statement is
+    // dated 4 May 2020 and gives no start date for the rate, so effectiveFrom
+    // is the statement's own date. Earlier periods stay on the World Bank rail.
+    currency: "SAR",
+    lcu: 3.75,
+    usd: 1,
+    parityAsPublished: "3.75 riyals to the dollar",
+    effectiveFrom: "2020-05-04",
+    effectiveFromAsPublished: null,
+    authority: "Saudi Central Bank",
+    sourceTitle: "SAMA Affirms Commitment to Exchange Rate Policy, statement of 4 May 2020",
+    sourceUrl: "https://www.sama.gov.sa/en-US/MediaCenter/News/Pages/news-557.aspx",
+    sourceRead: "2026-11-15"
+  }
+];
+var BY_CODE = new Map(USD_PEGS.map((p) => [p.currency, p]));
+function usdPeg(currency) {
+  return BY_CODE.get(currency);
+}
+function pegSinceText(p) {
+  return p.effectiveFromAsPublished ? `in force since ${p.effectiveFromAsPublished}` : `confirmed by the cited source only from ${p.effectiveFrom}. The source gives no start date, so the peg itself may be older, and earlier dates use the World Bank rate`;
+}
+function pegDecision(currency, date, todayUtc) {
+  const peg = usdPeg(currency);
+  if (!peg) return void 0;
+  if (!date) return { peg, applies: true };
+  const yearOnly = date.length === 4;
+  const future = yearOnly ? date >= todayUtc.slice(0, 4) : date > todayUtc;
+  if (future) {
+    const when = yearOnly && date === todayUtc.slice(0, 4) ? `${date} is the current year and not yet complete (today is ${todayUtc})` : `${date} is after today's date, ${todayUtc}`;
+    return {
+      peg,
+      applies: false,
+      why: "future",
+      reason: `${currency} is fixed to the US dollar at ${peg.parityAsPublished} by the ${peg.authority}, but ${when}. The source shows the peg in force only up to the day it was read, so the peg is not applied to a period that has not yet ended. Tried the World Bank annual-average official rate for this leg instead.`
+    };
+  }
+  const inForce = yearOnly ? `${date}-01-01` >= peg.effectiveFrom : date >= peg.effectiveFrom;
+  if (inForce) return { peg, applies: true };
+  return {
+    peg,
+    applies: false,
+    why: "before",
+    reason: `${currency} is fixed to the US dollar at ${peg.parityAsPublished} by the ${peg.authority}, ${pegSinceText(peg)}. So the peg is not applied to ${yearOnly ? `the whole of ${date}` : date}. Used the World Bank annual-average official rate for this leg instead.`
+  };
+}
+
 // ../server/src/core/fx.ts
 var CURRENCY_COUNTRY = {
   BBD: "BRB",
@@ -4251,8 +4410,12 @@ async function fxConvert(ctx, amount, fromRaw, toRaw, date) {
   }
   const yearOnly = date && date.length === 4 ? parseInt(date, 10) : void 0;
   const dayDate = date && date.length === 10 ? date : void 0;
-  const ecbSet = new Set(Object.keys(await listEcbCurrencies()));
-  const bothEcb = ecbSet.has(from) && ecbSet.has(to);
+  const todayUtc = today(ctx);
+  const fromPeg = pegDecision(from, date, todayUtc);
+  const toPeg = pegDecision(to, date, todayUtc);
+  const exactSide = (cur, d) => cur === "USD" || d?.applies === true;
+  const ecbSet = exactSide(from, fromPeg) && exactSide(to, toPeg) ? /* @__PURE__ */ new Set() : new Set(Object.keys(await listEcbCurrencies()));
+  const bothEcb = ecbSet.has(from) && ecbSet.has(to) && !fromPeg?.applies && !toPeg?.applies;
   if (bothEcb && yearOnly && yearOnly >= 1999) {
     const r = await getEcbAnnualAverage(from, to, yearOnly);
     return {
@@ -4291,21 +4454,43 @@ async function fxConvert(ctx, amount, fromRaw, toRaw, date) {
   }
   const notes = [];
   const citations = [];
-  let precision = "annual_average";
   let rateDate = "";
   const legs = [];
+  const kinds = [];
   const wbYear = yearOnly ?? (dayDate ? parseInt(dayDate.slice(0, 4), 10) : void 0);
-  async function usdPerUnit(cur) {
+  async function usdLeg(cur, decision) {
     if (cur === "USD") {
       legs.push({ currency: "USD", usd_per_unit: 1, period: null, source: "identity (USD bridge base)" });
-      return 1;
+      kinds.push("identity");
+      return { usd: 1, units: 1, text: "1" };
     }
+    if (decision?.applies) {
+      const p = decision.peg;
+      citations.push(usdPegCitation(p));
+      legs.push({
+        currency: cur,
+        usd_per_unit: p.usd / p.lcu,
+        period: p.effectiveFrom,
+        source: `Legal fixed peg, ${p.parityAsPublished} (${p.authority})`,
+        peg: { parity: p.parityAsPublished, effective_from: p.effectiveFrom, authority: p.authority, source_url: p.sourceUrl }
+      });
+      kinds.push("peg");
+      notes.push(
+        `${cur} is converted at its legal fixed parity against the US dollar, ${p.parityAsPublished}, published by the ${p.authority} and ${pegSinceText(p)}. This leg is exact.`
+      );
+      return { usd: p.usd, units: p.lcu, text: `${p.usd}/${p.lcu}` };
+    }
+    if (decision && !decision.applies) notes.push(decision.reason);
     if (ecbSet.has(cur) && !yearOnly) {
       const r = await getEcbRates(cur, ["USD"], dayDate);
       citations.push(ecbFxCitation(ctx, { base: cur, quote: "USD", rateDate: r.date, apiUrl: r.apiUrl }));
       rateDate = rateDate || r.date;
+      if (dayDate && r.date !== dayDate) {
+        notes.push(`Requested ${dayDate}; nearest ECB working day is ${r.date} (weekends/holidays have no reference rate).`);
+      }
       legs.push({ currency: cur, usd_per_unit: r.rates.USD, period: r.date, source: "ECB daily reference rate" });
-      return r.rates.USD;
+      kinds.push("ecb");
+      return { usd: r.rates.USD, units: 1, text: r.rates.USD.toFixed(6) };
     }
     const wb = await wbUsdPerUnit(ctx, cur, wbYear);
     if (wb.citation) citations.push(wb.citation);
@@ -4316,24 +4501,38 @@ async function fxConvert(ctx, amount, fromRaw, toRaw, date) {
     }
     rateDate = rateDate || wb.period;
     legs.push({ currency: cur, usd_per_unit: wb.usdPerUnit, period: wb.period, source: "World Bank PA.NUS.FCRF annual average" });
-    return wb.usdPerUnit;
+    kinds.push("wb");
+    return { usd: wb.usdPerUnit, units: 1, text: wb.usdPerUnit.toFixed(6) };
   }
-  const fromUsd = await usdPerUnit(from);
-  const toUsd = await usdPerUnit(to);
-  const rate = fromUsd / toUsd;
-  const usedEcbLeg = (ecbSet.has(from) || ecbSet.has(to)) && !yearOnly && from !== "USD" && to !== "USD";
-  if (usedEcbLeg) precision = "mixed";
-  if (yearOnly) {
+  const f = await usdLeg(from, fromPeg);
+  const t = await usdLeg(to, toPeg);
+  const fromUsd = f.usd / f.units;
+  const toUsd = t.usd / t.units;
+  const rate = f.usd * t.units / (f.units * t.usd);
+  const hasEcb = kinds.includes("ecb");
+  const hasWb = kinds.includes("wb");
+  const hasPeg = kinds.includes("peg");
+  const precision = hasEcb && (hasWb || hasPeg) ? "mixed" : hasWb ? "annual_average" : hasEcb ? "daily" : "fixed_peg";
+  if (hasWb && yearOnly) {
     notes.push(
       `Annual-average official exchange rates for ${yearOnly} (World Bank PA.NUS.FCRF); daily precision is not available on this path.`
     );
-  } else if (!dayDate) {
+  } else if (hasWb && !dayDate) {
     notes.push(
-      "One or both currencies are outside the ECB daily set; converted via USD using the latest annual-average official rate(s). For a currency with a fixed US dollar peg (e.g. BBD at 2.00/USD, XCD at 2.70/USD) the annual average normally equals the peg, so the result follows the peg rate up to floating-point rounding."
+      "One or both currencies are outside the ECB daily set and have no legal US dollar peg on record here, so the conversion bridges through USD using the latest annual-average official rate(s) from the World Bank."
     );
   }
-  if (precision === "mixed") notes.push("Mixed precision: one leg is a daily ECB rate, the other an annual average, treat the result as approximate.");
-  const dated = legs.filter((l) => typeof l.period === "string");
+  if (precision === "mixed") {
+    notes.push(
+      hasWb ? "Mixed precision: one leg is a daily ECB rate, the other an annual average, treat the result as approximate." : "Mixed precision: one leg is a daily ECB reference rate and the other a legal fixed peg. The peg leg is exact, so the result is as precise as the ECB reference rate for that day."
+    );
+  }
+  if (precision === "fixed_peg") {
+    notes.push(
+      "This conversion uses the legal peg(s) and is exact. No market, reference or averaged rate is involved."
+    );
+  }
+  const dated = legs.filter((l) => typeof l.period === "string" && !l.peg);
   if (new Set(dated.map((l) => l.period.slice(0, 4))).size > 1) {
     const stalest = dated.reduce((a, b) => a.period <= b.period ? a : b);
     rateDate = stalest.period;
@@ -4347,8 +4546,10 @@ async function fxConvert(ctx, amount, fromRaw, toRaw, date) {
     to,
     converted_amount: Number((amount * rate).toFixed(6)),
     rate: Number(rate.toFixed(8)),
-    rate_date: rateDate || (yearOnly ? String(yearOnly) : "latest available"),
-    method: `USD bridge: 1 ${from} = ${fromUsd.toFixed(6)} USD; 1 ${to} = ${toUsd.toFixed(6)} USD; rate = ${fromUsd.toFixed(6)}/${toUsd.toFixed(6)}`,
+    // With no ECB or World Bank leg there is no publication date. A requested
+    // date dates the result, and with none the pegs are in force as of today.
+    rate_date: rateDate || (yearOnly ? String(yearOnly) : dayDate ?? todayUtc),
+    method: hasPeg ? `USD bridge: 1 ${from} = ${f.text} USD${fromPeg?.applies ? ` (legal peg, ${fromPeg.peg.parityAsPublished})` : ""}; 1 ${to} = ${t.text} USD${toPeg?.applies ? ` (legal peg, ${toPeg.peg.parityAsPublished})` : ""}; rate = (${f.text}) / (${t.text}) = ${Number(rate.toFixed(8))}` : `USD bridge: 1 ${from} = ${fromUsd.toFixed(6)} USD; 1 ${to} = ${toUsd.toFixed(6)} USD; rate = ${fromUsd.toFixed(6)}/${toUsd.toFixed(6)}`,
     precision,
     citations,
     notes,
@@ -4860,6 +5061,19 @@ var SOURCES = [
     attribution_required: "Central Bank of Barbados, with a link to the source publication. Every served value carries both, and the publication date.",
     url: "https://www.centralbank.org.bb",
     terms_url: "https://www.centralbank.org.bb"
+  },
+  {
+    id: "usd_pegs",
+    name: "Legal US dollar pegs published by issuing monetary authorities",
+    coverage: "The fixed US dollar parities fx_convert uses as exact legs: BBD (Central Bank of Barbados), XCD (Eastern Caribbean Central Bank), BZD (Central Bank of Belize), AWG (Centrale Bank van Aruba), BMD (Bermuda Monetary Authority), KYD (Cayman Islands Monetary Authority) and SAR (Saudi Central Bank). Each parity is applied from the date its source confirms it and never to a future period. Other dates use the World Bank annual average.",
+    access: "Held as constants in core/pegs.ts, each read from the authority's own published page or report on the date recorded with it. No upstream call is made at request time",
+    license: "A published legal exchange-rate parity is a fact, not a licensed dataset",
+    license_verdict: "served",
+    license_note: "StatCite states each parity, which is a fact the issuing authority publishes, and cites that authority with a link to the page or report it was read from. Only the parity phrase and the publication's title are quoted, with attribution. No table or dataset is copied or redistributed. The authorities' own terms pages were not reviewed, because a parity is a fact, so the terms link points to StatCite's description of the method.",
+    license_verified_on: "2026-11-15",
+    attribution_required: "Source: <issuing authority>, with a link to the publication that states the parity. Every peg citation carries both.",
+    url: "https://statcite.com/docs#fx_convert",
+    terms_url: "https://statcite.com/docs#fx_convert"
   }
 ];
 export {

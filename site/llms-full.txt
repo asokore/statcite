@@ -50,7 +50,7 @@ Args: amount, from_year, to_year, country? (default USA). CPI-ratio method (Worl
 
 ### fx_convert
 Args: amount, from, to (ISO 4217), date? ("YYYY-MM-DD" daily | "YYYY" annual | omit=latest).
-ECB daily reference rates for ~30 majors since 1999; ~90 more currencies via World Bank official annual-average rates (USD bridge). Response includes precision: daily|annual_average|mixed and the exact method.
+ECB daily reference rates for ~30 majors since 1999; ~90 more currencies via World Bank official annual-average rates (USD bridge). A currency with a sourced legal US dollar peg (for example BBD at 2.00 and XCD at 2.70 per USD) uses the peg itself from the date its source confirms the peg up to today, cited to the issuing authority, so that leg is exact. Earlier and future dates fall back to the World Bank. Response includes precision: daily|annual_average|mixed|fixed_peg (fixed_peg means every leg is USD or a legal peg, so the result is exact) and the exact method.
 
 ### compare_sources
 One indicator for one country fetched from EVERY official source in its chain independently (e.g. World Bank WDI + IMF WEO/Fiscal Monitor), each with its own citation, plus spread stats. Args: indicator (registry key), country, period? (year; default = latest period all responding sources share). Differences between sources are methodological or vintage differences, never "source X is wrong". Cite the source whose definition matches your claim. A down source reports its error in place without sinking the comparison.

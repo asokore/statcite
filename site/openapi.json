@@ -917,7 +917,7 @@
       "get": {
         "operationId": "fxConvert",
         "summary": "Convert currencies with official reference rates",
-        "description": "ECB daily reference rates (~30 majors, since 1999) or World Bank official annual-average rates (~90 more currencies) via a USD bridge. The response states precision (daily | annual_average | mixed) and the exact method.",
+        "description": "ECB daily reference rates (~30 majors, since 1999), the legal US dollar peg for currencies with a sourced hard peg (for example BBD and XCD), or World Bank official annual-average rates (~90 more currencies) via a USD bridge. The response states precision (daily | annual_average | mixed | fixed_peg) and the exact method.",
         "parameters": [
           {
             "name": "amount",
@@ -990,14 +990,24 @@
                     },
                     "legs": {
                       "type": "array",
-                      "description": "Present on USD-bridged conversions: one entry per side of the bridge, with the rate used, the period it came from (null for the USD identity leg) and the publisher.",
+                      "description": "Present on USD-bridged conversions: one entry per side of the bridge, with the rate used, the period it came from (null for the USD identity leg) and the publisher. On a legal fixed-peg leg, period is the date from which the cited source places the peg in force, and the leg carries a peg object. A peg leg never decides rate_date.",
                       "items": {
                         "type": "object",
                         "properties": {
                           "currency": { "type": "string" },
                           "usd_per_unit": { "type": "number" },
                           "period": { "type": ["string", "null"] },
-                          "source": { "type": "string" }
+                          "source": { "type": "string" },
+                          "peg": {
+                            "type": "object",
+                            "description": "Present only on a legal fixed-peg leg: the parity as the issuing authority publishes it.",
+                            "properties": {
+                              "parity": { "type": "string" },
+                              "effective_from": { "type": "string" },
+                              "authority": { "type": "string" },
+                              "source_url": { "type": "string" }
+                            }
+                          }
                         }
                       }
                     },
@@ -1005,7 +1015,9 @@
                       "type": "string"
                     },
                     "precision": {
-                      "type": "string"
+                      "type": "string",
+                      "enum": ["daily", "annual_average", "mixed", "fixed_peg"],
+                      "description": "daily: ECB reference rates only. annual_average: at least one World Bank annual-average leg. mixed: an ECB daily leg with an annual-average or legal-peg leg. fixed_peg: every leg is USD or a legal fixed peg, so the conversion is exact."
                     },
                     "citations": {
                       "type": "array",

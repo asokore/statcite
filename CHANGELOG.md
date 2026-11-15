@@ -5,6 +5,35 @@ Releases are tagged `v<version>` from this file's entries. History before
 1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
 dates.
 
+## Unreleased
+
+`fx_convert` now uses the legal US dollar peg for a currency whose issuing
+authority publishes one, instead of the World Bank annual average. The table
+in `core/pegs.ts` holds seven: BBD, XCD, BZD, AWG, BMD, KYD and SAR, each read
+from the authority's own page or report and cited to it. BBD to XCD now comes
+out at exactly 1.35. Until now it was the ratio of two World Bank annual
+averages, which was close to the peg but carried their reporting noise.
+
+A pegged leg is exact, has no publication period, and never decides
+`rate_date` or counts as the stalest leg. A pair where every leg is USD or a
+peg reports the new `precision` value `fixed_peg` and makes no upstream call.
+With no date requested, its `rate_date` is the current UTC date. A peg paired
+with an ECB daily rate stays `mixed`, and a peg paired with a World Bank leg
+stays `annual_average`. Each note now says which kind of leg it describes.
+
+A peg applies only from the date its source confirms it, and only to a whole
+year it covered. It never applies to a future date or year. For KYD and SAR
+the sources state the rate but no start date, so the peg is used only from
+the date of the document, and the note says the peg itself may be older.
+Other periods fall back to the World Bank as before, with a note. The Bahamas
+dollar stays on the World Bank rail because no adequate source was found.
+HKD, a band, and ANG, being replaced by the Caribbean guilder, stay there too.
+
+The peg sources have their own entry in the licence ledger at `/v1/sources`.
+A bridged pair with an ECB leg and a weekend or holiday date now carries the
+same "nearest ECB working day" note the direct ECB path always gave. The old
+note claiming an annual average "normally equals the peg" is gone.
+
 ## 1.17.0
 
 `stale_primary` and `stale_latest` no longer repeat each other. Until now,

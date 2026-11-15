@@ -1,14 +1,19 @@
-// FX conversion with two rails:
+// FX conversion with three rails:
 //   1. ECB reference rates (daily, ~30 currencies) via Frankfurter — precise dates.
-//   2. World Bank official annual-average rates (PA.NUS.FCRF) for everything else —
-//      including most Caribbean, African, and Asian currencies the ECB set lacks.
+//   2. Legal fixed US dollar pegs (core/pegs.ts) for currencies whose issuing
+//      authority publishes a hard parity, such as BBD and XCD. The parity is the
+//      rate, so this leg is exact and cites the authority, not the World Bank.
+//   3. World Bank official annual-average rates (PA.NUS.FCRF) for everything else —
+//      including most Caribbean, African, and Asian currencies the ECB set lacks,
+//      and for a pegged currency on a date before its peg took effect.
 // Mixed pairs bridge through USD with an explicit method note.
 
 import type { Citation, Ctx } from "./types.ts";
-import { ToolError } from "./types.ts";
+import { ToolError, today } from "./types.ts";
 import { getEcbRates, getEcbAnnualAverage, listEcbCurrencies } from "../adapters/frankfurter.ts";
 import { fetchWbSeries } from "../adapters/worldbank.ts";
-import { ecbFxCitation, worldBankCitation } from "./citations.ts";
+import { ecbFxCitation, usdPegCitation, worldBankCitation } from "./citations.ts";
+import { pegDecision, pegSinceText, type PegDecision } from "./pegs.ts";
 
 /** Currency → representative economy for World Bank official-rate lookups (LCU per USD). */
 const CURRENCY_COUNTRY: Record<string, string> = {
@@ -40,9 +45,14 @@ const CURRENCY_COUNTRY: Record<string, string> = {
 export interface FxLeg {
   currency: string;
   usd_per_unit: number;
-  /** null for the USD identity leg, which has no published rate. */
+  /** null for the USD identity leg, which has no published rate. On a fixed-peg
+   * leg it is the date from which the cited source places the peg in force. A
+   * peg has no publication period to go stale, so that date never decides
+   * rate_date and never counts as the stalest leg. */
   period: string | null;
   source: string;
+  /** Present only on a fixed-peg leg: the parity as the authority publishes it. */
+  peg?: { parity: string; effective_from: string; authority: string; source_url: string };
 }
 
 export interface FxResult {
@@ -53,7 +63,9 @@ export interface FxResult {
   rate: number;
   rate_date: string;
   method: string;
-  precision: "daily" | "annual_average" | "mixed";
+  /** fixed_peg: every leg is the US dollar itself or a legal fixed peg against
+   * it, so the conversion is exact. */
+  precision: "daily" | "annual_average" | "mixed" | "fixed_peg";
   citations: Citation[];
   notes: string[];
   /** The two sides of a bridged rate. Absent on direct ECB conversions. */
@@ -132,8 +144,17 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
   const yearOnly = date && date.length === 4 ? parseInt(date, 10) : undefined;
   const dayDate = date && date.length === 10 ? date : undefined;
 
-  const ecbSet = new Set(Object.keys(await listEcbCurrencies()));
-  const bothEcb = ecbSet.has(from) && ecbSet.has(to);
+  const todayUtc = today(ctx);
+  const fromPeg = pegDecision(from, date, todayUtc);
+  const toPeg = pegDecision(to, date, todayUtc);
+  const exactSide = (cur: string, d?: PegDecision) => cur === "USD" || d?.applies === true;
+  // When both sides are the US dollar or an applicable peg, the answer needs no
+  // upstream at all, so the ECB currency list is not fetched either.
+  const ecbSet =
+    exactSide(from, fromPeg) && exactSide(to, toPeg)
+      ? new Set<string>()
+      : new Set(Object.keys(await listEcbCurrencies()));
+  const bothEcb = ecbSet.has(from) && ecbSet.has(to) && !fromPeg?.applies && !toPeg?.applies;
 
   // Annual-average for ECB pairs: average of the year's daily reference rates.
   if (bothEcb && yearOnly && yearOnly >= 1999) {
@@ -169,26 +190,57 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
     };
   }
 
-  // Annual / exotic path: bridge through USD using WB official annual averages
-  // (and ECB daily for the ECB-covered leg when no year was forced).
+  // Annual / exotic path: bridge through USD using legal pegs where they apply,
+  // WB official annual averages otherwise (and ECB daily for the ECB-covered
+  // leg when no year was forced).
   const notes: string[] = [];
   const citations: Citation[] = [];
-  let precision: FxResult["precision"] = "annual_average";
   let rateDate = "";
   const legs: FxLeg[] = [];
+  const kinds: Array<"identity" | "peg" | "ecb" | "wb"> = [];
   const wbYear = yearOnly ?? (dayDate ? parseInt(dayDate.slice(0, 4), 10) : undefined);
 
-  async function usdPerUnit(cur: string): Promise<number> {
+  // Each leg is a ratio, US dollars over local units. A pegged leg keeps the
+  // two figures its authority publishes, so a pair of pegs divides those
+  // figures directly and BBD to XCD comes out at 2.7 / 2 = 1.35 exactly,
+  // rather than through two rounded reciprocals.
+  type Ratio = { usd: number; units: number; text: string };
+  async function usdLeg(cur: string, decision?: PegDecision): Promise<Ratio> {
     if (cur === "USD") {
       legs.push({ currency: "USD", usd_per_unit: 1, period: null, source: "identity (USD bridge base)" });
-      return 1;
+      kinds.push("identity");
+      return { usd: 1, units: 1, text: "1" };
     }
+    if (decision?.applies) {
+      const p = decision.peg;
+      citations.push(usdPegCitation(p));
+      // No rateDate from a peg: it has no publication period to date the result.
+      legs.push({
+        currency: cur,
+        usd_per_unit: p.usd / p.lcu,
+        period: p.effectiveFrom,
+        source: `Legal fixed peg, ${p.parityAsPublished} (${p.authority})`,
+        peg: { parity: p.parityAsPublished, effective_from: p.effectiveFrom, authority: p.authority, source_url: p.sourceUrl },
+      });
+      kinds.push("peg");
+      notes.push(
+        `${cur} is converted at its legal fixed parity against the US dollar, ${p.parityAsPublished}, published by the ${p.authority} and ${pegSinceText(p)}. This leg is exact.`,
+      );
+      return { usd: p.usd, units: p.lcu, text: `${p.usd}/${p.lcu}` };
+    }
+    if (decision && !decision.applies) notes.push(decision.reason);
     if (ecbSet.has(cur) && !yearOnly) {
       const r = await getEcbRates(cur, ["USD"], dayDate);
       citations.push(ecbFxCitation(ctx, { base: cur, quote: "USD", rateDate: r.date, apiUrl: r.apiUrl }));
       rateDate = rateDate || r.date;
+      // Same disclosure as the direct ECB path: a weekend or holiday date is
+      // answered with the nearest earlier working day's reference rate.
+      if (dayDate && r.date !== dayDate) {
+        notes.push(`Requested ${dayDate}; nearest ECB working day is ${r.date} (weekends/holidays have no reference rate).`);
+      }
       legs.push({ currency: cur, usd_per_unit: r.rates.USD, period: r.date, source: "ECB daily reference rate" });
-      return r.rates.USD;
+      kinds.push("ecb");
+      return { usd: r.rates.USD, units: 1, text: r.rates.USD.toFixed(6) };
     }
     const wb = await wbUsdPerUnit(ctx, cur, wbYear);
     if (wb.citation) citations.push(wb.citation);
@@ -199,29 +251,49 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
     }
     rateDate = rateDate || wb.period;
     legs.push({ currency: cur, usd_per_unit: wb.usdPerUnit, period: wb.period, source: "World Bank PA.NUS.FCRF annual average" });
-    return wb.usdPerUnit;
+    kinds.push("wb");
+    return { usd: wb.usdPerUnit, units: 1, text: wb.usdPerUnit.toFixed(6) };
   }
 
-  const fromUsd = await usdPerUnit(from);
-  const toUsd = await usdPerUnit(to);
-  const rate = fromUsd / toUsd;
-  const usedEcbLeg = (ecbSet.has(from) || ecbSet.has(to)) && !yearOnly && from !== "USD" && to !== "USD";
-  if (usedEcbLeg) precision = "mixed";
-  if (yearOnly) {
+  const f = await usdLeg(from, fromPeg);
+  const t = await usdLeg(to, toPeg);
+  const fromUsd = f.usd / f.units;
+  const toUsd = t.usd / t.units;
+  // (f.usd / f.units) / (t.usd / t.units), rearranged to divide once.
+  const rate = (f.usd * t.units) / (f.units * t.usd);
+  const hasEcb = kinds.includes("ecb");
+  const hasWb = kinds.includes("wb");
+  const hasPeg = kinds.includes("peg");
+  const precision: FxResult["precision"] =
+    hasEcb && (hasWb || hasPeg) ? "mixed" : hasWb ? "annual_average" : hasEcb ? "daily" : "fixed_peg";
+  if (hasWb && yearOnly) {
     notes.push(
       `Annual-average official exchange rates for ${yearOnly} (World Bank PA.NUS.FCRF); daily precision is not available on this path.`,
     );
-  } else if (!dayDate) {
+  } else if (hasWb && !dayDate) {
     notes.push(
-      "One or both currencies are outside the ECB daily set; converted via USD using the latest annual-average official rate(s). For a currency with a fixed US dollar peg (e.g. BBD at 2.00/USD, XCD at 2.70/USD) the annual average normally equals the peg, so the result follows the peg rate up to floating-point rounding.",
+      "One or both currencies are outside the ECB daily set and have no legal US dollar peg on record here, so the conversion bridges through USD using the latest annual-average official rate(s) from the World Bank.",
     );
   }
-  if (precision === "mixed") notes.push("Mixed precision: one leg is a daily ECB rate, the other an annual average, treat the result as approximate.");
+  if (precision === "mixed") {
+    notes.push(
+      hasWb
+        ? "Mixed precision: one leg is a daily ECB rate, the other an annual average, treat the result as approximate."
+        : "Mixed precision: one leg is a daily ECB reference rate and the other a legal fixed peg. The peg leg is exact, so the result is as precise as the ECB reference rate for that day.",
+    );
+  }
+  if (precision === "fixed_peg") {
+    notes.push(
+      "This conversion uses the legal peg(s) and is exact. No market, reference or averaged rate is involved.",
+    );
+  }
   // World Bank annual-average coverage ends in different years for different
   // currencies, so the two legs can be years apart. rate_date used to carry
   // whichever leg was resolved first, which dated the result to a year one side
   // of it never saw. A cross rate is only as current as its stalest leg.
-  const dated = legs.filter((l): l is FxLeg & { period: string } => typeof l.period === "string");
+  // A pegged leg is excluded: its period is the date the peg took effect, not a
+  // publication period, and a peg in force today is not stale.
+  const dated = legs.filter((l): l is FxLeg & { period: string } => typeof l.period === "string" && !l.peg);
   if (new Set(dated.map((l) => l.period.slice(0, 4))).size > 1) {
     const stalest = dated.reduce((a, b) => (a.period <= b.period ? a : b));
     rateDate = stalest.period;
@@ -234,8 +306,12 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
     amount, from, to,
     converted_amount: Number((amount * rate).toFixed(6)),
     rate: Number(rate.toFixed(8)),
-    rate_date: rateDate || (yearOnly ? String(yearOnly) : "latest available"),
-    method: `USD bridge: 1 ${from} = ${fromUsd.toFixed(6)} USD; 1 ${to} = ${toUsd.toFixed(6)} USD; rate = ${fromUsd.toFixed(6)}/${toUsd.toFixed(6)}`,
+    // With no ECB or World Bank leg there is no publication date. A requested
+    // date dates the result, and with none the pegs are in force as of today.
+    rate_date: rateDate || (yearOnly ? String(yearOnly) : (dayDate ?? todayUtc)),
+    method: hasPeg
+      ? `USD bridge: 1 ${from} = ${f.text} USD${fromPeg?.applies ? ` (legal peg, ${fromPeg.peg.parityAsPublished})` : ""}; 1 ${to} = ${t.text} USD${toPeg?.applies ? ` (legal peg, ${toPeg.peg.parityAsPublished})` : ""}; rate = (${f.text}) / (${t.text}) = ${Number(rate.toFixed(8))}`
+      : `USD bridge: 1 ${from} = ${fromUsd.toFixed(6)} USD; 1 ${to} = ${toUsd.toFixed(6)} USD; rate = ${fromUsd.toFixed(6)}/${toUsd.toFixed(6)}`,
     precision,
     citations,
     notes,

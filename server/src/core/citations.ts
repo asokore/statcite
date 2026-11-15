@@ -3,6 +3,7 @@
 import type { Citation, Ctx } from "./types.ts";
 import { today } from "./types.ts";
 import { stripControls } from "./text.ts";
+import type { UsdPeg } from "./pegs.ts";
 
 export const FRED_NOTICE =
   "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.";
@@ -216,6 +217,30 @@ export function ecbFxCitation(ctx: Ctx, opts: { base: string; quote: string; rat
     citation_text: `European Central Bank, euro foreign exchange reference rates, ${opts.base}/${opts.quote} as of ${opts.rateDate} (via Frankfurter). ${retrievedVia(date)} ${sourceUrl}`,
     notices: [
       "ECB reference rates are indicative and 'for information purposes'; they are not transaction rates.",
+    ],
+  });
+}
+
+/** A legal fixed US dollar parity (core/pegs.ts). The figure is a constant
+ * StatCite holds, read from the issuing authority's own publication, not a
+ * series fetched per request, so retrieved_at is the date the source was read
+ * and the notice says it is not re-read on each call. */
+export function usdPegCitation(peg: UsdPeg): Citation {
+  // The parity was read on sourceRead, not on the day of the request, so that
+  // is the retrieval date the citation states.
+  const date = peg.sourceRead;
+  return withExports({
+    source: peg.authority,
+    dataset: "Official fixed exchange rate (US dollar peg)",
+    series_id: `peg/${peg.currency}USD`,
+    series_name: `${peg.currency} fixed parity against the US dollar, ${peg.parityAsPublished}`,
+    source_url: peg.sourceUrl,
+    license: "A legal exchange-rate parity is a published fact, not a licensed dataset. Attribute the issuing authority",
+    attribution: `Source: ${peg.authority}`,
+    retrieved_at: date,
+    citation_text: `${peg.authority}, ${peg.sourceTitle}: ${peg.currency} fixed to the US dollar at ${peg.parityAsPublished}, ${peg.effectiveFromAsPublished ? `in force since ${peg.effectiveFromAsPublished}` : `confirmed by this source from ${peg.effectiveFrom}`}. ${retrievedVia(date)} ${peg.sourceUrl}`,
+    notices: [
+      `StatCite read this source on ${peg.sourceRead} and applies the parity as a fixed constant. It does not re-read the source on each request.`,
     ],
   });
 }

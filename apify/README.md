@@ -12,7 +12,7 @@ AI agents and analysts constantly need macro numbers they can defend: GDP growth
 | `verify` | **Check a claimed figure** against the official series → `match / close / mismatch / cannot_verify`, with diagnostics (wrong year? percent-vs-decimal? millions-vs-billions?) and the correct citable value |
 | `snapshot` | 11 headline indicators for one country, each with its own citation, instant country brief |
 | `inflation` | "What is \$100 (1995) worth in 2025 money?". CPI-ratio method, formula disclosed, any country |
-| `fx` | Currency conversion: ECB daily reference rates (~30 majors since 1999) + official annual rates for ~90 more currencies (BBD, XCD, JMD, KES…) |
+| `fx` | Currency conversion: ECB daily reference rates (~30 majors since 1999) + legal US dollar pegs where sourced (BBD, XCD…), exact and cited to the issuing authority + official annual rates for ~90 more currencies (JMD, KES…) |
 | `series` | Raw access: `worldbank/CODE`, `dbnomics/IMF/WEO:latest/...` |
 | `search` / `registry` | Discover indicators and datasets |
 

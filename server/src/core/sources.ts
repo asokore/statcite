@@ -179,4 +179,19 @@ export const SOURCES = [
     url: "https://www.centralbank.org.bb",
     terms_url: "https://www.centralbank.org.bb",
   },
+  {
+    id: "usd_pegs",
+    name: "Legal US dollar pegs published by issuing monetary authorities",
+    coverage:
+      "The fixed US dollar parities fx_convert uses as exact legs: BBD (Central Bank of Barbados), XCD (Eastern Caribbean Central Bank), BZD (Central Bank of Belize), AWG (Centrale Bank van Aruba), BMD (Bermuda Monetary Authority), KYD (Cayman Islands Monetary Authority) and SAR (Saudi Central Bank). Each parity is applied from the date its source confirms it and never to a future period. Other dates use the World Bank annual average.",
+    access: "Held as constants in core/pegs.ts, each read from the authority's own published page or report on the date recorded with it. No upstream call is made at request time",
+    license: "A published legal exchange-rate parity is a fact, not a licensed dataset",
+    license_verdict: "served" as LicenseVerdict,
+    license_note:
+      "StatCite states each parity, which is a fact the issuing authority publishes, and cites that authority with a link to the page or report it was read from. Only the parity phrase and the publication's title are quoted, with attribution. No table or dataset is copied or redistributed. The authorities' own terms pages were not reviewed, because a parity is a fact, so the terms link points to StatCite's description of the method.",
+    license_verified_on: "2026-11-15",
+    attribution_required: "Source: <issuing authority>, with a link to the publication that states the parity. Every peg citation carries both.",
+    url: "https://statcite.com/docs#fx_convert",
+    terms_url: "https://statcite.com/docs#fx_convert",
+  },
 ] as const;

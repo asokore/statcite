@@ -6,6 +6,7 @@ import { getIndicator, getSeries, searchIndicators, listRegistry, wbIsPrimarySou
 import { countrySnapshot } from "./core/snapshot.ts";
 import { inflationAdjust } from "./core/inflation.ts";
 import { fxConvert } from "./core/fx.ts";
+import { USD_PEGS } from "./core/pegs.ts";
 import { verifyStat, type VerifyResult } from "./core/verify.ts";
 import { SOURCES } from "./core/sources.ts";
 import { resolveCountry } from "./core/countries.ts";
@@ -664,7 +665,7 @@ export const TOOLS: ToolDef[] = [
     name: "fx_convert",
     title: "Convert currencies with official reference rates",
     description:
-      "Convert an amount between currencies using ECB daily reference rates (~30 majors, any date since 1999) or, for ~90 other currencies (BBD, XCD, JMD, KES, …), official annual-average rates from the World Bank. With the method and citations stated explicitly. Pass date='YYYY-MM-DD' for daily or 'YYYY' for annual-average conversion.",
+      `Convert an amount between currencies using ECB daily reference rates (~30 majors, any date since 1999), the legal US dollar peg for currencies with a sourced hard peg (${USD_PEGS.map((p) => p.currency).join(", ")}), which is exact and cites the issuing authority, or, for ~90 other currencies (JMD, KES, …), official annual-average rates from the World Bank. With the method and citations stated explicitly. Pass date='YYYY-MM-DD' for daily or 'YYYY' for annual-average conversion.`,
     inputSchema: {
       type: "object",
       properties: {
@@ -683,7 +684,7 @@ export const TOOLS: ToolDef[] = [
     name: "list_sources",
     title: "List data sources, licenses, and attribution rules",
     description:
-      "The official sources behind StatCite (World Bank WDI, IMF WEO & Fiscal Monitor via the IMF DataMapper API with DBnomics as a vintage-pinned fallback, BIS central bank policy rates, ECB reference rates and the ECB Data Portal, the Eastern Caribbean Central Bank and the Central Bank of Barbados, FRED disabled), what each covers, its license, and the attribution line to use when citing.",
+      "The official sources behind StatCite (World Bank WDI, IMF WEO & Fiscal Monitor via the IMF DataMapper API with DBnomics as a vintage-pinned fallback, BIS central bank policy rates, ECB reference rates and the ECB Data Portal, the Eastern Caribbean Central Bank and the Central Bank of Barbados, legal US dollar pegs cited to the issuing monetary authority, FRED disabled), what each covers, its license, and the attribution line to use when citing.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     handler: async () => ({ sources: SOURCES, registry_size: INDICATORS.length }),
   },

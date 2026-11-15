@@ -115,12 +115,12 @@ test("fx_convert: ECB daily for majors", async () => {
   assert.equal(payload.citations[0].source, "European Central Bank");
 });
 
-test("fx_convert: exotic currency via World Bank annual (BBD)", async () => {
+test("fx_convert: a pegged currency uses its legal peg, not the World Bank average (BBD)", async () => {
   const { payload, isError } = await mcpTool("fx_convert", { amount: 100, from: "USD", to: "BBD" });
   assert.equal(isError, false, JSON.stringify(payload));
-  assert.ok(Math.abs(payload.converted_amount - 200) < 1e-6);
-  assert.equal(payload.precision, "annual_average");
-  assert.ok(payload.citations.some((c: any) => c.source === "World Bank"));
+  assert.equal(payload.converted_amount, 200);
+  assert.equal(payload.precision, "fixed_peg");
+  assert.deepEqual(payload.citations.map((c: any) => c.source), ["Central Bank of Barbados"]);
   assert.match(payload.method, /USD bridge/);
 });
 
