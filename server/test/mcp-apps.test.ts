@@ -137,7 +137,33 @@ function runCard(html = CITATION_CARD_HTML, resizeObserver: unknown = undefined)
 }
 
 const tick = () => new Promise((r) => setImmediate(r));
-const asReturned = (v: number) => v.toLocaleString("en-GB", { maximumFractionDigits: 20 });
+/** Mirrors the card's fmt(): the value as returned, grouping only, plain-decimal String() below 0.001. */
+const plainDecimal = (v: number) => {
+  const m = /^(-?)(\d)(?:\.(\d+))?e-(\d+)$/.exec(String(v));
+  return m ? `${m[1]}0.${"0".repeat(Number(m[4]) - 1)}${m[2]}${m[3] ?? ""}` : String(v);
+};
+const asReturned = (v: number) => (Math.abs(v) < 0.001 ? plainDecimal(v) : v.toLocaleString("en-GB", { maximumFractionDigits: 20 }));
+
+/** For a card with no claimed value: from 0.01 up, the headline is the value to
+ * at most two decimal places, within half a hundredth of it. Below 0.01 it is
+ * three significant digits. The unrounded value is on the line below whenever
+ * rounding changed the headline. */
+function assertHeadline(card: Card, v: number) {
+  const head = card.text("value");
+  const shown = Number(head.replace(/,/g, ""));
+  if (Math.abs(v) >= 0.01) {
+    assert.ok(/^-?[\d,]+(\.\d{1,2})?$/.test(head), `headline has more than two decimals: ${head}`);
+    assert.ok(Math.abs(shown - v) <= 0.005 + 1e-12, `headline ${head} is not ${v} rounded`);
+  } else {
+    assert.ok(Math.abs(shown - v) <= Math.abs(v) * 0.005 + 1e-300, `headline ${head} is not ${v} to three significant digits`);
+  }
+  if (head === asReturned(v)) {
+    assert.equal(card.el("exact").hidden, true, "an exact line is shown although nothing was rounded");
+  } else {
+    assert.equal(card.el("exact").hidden, false, "the headline was rounded but the exact figure is hidden");
+    assert.equal(card.text("exact"), `Unrounded value: ${asReturned(v)}`);
+  }
+}
 
 async function handshake(card: Card, hostContext?: unknown) {
   const init = card.sent[0];
@@ -189,7 +215,7 @@ test("runtime: get_indicator headline is the latest value not marked as a projec
   const projected = obs.filter((o) => /projection/i.test(o.note ?? ""));
   assert.ok(projected.length > 0, "fixture must contain projection periods, or this test proves nothing");
   const outturn = obs.filter((o) => !/projection/i.test(o.note ?? "")).at(-1)!;
-  assert.equal(card.text("value"), asReturned(outturn.value!));
+  assertHeadline(card, outturn.value!);
   assert.match(card.text("period"), new RegExp(`period ${outturn.period}$`));
   assert.ok(card.notes().includes("Later periods in this result are marked as projections or future data."), "the card's own projection line is missing");
   assert.equal(card.text("ctext"), payload.citation.citation_text);
@@ -203,7 +229,7 @@ test("runtime: verify_stat shows the claimed figure unrounded, the verdict and t
   assert.ok(payload.verdict, `verify_stat returned no verdict: ${JSON.stringify(payload).slice(0, 300)}`);
   assert.match(card.text("period"), /claimed 4\.123456$/);
   assert.equal(typeof payload.official_value, "number", "fixture must return an official value");
-  assert.equal(card.text("value"), asReturned(payload.official_value));
+  assertHeadline(card, payload.official_value);
   assert.equal(card.el("verdict").hidden, false);
   assert.match(card.text("verdict"), new RegExp(String(payload.verdict).replace(/_/g, " ")));
   assert.equal(card.text("ctext"), payload.citation.citation_text);
@@ -269,13 +295,173 @@ test("runtime: an ECCB future-data note is not taken as the headline; cancel res
     jsonrpc: "2.0", method: "ui/notifications/tool-result",
     params: { structuredContent: { name: "Real GDP growth", observations: [{ period: "2025", value: 3.1 }, { period: "2026", value: 4.2, note: future }], citation: { citation_text: "C." } } },
   });
-  assert.equal(card.text("value"), asReturned(3.1));
+  assert.equal(card.text("value"), "3.1");
+  assert.equal(card.el("exact").hidden, true, "3.1 needs no exact line");
   assert.match(card.text("period"), /period 2025$/);
   card.deliver({ jsonrpc: "2.0", method: "ui/notifications/tool-cancelled", params: {} });
   assert.equal(card.text("head"), "The tool call was cancelled");
   assert.equal(card.text("value"), "");
+  assert.equal(card.el("exact").hidden, true);
   assert.equal(card.el("cite").hidden, true);
   assert.equal(card.el("notes").hidden, true);
+});
+
+/** Feed one synthetic series value and return the card. */
+async function headlineFor(v: number, html = CITATION_CARD_HTML) {
+  const card = runCard(html);
+  await handshake(card);
+  card.deliver({
+    jsonrpc: "2.0", method: "ui/notifications/tool-result",
+    params: { structuredContent: { name: "X", observations: [{ period: "2025", value: v }], citation: { citation_text: "Source, exact figure 0.846576563196289." } } },
+  });
+  return card;
+}
+
+const HEADLINE_CASES: Array<[number, string, string | null]> = [
+  [0.846576563196289, "0.85", "Unrounded value: 0.846576563196289"],
+  [1.005, "1.01", "Unrounded value: 1.005"],
+  [0.285, "0.29", "Unrounded value: 0.285"],
+  [-2.345, "-2.35", "Unrounded value: -2.345"],
+  [99.995, "100", "Unrounded value: 99.995"],
+  [1234567.891, "1,234,567.89", "Unrounded value: 1,234,567.891"],
+  [124.4, "124.4", null],
+  [2, "2", null],
+  [0.3, "0.3", null],
+  // Below 0.01 the headline keeps three significant digits, never a bare 0 or -0.
+  [0.004, "0.004", null],
+  [-0.003, "-0.003", null],
+  [0.000001234, "0.00000123", "Unrounded value: 0.000001234"],
+  [-0.0041234, "-0.00412", "Unrounded value: -0.0041234"],
+  [-0, "0", null],
+  // Past 20 decimal places the unrounded line must still be the raw value, never 0 or -0.
+  // Below 1e-6 String() switches to exponent form; both lines stay in decimals.
+  [1e-21, "0.000000000000000000001", null],
+  [-1e-21, "-0.000000000000000000001", null],
+  [1e-7, "0.0000001", null],
+  [-2.5e-8, "-0.000000025", null],
+  [1.234e-7, "0.000000123", "Unrounded value: 0.0000001234"],
+  [0.00012345678901234567, "0.000123", "Unrounded value: 0.00012345678901234567"],
+];
+
+test("runtime: the headline rounds to two decimals half away from zero, and shows the exact figure below when it rounded", async () => {
+  for (const [v, head, exact] of HEADLINE_CASES) {
+    const card = await headlineFor(v);
+    assert.equal(card.text("value"), head, `headline for ${v}`);
+    assert.equal(card.el("exact").hidden, exact === null, `exact line visibility for ${v}`);
+    if (exact) assert.equal(card.text("exact"), exact);
+    assert.equal(card.text("ctext"), "Source, exact figure 0.846576563196289.", "the citation text must never be rounded");
+  }
+});
+
+/** A verify result with an official and a claimed value, on a given card. */
+function deliverVerify(card: Card, official: number, claimed: number) {
+  card.deliver({
+    jsonrpc: "2.0", method: "ui/notifications/tool-result",
+    params: { structuredContent: { verdict: "mismatch", official_value: official, claimed_value: claimed, period: "2024", citation: { citation_text: "C." } } },
+  });
+}
+
+test("runtime: a verify headline adds decimals until it differs from the claim, so a mismatch never looks equal", async () => {
+  const card = runCard();
+  await handshake(card);
+  deliverVerify(card, 4.1249, 4.12);
+  assert.equal(card.text("value"), "4.125", "4.1249 against a claim of 4.12 must not read 4.12");
+  assert.match(card.text("period"), /claimed 4\.12$/);
+  assert.equal(card.text("exact"), "Unrounded value: 4.1249");
+  deliverVerify(card, 4.1200001, 4.12);
+  assert.equal(card.text("value"), "4.1200001");
+  assert.equal(card.el("exact").hidden, true);
+  deliverVerify(card, 4.12, 4.12);
+  assert.equal(card.text("value"), "4.12");
+  assert.equal(card.el("exact").hidden, true);
+  // Below 0.01 the headline is in significant digits, and must still expand.
+  deliverVerify(card, 0.0041234, 0.00412);
+  assert.equal(card.text("value"), "0.004123", "0.0041234 against a claim of 0.00412 must not read 0.00412");
+  deliverVerify(card, 0.001234, 0.00123);
+  assert.equal(card.text("value"), "0.001234");
+  // A claim that arrives as a numeric string gets the same guard.
+  deliverVerify(card, 4.1249, "4.12" as unknown as number);
+  assert.equal(card.text("value"), "4.125");
+  deliverVerify(card, 1234.5049, "1,234.5" as unknown as number);
+  assert.equal(card.text("value"), "1,234.505", "a grouped string claim must get the same guard");
+  // In exponent territory the comparison must still be like with like.
+  deliverVerify(card, 1.234e-7, 1.23e-7);
+  assert.equal(card.text("value"), "0.0000001234");
+});
+
+test("runtime: an unrounded-value line never carries over to the next result on the same card", async () => {
+  const card = runCard();
+  await handshake(card);
+  const series = (v: number) => card.deliver({
+    jsonrpc: "2.0", method: "ui/notifications/tool-result",
+    params: { structuredContent: { name: "X", observations: [{ period: "2025", value: v }], citation: { citation_text: "C." } } },
+  });
+  for (const next of [
+    () => series(3.1),
+    () => card.deliver({ jsonrpc: "2.0", method: "ui/notifications/tool-result", params: { isError: true, content: [{ type: "text", text: "{\"error\":\"x\"}" }] } }),
+    () => card.deliver({ jsonrpc: "2.0", method: "ui/notifications/tool-cancelled", params: {} }),
+    () => deliverVerify(card, 4.12, 4.12),
+  ]) {
+    series(0.846576563196289);
+    assert.equal(card.el("exact").hidden, false, "setup: the first result must show the unrounded line");
+    next();
+    assert.equal(card.text("exact"), "", "the unrounded text carried over");
+    assert.equal(card.el("exact").hidden, true, "the unrounded line stayed visible");
+  }
+});
+
+test("mutation: the headline cases catch toFixed rounding and a hidden exact line", async () => {
+  const mutate = (from: string, to: string) => {
+    assert.ok(CITATION_CARD_HTML.includes(from), `anchor missing: ${from}`);
+    const m = CITATION_CARD_HTML.replace(from, () => to);
+    assert.notEqual(m, CITATION_CARD_HTML, "mutation did not apply");
+    return m;
+  };
+  const caught = async (html: string) => {
+    for (const [v, head, exact] of HEADLINE_CASES) {
+      const card = await headlineFor(v, html);
+      if (card.text("value") !== head || card.el("exact").hidden !== (exact === null)) return true;
+    }
+    return false;
+  };
+  assert.ok(await caught(mutate('return v.toLocaleString("en-GB", { maximumFractionDigits: places || 2 });', "return v.toFixed(places || 2);")), "toFixed rounding went undetected");
+  assert.ok(await caught(mutate('$("exact").hidden = false;', "")), "a hidden exact line went undetected");
+  assert.ok(await caught(mutate("var exact = fmt(v), places = 2, head = short(v, places);", "var exact = fmt(v), places = 2, head = fmt(v);")), "an unrounded headline went undetected");
+  assert.ok(await caught(mutate("if (v !== 0 && Math.abs(v) < 0.01) return", "if (false) return")), "a small value shown as 0 went undetected");
+});
+
+test("mutation: the verify and carry-over tests are load-bearing", async () => {
+  const mutate = (from: string, to: string) => {
+    assert.ok(CITATION_CARD_HTML.includes(from), `anchor missing: ${from}`);
+    const m = CITATION_CARD_HTML.replace(from, () => to);
+    assert.notEqual(m, CITATION_CARD_HTML, "mutation did not apply");
+    return m;
+  };
+  const noLoop = runCard(mutate("while (head === said && places < 20)", "while (false)"));
+  await handshake(noLoop);
+  deliverVerify(noLoop, 4.1249, 4.12);
+  assert.equal(noLoop.text("value"), "4.12", "the mutation must make the mismatch look equal, or this proves nothing");
+  const fixedSig = runCard(mutate("maximumSignificantDigits: Math.min(21, (places || 2) + 1)", "maximumSignificantDigits: 3"));
+  await handshake(fixedSig);
+  deliverVerify(fixedSig, 0.0041234, 0.00412);
+  assert.equal(fixedSig.text("value"), "0.00412", "with fixed significant digits a small mismatch must look equal, which the verify test asserts against");
+  const noCoerce = runCard(mutate('if (typeof claimed === "string" &&', 'if (false &&'));
+  await handshake(noCoerce);
+  deliverVerify(noCoerce, 4.1249, "4.12" as unknown as number);
+  assert.equal(noCoerce.text("value"), "4.12", "without coercion a string claim must look equal, which the verify test asserts against");
+  const expFmt = runCard(mutate("if (Math.abs(v) < 0.001) return plain(v);", "if (Math.abs(v) < 0.001) return String(v);"));
+  await handshake(expFmt);
+  deliverVerify(expFmt, 1.234e-7, 1.23e-7);
+  assert.equal(expFmt.text("value"), "0.000000123", "with exponent form a small mismatch must look equal, which the verify test asserts against");
+  const oldFmt = runCard(mutate("if (Math.abs(v) < 0.001) return plain(v);", ""));
+  await handshake(oldFmt);
+  oldFmt.deliver({ jsonrpc: "2.0", method: "ui/notifications/tool-result", params: { structuredContent: { name: "X", observations: [{ period: "2025", value: 1e-21 }], citation: { citation_text: "C." } } } });
+  assert.notEqual(oldFmt.text("exact"), "Unrounded value: 1e-21", "without the String() branch the unrounded line must lose the value, which a headline case asserts against");
+  const noClear = runCard(mutate('["sub", "value", "exact", "period"', '["sub", "value", "period"'));
+  await handshake(noClear);
+  noClear.deliver({ jsonrpc: "2.0", method: "ui/notifications/tool-result", params: { structuredContent: { name: "X", observations: [{ period: "2025", value: 0.846576563196289 }], citation: { citation_text: "C." } } } });
+  deliverVerify(noClear, 4.12, 4.12);
+  assert.notEqual(noClear.text("exact"), "", "without the reset, stale unrounded text must remain, which the carry-over test asserts against");
 });
 
 test("mutation: the runtime test catches a card that rounds the claimed figure", async () => {

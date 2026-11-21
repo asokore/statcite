@@ -11,9 +11,12 @@
 //     origin ever appears in this file's HTML.
 //   - Every value reaches the page through textContent, never innerHTML, so a
 //     string from an upstream source cannot become markup.
-//   - Figures are shown as the server returned them, with digit grouping only.
-//     A verdict card that rounds the claim and the official value can make a
-//     mismatch look equal, and the cited licences forbid altering the data.
+//   - The large headline is rounded for reading: two decimal places, or three
+//     significant digits below 0.01. Whenever that changes the figure, the
+//     unrounded value as the server returned it sits on the line below, so the
+//     data itself is never altered. The claimed value and the citation text
+//     are never rounded. On a verdict card the headline keeps adding decimals
+//     until it differs from the claim, so a mismatch never looks equal.
 //   - The headline value follows series.ts "latest" semantics: the latest
 //     value not marked as a projection or as ECCB future data, with the
 //     observation's own note shown beside it.
@@ -45,6 +48,7 @@ body{margin:0;padding:14px 16px;font:14px/1.45 var(--font);color:var(--fg);backg
 #head{font-weight:600}
 #sub{color:var(--muted);font-size:12.5px;margin-top:2px;overflow-wrap:anywhere}
 #value{font-size:28px;font-weight:650;margin:10px 0 2px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+#exact{color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 #period{color:var(--muted);font-size:12.5px}
 #verdict{display:inline-block;margin:10px 0 0;padding:2px 9px;border:1px solid var(--line);border-radius:999px;font-size:12.5px;font-weight:600}
 #explain{margin:8px 0 0}
@@ -60,6 +64,7 @@ button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
 <div id="head">Waiting for a StatCite result</div>
 <div id="sub"></div>
 <div id="value"></div>
+<div id="exact" hidden></div>
 <div id="period"></div>
 <div id="verdict" hidden></div>
 <p id="explain" hidden></p>
@@ -83,10 +88,47 @@ button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
   }
   function notify(method, params) { send(params === undefined ? { jsonrpc: "2.0", method: method } : { jsonrpc: "2.0", method: method, params: params }); }
 
-  // As returned, with digit grouping only. Never rounds.
+  // String(v) in plain decimal form: 1.234e-7 becomes 0.0000001234. Same
+  // digits, so still the shortest exact form, and comparable with short().
+  function plain(v) {
+    var s = String(v), i = s.indexOf("e-");
+    if (i < 0) return s;
+    var neg = s.charAt(0) === "-", m = s.slice(neg ? 1 : 0, i), e = Number(s.slice(i + 2));
+    return (neg ? "-" : "") + "0." + new Array(e).join("0") + m.split(".").join("");
+  }
+  // As returned, with digit grouping only. Never rounds. Below 0.001 the
+  // digits can run past the 20 decimal places Intl allows, so the shortest
+  // exact form is used instead (no grouping is needed below 1).
   function fmt(v) {
     if (typeof v !== "number" || !isFinite(v)) return v == null ? "" : String(v);
+    if (Math.abs(v) < 0.001) return plain(v);
     return v.toLocaleString("en-GB", { maximumFractionDigits: 20 });
+  }
+  // Headline form: at most "places" decimal places (default 2). Below 0.01 it
+  // keeps places + 1 significant digits instead (three by default), so 0.004
+  // never shows as 0 or -0. Intl rounds half away from zero on the value's
+  // shortest decimal form, so 1.005 gives 1.01 where toFixed(2) would give
+  // 1.00. Never use toFixed here.
+  function short(v, places) {
+    if (typeof v !== "number" || !isFinite(v)) return fmt(v);
+    if (v !== 0 && Math.abs(v) < 0.01) return v.toLocaleString("en-GB", { maximumSignificantDigits: Math.min(21, (places || 2) + 1) });
+    return v.toLocaleString("en-GB", { maximumFractionDigits: places || 2 });
+  }
+  // The headline is rounded for reading. When rounding changed it, the
+  // unrounded value goes on the line below, so nothing is hidden. "Unrounded"
+  // rather than "as published", because a transformed series value is
+  // computed by StatCite, not published by the source. With a claimed value,
+  // decimals are added until the headline differs from the claim.
+  function showValue(v, claimed) {
+    if (v === 0) v = 0; // -0 shows as 0 in both lines
+    var exact = fmt(v), places = 2, head = short(v, places);
+    if (typeof claimed === "string" && claimed.trim() !== "" && isFinite(Number(claimed.split(",").join("")))) claimed = Number(claimed.split(",").join(""));
+    if (typeof claimed === "number" && claimed !== v) {
+      var said = fmt(claimed);
+      while (head === said && places < 20) { places += 1; head = short(v, places); }
+    }
+    set("value", head);
+    if (head !== exact) { set("exact", "Unrounded value: " + exact); $("exact").hidden = false; }
   }
   function set(id, text) { var el = $(id); el.textContent = text == null ? "" : String(text); return el; }
   function isProjection(o) {
@@ -96,8 +138,8 @@ button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
 
   function reset() {
     set("head", "Waiting for a StatCite result");
-    ["sub", "value", "period", "verdict", "explain", "ctext", "cnotice", "meta"].forEach(function (id) { set(id, ""); });
-    ["verdict", "explain", "cnotice", "cite"].forEach(function (id) { $(id).hidden = true; });
+    ["sub", "value", "exact", "period", "verdict", "explain", "ctext", "cnotice", "meta"].forEach(function (id) { set(id, ""); });
+    ["exact", "verdict", "explain", "cnotice", "cite"].forEach(function (id) { $(id).hidden = true; });
     listNotes([]);
   }
   function listNotes(lines) {
@@ -137,7 +179,7 @@ button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     set("sub", [country.name, sc.unit || series.unit].filter(Boolean).join(DOT));
     if (sc.verdict) {
       var hasOfficial = typeof sc.official_value === "number";
-      set("value", hasOfficial ? fmt(sc.official_value) : "No official value");
+      if (hasOfficial) showValue(sc.official_value, sc.claimed_value); else set("value", "No official value");
       set("period", (hasOfficial ? (sc.fallback_used ? "Indicative value for " : "Official value for ") : "Period ") + (sc.period || "") + (sc.claimed_value != null ? ", claimed " + fmt(sc.claimed_value) : ""));
       $("verdict").hidden = false;
       set("verdict", "Verdict: " + String(sc.verdict).replace(/_/g, " "));
@@ -151,7 +193,7 @@ button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
       var outturns = obs.filter(function (o) { return !isProjection(o); });
       var pick = outturns.length ? outturns[outturns.length - 1] : obs[obs.length - 1];
       if (pick) {
-        set("value", fmt(pick.value));
+        showValue(pick.value);
         var lead = obs.length > 1 ? (outturns.length && outturns.length < obs.length ? "Latest value not marked as a projection, of " : "Latest of ") + obs.length + " observations, " : "";
         set("period", lead + "period " + pick.period);
         if (pick.note) notes.push(pick.note);
