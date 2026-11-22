@@ -16,11 +16,27 @@
 //   - ANG stays on the World Bank rail. The Netherlands Antilles guilder is
 //     being replaced by the Caribbean guilder (XCG), so a parity for ANG would
 //     describe a currency in the middle of being withdrawn.
-//   - BSD stays on the World Bank rail. The only page found was a staff profile
-//     on the central bank's site, not a statement by the bank, and it dated a
-//     1:1 parity to 1966 while other accounts put par with the US dollar only
-//     from the early 1970s. Neither the source nor the start date was good
-//     enough for a row that claims to be exact.
+//   - BSD stays on the World Bank rail. Read 2026-11-22, the Central Bank of
+//     The Bahamas states the rate and the start on two different pages: "About
+//     us" says the dollar "is fixed at a 1:1 parity with the United States
+//     dollar" with no date, and "Foreign Exchange" speaks of "the fixed parity
+//     between the Bahamian and U.S. dollars that has prevailed since 1973"
+//     without the rate. Its chronology adds that the rate was B$0.97 = US$1.00
+//     from June 1972. "About us" alone would fall under the no-start rule
+//     below, but the page carries no date at all, so it would give no
+//     effectiveFrom earlier than the day it was read and never cover a whole
+//     past year. A row citing the start from a second page is A-078.
+//   - BHD stays on the World Bank rail. Read 2026-11-22, the Central Bank of
+//     Bahrain states its parity two ways. Its rate table cites Decree 48 of
+//     2001, "1 BHD= 2.659 USD", and lists USD at 0.376081, which is 1 / 2.659.
+//     Its monetary policy page says "Bahrain maintains an exchange rate peg at
+//     0.376 Bahraini dinars to the US dollar", and its FX swap facility quotes
+//     spot BHD/USD at 0.37600. 0.376 and 0.376081 differ in the fifth
+//     significant figure, so the bank's own figures do not settle which is the
+//     exact rate.
+//   - AED stays on the World Bank rail until a Central Bank of the UAE page
+//     stating the parity is opened and read. Searches on 2026-11-22 found only
+//     VAT reference tables and an annual report PDF that could not be read.
 //
 // effectiveFrom is the earliest date on which the cited source establishes
 // that the parity was in force. Where the source names a day, it is that day.
@@ -42,9 +58,10 @@
 //     force only up to the day they were read, and a later change of parity is
 //     possible.
 // When the peg does not apply, fx.ts falls back to the World Bank annual
-// average and says so in a note. For a future period the World Bank has no
-// data, so that request fails with the World Bank's coverage error, as it did
-// before pegs existed.
+// average and says so in a note. For a future period the World Bank usually
+// has no data, so that request fails. The error opens with the peg's reason
+// for not applying, then gives the World Bank's own error, and its details
+// carry peg_not_applied.
 
 export interface UsdPeg {
   /** ISO 4217 code. */
@@ -163,20 +180,53 @@ export const USD_PEGS: readonly UsdPeg[] = [
     sourceRead: "2026-11-15",
   },
   {
-    // Read 2026-11-15. "SAMA remains committed to maintaining the exchange rate
-    // at the official rate of 3.75 riyals to the dollar". The statement is
-    // dated 4 May 2020 and gives no start date for the rate, so effectiveFrom
-    // is the statement's own date. Earlier periods stay on the World Bank rail.
+    // Read 2026-11-22. A paper by the Governor, published on SAMA's site:
+    // "Riyal has remained fixed to the American Dollar, which is the
+    // intervention currency, at Rls 3.75 per U.S. Dollar, since 1986." The
+    // source names the year only. SAMA's statement of 4 May 2020 ("the official
+    // rate of 3.75 riyals to the dollar", news-557) confirms the same rate
+    // later but gives no start, so this row cites the paper.
     currency: "SAR",
     lcu: 3.75,
     usd: 1.0,
-    parityAsPublished: "3.75 riyals to the dollar",
-    effectiveFrom: "2020-05-04",
-    effectiveFromAsPublished: null,
+    parityAsPublished: "Rls 3.75 per U.S. Dollar",
+    effectiveFrom: "1987-01-01",
+    effectiveFromAsPublished: "1986",
     authority: "Saudi Central Bank",
-    sourceTitle: "SAMA Affirms Commitment to Exchange Rate Policy, statement of 4 May 2020",
-    sourceUrl: "https://www.sama.gov.sa/en-US/MediaCenter/News/Pages/news-557.aspx",
-    sourceRead: "2026-11-15",
+    sourceTitle: "Monetary and Banking Developments in the Kingdom of Saudi Arabia, a paper by the Governor for the Symposium on the Saudi Economy, September 2003",
+    sourceUrl: "https://www.sama.gov.sa/en-US/MediaCenter/News/Pages/News20031004.aspx",
+    sourceRead: "2026-11-22",
+  },
+  {
+    // Read 2026-11-22. "a fixed parity between the Qatari riyal (QR) and the
+    // United States dollar (USD) at QR 3.64 per USD", "officially authorized by
+    // Amiri Decree No. 34 of 2001 issued in July". The page's table reads "From
+    // July 2001 till date". The source names the month only.
+    currency: "QAR",
+    lcu: 3.64,
+    usd: 1.0,
+    parityAsPublished: "QR 3.64 per USD",
+    effectiveFrom: "2001-08-01",
+    effectiveFromAsPublished: "July 2001",
+    authority: "Qatar Central Bank",
+    sourceTitle: "Monetary Policy Tools",
+    sourceUrl: "https://www.qcb.gov.qa/en/Pages/MonetaryPolicyTools.aspx",
+    sourceRead: "2026-11-22",
+  },
+  {
+    // Read 2026-11-22. "Since the last change in parity in 1986, the fixed peg
+    // has remained unchanged at USD 2.6008 per RO." The source names the year
+    // only. The parity is printed in US dollars per rial and is kept that way.
+    currency: "OMR",
+    lcu: 1.0,
+    usd: 2.6008,
+    parityAsPublished: "USD 2.6008 per RO",
+    effectiveFrom: "1987-01-01",
+    effectiveFromAsPublished: "1986",
+    authority: "Central Bank of Oman",
+    sourceTitle: "The Fixed Peg of the RO to the US Dollar",
+    sourceUrl: "https://cbo.gov.om/Pages/FixedPeg.aspx",
+    sourceRead: "2026-11-22",
   },
 ];
 

@@ -242,7 +242,26 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
       kinds.push("ecb");
       return { usd: r.rates.USD, units: 1, text: r.rates.USD.toFixed(6) };
     }
-    const wb = await wbUsdPerUnit(ctx, cur, wbYear);
+    let wb: Awaited<ReturnType<typeof wbUsdPerUnit>>;
+    try {
+      wb = await wbUsdPerUnit(ctx, cur, wbYear);
+    } catch (e) {
+      // A peg skipped because the period has not ended usually meets a World
+      // Bank gap too, since that year is not published yet. Whatever the World
+      // Bank error is, the notes are lost with the throw, so the error itself
+      // says the peg exists and why it was not applied, then gives the World
+      // Bank's own message, code and details unchanged.
+      if (decision && !decision.applies && decision.why === "future" && e instanceof ToolError) {
+        const wrapped = new ToolError(
+          `${decision.reason} ${e.message}`,
+          { ...e.details, peg_not_applied: { currency: cur, parity: decision.peg.parityAsPublished, authority: decision.peg.authority, why: "future" } },
+          e.code,
+        );
+        wrapped.cause = e;
+        throw wrapped;
+      }
+      throw e;
+    }
     if (wb.citation) citations.push(wb.citation);
     if (dayDate) {
       notes.push(

@@ -4158,20 +4158,53 @@ var USD_PEGS = [
     sourceRead: "2026-11-15"
   },
   {
-    // Read 2026-11-15. "SAMA remains committed to maintaining the exchange rate
-    // at the official rate of 3.75 riyals to the dollar". The statement is
-    // dated 4 May 2020 and gives no start date for the rate, so effectiveFrom
-    // is the statement's own date. Earlier periods stay on the World Bank rail.
+    // Read 2026-11-22. A paper by the Governor, published on SAMA's site:
+    // "Riyal has remained fixed to the American Dollar, which is the
+    // intervention currency, at Rls 3.75 per U.S. Dollar, since 1986." The
+    // source names the year only. SAMA's statement of 4 May 2020 ("the official
+    // rate of 3.75 riyals to the dollar", news-557) confirms the same rate
+    // later but gives no start, so this row cites the paper.
     currency: "SAR",
     lcu: 3.75,
     usd: 1,
-    parityAsPublished: "3.75 riyals to the dollar",
-    effectiveFrom: "2020-05-04",
-    effectiveFromAsPublished: null,
+    parityAsPublished: "Rls 3.75 per U.S. Dollar",
+    effectiveFrom: "1987-01-01",
+    effectiveFromAsPublished: "1986",
     authority: "Saudi Central Bank",
-    sourceTitle: "SAMA Affirms Commitment to Exchange Rate Policy, statement of 4 May 2020",
-    sourceUrl: "https://www.sama.gov.sa/en-US/MediaCenter/News/Pages/news-557.aspx",
-    sourceRead: "2026-11-15"
+    sourceTitle: "Monetary and Banking Developments in the Kingdom of Saudi Arabia, a paper by the Governor for the Symposium on the Saudi Economy, September 2003",
+    sourceUrl: "https://www.sama.gov.sa/en-US/MediaCenter/News/Pages/News20031004.aspx",
+    sourceRead: "2026-11-22"
+  },
+  {
+    // Read 2026-11-22. "a fixed parity between the Qatari riyal (QR) and the
+    // United States dollar (USD) at QR 3.64 per USD", "officially authorized by
+    // Amiri Decree No. 34 of 2001 issued in July". The page's table reads "From
+    // July 2001 till date". The source names the month only.
+    currency: "QAR",
+    lcu: 3.64,
+    usd: 1,
+    parityAsPublished: "QR 3.64 per USD",
+    effectiveFrom: "2001-08-01",
+    effectiveFromAsPublished: "July 2001",
+    authority: "Qatar Central Bank",
+    sourceTitle: "Monetary Policy Tools",
+    sourceUrl: "https://www.qcb.gov.qa/en/Pages/MonetaryPolicyTools.aspx",
+    sourceRead: "2026-11-22"
+  },
+  {
+    // Read 2026-11-22. "Since the last change in parity in 1986, the fixed peg
+    // has remained unchanged at USD 2.6008 per RO." The source names the year
+    // only. The parity is printed in US dollars per rial and is kept that way.
+    currency: "OMR",
+    lcu: 1,
+    usd: 2.6008,
+    parityAsPublished: "USD 2.6008 per RO",
+    effectiveFrom: "1987-01-01",
+    effectiveFromAsPublished: "1986",
+    authority: "Central Bank of Oman",
+    sourceTitle: "The Fixed Peg of the RO to the US Dollar",
+    sourceUrl: "https://cbo.gov.om/Pages/FixedPeg.aspx",
+    sourceRead: "2026-11-22"
   }
 ];
 var BY_CODE = new Map(USD_PEGS.map((p) => [p.currency, p]));
@@ -4492,7 +4525,21 @@ async function fxConvert(ctx, amount, fromRaw, toRaw, date) {
       kinds.push("ecb");
       return { usd: r.rates.USD, units: 1, text: r.rates.USD.toFixed(6) };
     }
-    const wb = await wbUsdPerUnit(ctx, cur, wbYear);
+    let wb;
+    try {
+      wb = await wbUsdPerUnit(ctx, cur, wbYear);
+    } catch (e) {
+      if (decision && !decision.applies && decision.why === "future" && e instanceof ToolError) {
+        const wrapped = new ToolError(
+          `${decision.reason} ${e.message}`,
+          { ...e.details, peg_not_applied: { currency: cur, parity: decision.peg.parityAsPublished, authority: decision.peg.authority, why: "future" } },
+          e.code
+        );
+        wrapped.cause = e;
+        throw wrapped;
+      }
+      throw e;
+    }
     if (wb.citation) citations.push(wb.citation);
     if (dayDate) {
       notes.push(
@@ -5065,7 +5112,7 @@ var SOURCES = [
   {
     id: "usd_pegs",
     name: "Legal US dollar pegs published by issuing monetary authorities",
-    coverage: "The fixed US dollar parities fx_convert uses as exact legs: BBD (Central Bank of Barbados), XCD (Eastern Caribbean Central Bank), BZD (Central Bank of Belize), AWG (Centrale Bank van Aruba), BMD (Bermuda Monetary Authority), KYD (Cayman Islands Monetary Authority) and SAR (Saudi Central Bank). Each parity is applied from the date its source confirms it and never to a future period. Other dates use the World Bank annual average.",
+    coverage: "The fixed US dollar parities fx_convert uses as exact legs: BBD (Central Bank of Barbados), XCD (Eastern Caribbean Central Bank), BZD (Central Bank of Belize), AWG (Centrale Bank van Aruba), BMD (Bermuda Monetary Authority), KYD (Cayman Islands Monetary Authority), SAR (Saudi Central Bank), QAR (Qatar Central Bank) and OMR (Central Bank of Oman). Each parity is applied from the date its source confirms it and never to a future period. Other dates use the World Bank annual average.",
     access: "Held as constants in core/pegs.ts, each read from the authority's own published page or report on the date recorded with it. No upstream call is made at request time",
     license: "A published legal exchange-rate parity is a fact, not a licensed dataset",
     license_verdict: "served",

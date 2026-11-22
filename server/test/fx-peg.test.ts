@@ -9,6 +9,7 @@ import { USD_PEGS, pegDecision } from "../src/core/pegs.ts";
 import { SOURCES } from "../src/core/sources.ts";
 import { _clearMemCache } from "../src/core/upstream.ts";
 import type { Ctx } from "../src/core/types.ts";
+import { ToolError } from "../src/core/types.ts";
 
 // The clock is fixed so the future-date rule and the no-date rate_date are
 // deterministic.
@@ -111,6 +112,39 @@ test("USD to a pegged currency is the parity, with the authority's citation and 
   assert.equal(k.rate, 1.2, "KYD is published as CI$1.00 = US$1.20");
 });
 
+test("QAR, OMR and SAR are exact, each in the direction its authority prints, with no upstream call", async () => {
+  const q = await fxConvert(ctx, 100, "USD", "QAR", "2002");
+  assert.equal(q.converted_amount, 364, "QR 3.64 per USD");
+  assert.equal(q.precision, "fixed_peg");
+  assert.deepEqual(q.citations.map((c) => c.source), ["Qatar Central Bank"]);
+  const o = await fxConvert(ctx, 1, "OMR", "USD", "1987");
+  assert.equal(o.rate, 2.6008, "USD 2.6008 per RO, kept in dollars per rial");
+  assert.deepEqual(o.citations.map((c) => c.source), ["Central Bank of Oman"]);
+  const s = await fxConvert(ctx, 1, "USD", "SAR", "1987");
+  assert.equal(s.rate, 3.75);
+  assert.deepEqual(s.citations.map((c) => c.source), ["Saudi Central Bank"]);
+  const cross = await fxConvert(ctx, 1, "OMR", "QAR", "2010");
+  assert.equal(cross.rate, Number((2.6008 * 3.64).toFixed(8)));
+  assert.equal(cross.precision, "fixed_peg");
+  assert.equal(fetched.length, 0, `no upstream call is needed: ${fetched.join(", ")}`);
+});
+
+test("a start given as a month or a year covers whole years only from the first full year after it", () => {
+  // QAR: July 2001. OMR and SAR: 1986.
+  for (const [cur, startYear, firstWhole, firstDay] of [
+    ["QAR", "2001", "2002", "2001-08-01"],
+    ["OMR", "1986", "1987", "1987-01-01"],
+    ["SAR", "1986", "1987", "1987-01-01"],
+  ] as const) {
+    const before = pegDecision(cur, startYear, TODAY);
+    assert.equal(before?.applies, false, `${cur} ${startYear} must not be treated as whole`);
+    assert.equal(before?.applies === false && before.why, "before");
+    assert.equal(pegDecision(cur, firstWhole, TODAY)?.applies, true, `${cur} ${firstWhole}`);
+    assert.equal(pegDecision(cur, firstDay, TODAY)?.applies, true, `${cur} ${firstDay}`);
+  }
+  assert.equal(pegDecision("QAR", "2001-07-31", TODAY)?.applies, false, "a day inside the start month may precede the fixing");
+});
+
 test("a dated request on or after the effective date still uses the peg", async () => {
   const y = await fxConvert(ctx, 100, "BBD", "XCD", "2024");
   assert.equal(y.rate, 1.35);
@@ -190,6 +224,44 @@ test("a future year or day never uses the peg", async () => {
   assert.ok(wbCalls().length > 0, "a future date must go to the World Bank rail, not the peg");
 });
 
+test("a future period the World Bank cannot answer still says the peg exists and why it was not applied", async () => {
+  for (const [from, to, date, cur] of [
+    ["BBD", "USD", "2099", "BBD"],
+    ["USD", "BBD", "2026", "BBD"],
+    ["BBD", "USD", "2026-11-16", "BBD"],
+  ] as const) {
+    await assert.rejects(fxConvert(ctx, 100, from, to, date), (e: unknown) => {
+      const err = e as ToolError;
+      assert.ok(err instanceof ToolError, `${date}: not a ToolError`);
+      assert.match(err.message, new RegExp(`^${cur} is fixed to the US dollar at `), `${date}: the peg is not named first`);
+      assert.match(err.message, /not applied to a period that has not yet ended/);
+      assert.match(err.message, /no data for \d{4}/, `${date}: the World Bank reason was dropped`);
+      const d = err.details as Record<string, unknown>;
+      const original = err.cause as ToolError;
+      assert.ok(original instanceof ToolError, `${date}: the World Bank error is not kept as the cause`);
+      // The World Bank coverage error carries no code, so equal codes prove
+      // little. Its details are what a caller reads, so each must pass through.
+      assert.equal(err.code, original.code, `${date}: the error code changed`);
+      const kept = Object.entries(original.details ?? {});
+      assert.ok(kept.length > 0, `${date}: the World Bank error has no details, so the pass-through check below would be empty`);
+      for (const [k, v] of kept) assert.deepEqual((err.details as Record<string, unknown>)[k], v, `${date}: detail ${k} was not passed through`);
+      assert.ok(err.message.endsWith(original.message), `${date}: the World Bank message was altered`);
+      assert.deepEqual((d.peg_not_applied as Record<string, unknown>).currency, cur);
+      assert.equal((d.peg_not_applied as Record<string, unknown>).why, "future");
+      return true;
+    });
+  }
+});
+
+test("a currency with no peg gets the plain World Bank error for a future year", async () => {
+  await assert.rejects(fxConvert(ctx, 100, "JMD", "USD", "2099"), (e: unknown) => {
+    const err = e as ToolError;
+    assert.doesNotMatch(err.message, /fixed to the US dollar/);
+    assert.equal((err.details as Record<string, unknown> | undefined)?.peg_not_applied, undefined);
+    return true;
+  });
+});
+
 test("the current year is not whole, so it falls back, while today uses the peg", async () => {
   await assert.rejects(fxConvert(ctx, 100, "BBD", "XCD", "2026"), /no data for 2026/);
   assert.ok(wbCalls().length > 0, "the current year must go to the World Bank rail, not the peg");
@@ -267,7 +339,7 @@ test("the licence ledger names every pegged currency and authority, and no other
 
 test("the peg table holds only sourced hard pegs", () => {
   const codes = USD_PEGS.map((p) => p.currency);
-  for (const banned of ["HKD", "ANG", "BSD"]) assert.ok(!codes.includes(banned), `${banned} must stay on the World Bank rail`);
+  for (const banned of ["HKD", "ANG", "BSD", "BHD", "AED"]) assert.ok(!codes.includes(banned), `${banned} must stay on the World Bank rail`);
   assert.equal(new Set(codes).size, codes.length, "duplicate currency in the peg table");
   for (const p of USD_PEGS) {
     assert.match(p.currency, /^[A-Z]{3}$/);
@@ -280,4 +352,22 @@ test("the peg table holds only sourced hard pegs", () => {
     assert.ok(p.effectiveFromAsPublished === null || p.effectiveFromAsPublished.length > 0, p.currency);
   }
   assert.equal(pegDecision("JMD", undefined, TODAY), undefined);
+});
+
+test("each peg cites its own authority's site, read on or before today", () => {
+  // The issuing authority's own domain for each row. A swapped or mistyped
+  // link fails here, as does a new row added without a reviewed domain.
+  const HOSTS: Record<string, string> = {
+    BBD: "www.centralbank.org.bb", XCD: "www.eccb-centralbank.org", BZD: "www.centralbank.org.bz",
+    AWG: "www.cbaruba.org", BMD: "www.bma.bm", KYD: "www.cima.ky", SAR: "www.sama.gov.sa",
+    QAR: "www.qcb.gov.qa", OMR: "cbo.gov.om",
+  };
+  assert.deepEqual(USD_PEGS.map((p) => p.currency).sort(), Object.keys(HOSTS).sort(), "a peg row has no reviewed authority domain");
+  // The real clock, not the fixed test clock: a read date later than today is wrong.
+  const realToday = new Date().toISOString().slice(0, 10);
+  for (const p of USD_PEGS) {
+    assert.equal(new URL(p.sourceUrl).host, HOSTS[p.currency], `${p.currency} source is not on its authority's site`);
+    assert.ok(p.sourceRead <= realToday, `${p.currency} sourceRead ${p.sourceRead} is after today, ${realToday}`);
+    assert.ok(p.effectiveFrom <= p.sourceRead, `${p.currency} effectiveFrom is after the day its source was read`);
+  }
 });

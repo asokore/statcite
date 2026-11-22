@@ -9,7 +9,7 @@ dates.
 
 `fx_convert` now uses the legal US dollar peg for a currency whose issuing
 authority publishes one, instead of the World Bank annual average. The table
-in `core/pegs.ts` holds seven: BBD, XCD, BZD, AWG, BMD, KYD and SAR, each read
+in `core/pegs.ts` holds nine: BBD, XCD, BZD, AWG, BMD, KYD, SAR, QAR and OMR, each read
 from the authority's own page or report and cited to it. BBD to XCD now comes
 out at exactly 1.35. Until now it was the ratio of two World Bank annual
 averages, which was close to the peg but carried their reporting noise.
@@ -22,12 +22,20 @@ with an ECB daily rate stays `mixed`, and a peg paired with a World Bank leg
 stays `annual_average`. Each note now says which kind of leg it describes.
 
 A peg applies only from the date its source confirms it, and only to a whole
-year it covered. It never applies to a future date or year. For KYD and SAR
-the sources state the rate but no start date, so the peg is used only from
-the date of the document, and the note says the peg itself may be older.
-Other periods fall back to the World Bank as before, with a note. The Bahamas
-dollar stays on the World Bank rail because no adequate source was found.
-HKD, a band, and ANG, being replaced by the Caribbean guilder, stay there too.
+year it covered. It never applies to a future date or year. SAR, QAR and OMR
+have a start year or month in their sources (1986, July 2001 and 1986), so
+the peg covers whole years from the first full year after it. For KYD the
+source states the rate but no start date, so the peg is used only from the
+date of the document, and the note says the peg itself may be older. Other
+periods fall back to the World Bank as before, with a note. When a future
+period also has no World Bank data, the error now opens by saying the peg
+exists and why it was not applied, and its details carry `peg_not_applied`.
+The Bahamas dollar stays on the World Bank rail because no one page of its
+central bank states both the rate and the start. BHD stays there because the
+Central Bank of Bahrain states its parity both as 1 BHD = 2.659 USD (0.376081
+dinars per dollar) and as 0.376 dinars per dollar, and AED until a Central
+Bank of the UAE page states the parity. HKD,
+a band, and ANG, being replaced by the Caribbean guilder, stay there too.
 
 The peg sources have their own entry in the licence ledger at `/v1/sources`.
 A bridged pair with an ECB leg and a weekend or holiday date now carries the
