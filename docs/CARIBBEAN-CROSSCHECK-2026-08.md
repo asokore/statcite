@@ -38,12 +38,12 @@ serving.
 The technical recon holds and the pipeline is feasible:
 
 - ECCB statistics site returns **HTTP 200** to a browser user-agent (the 403 is
-  UA filtering only, as recorded); 19 statistics categories enumerated.
+  UA filtering only, as recorded), and 19 statistics categories were enumerated.
 - Data tables live at `/statistics-category/{cat}/{table}/{a|q|m}` and are
   **server-rendered HTML**, no JS execution needed.
 - A real fetch of the annual central-government fiscal accounts returned a
   **56-row table**, EC$M, 2021-2025, parsed cleanly to values
-  (Total Revenue and Grants 2025 = EC$8,093.70M; Tax Revenue 2025 = EC$5,637.32M).
+  (Total Revenue and Grants 2025 = EC$8,093.70M, Tax Revenue 2025 = EC$5,637.32M).
 - The table carries its own provenance stamp: **"Data as at 28 July 2026"**.
 - The geography selector exposes all nine geographies, the eight members plus
   ECCU, **including Anguilla and Montserrat**.
@@ -98,7 +98,7 @@ NY.GDP.MKTP.KD", but Montserrat surfaces a raw upstream string, *"World Bank
 API error. Invalid value: The provided parameter…"*. Two economies in the
 same situation return two different shapes, and the second reads as a StatCite
 fault rather than a coverage fact. This should be normalised to the
-`no_published_data: true` honest-absence contract. Not fixed here; logged.
+`no_published_data: true` honest-absence contract. Not fixed here. Logged.
 
 ## 3. Cross-check against the national authorities
 
@@ -122,8 +122,8 @@ average to November, StatCite an annual figure. Confidence here is high.
 
 | | World Bank WDI | IMF DataMapper | WEO via DBnomics | spread | national authority |
 |---|---|---|---|---|---|
-| **Jamaica** 2025 | 0.08% | −0.10% | 2.10% | 2.2pp | BOJ: FY25/26 range **1.0–3.0%**; Q1 2025 **+1.1%** y/y |
-| **Trinidad** 2025 | −0.79% | +0.80% | 2.37% | 3.2pp | CBTT: Q1 2025 **+2.7%**; "modest growth" over nine months |
+| **Jamaica** 2025 | 0.08% | −0.10% | 2.10% | 2.2pp | BOJ: FY25/26 range **1.0–3.0%**, Q1 2025 **+1.1%** y/y |
+| **Trinidad** 2025 | −0.79% | +0.80% | 2.37% | 3.2pp | CBTT: Q1 2025 **+2.7%**, "modest growth" over nine months |
 
 Both current-vintage sources put Jamaica at roughly flat and Trinidad at flat
 to slightly negative, while both central banks describe positive growth. Part
@@ -153,7 +153,7 @@ growth by nearly half.
   Barbados, agree exactly with the national authority. The gap is not
   existence, it is **vintage lag and cross-source divergence**, which is a
   verification problem, i.e. what StatCite already does.
-- **The uncovered part is sub-annual and sub-national**: monthly and quarterly
+- The uncovered part is sub-annual and sub-national: monthly and quarterly
   ECCB/CBB series, which is exactly the data the licence gate blocks. So the
   differentiated product and the blocked source are the same thing. That makes
   the permission email the critical path, not an optional step.
@@ -213,7 +213,7 @@ vertical is for.
 
 ## 7. Open items
 
-1. **OWNER**: forward the ECCB/CBB grant text so the licence ledger can flip.
+1. OWNER: forward the ECCB/CBB grant text so the licence ledger can flip.
    Everything sub-annual depends on it.
 2. ~~Normalise the Montserrat upstream error into the honest-absence
    contract.~~ Done 2026-08-13, with tests.

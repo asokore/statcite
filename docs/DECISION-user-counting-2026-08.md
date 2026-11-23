@@ -1,6 +1,6 @@
 # Counting users: why the instrumentation was not built
 
-Date: 2026-08-16. Status: **closed. Recommendation withdrawn; the policy
+Date: 2026-08-16. Status: **closed. Recommendation withdrawn, as the policy
 question was put to the owner and declined.**
 
 ## The question
@@ -81,7 +81,7 @@ them."*
 That sentence is stronger than the truth. `tools/analytics.mjs` queries
 Cloudflare's analytics for user-agent and crawler breakdowns and writes daily
 aggregate counts to a local gitignored file, and the session of 2026-08-16 ran
-an ad-hoc query counting distinct client IPs. No IP has ever been stored; the
+an ad-hoc query counting distinct client IPs. No IP has ever been stored. The
 stored file holds aggregate counts plus **bot user-agent strings**
 (`Googlebot`, `Claude-User`, `mcpbeat`). Nothing personal has been retained,
 and nothing has been published.
@@ -110,6 +110,6 @@ is small, local, aggregate, and knowingly accepted.
 **Do not re-raise this.** It has been found, measured, written up, and decided.
 A later session noticing the same sentence should read this paragraph and move
 on, not spend an hour rediscovering it. If the position ever needs revisiting
-the trigger would be an external one — a regulator, an enterprise customer's
-privacy review, or a decision to publish traffic figures — and not simply
+the trigger would be an external one: a regulator, an enterprise customer's
+privacy review, or a decision to publish traffic figures, and not simply
 another agent reading the page fresh.

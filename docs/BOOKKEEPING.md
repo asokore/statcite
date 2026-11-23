@@ -32,7 +32,7 @@ gh repo view asokore/statcite --json stargazerCount,openIssues
 
 ## The table to keep
 
-Append one row per month. A spreadsheet is fine; so is this file.
+Append one row per month. A spreadsheet is fine, and so is this file.
 
 Revenue and hours are not recorded here, because this repository is public.
 They go in the local table at `docs/06_plan/BOOKKEEPING-PRIVATE.md`, which is
@@ -40,7 +40,7 @@ gitignored.
 
 | Month | Req/day (sampled) | verify_stat share | GitHub stars | Apify events | Notes |
 |---|---|---|---|---|---|
-| 2026-08 | | | | | v1.5.0–v1.7.0 shipped; growth plan Phase 1 executed |
+| 2026-08 | | | | | v1.5.0–v1.7.0 shipped, growth plan Phase 1 executed |
 
 **`verify_stat` share is the thesis metric.** The strategy claims verification
 is the differentiator, not lookup. If verify calls stay a trivial fraction of
@@ -60,7 +60,7 @@ consider paid keys:
       series from the World Bank and IMF directly, resolving the upstream code
       from StatCite's OWN citation, so it tests the real claim: that the number
       is what the cited series actually contains. Expect ~85% coverage and 0
-      mismatches; investigate any mismatch before anything else on this list,
+      mismatches. Investigate any mismatch before anything else on this list,
       and treat a sudden drop in COVERAGE as a finding too, since a check that
       silently stops comparing looks identical to one that passes.
       First full run 2026-09-02: 215 verified, 0 mismatches.
@@ -78,7 +78,7 @@ consider paid keys:
       advertises the FRED path. The live tools/list is correct (12 tools, FRED
       described as permanently disabled), so this is their cache. Sign in to
       the Smithery dashboard and trigger a re-scan of the repo. Found
-      2026-09-05; the Chrome extension was down so it could not be done then.
+      2026-09-05. The Chrome extension was down so it could not be done then.
       The listings inventory URL is also stale: their path moved from
       /server/ to /servers/ (the old one 308-redirects).
 - [ ] Measurement note, 2026-09-05: the documented traffic-sample command
@@ -106,7 +106,7 @@ consider paid keys:
       Alternatively disable Browser Integrity Check for the zone.
       `tools/audit-live.py` fails on this today (check
       `machine/the Python stdlib HTTP client is not blocked`) and is the way to
-      confirm the fix landed. Found 2026-08-31; the wrangler OAuth token has
+      confirm the fix landed. Found 2026-08-31. The wrangler OAuth token has
       zone READ only, so it cannot be done from the CLI.
 - [ ] After the sweep of 2026-08-31, confirm Google picks up the new signals:
       `lastmod` now present on all nine sitemap URLs, structured data on all
@@ -121,7 +121,7 @@ consider paid keys:
       Performance: 9 impressions, 0 clicks, avg position 7.1, and the only
       attributed query is `statcite` itself. Also confirmed: the page **is
       indexed** per URL inspection, even though the aggregate Pages report
-      still reads "Indexed 0" with a 27 Aug stamp - that report lags, so use
+      still reads "Indexed 0" with a 27 Aug stamp: that report lags, so use
       URL inspection for the current answer, never the summary tile.
 - [ ] Sustained >5,000 requests/day
 - [ ] >500 GitHub stars
@@ -129,8 +129,8 @@ consider paid keys:
 
 Also check:
 
-- [x] Apify pricing revisit — done 2026-08-29 with real usage data. The actor has 1 total user (the setup account) and 0 monthly users, so pricing is not the constraint and repricing changes nothing: demand is. Prices stand ($0.0015/lookup, $0.015/verify, both charged only on success). Revisit only when monthly users > 0; until then the Apify listing is a distribution surface, not a revenue line.
-- [x] Listing staleness after 1.11.x (checked 2026-08-29): registry serves 1.11.3 with the Caribbean-inclusive description; Glama maintenance is now grade A (the releases cleared the 'no stable releases' cap); all three directory PRs are MERGEABLE, the awesome-mcp-servers one rebased out of conflict with refreshed facts; LobeHub still serves its 25 July snapshot (email is the remaining lever)
+- [x] Apify pricing revisit: done 2026-08-29 with real usage data. The actor has 1 total user (the setup account) and 0 monthly users, so pricing is not the constraint and repricing changes nothing: demand is. Prices stand ($0.0015/lookup, $0.015/verify, both charged only on success). Revisit only when monthly users > 0. Until then the Apify listing is a distribution surface, not a revenue line.
+- [x] Listing staleness after 1.11.x (checked 2026-08-29): registry serves 1.11.3 with the Caribbean-inclusive description. Glama maintenance is now grade A (the releases cleared the 'no stable releases' cap). All three directory PRs are MERGEABLE, the awesome-mcp-servers one rebased out of conflict with refreshed facts. LobeHub still serves its 25 July snapshot (email is the remaining lever)
 - [ ] (checked 2026-08-29: still paused past their stated mid-August date, registry prerequisite satisfied at 1.11.3) PulseMCP ingestion check: pulsemcp.com auto-ingests from the official
       registry weekly, yet a 2026-08-10 audit found StatCite absent despite 9
       registry versions. If still absent after the 1.9.1 publish has had two

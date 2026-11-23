@@ -12,7 +12,7 @@
 
 Triggered by the question "does StatCite use portal.api.imf.org, and is it
 better?". Everything below marked VERIFIED was observed directly by live HTTP
-call on 2026-08-10; everything else is explicitly flagged.
+call on 2026-08-10, and everything else is explicitly flagged.
 
 ## What it is
 
@@ -25,8 +25,8 @@ endpoint. The data endpoint is:
 ## VERIFIED findings
 
 - **No API key is needed for data.** Every call below was made anonymously with
-  no key, no header, no account, and returned HTTP 200 with real data. The
-  portal's sign-in wall guards the developer console, not the data.
+  no key, header or account, and returned HTTP 200 with real data. The
+  portal's sign-in wall guards the developer console only.
 - **222 dataflows** exposed anonymously (`/dataflow`), far beyond the ~6
   indicator families the DataMapper API serves. Includes CPI, BOP, GFS, COFER,
   FSI, HPD, and PCPS (commodity prices).
@@ -55,7 +55,7 @@ endpoint. The data endpoint is:
   dataflow, issued back to back with no pacing, all returned HTTP 200** with no
   throttling and no rate-limit headers on any response.
   State this precisely, it establishes a FLOOR, not the limit. It shows at
-  least 31 requests in that window are accepted; it does not prove there is no
+  least 31 requests in that window are accepted. It does not prove there is no
   cap, and an empty 429 count is not evidence of an absent limit. The practical
   conclusion is headroom, not licence: StatCite's vintage path issues one
   upstream request per as_of verification or revision probe, cached one hour
@@ -93,7 +93,7 @@ differently, both verified directly:
 
 - Envelope: **WRAPPED in `.data`** (BIS-style), string observation values.
 - **Dimension values use `value`, NOT `id`.** This is SDMX-JSON 2.0.0.
-  `sdmx.ts` currently reads `periods[i].id`, which would be `undefined` here;
+  `sdmx.ts` currently reads `periods[i].id`, which would be `undefined` here, and
   the existing `.filter(o => o.period)` would then drop every observation and
   return a SILENTLY EMPTY series. Any adapter work must read `value ?? id`.
 - **Key order is `COUNTRY.INDICATOR.FREQUENCY`** (`BRB.NGDP_RPCH.A`), not the
@@ -132,7 +132,7 @@ Two obligations this creates that StatCite does not yet fully meet:
    StatCite redistributes IMF data through a public API, so this is an ACTIVE
    obligation to surface IMF's terms to its own consumers, not merely to cite
    the IMF. Partially met today (every citation carries `license` and
-   `attribution`); worth strengthening explicitly.
+   `attribution`), and worth strengthening explicitly.
 
 2. **The 2020 terms said "publish, distribute, and sell". The current terms
    DROP "and sell"** and add: *"For any potential commercial reuse of IMF Data,
@@ -175,7 +175,7 @@ standard this project uses for licensing.
 2. Add an `api.imf.org` ledger entry with its own verdict and verified-on date.
 3. Insert it into the dated-vintage chain AHEAD of DBnomics in
    `getIndicatorAtEdition`, keeping DBnomics as the deep-archive fallback.
-4. Reuse `fetchSdmxSeries` (flat/string shape already supported); add the
+4. Reuse `fetchSdmxSeries` (flat/string shape already supported), and add the
    `Accept: application/json` negotiation for this provider.
 5. Regression test: the revision probe must return `status: "checked"` for the
    previous edition where it currently returns `"unavailable"`.
