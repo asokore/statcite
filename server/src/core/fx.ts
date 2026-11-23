@@ -111,6 +111,13 @@ async function wbUsdPerUnit(
     }
     chosen = hit;
   }
+  const published = chosen.value as number;
+  if (!Number.isFinite(published) || published <= 0) {
+    throw new ToolError(`No usable rate for ${currency}: the World Bank figure for ${chosen.period} is ${published}.`, {
+      currency,
+      period: chosen.period,
+    });
+  }
   // PA.NUS.FCRF is LCU per USD → USD per unit is the reciprocal. The published
   // figure is kept too, so rate_decimal can treat the leg as 1 dollar over
   // that many units rather than start from the binary reciprocal.
@@ -306,6 +313,11 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
   const toUsd = t.usd / t.units;
   // (f.usd / f.units) / (t.usd / t.units), rearranged to divide once.
   const rate = (f.usd * t.units) / (f.units * t.usd);
+  // A source figure of zero or below makes a bridge meaningless: on the TO side
+  // it divides by zero, and a World Bank zero gives an infinite leg.
+  if (!Number.isFinite(rate) || rate < 0) {
+    throw new ToolError(`No usable rate for ${from}→${to}: a source reported a zero or negative figure for one leg.`, { from, to });
+  }
   const rateDecimal = bridgeDecimal(f.figures, t.figures);
   const hasEcb = kinds.includes("ecb");
   const hasWb = kinds.includes("wb");

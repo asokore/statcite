@@ -48,6 +48,9 @@ const routes: Array<{ test: (u: string) => boolean; body: string }> = [
   { test: (u) => u.includes("frankfurter.dev/v1/2024-01-04?base=EUR&symbols=GBP"), body: '{"base":"EUR","date":"2024-01-04","rates":{"GBP":0}}' },
   // An ECB answer with no USD figure, for the USD bridge (A-083).
   { test: (u) => u.includes("frankfurter.dev/v1/2024-01-05?base=GBP&symbols=USD"), body: '{"base":"GBP","date":"2024-01-05","rates":{}}' },
+  // An ECB USD figure of 0, for the TO side of a bridge (A-084).
+  { test: (u) => u.includes("frankfurter.dev/v1/2024-01-08?base=GBP&symbols=USD"), body: '{"base":"GBP","date":"2024-01-08","rates":{"USD":0}}' },
+  { test: (u) => u.includes("frankfurter.dev/v1/2024-01-09?base=GBP&symbols=USD"), body: '{"base":"GBP","date":"2024-01-09","rates":{"USD":-1}}' },
   {
     test: (u) => u.includes("frankfurter.dev/v1/2023-01-01..2023-12-31?base=EUR&symbols=USD"),
     body: '{"rates":{"2023-01-02":{"USD":1.0801},"2023-01-03":{"USD":1.0812},"2023-01-04":{"USD":1.083}}}',
@@ -284,8 +287,6 @@ test("an upstream zero or a missing leg leaves rate_decimal out of the response"
   const zero = await fxConvert(ctx, 1, "EUR", "GBP", "2024-01-04");
   assert.equal(zero.rate, 0);
   assert.ok(!("rate_decimal" in zero), JSON.stringify(zero));
-  const wbZero = await fxConvert(ctx, 1, "SYP", "USD");
-  assert.ok(!("rate_decimal" in wbZero), "a World Bank figure of 0 has no exact reciprocal");
   const avgZero = await fxConvert(ctx, 1, "EUR", "USD", "2022");
   assert.ok(!("rate_decimal" in avgZero), "an average over a day at 0");
 });
@@ -296,6 +297,34 @@ test("an ECB answer with no USD figure gives a clear error on the USD bridge", a
     assert.match(e.message, /GBP→USD unavailable for 2024-01-05/);
     return true;
   });
+});
+
+test("a zero figure on either side of a bridge gives a clear error, never an infinite rate", async () => {
+  for (const [from, to] of [["SYP", "USD"], ["USD", "SYP"], ["SYP", "BBD"], ["BBD", "SYP"]]) {
+    await assert.rejects(fxConvert(ctx, 1, from, to), (e: Error) => {
+      assert.equal(e.constructor.name, "ToolError", `${from}→${to} ${e.constructor.name}: ${e.message}`);
+      assert.match(e.message, /No usable rate for SYP: the World Bank figure for 2025 is 0\./);
+      return true;
+    });
+  }
+});
+
+test("an ECB zero on the TO side of a bridge gives a clear error, never an infinite rate", async () => {
+  await assert.rejects(fxConvert(ctx, 1, "BBD", "GBP", "2024-01-08"), (e: Error) => {
+    assert.equal(e.constructor.name, "ToolError", `${e.constructor.name}: ${e.message}`);
+    assert.match(e.message, /No usable rate for BBD→GBP/);
+    return true;
+  });
+});
+
+test("an ECB zero on the FROM side of a bridge gives rate 0 without rate_decimal, as the direct path does", async () => {
+  const r = await fxConvert(ctx, 1, "GBP", "BBD", "2024-01-08");
+  assert.equal(r.rate, 0);
+  assert.ok(!("rate_decimal" in r), JSON.stringify(r));
+});
+
+test("a negative ECB figure on a bridge gives a clear error", async () => {
+  await assert.rejects(fxConvert(ctx, 1, "GBP", "BBD", "2024-01-09"), /No usable rate for GBP→BBD/);
 });
 
 test("kind and rate_decimal add fields and change none", async () => {

@@ -4453,6 +4453,13 @@ async function wbUsdPerUnit(ctx, currency, year) {
     }
     chosen = hit;
   }
+  const published = chosen.value;
+  if (!Number.isFinite(published) || published <= 0) {
+    throw new ToolError(`No usable rate for ${currency}: the World Bank figure for ${chosen.period} is ${published}.`, {
+      currency,
+      period: chosen.period
+    });
+  }
   return {
     usdPerUnit: 1 / chosen.value,
     lcuPerUsd: chosen.value,
@@ -4622,6 +4629,9 @@ async function fxConvert(ctx, amount, fromRaw, toRaw, date) {
   const fromUsd = f.usd / f.units;
   const toUsd = t.usd / t.units;
   const rate = f.usd * t.units / (f.units * t.usd);
+  if (!Number.isFinite(rate) || rate < 0) {
+    throw new ToolError(`No usable rate for ${from}\u2192${to}: a source reported a zero or negative figure for one leg.`, { from, to });
+  }
   const rateDecimal = bridgeDecimal(f.figures, t.figures);
   const hasEcb = kinds.includes("ecb");
   const hasWb = kinds.includes("wb");

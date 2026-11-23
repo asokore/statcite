@@ -59,7 +59,11 @@ report `precision` `mixed`.
 
 When the ECB answers with no US dollar figure for a currency on a USD bridge,
 `fx_convert` now returns an error saying the ECB rate is unavailable for that
-date. It used to fail with an internal error.
+date. It used to fail with an internal error. A World Bank figure of zero or
+below now gives an error naming the currency and year. On a USD bridge, an ECB
+figure of zero on the target side, or a negative one on either side, gives an
+error naming the pair. Such a pair used to report an infinite, zero or negative
+rate.
 
 Copy edits across the site pages and the README, and in the licence wording
 at `/v1/sources` and in the `license` field of ECB, BIS, DBnomics and peg
