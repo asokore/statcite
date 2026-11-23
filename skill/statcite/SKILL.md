@@ -59,7 +59,7 @@ If a user challenges a number ("the IMF says something different"), or a verify 
 ## Conversions
 
 - Inflation adjustment ("in today's money"): `inflation_adjust` / `/v1/inflation`. It uses the CPI ratio and discloses the formula. Reproduce the method note when precision matters. Works for any country with CPI data, annual precision.
-- Currency conversion: `fx_convert` / `/v1/fx`. ECB daily rates for ~30 majors, the legal US dollar peg for currencies with a sourced hard peg (BBD, XCD and others), cited to the issuing authority, and ~90 more currencies via official annual-average rates. The `precision` field says which: `daily`, `annual_average`, `mixed`, or `fixed_peg` (every leg is USD or a legal peg, so the result is exact). Mention "annual average" in text when that's what was used.
+- Currency conversion: `fx_convert` / `/v1/fx`. ECB daily rates for ~30 majors, the legal US dollar peg for currencies with a sourced hard peg (BBD, XCD and others), cited to the issuing authority, and ~90 more currencies via official annual-average rates. The `precision` field says which: `daily`, `annual_average`, `mixed`, or `fixed_peg` (every leg is USD or a legal peg, so the result is exact). Mention "annual average" in text when that's what was used. `rate_decimal` is the rate as a decimal string (rounded once on a computed rate), and each leg of a bridged rate names its `kind` (`identity`, `peg`, `ecb` or `wb`).
 
 ## Judgment calls and caveats
 

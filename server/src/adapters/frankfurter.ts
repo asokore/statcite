@@ -46,7 +46,7 @@ export async function getEcbAnnualAverage(
   base: string,
   symbol: string,
   year: number,
-): Promise<{ average: number; days: number; apiUrl: string }> {
+): Promise<{ average: number; days: number; values: number[]; apiUrl: string }> {
   if (year < 1999) {
     throw new ToolError("ECB reference rates begin in 1999; earlier years use World Bank annual official rates.", { year });
   }
@@ -59,5 +59,7 @@ export async function getEcbAnnualAverage(
   if (values.length === 0) {
     throw new ToolError(`No ECB daily rates found for ${base}/${symbol} in ${year}.`, { year });
   }
-  return { average: values.reduce((a, b) => a + b, 0) / values.length, days: values.length, apiUrl };
+  // values are the daily figures as received, kept so fx.ts can take their
+  // exact decimal average for rate_decimal.
+  return { average: values.reduce((a, b) => a + b, 0) / values.length, days: values.length, values, apiUrl };
 }

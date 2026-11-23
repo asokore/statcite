@@ -984,6 +984,12 @@
                     "rate": {
                       "type": "number"
                     },
+                    "rate_decimal": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$",
+                      "not": { "const": "0" },
+                      "description": "The rate as a decimal string, in the same direction: units of to for one unit of from. Never \"0\", and never a sign, exponent or trailing zero. On a direct ECB rate it is the upstream figure written out in plain notation, with the digits of its shortest round-trip form. On a computed rate (an annual average, a peg or a USD bridge) it is the exact result of the figures as received, rounded once, half to even, to 12 significant digits or 8 places, whichever keeps more. A World Bank leg enters as 1 dollar over the published units per dollar. Absent when a figure it needs is missing, infinite, or zero or less."
+                    },
                     "rate_date": {
                       "type": "string",
                       "description": "The period the rate comes from. On a USD-bridged cross rate the two legs can be dated differently, and this is the STALEST of them: a cross rate is only as current as its oldest leg."
@@ -995,6 +1001,11 @@
                         "type": "object",
                         "properties": {
                           "currency": { "type": "string" },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["identity", "peg", "ecb", "wb"],
+                            "description": "identity: the US dollar itself. peg: a legal fixed peg. ecb: an ECB daily reference rate. wb: a World Bank annual average."
+                          },
                           "usd_per_unit": { "type": "number" },
                           "period": { "type": ["string", "null"] },
                           "source": { "type": "string" },

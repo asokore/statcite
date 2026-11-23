@@ -14,6 +14,7 @@ import { getEcbRates, getEcbAnnualAverage, listEcbCurrencies } from "../adapters
 import { fetchWbSeries } from "../adapters/worldbank.ts";
 import { ecbFxCitation, usdPegCitation, worldBankCitation } from "./citations.ts";
 import { pegDecision, pegSinceText, type PegDecision } from "./pegs.ts";
+import { averageDecimal, bridgeDecimal, plainDecimal, type LegFigures } from "./rate-decimal.ts";
 
 /** Currency → representative economy for World Bank official-rate lookups (LCU per USD). */
 const CURRENCY_COUNTRY: Record<string, string> = {
@@ -40,10 +41,15 @@ const CURRENCY_COUNTRY: Record<string, string> = {
   ISK: "ISL", USD: "USA",
 };
 
+export type FxLegKind = "identity" | "peg" | "ecb" | "wb";
+
 /** One side of a USD-bridged conversion, with the period its rate came from.
  * Present only on the bridge path, where the two legs can be dated differently. */
 export interface FxLeg {
   currency: string;
+  /** What the leg is: the US dollar itself, a legal fixed peg, an ECB daily
+   * reference rate, or a World Bank annual average. */
+  kind: FxLegKind;
   usd_per_unit: number;
   /** null for the USD identity leg, which has no published rate. On a fixed-peg
    * leg it is the date from which the cited source places the peg in force. A
@@ -61,6 +67,10 @@ export interface FxResult {
   to: string;
   converted_amount: number;
   rate: number;
+  /** The same rate as an exact decimal string, built by the rules in
+   * core/rate-decimal.ts. Absent when an input it needs is missing, not
+   * finite, or zero or less. */
+  rate_decimal?: string;
   rate_date: string;
   method: string;
   /** fixed_peg: every leg is the US dollar itself or a legal fixed peg against
@@ -76,7 +86,7 @@ async function wbUsdPerUnit(
   ctx: Ctx,
   currency: string,
   year?: number,
-): Promise<{ usdPerUnit: number; period: string; citation?: Citation }> {
+): Promise<{ usdPerUnit: number; lcuPerUsd: number; period: string; citation?: Citation }> {
   const iso3 = CURRENCY_COUNTRY[currency];
   if (!iso3) {
     throw new ToolError(
@@ -101,9 +111,12 @@ async function wbUsdPerUnit(
     }
     chosen = hit;
   }
-  // PA.NUS.FCRF is LCU per USD → USD per unit is the reciprocal.
+  // PA.NUS.FCRF is LCU per USD → USD per unit is the reciprocal. The published
+  // figure is kept too, so rate_decimal can treat the leg as 1 dollar over
+  // that many units rather than start from the binary reciprocal.
   return {
     usdPerUnit: 1 / (chosen.value as number),
+    lcuPerUsd: chosen.value as number,
     period: chosen.period,
     citation: worldBankCitation(ctx, {
       indicatorId: wb.indicatorId,
@@ -136,7 +149,7 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
   }
   if (from === to) {
     return {
-      amount, from, to, converted_amount: amount, rate: 1,
+      amount, from, to, converted_amount: amount, rate: 1, rate_decimal: "1",
       rate_date: date ?? "n/a", method: "identical currencies", precision: "daily", citations: [], notes: [],
     };
   }
@@ -159,10 +172,12 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
   // Annual-average for ECB pairs: average of the year's daily reference rates.
   if (bothEcb && yearOnly && yearOnly >= 1999) {
     const r = await getEcbAnnualAverage(from, to, yearOnly);
+    const rateDecimal = averageDecimal(r.values);
     return {
       amount, from, to,
       converted_amount: Number((amount * r.average).toFixed(6)),
       rate: Number(r.average.toFixed(8)),
+      ...(rateDecimal === undefined ? {} : { rate_decimal: rateDecimal }),
       rate_date: String(yearOnly),
       method: `Annual average of ECB daily reference rates for ${yearOnly} (${r.days} trading days): ${amount} ${from} × ${r.average.toFixed(6)} = ${(amount * r.average).toFixed(4)} ${to}`,
       precision: "annual_average",
@@ -179,10 +194,13 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
     if (dayDate && r.date !== dayDate) {
       notes.push(`Requested ${dayDate}; nearest ECB working day is ${r.date} (weekends/holidays have no reference rate).`);
     }
+    const rateDecimal = plainDecimal(rate);
     return {
       amount, from, to,
       converted_amount: Number((amount * rate).toFixed(6)),
-      rate, rate_date: r.date,
+      rate,
+      ...(rateDecimal === undefined ? {} : { rate_decimal: rateDecimal }),
+      rate_date: r.date,
       method: `ECB euro reference rates (cross-rate via EUR where needed): ${amount} ${from} × ${rate} = ${(amount * rate).toFixed(4)} ${to}`,
       precision: "daily",
       citations: [ecbFxCitation(ctx, { base: from, quote: to, rateDate: r.date, apiUrl: r.apiUrl })],
@@ -197,19 +215,22 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
   const citations: Citation[] = [];
   let rateDate = "";
   const legs: FxLeg[] = [];
-  const kinds: Array<"identity" | "peg" | "ecb" | "wb"> = [];
+  const kinds: FxLegKind[] = [];
   const wbYear = yearOnly ?? (dayDate ? parseInt(dayDate.slice(0, 4), 10) : undefined);
 
   // Each leg is a ratio, US dollars over local units. A pegged leg keeps the
   // two figures its authority publishes, so a pair of pegs divides those
   // figures directly and BBD to XCD comes out at 2.7 / 2 = 1.35 exactly,
   // rather than through two rounded reciprocals.
-  type Ratio = { usd: number; units: number; text: string };
+  // `figures` holds the leg as received, for rate_decimal: on a World Bank leg
+  // it is 1 dollar over the published units, where `usd` and `units` carry the
+  // binary reciprocal.
+  type Ratio = { usd: number; units: number; text: string; figures: LegFigures };
   async function usdLeg(cur: string, decision?: PegDecision): Promise<Ratio> {
     if (cur === "USD") {
-      legs.push({ currency: "USD", usd_per_unit: 1, period: null, source: "identity (USD bridge base)" });
+      legs.push({ currency: "USD", kind: "identity", usd_per_unit: 1, period: null, source: "identity (USD bridge base)" });
       kinds.push("identity");
-      return { usd: 1, units: 1, text: "1" };
+      return { usd: 1, units: 1, text: "1", figures: { usd: 1, units: 1 } };
     }
     if (decision?.applies) {
       const p = decision.peg;
@@ -217,6 +238,7 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
       // No rateDate from a peg: it has no publication period to date the result.
       legs.push({
         currency: cur,
+        kind: "peg",
         usd_per_unit: p.usd / p.lcu,
         period: p.effectiveFrom,
         source: `Legal fixed peg, ${p.parityAsPublished} (${p.authority})`,
@@ -226,7 +248,7 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
       notes.push(
         `${cur} is converted at its legal fixed parity against the US dollar, ${p.parityAsPublished}, published by the ${p.authority} and ${pegSinceText(p)}. This leg is exact.`,
       );
-      return { usd: p.usd, units: p.lcu, text: `${p.usd}/${p.lcu}` };
+      return { usd: p.usd, units: p.lcu, text: `${p.usd}/${p.lcu}`, figures: { usd: p.usd, units: p.lcu } };
     }
     if (decision && !decision.applies) notes.push(decision.reason);
     if (ecbSet.has(cur) && !yearOnly) {
@@ -238,9 +260,9 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
       if (dayDate && r.date !== dayDate) {
         notes.push(`Requested ${dayDate}; nearest ECB working day is ${r.date} (weekends/holidays have no reference rate).`);
       }
-      legs.push({ currency: cur, usd_per_unit: r.rates.USD, period: r.date, source: "ECB daily reference rate" });
+      legs.push({ currency: cur, kind: "ecb", usd_per_unit: r.rates.USD, period: r.date, source: "ECB daily reference rate" });
       kinds.push("ecb");
-      return { usd: r.rates.USD, units: 1, text: r.rates.USD.toFixed(6) };
+      return { usd: r.rates.USD, units: 1, text: r.rates.USD.toFixed(6), figures: { usd: r.rates.USD, units: 1 } };
     }
     let wb: Awaited<ReturnType<typeof wbUsdPerUnit>>;
     try {
@@ -269,9 +291,9 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
       );
     }
     rateDate = rateDate || wb.period;
-    legs.push({ currency: cur, usd_per_unit: wb.usdPerUnit, period: wb.period, source: "World Bank PA.NUS.FCRF annual average" });
+    legs.push({ currency: cur, kind: "wb", usd_per_unit: wb.usdPerUnit, period: wb.period, source: "World Bank PA.NUS.FCRF annual average" });
     kinds.push("wb");
-    return { usd: wb.usdPerUnit, units: 1, text: wb.usdPerUnit.toFixed(6) };
+    return { usd: wb.usdPerUnit, units: 1, text: wb.usdPerUnit.toFixed(6), figures: { usd: 1, units: wb.lcuPerUsd } };
   }
 
   const f = await usdLeg(from, fromPeg);
@@ -280,6 +302,7 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
   const toUsd = t.usd / t.units;
   // (f.usd / f.units) / (t.usd / t.units), rearranged to divide once.
   const rate = (f.usd * t.units) / (f.units * t.usd);
+  const rateDecimal = bridgeDecimal(f.figures, t.figures);
   const hasEcb = kinds.includes("ecb");
   const hasWb = kinds.includes("wb");
   const hasPeg = kinds.includes("peg");
@@ -325,6 +348,7 @@ export async function fxConvert(ctx: Ctx, amount: number, fromRaw: string, toRaw
     amount, from, to,
     converted_amount: Number((amount * rate).toFixed(6)),
     rate: Number(rate.toFixed(8)),
+    ...(rateDecimal === undefined ? {} : { rate_decimal: rateDecimal }),
     // With no ECB or World Bank leg there is no publication date. A requested
     // date dates the result, and with none the pegs are in force as of today.
     rate_date: rateDate || (yearOnly ? String(yearOnly) : (dayDate ?? todayUtc)),

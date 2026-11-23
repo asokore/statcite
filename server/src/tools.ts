@@ -665,7 +665,7 @@ export const TOOLS: ToolDef[] = [
     name: "fx_convert",
     title: "Convert currencies with official reference rates",
     description:
-      `Convert an amount between currencies using ECB daily reference rates (~30 majors, any date since 1999), the legal US dollar peg for currencies with a sourced hard peg (${USD_PEGS.map((p) => p.currency).join(", ")}), which is exact and cites the issuing authority, or, for ~90 other currencies (JMD, KES, …), official annual-average rates from the World Bank. With the method and citations stated explicitly. Pass date='YYYY-MM-DD' for daily or 'YYYY' for annual-average conversion.`,
+      `Convert an amount between currencies using ECB daily reference rates (~30 majors, any date since 1999), the legal US dollar peg for currencies with a sourced hard peg (${USD_PEGS.map((p) => p.currency).join(", ")}), which is exact and cites the issuing authority, or, for ~90 other currencies (JMD, KES, …), official annual-average rates from the World Bank. With the method and citations stated explicitly. Pass date='YYYY-MM-DD' for daily or 'YYYY' for annual-average conversion. Beside the numeric rate, rate_decimal gives the rate as a decimal string (the upstream ECB figure, or a computed rate rounded once to at least 12 significant digits), and on a bridged rate each leg names its kind (identity, peg, ecb or wb).`,
     inputSchema: {
       type: "object",
       properties: {

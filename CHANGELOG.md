@@ -42,6 +42,21 @@ A bridged pair with an ECB leg and a weekend or holiday date now carries the
 same "nearest ECB working day" note the direct ECB path always gave. The old
 note claiming an annual average "normally equals the peg" is gone.
 
+`fx_convert` responses carry two new fields, and no existing field changes.
+`rate_decimal` is the rate as a decimal string, in the same direction
+as `rate`, with no sign, exponent or trailing zero, and never `"0"`. On a
+direct ECB rate it is the upstream figure written out in plain notation, so a
+rate of `6.5e-7` reads `0.00000065`. On a computed rate (an ECB annual
+average, a peg or a USD bridge) it is the exact result of the figures as
+received, rounded once, half to even, to 12 significant digits or 8 places,
+whichever keeps more. A World Bank leg enters as 1 dollar over the published
+local currency units per dollar, so USD to a currency published at 3 per
+dollar gives `3` and the reverse gives `0.333333333333`. The field is left
+out when a figure it needs is missing, infinite, or zero or less. Each leg of
+a bridged rate now carries `kind`, one of `identity`, `peg`, `ecb` or `wb`,
+which tells an ECB-plus-peg rate from an ECB-plus-World-Bank rate where both
+report `precision` `mixed`.
+
 Copy edits across the site pages and the README, and in the licence wording
 at `/v1/sources` and in the `license` field of ECB, BIS, DBnomics and peg
 citations. No figure, identifier or behaviour changed.
