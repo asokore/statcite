@@ -57,6 +57,10 @@ a bridged rate now carries `kind`, one of `identity`, `peg`, `ecb` or `wb`,
 which tells an ECB-plus-peg rate from an ECB-plus-World-Bank rate where both
 report `precision` `mixed`.
 
+When the ECB answers with no US dollar figure for a currency on a USD bridge,
+`fx_convert` now returns an error saying the ECB rate is unavailable for that
+date. It used to fail with an internal error.
+
 Copy edits across the site pages and the README, and in the licence wording
 at `/v1/sources` and in the `license` field of ECB, BIS, DBnomics and peg
 citations. No figure, identifier or behaviour changed.

@@ -4526,7 +4526,7 @@ async function fxConvert(ctx, amount, fromRaw, toRaw, date) {
   if (bothEcb && !yearOnly) {
     const r = await getEcbRates(from, [to], dayDate);
     const rate2 = r.rates[to];
-    if (rate2 == null) throw new ToolError(`ECB rate ${from}\u2192${to} unavailable.`, { from, to });
+    if (typeof rate2 !== "number" || !Number.isFinite(rate2)) throw new ToolError(`ECB rate ${from}\u2192${to} unavailable.`, { from, to });
     const notes2 = [];
     if (dayDate && r.date !== dayDate) {
       notes2.push(`Requested ${dayDate}; nearest ECB working day is ${r.date} (weekends/holidays have no reference rate).`);
@@ -4578,6 +4578,10 @@ async function fxConvert(ctx, amount, fromRaw, toRaw, date) {
     if (decision && !decision.applies) notes.push(decision.reason);
     if (ecbSet.has(cur) && !yearOnly) {
       const r = await getEcbRates(cur, ["USD"], dayDate);
+      const usdRate = r.rates?.USD;
+      if (typeof usdRate !== "number" || !Number.isFinite(usdRate)) {
+        throw new ToolError(`ECB rate ${cur}\u2192USD unavailable${r.date ? ` for ${r.date}` : ""}, so the USD bridge cannot be built.`, r.date ? { currency: cur, date: r.date } : { currency: cur });
+      }
       citations.push(ecbFxCitation(ctx, { base: cur, quote: "USD", rateDate: r.date, apiUrl: r.apiUrl }));
       rateDate = rateDate || r.date;
       if (dayDate && r.date !== dayDate) {
