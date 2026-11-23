@@ -22,7 +22,7 @@ export const SOURCES = [
     id: "worldbank",
     name: "World Bank, World Development Indicators",
     coverage: "~1,400 annual indicators, 200+ economies, many from 1960",
-    access: "No key; queried live from api.worldbank.org v2",
+    access: "No key. Queried live from api.worldbank.org v2",
     license: "CC BY 4.0",
     license_verdict: "served" as LicenseVerdict,
     license_note:
@@ -37,7 +37,7 @@ export const SOURCES = [
     name: "IMF, World Economic Outlook & Fiscal Monitor (via the IMF DataMapper API, with DBnomics as fallback)",
     coverage:
       "Growth, fiscal and external indicators for 190+ economies, including estimates and projections, in twice-yearly vintages (April and October, plus interim Updates). The primary path is the IMF's own DataMapper API, which serves the current edition and passes its edition label through verbatim. If that path is unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF's release calendar. Every response cites the resolved vintage, and a fallback that crosses editions is disclosed (verify_stat demotes such cases to cannot_verify rather than judging a claim against a superseded vintage). The actual/projection boundary is a heuristic derived from each response's own data horizon, not a per-country authoritative cutoff",
-    access: "No key; queried live from www.imf.org/external/datamapper (primary) and api.db.nomics.world v22 (fallback)",
+    access: "No key. Queried live from www.imf.org/external/datamapper (primary) and api.db.nomics.world v22 (fallback)",
     license: IMF_LICENSE,
     license_verdict: "served" as LicenseVerdict,
     license_note:
@@ -52,7 +52,7 @@ export const SOURCES = [
     name: "IMF, dated World Economic Outlook vintages (api.imf.org, SDMX 3.0)",
     coverage:
       "Frozen dated WEO editions published as first-party SDMX 3.0 dataflows. StatCite uses them ONLY on the dated-vintage path (as_of verification and the revision probe), never in the live chain, and only for editions enumerated in IMF_VINTAGE_FLOWS from the live dataflow listing. The IMF exposes a small number of recent vintages, not an archive. DBnomics remains the deep historical fallback back to 2010-04, so this source narrows the newest-edition gap rather than replacing the aggregator",
-    access: "No key and no account; api.imf.org serves this data anonymously (verified 2026-08-10). The sign-in wall on portal.api.imf.org guards the developer console, not the data. Rate limits are undocumented outside that console and no RateLimit/Retry-After headers are returned; a 31-request unpaced burst was accepted without throttling (2026-08-10), which establishes headroom rather than an absence of limits. StatCite issues one upstream call per as_of/revision-probe lookup, cached one hour",
+    access: "No key and no account. The api.imf.org host serves this data anonymously (verified 2026-08-10). The sign-in wall on portal.api.imf.org guards the developer console, not the data. Rate limits are undocumented outside that console and no RateLimit/Retry-After headers are returned. A 31-request unpaced burst was accepted without throttling (2026-08-10), which establishes headroom rather than an absence of limits. StatCite issues one upstream call per as_of/revision-probe lookup, cached one hour",
     license: IMF_LICENSE,
     license_verdict: "served" as LicenseVerdict,
     license_note:
@@ -66,11 +66,11 @@ export const SOURCES = [
     id: "ecb_fx",
     name: "European Central Bank, euro foreign exchange reference rates (via Frankfurter)",
     coverage: "~30 major currencies, daily since 1999",
-    access: "No key; queried live from api.frankfurter.dev",
-    license: "Published for information purposes; reuse with attribution; not transaction rates",
+    access: "No key. Queried live from api.frankfurter.dev",
+    license: "Published for information purposes and reusable with attribution. These are not transaction rates",
     license_verdict: "served" as LicenseVerdict,
     license_note:
-      "ECB disclaimer permits reproduction with source attribution; the reference rates are explicitly informational, and StatCite labels them as reference (not transaction) rates.",
+      "ECB disclaimer permits reproduction with source attribution. The reference rates are explicitly informational, and StatCite labels them as reference (not transaction) rates.",
     license_verified_on: "2026-07-25",
     attribution_required: "Source: European Central Bank euro foreign exchange reference rates",
     url: "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html",
@@ -80,7 +80,7 @@ export const SOURCES = [
     id: "dbnomics",
     name: "DBnomics (aggregator)",
     coverage: "Tens of millions of series from 90+ official providers (IMF, OECD, Eurostat, ECB, BIS, national statistical offices)",
-    access: "No key; open aggregator, upstream provider licenses flow through",
+    access: "No key. DBnomics is an open aggregator, and the upstream provider licences flow through",
     license: "Per underlying provider",
     license_verdict: "flow_through" as LicenseVerdict,
     license_note:
@@ -94,8 +94,8 @@ export const SOURCES = [
     id: "bis",
     name: "Bank for International Settlements, central bank policy rates",
     coverage: "Policy rates for 49 economies (the rate that best captures each monetary authority's policy stance), monthly and daily, via the BIS SDMX API",
-    access: "No key; queried live from stats.bis.org/api/v2 (SDMX-JSON via Accept header)",
-    license: "BIS statistics may be reproduced and redistributed with attribution; see the BIS terms and conditions for statistics",
+    access: "No key. Queried live from stats.bis.org/api/v2 (SDMX-JSON via Accept header)",
+    license: "BIS statistics may be reproduced and redistributed with attribution (see the BIS terms and conditions for statistics)",
     license_verdict: "served" as LicenseVerdict,
     license_note:
       "The BIS terms for statistics permit reproduction and redistribution with attribution to the BIS. StatCite charges for the audit/convenience layer, never for BIS data standalone, and attributes the BIS on every response.",
@@ -108,8 +108,8 @@ export const SOURCES = [
     id: "ecb_data",
     name: "European Central Bank, Data Portal (euro-area monetary statistics)",
     coverage: "Euro-area harmonised inflation (HICP) and related monetary series via the ECB Data Portal SDMX API",
-    access: "No key; queried live from data-api.ecb.europa.eu (SDMX-JSON)",
-    license: "ECB content may be reproduced with attribution; see the ECB disclaimer and copyright notice",
+    access: "No key. Queried live from data-api.ecb.europa.eu (SDMX-JSON)",
+    license: "ECB content may be reproduced with attribution (see the ECB disclaimer and copyright notice)",
     license_verdict: "served" as LicenseVerdict,
     license_note:
       "The ECB's copyright notice permits reproduction of its published content with attribution to the ECB as source. This entry is distinct from ecb_fx, which covers the euro reference exchange rates served via Frankfurter.",
@@ -141,7 +141,7 @@ export const SOURCES = [
     id: "un_comtrade",
     name: "UN Comtrade (trade statistics), not served",
     coverage: "Not served. UN Comtrade's policy on use and re-dissemination requires an active premium subscription to re-disseminate its data, and licenses for-profit extraction or streaming applications for a fee.",
-    access: "Not integrated; evaluated and declined",
+    access: "Not integrated. Evaluated and declined",
     license: "UN Comtrade policy on use and re-dissemination",
     license_verdict: "refused" as LicenseVerdict,
     license_note:
@@ -185,7 +185,7 @@ export const SOURCES = [
     coverage:
       "The fixed US dollar parities fx_convert uses as exact legs: BBD (Central Bank of Barbados), XCD (Eastern Caribbean Central Bank), BZD (Central Bank of Belize), AWG (Centrale Bank van Aruba), BMD (Bermuda Monetary Authority), KYD (Cayman Islands Monetary Authority), SAR (Saudi Central Bank), QAR (Qatar Central Bank) and OMR (Central Bank of Oman). Each parity is applied from the date its source confirms it and never to a future period. Other dates use the World Bank annual average.",
     access: "Held as constants in core/pegs.ts, each read from the authority's own published page or report on the date recorded with it. No upstream call is made at request time",
-    license: "A published legal exchange-rate parity is a fact, not a licensed dataset",
+    license: "No dataset licence applies: a published legal exchange-rate parity is a fact",
     license_verdict: "served" as LicenseVerdict,
     license_note:
       "StatCite states each parity, which is a fact the issuing authority publishes, and cites that authority with a link to the page or report it was read from. Only the parity phrase and the publication's title are quoted, with attribution. No table or dataset is copied or redistributed. The authorities' own terms pages were not reviewed, because a parity is a fact, so the terms link points to StatCite's description of the method.",

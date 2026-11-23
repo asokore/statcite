@@ -271,7 +271,7 @@
      "name": "Is it really free? What's the catch?",
      "acceptedAnswer": {
       "@type": "Answer",
-      "text": "Yes. The service runs on near-zero-cost infrastructure and free official data APIs, so a generous free tier is sustainable. The long-term plan is boring and honest: keep the free tier, add paid convenience (keys, volume, bulk) for heavy users. No ads, no data resale."
+      "text": "Yes. The service runs on near-zero-cost infrastructure and free official data APIs, so a generous free tier is sustainable. The long-term plan is boring and honest: keep the free tier, add paid convenience (keys, volume, bulk) for heavy users. There are no ads and no data resale."
      }
     },
     {
@@ -467,7 +467,7 @@ footer .cols a{display:inline-block;line-height:24px}
   <section id="benchmark" data-fam="fam-3">
     <div class="sbar" aria-hidden="true" data-nosnippet data-label="BENCHMARK" data-tag="OUR OWN CLAIM, MEASURED"><span class="tag" data-tag="OUR OWN CLAIM, MEASURED"></span></div>
     <h2>We measured it ourselves, on our own claim</h2>
-    <p class="lead">The stats above are general research on AI and citations. This is StatCite's own benchmark: 6 models across 3 vendors (4 Anthropic models, 1 OpenAI, 1 Google preview model) answering 100 real economic-statistics questions, instructed to answer from memory only, with no tools, no retrieval and no StatCite. It's the honest baseline StatCite exists to fix.</p>
+    <p class="lead">The stats above are general research on AI and citations. This is StatCite's own benchmark: 6 models across 3 vendors (4 Anthropic models, 1 OpenAI, 1 Google preview model) answering 100 real economic-statistics questions, instructed to answer from memory only, without tools, retrieval or StatCite. It's the honest baseline StatCite exists to fix.</p>
     <div class="tscroll wide" tabindex="0" role="region" aria-label="Benchmark run 1 results">
       <table>
         <caption>Run 1, scored 5 August 2026</caption>
@@ -487,7 +487,7 @@ footer .cols a{display:inline-block;line-height:24px}
   <section id="connect" data-fam="accent">
     <div class="sbar" aria-hidden="true" data-nosnippet data-label="CONNECT" data-tag="ONE URL, NO KEY"><span class="tag" data-tag="ONE URL, NO KEY"></span></div>
     <h2>Connect your agent</h2>
-    <p class="lead">One URL. No signup, no API key, no OAuth. Works in every major MCP client.</p>
+    <p class="lead">One URL. Works in every major MCP client without a signup, an API key or OAuth.</p>
     <div class="mcpurl"><span id="mcp-url">https://statcite.com/mcp</span><button onclick="copyText('mcp-url',this)">copy</button></div>
     <p style="color:var(--dim);font-size:14px;margin:-4px 0 14px">Once connected, three ready-made prompts appear in clients that support them: <code>fact_check</code> (paste a draft, every macro claim in it gets checked), <code>country_brief</code> and <code>cite_this_stat</code>. <a href="/docs#prompts">What they do</a>.</p>
     <div class="tabs" role="tablist" aria-label="Choose your MCP client">
@@ -611,7 +611,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
   <section id="try" data-fam="accent">
     <div class="sbar" aria-hidden="true" data-nosnippet data-label="TRY IT" data-tag="THE SAME ENDPOINT AN AGENT CALLS"><span class="tag" data-tag="THE SAME ENDPOINT AN AGENT CALLS"></span></div>
     <h2>Try a live verification</h2>
-    <p class="lead">No setup, no key. This form calls the same public <code style="font-family:var(--mono)">GET /v1/verify</code> endpoint your agent would. Pick an indicator, claim a number, get the verdict and the citation.</p>
+    <p class="lead">You need no setup and no key. This form calls the same public <code style="font-family:var(--mono)">GET /v1/verify</code> endpoint your agent would. Pick an indicator, claim a number, get the verdict and the citation.</p>
     <form class="try-form" id="try-form" action="/v1/verify" method="get">
       <div>
         <label for="try-indicator">Indicator</label>
@@ -695,7 +695,7 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
         <div class="price">$0 <small>forever for fair use</small></div>
         <ul>
           <li>All 12 tools, full citation payloads</li>
-          <li>No key, no signup, no OAuth</li>
+          <li>Works without a key, a signup or OAuth</li>
           <li>MCP + REST</li>
           <li>Fair-use: be reasonable, heavy automated loads may be throttled</li>
         </ul>
@@ -726,19 +726,19 @@ curl "https://statcite.com/v1/fx?amount=100&from=USD&to=BBD"</pre>
   <section id="support">
     <div class="sbar" aria-hidden="true" data-nosnippet data-label="SUPPORT" data-tag="THE VERDICT IS NOT FOR SALE"><span class="tag" data-tag="THE VERDICT IS NOT FOR SALE"></span></div>
     <h2>Support StatCite</h2>
-    <p class="lead">StatCite is free, with no ads, no trackers and no data resale. Running it costs very little by design, so there is no funding drive here. If it caught a wrong number before you published it, you can put something in the tin.</p>
+    <p class="lead">StatCite is free. It carries no ads or trackers and never resells data. Running it costs very little by design, so there is no funding drive here. If it caught a wrong number before you published it, you can put something in the tin.</p>
     <div class="cta">
       <a class="btn primary" href="https://paypal.me/asokorebeckles" rel="noopener">Donate via PayPal</a>
       <a class="btn ghost" href="https://github.com/asokore/statcite">Star it on GitHub</a>
       <a class="btn ghost" href="mailto:hello@statcite.com">Tell me what to build next</a>
     </div>
-    <p class="support-note">Contributions go to the domain, the data-source costs and the time to keep the registry curated. They buy no priority support, no influence over which sources StatCite trusts, and no change to how <code style="font-family:var(--mono);color:var(--accent)">verify_stat</code> scores a claim. The verdict is not for sale. That is the whole point of the project.</p>
+    <p class="support-note">Contributions go to the domain, the data-source costs and the time to keep the registry curated. They buy no priority support, no influence over which sources StatCite trusts, and no change to how <code style="font-family:var(--mono);color:var(--accent)">verify_stat</code> scores a claim. The verdict cannot be bought, and that is the whole point of the project.</p>
   </section>
 
   <section id="faq">
     <div class="sbar" aria-hidden="true" data-nosnippet data-label="FAQ" data-tag="ALSO IN JSON-LD"><span class="tag" data-tag="ALSO IN JSON-LD"></span></div>
     <h2>FAQ</h2>
-    <details><summary>Is it really free? What's the catch?</summary><p>Yes. The service runs on near-zero-cost infrastructure and free official data APIs, so a generous free tier is sustainable. The long-term plan is boring and honest: keep the free tier, add paid convenience (keys, volume, bulk) for heavy users. No ads, no data resale.</p></details>
+    <details><summary>Is it really free? What's the catch?</summary><p>Yes. The service runs on near-zero-cost infrastructure and free official data APIs, so a generous free tier is sustainable. The long-term plan is boring and honest: keep the free tier, add paid convenience (keys, volume, bulk) for heavy users. There are no ads and no data resale.</p></details>
     <details><summary>How accurate is the data?</summary><p>StatCite does not originate the underlying statistical observations. It relays the official series and tells you exactly which one, fetched live from the source or its aggregator and cached briefly. Derived values (YoY, inflation adjustment, FX bridging) and verification verdicts are calculated transparently, with the method and inputs disclosed. Macro data gets revised, and aggregators can lag the source's newest release. Every citation states the exact series and vintage served, and responses flag when a vintage trails the expected current release.</p></details>
     <details><summary>Can I redistribute the numbers?</summary><p>It depends on the source, and every response tells you exactly which applies. World Bank data is CC BY 4.0, so reuse including commercial use is allowed with attribution. Published IMF statistical data may be copied, redistributed and used in derivative works under the IMF's data terms: attribute in the IMF's format ("Source: International Monetary Fund, &lt;database&gt;, &lt;link&gt;", and every StatCite citation supplies this line ready-made), don't alter the data in ways affecting accuracy, tell your own downstream users these terms apply, and if you sell it as a standalone product, disclose that the data is free from the IMF. ECB reference rates are informational, reused with attribution. Every response includes the exact attribution line and license for that number, which is precisely the point of StatCite.</p></details>
     <details><summary>Who built this?</summary><p>A professional economist who got tired of AI drafts with unverifiable numbers. The indicator registry, source fallbacks, and verification thresholds are economist-curated. For example, government debt defaults to the IMF's general government gross debt series (current vintage via the DataMapper API), not the patchier World Bank central-government series.</p></details>

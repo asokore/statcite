@@ -92,3 +92,6 @@ zz_*.mjs
 
 # Agent worktrees created by the local tooling
 .claude/worktrees/
+
+# Local agent notes, never committed.
+CLAUDE.local.md

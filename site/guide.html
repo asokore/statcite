@@ -98,7 +98,7 @@ blockquote{border-left:3px solid var(--fam-2);padding:6px 0 6px 18px;margin:14px
   <header>
     <div class="badge">guide</div>
     <h1>How to check an economic statistic <span class="serif">before you publish it</span></h1>
-    <p class="sub">A number in a draft is a liability until you know where it came from. This is the check itself: the four ways a figure goes wrong, how to run it by hand against the primary source, and how to run it in one call. Every example below is a real response from live official data, not an illustration.</p>
+    <p class="sub">A number in a draft is a liability until you know where it came from. This is the check itself: the four ways a figure goes wrong, how to run it by hand against the primary source, and how to run it in one call. Every example below is a real response from live official data.</p>
     <div class="toc">
       <strong style="font-size:14.5px">On this page</strong>
       <ol>
@@ -118,8 +118,8 @@ blockquote{border-left:3px solid var(--fam-2);padding:6px 0 6px 18px;margin:14px
   <section id="why">
     <h2>1. Why the old habit stopped working</h2>
     <p>The old habit was to trust a number that sounded right, because a wrong one usually looked wrong. That stopped being true. A language model will produce a figure with the right magnitude, the right units and a plausible source attached, and be confidently wrong about it, because a number that fits the pattern of the training data is exactly what the model is built to produce.</p>
-    <p>We measured this rather than asserting it. In a pre-registered benchmark of six models across three vendors, answering 100 real economic-statistics questions from memory with no tools, the strongest model scored a Within-Tolerance Rate of 82.0%, a Confabulation Rate of 15.5% and an Answer Rate of 97.0%. Those three are quoted together here because the benchmark's own publication covenant requires it: an accuracy figure without the confabulation and answer rates beside it is misleading, since a model can raise one by declining to answer. The point is not the ranking. It is that the best result still means roughly one confidently-stated figure in six is outside tolerance, and nothing in the output marks which one.</p>
-    <p>Retrieval does not remove the problem either. A model that reads a page can still attach the number to the wrong year, or quote a revised figure against an old definition. The fix is not better recall. It is checking the specific claim against the specific series, and keeping the pointer that lets someone else repeat the check.</p>
+    <p>We measured this rather than asserting it. In a pre-registered benchmark of six models across three vendors, answering 100 real economic-statistics questions from memory with no tools, the strongest model scored a Within-Tolerance Rate of 82.0%, a Confabulation Rate of 15.5% and an Answer Rate of 97.0%. Those three are quoted together here because the benchmark's own publication covenant requires it: an accuracy figure without the confabulation and answer rates beside it is misleading, since a model can raise one by declining to answer. The ranking matters less than this: even the best result still means roughly one confidently-stated figure in six is outside tolerance, and nothing in the output marks which one.</p>
+    <p>Retrieval leaves the problem in place. A model that reads a page can still attach the number to the wrong year, or quote a revised figure against an old definition. The fix is to check the specific claim against the specific series, and keep the pointer that lets someone else repeat the check.</p>
     <p class="note">Full method, pre-registration and raw outputs: <a href="/bench">the benchmark page</a>.</p>
   </section>
 
@@ -136,10 +136,10 @@ blockquote{border-left:3px solid var(--fam-2);padding:6px 0 6px 18px;margin:14px
 "diagnostics": [
   "The claimed value matches the 2022 figure (8.0028), the year may be misattributed."
 ]</code></pre>
-    <p>The diagnostic is the useful part. "Wrong" tells you to delete the sentence; "this is last year's figure" tells you to change one character.</p>
+    <p>The diagnostic is the useful part. "Wrong" tells you to delete the sentence, while "this is last year's figure" tells you to change one character.</p>
 
     <h3>Stale recall: right once, revised since</h3>
-    <p>US general government gross debt was about 98% of GDP a few years ago, so a model stating 98% for 2023 is not inventing anything, it is remembering an older world. The official figure is 120%:</p>
+    <p>US general government gross debt was about 98% of GDP a few years ago, so a model stating 98% for 2023 is remembering an older world. The official figure is 120%:</p>
     <pre><code>GET /v1/verify?indicator=govt_debt_gdp&amp;country=USA&amp;period=2023&amp;value=98
 
 "verdict": "mismatch",
@@ -149,7 +149,7 @@ blockquote{border-left:3px solid var(--fam-2);padding:6px 0 6px 18px;margin:14px
   "previous_value": 119.836,
   "matches_previous_vintage": false
 }</code></pre>
-    <p>The revision check matters more than it looks. Official statistics are revised, so "wrong" and "was right when it was written" are different findings that deserve different corrections. Here the claim does not match the previous vintage either, so this is not a revision story. It is simply out of date by several years.</p>
+    <p>The revision check matters more than it looks. Official statistics are revised, so "wrong" and "was right when it was written" are different findings that deserve different corrections. Here the claim does not match the previous vintage either, so it is simply out of date by several years.</p>
 
     <h3>Percent versus decimal</h3>
     <p>A unit slip, usually introduced by a spreadsheet or a chart library rather than by a person. Barbados inflation in 2024 was 1.4464%, not 0.014:</p>
@@ -161,7 +161,7 @@ blockquote{border-left:3px solid var(--fam-2);padding:6px 0 6px 18px;margin:14px
     <p>The same family includes millions read as billions, and index points read as percentages. Always check that the unit in the response is the unit in your sentence.</p>
 
     <h3>Rounding, which is not an error</h3>
-    <p>A check that flags everything is a check nobody uses. Writing Barbados 2024 inflation as 1.45% is not wrong, it is rounded:</p>
+    <p>A check that flags everything is a check nobody uses. Writing Barbados 2024 inflation as 1.45% is right, just rounded:</p>
     <pre><code>GET /v1/verify?indicator=inflation_cpi&amp;country=BRB&amp;period=2024&amp;value=1.45
 
 "verdict": "match",
@@ -175,7 +175,7 @@ blockquote{border-left:3px solid var(--fam-2);padding:6px 0 6px 18px;margin:14px
     <ol>
       <li><strong>Name the series, not the topic.</strong> "Inflation" is not a series. "Consumer price inflation, annual average, %" is. Most disagreements about a number are actually two people quoting two different series correctly. Debt is the classic case: general government gross debt and central government debt are both real, both official, and different by a wide margin for the same country and year.</li>
       <li><strong>Go to the publisher, not to an aggregator.</strong> The World Bank, the IMF, the relevant central bank or national statistics office. An aggregator inherits its provider's revisions on its own schedule, so it can be internally consistent and still behind.</li>
-      <li><strong>Match the period exactly.</strong> Calendar year or fiscal year, annual average or end of period, quarter or year. This is where the "right number, wrong year" error is born, and it is also where fiscal-year reporting quietly shifts a figure by a year.</li>
+      <li><strong>Match the period exactly.</strong> Calendar year or fiscal year, annual average or end of period, quarter or year. This is where the "right number, wrong year" error is born, and it is also where fiscal-year reporting shifts a figure by a year without saying so.</li>
       <li><strong>Check whether it is an outturn or a projection.</strong> IMF WEO tables carry projection years alongside actuals and they look identical in a table. Publishing a projection as a historical fact is a specific, avoidable error.</li>
       <li><strong>Write down the series identifier and the retrieval date.</strong> Not the topic and not the URL of a chart. The series id and the date are what make the number reproducible after the next revision, and they are the difference between a citation and a gesture.</li>
     </ol>
@@ -188,7 +188,7 @@ blockquote{border-left:3px solid var(--fam-2);padding:6px 0 6px 18px;margin:14px
 
     <h3>From a script or a spreadsheet</h3>
     <pre><code>curl "https://statcite.com/v1/verify?indicator=inflation_cpi&amp;country=BRB&amp;period=2024&amp;value=1.4"</code></pre>
-    <p>The response carries the verdict, the official value, the difference, diagnostics for the classic errors above, and a full citation. To check a whole draft at once, <code>POST /v1/verify_claims</code> takes up to 15 claims in one call and returns a verdict per claim; one bad claim never sinks the batch.</p>
+    <p>The response carries the verdict, the official value, the difference, diagnostics for the classic errors above, and a full citation. To check a whole draft at once, <code>POST /v1/verify_claims</code> takes up to 15 claims in one call and returns a verdict per claim, so one bad claim never sinks the batch.</p>
 
     <h3>From an AI assistant</h3>
     <p>StatCite is an MCP server, so an assistant can run the check itself while it drafts, instead of you checking afterwards. There is no key and no signup:</p>
@@ -217,7 +217,7 @@ blockquote{border-left:3px solid var(--fam-2);padding:6px 0 6px 18px;margin:14px
 
   <section id="cite">
     <h2>6. Citing it so a reader can reproduce it</h2>
-    <p>A citation is not an acknowledgement, it is an instruction for repeating the measurement. It needs the publisher, the dataset, the series identifier and the date you retrieved it, because the value can legitimately change after you publish and the reader needs to know which vintage you saw.</p>
+    <p>A citation is an instruction for repeating the measurement. It needs the publisher, the dataset, the series identifier and the date you retrieved it, because the value can legitimately change after you publish and the reader needs to know which vintage you saw.</p>
     <p>Every StatCite response carries those fields, plus ready-made BibTeX and APA strings derived from the same fields, so the reference and the prose cannot drift apart:</p>
     <pre><code>"citation": {
   "source":       "International Monetary Fund",

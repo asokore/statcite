@@ -133,7 +133,7 @@ export function dbnomicsCitation(
     series_name: opts.seriesName,
     source_url: sourceUrl,
     api_url: opts.apiUrl,
-    license: isImf ? IMF_LICENSE : `${opts.providerName} terms apply; retrieved via DBnomics (open aggregator)`,
+    license: isImf ? IMF_LICENSE : `${opts.providerName} terms apply. Retrieved via DBnomics (open aggregator)`,
     attribution: isImf
       ? `Source: International Monetary Fund, ${opts.datasetName}, ${sourceUrl}`
       : `Source: ${opts.providerName} (via DBnomics)`,
@@ -211,12 +211,12 @@ export function ecbFxCitation(ctx: Ctx, opts: { base: string; quote: string; rat
     series_name: `${opts.base}/${opts.quote} reference exchange rate`,
     source_url: sourceUrl,
     api_url: opts.apiUrl,
-    license: "ECB reference rates are published for information purposes; reuse with attribution",
+    license: "ECB reference rates are published for information purposes and may be reused with attribution",
     attribution: "Source: European Central Bank euro foreign exchange reference rates",
     retrieved_at: date,
     citation_text: `European Central Bank, euro foreign exchange reference rates, ${opts.base}/${opts.quote} as of ${opts.rateDate} (via Frankfurter). ${retrievedVia(date)} ${sourceUrl}`,
     notices: [
-      "ECB reference rates are indicative and 'for information purposes'; they are not transaction rates.",
+      "ECB reference rates are indicative and 'for information purposes'. They are not transaction rates.",
     ],
   });
 }
@@ -235,7 +235,7 @@ export function usdPegCitation(peg: UsdPeg): Citation {
     series_id: `peg/${peg.currency}USD`,
     series_name: `${peg.currency} fixed parity against the US dollar, ${peg.parityAsPublished}`,
     source_url: peg.sourceUrl,
-    license: "A legal exchange-rate parity is a published fact, not a licensed dataset. Attribute the issuing authority",
+    license: "No dataset licence applies: a legal exchange-rate parity is a published fact. Attribute the issuing authority",
     attribution: `Source: ${peg.authority}`,
     retrieved_at: date,
     citation_text: `${peg.authority}, ${peg.sourceTitle}: ${peg.currency} fixed to the US dollar at ${peg.parityAsPublished}, ${peg.effectiveFromAsPublished ? `in force since ${peg.effectiveFromAsPublished}` : `confirmed by this source from ${peg.effectiveFrom}`}. ${retrievedVia(date)} ${peg.sourceUrl}`,
@@ -284,10 +284,10 @@ export function sdmxCitation(
     api_url: opts.apiUrl,
     license:
       opts.provider === "BIS"
-        ? "BIS statistics may be reproduced and redistributed with attribution; see the BIS terms and conditions for statistics"
+        ? "BIS statistics may be reproduced and redistributed with attribution (see the BIS terms and conditions for statistics)"
         : opts.provider === "IMF"
           ? IMF_LICENSE
-          : "ECB content may be reproduced with attribution; see the ECB disclaimer and copyright notice",
+          : "ECB content may be reproduced with attribution (see the ECB disclaimer and copyright notice)",
     attribution:
       opts.provider === "BIS"
         ? "Source: Bank for International Settlements"

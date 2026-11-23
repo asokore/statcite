@@ -2,7 +2,7 @@
 
 Semantic versioning on the server (`server/src/mcp.ts` `SERVER_VERSION`).
 Releases are tagged `v<version>` from this file's entries. History before
-1.5.0 is reconstructed from HANDOFF.md and the git log; dates are deploy
+1.5.0 is reconstructed from HANDOFF.md and the git log, and dates are deploy
 dates.
 
 ## Unreleased
@@ -41,6 +41,10 @@ The peg sources have their own entry in the licence ledger at `/v1/sources`.
 A bridged pair with an ECB leg and a weekend or holiday date now carries the
 same "nearest ECB working day" note the direct ECB path always gave. The old
 note claiming an annual average "normally equals the peg" is gone.
+
+Copy edits across the site pages and the README, and in the licence wording
+at `/v1/sources` and in the `license` field of ECB, BIS, DBnomics and peg
+citations. No figure, identifier or behaviour changed.
 
 ## 1.17.0
 
@@ -214,7 +218,7 @@ never fired, so the indicator registry rendered 10,584px tall at 375px; it is
 now 4,257px and scrolls. Seven of the eight Connect panels were invisible with
 scripting off, and the live verifier form discarded what the visitor typed.
 
-**CaribStat stops losing data quietly.** A period label the parser could not
+**CaribStat stops losing data without a warning.** A period label the parser could not
 read deleted its observations and published clean, which had left three live
 holes. Four of 23 catalogue sample rows did not exist, so search handed agents
 selectors that answered 422. Every CBB row error read "undefined/BRB".
@@ -338,7 +342,7 @@ the tree.
 ## 1.12.2
 
 One verdict-changing fix on the main transport, several Caribbean answers that
-were quietly incomplete, and a contract that now says what the service does.
+were incomplete without saying so, and a contract that now says what the service does.
 
 **MCP tool arguments are held to the schema each tool publishes.** Every tool
 has always declared that extra arguments are invalid, but nothing enforced it.
@@ -524,7 +528,7 @@ code it pointed at.
 - `strict_source` on `/v1/verify` used the raw `=== "true"` comparison that the
   `qBool` helper was written to replace, so `strict_source=1` did not fail, it
   SILENTLY DOWNGRADED: the caller asked for a primary-source-only guarantee and
-  quietly got a fallback value with a 200. The three sibling routes had been
+  silently got a fallback value with a 200. The three sibling routes had been
   migrated and this one was missed. Found by reading the helper's own docstring
   against its call sites, not by the sweep.
 - An inverted year window ran the full fetch and then failed with a message
@@ -789,7 +793,7 @@ from the version the request itself declares.
   body and refuses disagreement with -32020 `HeaderMismatch` + HTTP 400,
   including the Base64 sentinel (`=?base64?…?=`) form for non-ASCII names. A
   request that declares modern in one place and legacy in the other is treated
-  as modern so it reaches this check, rather than being quietly served under
+  as modern so it reaches this check, rather than being silently served under
   the older unvalidated rules.
 - **Version errors are now the spec's**: an unsupported version returns -32022
   `UnsupportedProtocolVersion` with the supported list in `error.data`, in

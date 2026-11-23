@@ -29,7 +29,7 @@ The differentiator is **verification, not lookup**: `verify_stat` checks a claim
 | ChatGPT | Developer mode → add MCP server, No Authentication (implements the deep-research `search`/`fetch` pair) |
 | Cline / stdio-only | `npx -y mcp-remote@0.14.3 https://statcite.com/mcp` (pinned, so a client restart never pulls a new release. See [llms-install.md](llms-install.md)) |
 
-No signup, no API key, no OAuth.
+StatCite needs no signup, API key or OAuth.
 
 ## Side effects
 
@@ -51,7 +51,7 @@ Every `get_indicator` and `get_series` result also carries a `limitations` list:
 
 ## Make your agent use it without being asked
 
-Connecting a server puts the tools on the shelf. It does not make an agent reach for them, and an agent that is confident about a number will usually answer from memory. One standing rule fixes that. Paste this into `CLAUDE.md` or `AGENTS.md`, into Cursor Settings → Rules, or into your ChatGPT project instructions:
+Connecting a server puts the tools on the shelf. An agent that is confident about a number will still usually answer from memory without reaching for them. One standing rule fixes that. Paste this into `CLAUDE.md` or `AGENTS.md`, into Cursor Settings → Rules, or into your ChatGPT project instructions:
 
 ```text
 Before stating any country-level economic figure, get it from StatCite (get_indicator) or check it (verify_stat), even if you think you know it, and include the citation_text it returns.
@@ -99,6 +99,6 @@ npm run deploy    # wrangler deploy
 
 ## Data & licensing
 
-StatCite does not originate the underlying statistical observations. Derived values and verification verdicts are calculated transparently from cited source data with the method disclosed. World Bank (CC BY 4.0); IMF (published IMF statistical data may be copied, redistributed and used in derivative works with attribution as "Source: International Monetary Fund, \<database\>, \<link\>", plus data-integrity, downstream-communication and free-of-charge-disclosure conditions, all carried verbatim in every citation's `license` field); BIS (reproduction and redistribution with attribution); ECB (attribution; reference rates informational); Eurostat via DBnomics (CC BY 4.0); FRED is not served. Its Services Terms of Use (clauses (p) and (q), https://fred.stlouisfed.org/legal/) reserve FRED content from AI/ML use and from caching or redistribution. IMF WEO/Fiscal Monitor projections are labeled as projections. The primary IMF path is the DataMapper API (current edition, verbatim edition label). If unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF's release calendar, so responses cite the resolved vintage, flag stale ones, and every fallback is disclosed (verify_stat/verify_claims return cannot_verify with the fallback value as indicative when the primary failed transiently, rather than judging against a substitute that may differ by definition or vintage. A series the primary permanently lacks is judged against its stable fallback source with disclosure). Server code: MIT.
+StatCite does not originate the underlying statistical observations. Derived values and verification verdicts are calculated transparently from cited source data with the method disclosed. Licences by source: World Bank data is CC BY 4.0. For the IMF, published IMF statistical data may be copied, redistributed and used in derivative works with attribution as "Source: International Monetary Fund, \<database\>, \<link\>", plus data-integrity, downstream-communication and free-of-charge-disclosure conditions, all carried verbatim in every citation's `license` field. The BIS allows reproduction and redistribution with attribution. The ECB requires attribution, and its reference rates are informational. Eurostat via DBnomics is CC BY 4.0. FRED is not served. Its Services Terms of Use (clauses (p) and (q), https://fred.stlouisfed.org/legal/) reserve FRED content from AI/ML use and from caching or redistribution. IMF WEO/Fiscal Monitor projections are labelled as projections. The primary IMF path is the DataMapper API (current edition, verbatim edition label). If unavailable, StatCite falls back to the newest edition DBnomics has ingested, which can lag the IMF's release calendar, so responses cite the resolved vintage, flag stale ones, and every fallback is disclosed (verify_stat/verify_claims return cannot_verify with the fallback value as indicative when the primary failed transiently, rather than judging against a substitute that may differ by definition or vintage. A series the primary permanently lacks is judged against its stable fallback source with disclosure). Server code: MIT.
 
 Built and curated by a professional economist. Contact: hello@statcite.com
