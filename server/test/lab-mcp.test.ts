@@ -4,7 +4,10 @@
 //   - /mcp is byte-identical to the capture taken before the lab routes existed
 //     (tools/list, initialize, GET descriptor), so no lab tool can leak onto it.
 //   - revision_records gives every value its own citation, naming the edition.
-//   - an edition the archive lacks stays missing, never filled from a neighbour.
+//   - every record's source resolves to a sources block carrying the licence,
+//     printed once per source, and lab citations match the core builders.
+//   - an edition the archive lacks stays missing, never filled from a neighbour,
+//     and the newest calendar edition says only what StatCite knows of it.
 //   - some economies and every aggregate are refused on every lab tool and on
 //     both lab routes, by code and by name, before any upstream call.
 //   - method_rules returns its text with citations.
@@ -18,9 +21,13 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { handleRequest, type Env } from "../src/index.ts";
 import { _clearMemCache } from "../src/core/upstream.ts";
-import { IMF_VINTAGE_FLOWS, dbnomicsCodeForEdition } from "../src/core/series.ts";
+import { IMF_VINTAGE_FLOWS, dbnomicsCodeForEdition, imfVintageCitation } from "../src/core/series.ts";
 import { TOOLS } from "../src/tools.ts";
-import { weoEditionsBetween, assertLabArgsCovered, isLabExcluded } from "../src/core/lab.ts";
+import { LAB_TOOLS } from "../src/lab-tools.ts";
+import { weoEditionsBetween, assertLabArgsCovered, isLabExcluded, API_URL_FROM_SOURCE_URL, newestEditionDetail, datasetWithEditionInWords } from "../src/core/lab.ts";
+import { IMF_LICENSE, dbnomicsCitation } from "../src/core/citations.ts";
+import { dbnomicsSeriesApiUrl } from "../src/adapters/dbnomics.ts";
+import { expectedWeoEdition } from "../src/core/weo-calendar.ts";
 import { resolveCountry } from "../src/core/countries.ts";
 
 const env: Env = {
@@ -61,10 +68,12 @@ function dbnomicsMultiBody(url: string): string {
       errors.push({ dataset_code: dataset, message: "Could not load series", provider_code: provider, series_code: series });
       continue;
     }
-    // The generic name DBnomics gives WEO:2022-04 to WEO:2025-04 (live
-    // 2026-11-28), used here for every edition, so a citation that names its
-    // edition only through the dataset name fails the edition-in-words check.
-    const name = "World Economic Outlook by countries";
+    // The names DBnomics gives (live 2026-11-28): "WEO by countries
+    // (2008-04 release)" up to WEO:2021-10, and the generic "World Economic
+    // Outlook by countries" from WEO:2022-04. Neither names the edition in
+    // words, so a citation that relies on the dataset name alone fails the
+    // edition-in-words check.
+    const name = edition < "2022-04" ? `WEO by countries (${edition} release)` : "World Economic Outlook by countries";
     datasets[`${provider}/${dataset}`] = { code: dataset, name };
     docs.push({
       "@frequency": "annual",
@@ -287,10 +296,14 @@ for (const path of LAB_ROUTES) {
       assert.ok(r.citation.citation_text.includes(words), `citation_text for ${ed} does not name "${words}": ${r.citation.citation_text}`);
       // Each citation points at its own edition, never at the shared request.
       assert.ok(!/series_ids=/.test(JSON.stringify(r.citation)), `citation for ${ed} carries the shared multi-series URL`);
-      assert.ok(r.citation.api_url.length < 300, `citation api_url for ${ed} is ${r.citation.api_url.length} characters`);
-      assert.ok(r.citation.api_url.includes(encodeURIComponent(ed)) || r.citation.api_url.includes(IMF_VINTAGE_FLOWS[ed] ?? "never"), `api_url for ${ed} is not its own: ${r.citation.api_url}`);
-      assert.equal(r.citation.export_formats, undefined, `citation for ${ed} carries export_formats`);
-      assert.equal(r.citation.source, "International Monetary Fund");
+      assert.ok(r.citation.source_url.length < 300, `citation source_url for ${ed} is ${r.citation.source_url.length} characters`);
+      assert.ok(r.citation.source_url.includes(encodeURIComponent(ed)) || r.citation.source_url.includes(IMF_VINTAGE_FLOWS[ed] ?? "never"), `source_url for ${ed} is not its own: ${r.citation.source_url}`);
+      // What is the same for every value lives in the sources block, once.
+      for (const k of ["export_formats", "license", "attribution", "api_url", "source", "series_name"]) {
+        assert.equal(r.citation[k], undefined, `citation for ${ed} still carries ${k}`);
+      }
+      // The edition is stated once in the dataset name, in words.
+      assert.doesNotMatch(r.citation.dataset, /\d{4}-\d{2} release/, `dataset for ${ed} states the edition twice: ${r.citation.dataset}`);
       ids.add(r.citation.series_id);
     }
     assert.equal(ids.size, values.length, "each value must carry its own citation, not a shared one");
@@ -306,6 +319,62 @@ for (const path of LAB_ROUTES) {
     assert.equal(e2026.source, "imf_dated_vintage");
     // A handful of upstream calls: one DBnomics request plus one per IMF vintage.
     assert.equal(calls.length, 1 + Object.keys(IMF_VINTAGE_FLOWS).length, JSON.stringify(calls));
+  });
+
+  test(`${path} revision_records: every record's source resolves to a block that carries the licence`, async () => {
+    installStub();
+    dbnAbsent = new Set(["2011-10"]);
+    const { payload, isError, rpc: raw } = await tool(path, "revision_records", { indicator: "gdp_growth", country: "USA", year: "2023" });
+    assert.equal(isError, false, JSON.stringify(payload));
+    assert.deepEqual(raw.result.structuredContent, payload, "structuredContent and the text copy must agree");
+    const keys = Object.keys(payload.sources).sort();
+    assert.deepEqual(keys, ["dbnomics_dated_edition", "imf_dated_vintage"]);
+    for (const rec of payload.records) {
+      const block = payload.sources[rec.source];
+      assert.ok(block, `record ${rec.edition} names source '${rec.source}', which has no block`);
+      assert.equal(block.license, IMF_LICENSE, `the ${rec.source} block does not carry the IMF licence`);
+      assert.equal(block.publisher, "International Monetary Fund");
+      assert.match(block.terms_url, /^https:\/\/www\.imf\.org\//);
+      assert.equal(block.attribution_format, "Source: International Monetary Fund, <database name>, <link to the dataset>");
+    }
+    // The licence is printed once per source, never per value.
+    const text = JSON.stringify(payload);
+    assert.equal(text.split(IMF_LICENSE.slice(0, 60)).length - 1, keys.length, "the licence appears more often than once per source block");
+    for (const rec of payload.records.filter((r: any) => r.status === "value")) {
+      const block = payload.sources[rec.source];
+      // Filling the block's attribution format with the citation's own fields
+      // gives the attribution the core builders write for the same value.
+      const filled = block.attribution_format.replace("<database name>", rec.citation.dataset).replace("<link to the dataset>", rec.citation.source_url);
+      assert.equal(filled, `Source: International Monetary Fund, ${rec.citation.dataset}, ${rec.citation.source_url}`);
+      // The block's api_url_rule rebuilds the API call for the value.
+      const api = API_URL_FROM_SOURCE_URL[rec.source as keyof typeof API_URL_FROM_SOURCE_URL](rec.citation.source_url);
+      if (rec.source === "dbnomics_dated_edition") {
+        const [provider, dataset, series] = rec.citation.series_id.split("/");
+        assert.equal(api, dbnomicsSeriesApiUrl(provider, dataset, series), `dbnomics api_url_rule fails for ${rec.edition}`);
+      } else {
+        assert.ok(calls.includes(api), `imf api_url_rule gives ${api}, which was never called`);
+      }
+    }
+  });
+
+  test(`${path} revision_records: lab citations match the core builders field for field`, async () => {
+    installStub();
+    dbnAbsent = new Set(["2011-10"]);
+    const { payload } = await tool(path, "revision_records", { indicator: "gdp_growth", country: "USA", year: "2023" });
+    const ctx = { now: () => new Date(`${payload.records.find((r: any) => r.citation).citation.retrieved_at}T12:00:00Z`) } as any;
+    const seriesName = `${payload.label}, ${payload.country.name}`;
+    const fields = ["dataset", "series_id", "source_url", "retrieved_at", "citation_text"] as const;
+    for (const rec of payload.records.filter((r: any) => r.status === "value")) {
+      const core =
+        rec.source === "dbnomics_dated_edition"
+          ? (() => {
+              const [providerCode, datasetCode, seriesCode] = rec.citation.series_id.split("/");
+              return dbnomicsCitation(ctx, { providerName: "International Monetary Fund", providerCode, datasetCode, datasetName: rec.citation.dataset, seriesCode, seriesName });
+            })()
+          : imfVintageCitation(ctx, { flow: IMF_VINTAGE_FLOWS[rec.edition], key: "USA.NGDP_RPCH.A", seriesName, apiUrl: "" });
+      for (const f of fields) assert.equal(rec.citation[f], core[f], `${rec.edition} ${f} differs from the core builder`);
+      assert.equal(payload.sources[rec.source].license, core.license, `${rec.edition}: the block licence differs from the core builder's`);
+    }
   });
 
   test(`${path} revision_records: a missing edition stays missing`, async () => {
@@ -324,9 +393,61 @@ for (const path of LAB_ROUTES) {
     // Neighbours keep their own values.
     assert.equal(payload.records.find((x: any) => x.edition === "2015-10").value, editionValue("2015-10"));
     assert.equal(payload.records.find((x: any) => x.edition === "2016-10").value, editionValue("2016-10"));
+    // An edition before the newest keeps DBnomics's own report, with no
+    // current-edition wording.
+    assert.equal(payload.records.find((x: any) => x.edition === "2016-04").missing_detail, "DBnomics reported for WEO:2016-04: Could not load dataset");
+    dbnAbsent = new Set(["2011-10"]);
+  });
+
+  test(`${path} revision_records: the newest calendar edition, when missing, says what StatCite knows and no more`, async () => {
+    installStub();
+    const newest = expectedWeoEdition(new Date());
+    dbnAbsent = new Set(["2011-10", newest]);
+    const { payload, isError } = await tool(path, "revision_records", { indicator: "gdp_growth", country: "USA", year: "2023" });
+    assert.equal(isError, false, JSON.stringify(payload));
+    const r = payload.records.at(-1);
+    assert.equal(r.edition, newest, "the newest calendar edition must be the last record");
+    assert.equal(r.status, "missing");
+    assert.equal(r.value, null);
+    assert.equal(r.missing_reason, "not_in_archive");
+    const [y, m] = newest.split("-");
+    assert.ok(r.missing_detail.includes(`${m === "04" ? "April" : "October"} ${y} edition`), r.missing_detail);
+    assert.match(r.missing_detail, /is the current edition/);
+    assert.match(r.missing_detail, /StatCite has no dated vintage for it yet/);
+    assert.match(r.missing_detail, /DBnomics has not loaded it/);
+    // Nothing about the IMF's own release of it, either way.
+    assert.doesNotMatch(r.missing_detail, /publish|released|IMF has|not yet out/i, r.missing_detail);
+    // The older gap keeps its plain wording.
+    assert.doesNotMatch(payload.records.find((x: any) => x.edition === "2011-10").missing_detail, /current edition/);
     dbnAbsent = new Set(["2011-10"]);
   });
 }
+
+test("the newest-edition detail says DBnomics has not loaded it only when DBnomics reports the dataset unloadable", () => {
+  const loaded = newestEditionDetail("2026-10", "Could not load series", "DBnomics reported for WEO:2026-10: Could not load series");
+  assert.match(loaded, /^2026-10 \(October 2026 edition\) is the current edition/);
+  assert.match(loaded, /StatCite has no dated vintage for it yet\./);
+  assert.doesNotMatch(loaded, /has not loaded/);
+  const none = newestEditionDetail("2026-10", undefined, "DBnomics holds no series USA.X in WEO:2026-10.");
+  assert.doesNotMatch(none, /has not loaded/);
+  assert.match(newestEditionDetail("2026-10", "Could not load dataset", "r"), /DBnomics has not loaded it\. r$/);
+});
+
+test("the dataset name states the edition once, in words", () => {
+  assert.equal(datasetWithEditionInWords("WEO by countries (2019-04 release)", "2019-04"), "WEO by countries, April 2019 edition");
+  assert.equal(datasetWithEditionInWords("World Economic Outlook by countries", "2024-10"), "World Economic Outlook by countries, October 2024 edition");
+  // A parenthetical naming another edition is DBnomics's text and stays.
+  assert.equal(datasetWithEditionInWords("WEO by countries (2019-10 release)", "2019-04"), "WEO by countries (2019-10 release), April 2019 edition");
+});
+
+test("the revision_records outputSchema requires a licence on every source block and a source on every record", () => {
+  const schema: any = LAB_TOOLS.find((t) => t.name === "revision_records")!.outputSchema;
+  assert.ok(schema.required.includes("sources"));
+  assert.ok(schema.properties.sources.additionalProperties.required.includes("license"));
+  assert.ok(schema.properties.records.items.required.includes("source"));
+  assert.deepEqual(schema.properties.records.items.properties.source.enum.sort(), ["dbnomics_dated_edition", "imf_dated_vintage"]);
+  assert.ok(!schema.properties.records.items.properties.citation.required.includes("license"), "the licence moved to the sources block");
+});
 
 test("revision_records carries BASE_YEAR and LATEST_ACTUAL_ANNUAL_DATA from the IMF vintage and flags a base-year change", async () => {
   installStub();

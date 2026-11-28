@@ -32,6 +32,30 @@ bytes and the MCP response from 330,888 to 147,180 bytes. A pre-2010 fiscal
 edition, which files gross debt under the older subject code `GGD_NGDP`, is
 listed as `subject_code_not_mapped` rather than as absent.
 
+Each `revision_records` result now carries a `sources` block, keyed by the
+`source` field every record already has (`dbnomics_dated_edition` or
+`imf_dated_vintage`). A block gives the publisher, the licence, the terms URL,
+the attribution format and the rule that rebuilds a value's API call from its
+`source_url`, once for every value from that source. The licence, terms and
+attribution format are read from the licence ledger behind `/v1/sources`. A
+lab citation keeps what differs from value to value: dataset, series id,
+source URL, retrieval date and `citation_text`, which names the edition in
+words. It no longer repeats the licence, the attribution line, the publisher,
+the series name or the API URL. A DBnomics dataset name states its edition
+once, as in "WEO by countries, April 2019 edition", and DBnomics citations
+use StatCite's series name, as the IMF vintage citations already did. The
+tool fails closed if a record's source names no block that carries a licence.
+When the newest edition on the April and October calendar is missing, its
+`missing_detail` says that it is the current edition and that StatCite has no
+dated vintage for it yet, and, when DBnomics reports the dataset unloadable,
+that DBnomics has not loaded it. Replayed on upstream bodies captured live on
+2026-11-28, the USA `gdp_growth` 2007 payload fell from 72,256 to 29,844
+bytes and its MCP response from 147,180 to 61,562 bytes. On the deployed
+Worker, read from `wrangler tail` on 2026-11-28, cold `gdp_growth` calls used
+9 to 21 ms of CPU before this change (six countries) and 6 to 13 ms after it
+(seven others), and a cached call used 1 ms. `/mcp` and the core tools are
+unchanged.
+
 The IMF licence line and the `imf_weo` and `imf_sdmx_vintage` ledger notes now
 say that commercial reuse of IMF data needs the IMF's permission, requested at
 copyright@imf.org, as the Data section of the IMF's terms states. The

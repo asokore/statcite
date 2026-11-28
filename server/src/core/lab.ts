@@ -15,20 +15,26 @@
 // request per IMF dated vintage carries the rest, so a call costs
 // 1 + (number of IMF vintage flows) upstream requests.
 //
-// Size. Each citation names its own edition's source and single-series API
-// URL, never the shared multi-series request URL, and lab citations carry no
-// export_formats. Measured live for USA gdp_growth 2007 on 2026-11-28, before
-// these cuts and the DBnomics metadata=false request: 330,888 bytes of MCP
-// response from a 278,180-byte DBnomics body.
+// Size. Each citation names its own edition's series and source URL, never
+// the shared multi-series request URL. What is the same for every value from
+// one source (publisher, licence, terms, attribution format, how to rebuild
+// the API call) is printed once in the result's sources block, keyed by the
+// source field every record already carries. Measured on 2026-11-28 for USA
+// gdp_growth 2007: 330,888 bytes of MCP response before the DBnomics
+// metadata=false request, 147,180 after it, with a 72,256-byte payload sent
+// twice (text and structuredContent). The IMF licence alone, repeated in 36
+// citations, was 26,280 bytes of each copy.
 
-import type { Citation, Ctx } from "./types.ts";
-import { ToolError } from "./types.ts";
+import type { Ctx } from "./types.ts";
+import { ToolError, today } from "./types.ts";
 import { resolveCountry, suggestCountries, COUNTRIES, type Country } from "./countries.ts";
 import { getIndicatorDef } from "./indicators.ts";
-import { asOfCapableIndicators, dbnomicsCodeForEdition, olderSubjectCodeDetail, IMF_VINTAGE_FLOWS, imfVintageCitation } from "./series.ts";
-import { dbnomicsCitation } from "./citations.ts";
+import { asOfCapableIndicators, dbnomicsCodeForEdition, olderSubjectCodeDetail, IMF_VINTAGE_FLOWS, imfVintageLabel } from "./series.ts";
+import { retrievedVia } from "./citations.ts";
+import { stripControls } from "./text.ts";
+import { SOURCES } from "./sources.ts";
 import { expectedWeoEdition } from "./weo-calendar.ts";
-import { fetchDbnomicsMulti, dbnomicsSeriesApiUrl, type DbnMultiItem } from "../adapters/dbnomics.ts";
+import { fetchDbnomicsMulti, type DbnMultiItem } from "../adapters/dbnomics.ts";
 import { fetchSdmxSeries } from "../adapters/sdmx.ts";
 import { hostStateOf, isTransientUpstreamError } from "./upstream.ts";
 
@@ -160,12 +166,121 @@ export function editionInWords(edition: string): string {
   return `${EDITION_MONTHS[m] ?? m} ${y} edition`;
 }
 
-/** Lab citations leave out export_formats. Over thirty-odd editions the
- * BibTeX and APA strings were a tenth of the response and nothing in the
- * record needs them. */
-function labCitation(c: Citation): Citation {
-  const { export_formats: _omit, ...rest } = c;
-  return rest;
+// --- Sources block ---
+
+/** The source a record was read from, which is also the key of its block in
+ * the result's sources. Every record carries it, a missing one included, so
+ * every value traces to its licence through the record that holds it. */
+export type LabSourceKey = "imf_dated_vintage" | "dbnomics_dated_edition";
+
+/** What every value from one source shares, printed once per result. */
+export interface LabSource {
+  publisher: string;
+  delivered_by: string;
+  license: string;
+  terms_url: string;
+  /** The attribution shape the publisher's terms require. */
+  attribution_format: string;
+  /** How a citation's own fields fill attribution_format. */
+  attribution_fill: string;
+  /** How a citation's source_url gives the API call that produced the value. */
+  api_url_rule: string;
+}
+
+/** A lab citation: the fields that differ from value to value. The licence
+ * and attribution format are in the record's source block. No
+ * export_formats, no per-value licence or attribution, and no API URL, which
+ * the block's api_url_rule rebuilds from source_url. */
+export interface LabCitation {
+  dataset: string;
+  series_id: string;
+  source_url: string;
+  retrieved_at: string;
+  citation_text: string;
+}
+
+/** Licence, terms and attribution format come from the licence ledger, so
+ * the block cannot drift from /v1/sources. */
+function ledgerEntry(id: string): { license: string; terms_url: string; attribution_required: string } {
+  const s = (SOURCES as ReadonlyArray<{ id: string; license: string; terms_url: string; attribution_required: string }>).find((x) => x.id === id);
+  if (!s) throw new Error(`the licence ledger has no entry '${id}'`);
+  return s;
+}
+
+const ATTRIBUTION_FILL = "Fill <database name> with the citation's dataset and <link to the dataset> with its source_url.";
+
+/** How each source's API call is rebuilt from a citation's source_url, the
+ * rule each block's api_url_rule states in words. The IMF rule is checked on
+ * every value at build time, against the URL the adapter actually called.
+ * The DBnomics rule is checked in the tests against dbnomicsSeriesApiUrl,
+ * because that URL is never requested and computing it per value cost time. */
+export const API_URL_FROM_SOURCE_URL: Record<LabSourceKey, (sourceUrl: string) => string> = {
+  dbnomics_dated_edition: (u) => u.replace(/^https:\/\/db\.nomics\.world\//, "https://api.db.nomics.world/v22/series/") + "?observations=1",
+  imf_dated_vintage: (u) => `${u}&attributes=all`,
+};
+
+export const LAB_SOURCES: Readonly<Record<LabSourceKey, LabSource>> = {
+  dbnomics_dated_edition: {
+    publisher: "International Monetary Fund",
+    delivered_by: "DBnomics (https://db.nomics.world)",
+    license: ledgerEntry("imf_weo").license,
+    terms_url: ledgerEntry("imf_weo").terms_url,
+    attribution_format: ledgerEntry("imf_weo").attribution_required,
+    attribution_fill: ATTRIBUTION_FILL,
+    api_url_rule: "Replace https://db.nomics.world/ at the start of source_url with https://api.db.nomics.world/v22/series/ and append ?observations=1.",
+  },
+  imf_dated_vintage: {
+    publisher: "International Monetary Fund",
+    delivered_by: "IMF dated vintage dataflows (https://api.imf.org, SDMX 3.0)",
+    license: ledgerEntry("imf_sdmx_vintage").license,
+    terms_url: ledgerEntry("imf_sdmx_vintage").terms_url,
+    attribution_format: ledgerEntry("imf_sdmx_vintage").attribution_required,
+    attribution_fill: ATTRIBUTION_FILL,
+    api_url_rule: "Append &attributes=all to source_url.",
+  },
+};
+
+// The two builders below write, field for field, what dbnomicsCitation and
+// imfVintageCitation write for the same fields (lab-mcp.test.ts holds them
+// equal on every value). They are built here because the core builders also
+// render the BibTeX and APA strings the lab drops, which was the largest cost
+// in the handler that this file controls. Free text passes stripControls, as
+// it does in the core builders.
+
+/** A DBnomics-delivered value's citation. Fails closed on any provider other
+ * than the IMF, because the block's licence is the IMF's. */
+function dbnomicsLabCitation(
+  date: string,
+  o: { providerCode: string; providerName: string; datasetCode: string; datasetName: string; seriesCode: string; seriesName: string },
+): LabCitation {
+  if (o.providerCode !== "IMF" || o.providerName !== LAB_SOURCES.dbnomics_dated_edition.publisher) {
+    throw new Error(`revision_records: a DBnomics series from '${o.providerCode}' is not covered by the IMF licence in its source block`);
+  }
+  const sourceUrl = `https://db.nomics.world/${o.providerCode}/${encodeURIComponent(o.datasetCode)}/${encodeURIComponent(o.seriesCode)}`;
+  return {
+    dataset: stripControls(o.datasetName),
+    series_id: `${o.providerCode}/${o.datasetCode}/${o.seriesCode}`,
+    source_url: sourceUrl,
+    retrieved_at: date,
+    citation_text: stripControls(`${o.providerName}, ${o.datasetName}, series ${o.seriesCode} (${o.seriesName}). ${retrievedVia(date, "DBnomics")} ${sourceUrl}`),
+  };
+}
+
+/** An IMF dated vintage value's citation. Fails closed if the block's
+ * api_url_rule does not rebuild the URL the adapter actually called. */
+function imfVintageLabCitation(date: string, o: { flow: string; key: string; seriesName: string; apiUrl: string }): LabCitation {
+  const { flowId, label } = imfVintageLabel(o.flow);
+  const sourceUrl = `https://api.imf.org/external/sdmx/3.0/data/dataflow/${o.flow}/${o.key}?format=sdmx-json`;
+  if (API_URL_FROM_SOURCE_URL.imf_dated_vintage(sourceUrl) !== o.apiUrl) {
+    throw new Error(`revision_records: the imf_dated_vintage api_url_rule does not rebuild ${o.apiUrl}`);
+  }
+  return {
+    dataset: stripControls(label),
+    series_id: `imf/${flowId}/${o.key}`,
+    source_url: sourceUrl,
+    retrieved_at: date,
+    citation_text: stripControls(`${LAB_SOURCES.imf_dated_vintage.publisher}, ${label}, series ${o.key} (${o.seriesName}). ${retrievedVia(date)} ${sourceUrl}`),
+  };
 }
 
 export interface EditionRecord {
@@ -173,9 +288,9 @@ export interface EditionRecord {
   status: "value" | "missing";
   /** The value exactly as that edition published it. null when missing. */
   value: number | null;
-  source: "imf_dated_vintage" | "dbnomics_dated_edition";
+  source: LabSourceKey;
   /** Present with every value, and only with a value. */
-  citation?: Citation;
+  citation?: LabCitation;
   period_status?: "actual" | "estimate_or_projection" | "unclassified";
   period_status_basis?: "imf_latest_actual_annual_data" | "edition_year_heuristic";
   base_year?: string;
@@ -197,6 +312,8 @@ export interface RevisionRecordsResult {
   editions_listed: number;
   editions_with_value: number;
   editions_missing: number;
+  /** One block per source key a record names, carrying its licence. */
+  sources: Partial<Record<LabSourceKey, LabSource>>;
   records: EditionRecord[];
   notes: string[];
 }
@@ -208,6 +325,28 @@ function valueAt(obs: Array<{ period: string; value: number | null }>, year: str
 
 function heuristicStatus(edition: string, year: string): EditionRecord["period_status"] {
   return Number(year) >= Number(edition.slice(0, 4)) ? "estimate_or_projection" : "unclassified";
+}
+
+/** DBnomics's dataset name with the edition in words. Names up to WEO:2021-10
+ * read "WEO by countries (2008-04 release)", so that edition's own
+ * "(2008-04 release)" gives way to the words rather than stating the edition
+ * twice. A parenthetical naming any other edition is left as it is. */
+export function datasetWithEditionInWords(datasetName: string, edition: string): string {
+  const own = ` (${edition} release)`;
+  const base = datasetName.endsWith(own) ? datasetName.slice(0, -own.length) : datasetName;
+  return `${base}, ${editionInWords(edition)}`;
+}
+
+/** missing_detail for the newest calendar edition when DBnomics does not
+ * hold it. It says what StatCite knows: the edition is the current one on the
+ * calendar, StatCite has no dated vintage for it, and DBnomics has not loaded
+ * it. It says nothing about whether the IMF has published it. "Has not loaded
+ * it" is said only when DBnomics reports the whole dataset unloadable. */
+export function newestEditionDetail(edition: string, dbnomicsError: string | undefined, reported: string): string {
+  const head = `${edition} (${editionInWords(edition)}) is the current edition on the April and October calendar. StatCite has no dated vintage for it yet`;
+  return dbnomicsError && /could not load dataset/i.test(dbnomicsError)
+    ? `${head}, and DBnomics has not loaded it. ${reported}`
+    : `${head}. ${reported}`;
 }
 
 function parseYear(input: string, now: Date): string {
@@ -234,7 +373,8 @@ export async function revisionRecords(ctx: Ctx, indicatorInput: string, countryI
   const now = ctx.now ? ctx.now() : new Date();
   const year = parseYear(yearInput, now);
 
-  const editions = weoEditionsBetween(FIRST_REACHABLE_EDITION, expectedWeoEdition(now));
+  const newest = expectedWeoEdition(now);
+  const editions = weoEditionsBetween(FIRST_REACHABLE_EDITION, newest);
   const [, datasetTemplate, codeTemplate] = def.dbnomics;
   const imfCode = codeTemplate.split(".")[1];
   const dbnEditions = editions.filter((e) => !IMF_VINTAGE_FLOWS[e]);
@@ -267,6 +407,7 @@ export async function revisionRecords(ctx: Ctx, indicatorInput: string, countryI
 
   const byEdition = new Map<string, EditionRecord>();
   const seriesName = `${def.label}, ${country.name}`;
+  const date = today(ctx);
 
   dbnIds.forEach((id, i) => {
     const base = { edition: id.edition, source: "dbnomics_dated_edition" as const };
@@ -289,14 +430,15 @@ export async function revisionRecords(ctx: Ctx, indicatorInput: string, countryI
         byEdition.set(id.edition, { ...base, status: "missing", value: null, missing_reason: "subject_code_not_mapped", missing_detail: older });
         return;
       }
+      const reported = item?.error
+        ? `DBnomics reported for ${id.datasetCode}: ${item.error}`
+        : `DBnomics holds no series ${id.seriesCode} in ${id.datasetCode}.`;
       byEdition.set(id.edition, {
         ...base,
         status: "missing",
         value: null,
         missing_reason: "not_in_archive",
-        missing_detail: item?.error
-          ? `DBnomics reported for ${id.datasetCode}: ${item.error}`
-          : `DBnomics holds no series ${id.seriesCode} in ${id.datasetCode}.`,
+        missing_detail: id.edition === newest ? newestEditionDetail(id.edition, item?.error, reported) : reported,
       });
       return;
     }
@@ -315,19 +457,19 @@ export async function revisionRecords(ctx: Ctx, indicatorInput: string, countryI
       ...base,
       status: "value",
       value: v,
-      // This edition's own single-series API URL, never the shared request
-      // URL, and the edition in words beside DBnomics's dataset name.
-      citation: labCitation(
-        dbnomicsCitation(ctx, {
-          providerName: item.series.providerName,
-          providerCode: item.series.providerCode,
-          datasetCode: item.series.datasetCode,
-          datasetName: `${item.series.datasetName}, ${editionInWords(id.edition)}`,
-          seriesCode: item.series.seriesCode,
-          seriesName: item.series.seriesName,
-          apiUrl: dbnomicsSeriesApiUrl(item.series.providerCode, item.series.datasetCode, item.series.seriesCode),
-        }),
-      ),
+      // This edition's own single-series URL, never the shared request URL,
+      // and the edition in words beside DBnomics's dataset name.
+      citation: dbnomicsLabCitation(date, {
+        providerName: item.series.providerName,
+        providerCode: item.series.providerCode,
+        datasetCode: item.series.datasetCode,
+        datasetName: datasetWithEditionInWords(item.series.datasetName, id.edition),
+        seriesCode: item.series.seriesCode,
+        // StatCite's own name for the series, as the IMF vintage citations
+        // use. DBnomics's subject descriptor ran to 90 characters and the
+        // series code beside it already identifies the series exactly.
+        seriesName,
+      }),
       period_status: heuristicStatus(id.edition, year),
       period_status_basis: "edition_year_heuristic",
     });
@@ -365,7 +507,7 @@ export async function revisionRecords(ctx: Ctx, indicatorInput: string, countryI
       ...base,
       status: "value",
       value: v,
-      citation: labCitation(imfVintageCitation(ctx, { flow: IMF_VINTAGE_FLOWS[r.edition], key, seriesName, apiUrl: r.s.apiUrl })),
+      citation: imfVintageLabCitation(date, { flow: IMF_VINTAGE_FLOWS[r.edition], key, seriesName, apiUrl: r.s.apiUrl }),
       ...(laYear !== undefined
         ? { period_status: Number(year) <= laYear ? "actual" : "estimate_or_projection", period_status_basis: "imf_latest_actual_annual_data" }
         : { period_status: heuristicStatus(r.edition, year), period_status_basis: "edition_year_heuristic" }),
@@ -388,11 +530,20 @@ export async function revisionRecords(ctx: Ctx, indicatorInput: string, countryI
     lastBase = { edition: rec.edition, base: rec.base_year };
   }
 
-  // A value never travels without its citation. This is the last line, so a
-  // future edit that drops one cannot ship a bare number.
+  // The sources block: one entry per source a record names.
+  const sources: Partial<Record<LabSourceKey, LabSource>> = {};
+  for (const rec of records) sources[rec.source] ??= { ...LAB_SOURCES[rec.source] };
+
+  // A value never travels without its citation, and no record without a
+  // licence: its source must name a block in this result that carries one.
+  // This is the last line, so a future edit that drops either cannot ship a
+  // bare number or an unlicensed one.
   for (const rec of records) {
     if (rec.status === "value" && (!rec.citation || rec.value === null)) {
       throw new Error(`revision_records built a value for ${rec.edition} without a citation`);
+    }
+    if (!sources[rec.source]?.license) {
+      throw new Error(`revision_records built a record for ${rec.edition} whose source names no licensed source block`);
     }
     if (rec.status === "missing" && (rec.value !== null || rec.citation)) {
       throw new Error(`revision_records filled the missing edition ${rec.edition}`);
@@ -417,12 +568,13 @@ export async function revisionRecords(ctx: Ctx, indicatorInput: string, countryI
     editions_listed: records.length,
     editions_with_value: withValue,
     editions_missing: records.length - withValue,
+    sources,
     records,
     notes: [
-      `One record per April and October WEO edition from ${FIRST_REACHABLE_EDITION} to ${editions.at(-1)}. Each value is as that edition published it, with its own citation. Missing editions are listed with the reason and are never filled from another edition.`,
+      `One record per April and October WEO edition from ${FIRST_REACHABLE_EDITION} to ${newest}. Each value is as that edition published it, with its own citation. Missing editions are listed with the reason and are never filled from another edition.`,
       "The record lists published values and carries no score. method_rules defines edition, first release, the actual or projection boundary and the base-year flag used here.",
       "The current edition is also served live by get_indicator on /mcp. An edition with no dated vintage StatCite can reach is listed as missing here.",
-      "Citations here carry no export_formats (BibTeX and APA strings), to keep the response small.",
+      "Each record's source names its block in sources, which states the licence, terms and attribution format once for every value from that source. Citations carry no export_formats.",
     ],
   };
 }
