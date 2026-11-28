@@ -233,7 +233,10 @@ test("expectedWeoEdition follows the IMF April/October release calendar", () => 
 
 test("weoVintageStaleNote fires only when the resolved vintage trails the release calendar", () => {
   const now = new Date("2026-07-25T12:00:00Z");
-  assert.match(weoVintageStaleNote("WEO:2025-04", now)!, /newest edition available via DBnomics/);
+  assert.match(weoVintageStaleNote("WEO:2025-04", now)!, /served here via DBnomics/);
+  // The note must never call the resolved edition the newest one available:
+  // on the pinned path newer editions certainly exist.
+  assert.doesNotMatch(weoVintageStaleNote("WEO:2025-04", now)!, /newest edition available/);
   assert.match(weoVintageStaleNote("WEO:2025-04", now)!, /expected 2026-04/);
   assert.equal(weoVintageStaleNote("WEO:2026-04", now), undefined);
   assert.equal(weoVintageStaleNote("NOT_WEO_DATASET", now), undefined);

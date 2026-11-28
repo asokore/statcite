@@ -7,6 +7,43 @@ dates.
 
 ## Unreleased
 
+Two new MCP endpoints serve the lab tools. `/lab/mcp` serves only the lab
+tools, and `/all/mcp` serves the twelve core tools plus the lab tools. `/mcp`
+keeps its tool list, instructions and server info byte for byte, and a test
+compares them with a capture taken before the change. The first lab tool,
+`revision_records`, lists the value of one indicator, country and year in
+every IMF World Economic Outlook edition StatCite can reach, from 2008-04 to
+the current edition, each value with its own citation naming the edition,
+the series id and the retrieval date. Where the IMF's dated vintage states
+them, a record carries `base_year` and `latest_actual_annual_data`, and a
+change of base year between two editions is flagged. An edition StatCite
+cannot reach is listed as missing with its reason, never filled. It covers
+the six indicators with dated WEO editions and reads values live, with one
+DBnomics request for every edition held there plus one request per IMF dated
+vintage. The second, `method_rules`, returns static, cited definitions of
+edition, first release, the actual or projection boundary, the base-year flag
+and missing editions. Some jurisdictions, and all regional or income
+aggregates, are not covered by the lab tools. `/lab/mcp` serves no prompts
+and no resources. Each lab citation names its edition in words and points at
+that edition's own DBnomics series or IMF vintage URL, and lab citations carry
+no `export_formats`. The DBnomics request asks for `metadata=false`. Measured
+live for USA `gdp_growth` 2007, the DBnomics body fell from 278,180 to 55,043
+bytes and the MCP response from 330,888 to 147,180 bytes. A pre-2010 fiscal
+edition, which files gross debt under the older subject code `GGD_NGDP`, is
+listed as `subject_code_not_mapped` rather than as absent.
+
+The IMF licence line and the `imf_weo` and `imf_sdmx_vintage` ledger notes now
+say that commercial reuse of IMF data needs the IMF's permission, requested at
+copyright@imf.org, as the Data section of the IMF's terms states. The
+2026-08-10 wording had read that section as permitting commercial reuse.
+
+The dated-vintage path behind `as_of` and the revision probe gains the IMF's
+April 2026 vintage (`WEO_2026_APR_VINTAGE`, confirmed in the IMF's live
+dataflow listing) beside October 2025. Growth editions before 2010-04 are now
+read under DBnomics's older unit name, `annual_pcent_change`, so those four
+editions resolve instead of failing as absent. The DBnomics stale-vintage
+note no longer calls the edition it served the newest one available.
+
 `fx_convert` now uses the legal US dollar peg for a currency whose issuing
 authority publishes one, instead of the World Bank annual average. The table
 in `core/pegs.ts` holds ten: BBD, XCD, BZD, AWG, BMD, BSD, KYD, SAR, QAR
@@ -844,6 +881,11 @@ from the version the request itself declares.
 
 Correction release from a nine-dimension health audit of the live service.
 
+Superseded on 2026-11-28: the Data section of the IMF terms ends by asking
+anyone planning commercial reuse of IMF data to request permission at
+copyright@imf.org. The licence reading in this entry and in 1.8.2 was wrong
+on that point. See Unreleased.
+
 - **The retired IMF licence wording survived on the prose surfaces.** v1.8.2
   corrected "commercial reuse may require IMF permission" in code, ledger and
   the Apify README — but the same claim stayed live on the site homepage
@@ -905,6 +947,8 @@ Correction release from a nine-dimension health audit of the live service.
   house rule that a source serves only after its ledger entry exists.
 
 ## 1.8.2 — 2026-08-10
+
+Superseded on 2026-11-28: see the note under 1.9.1 and Unreleased.
 
 - **IMF licence text corrected against the verbatim terms.** The citation
   licence said commercial reuse "may require IMF permission". That is the rule

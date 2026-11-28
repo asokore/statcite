@@ -221,7 +221,12 @@ export function weoVintageStaleNote(
   if (channel === "datamapper") {
     return `${kind} vintage ${resolved} is the edition currently served via the IMF DataMapper API; the IMF has likely published a newer release (expected ${expected}) that the DataMapper API has not yet loaded. Values, estimates, and projections reflect the ${resolved} vintage, not necessarily the IMF's current release.`;
   }
-  return `IMF WEO vintage ${resolved} is the newest edition available via DBnomics (this server's IMF data path); the IMF has likely published a newer WEO release (expected ${expected}) that DBnomics has not yet ingested. Values, estimates, and projections reflect the ${resolved} vintage, not necessarily the IMF's current release.`;
+  // Worded so it holds on both DBnomics paths: the live fallback (where the
+  // aggregator trails the IMF) and a deliberately pinned older edition (where
+  // newer editions certainly exist, some of them in the IMF's own vintage
+  // dataflows). The earlier text called the resolved edition "the newest
+  // edition available", which was false on the pinned path.
+  return `IMF WEO vintage ${resolved} is the edition served here via DBnomics, this server's fallback path for dated IMF editions. Newer editions may exist: on the IMF's release calendar a newer WEO release is due by now (expected ${expected}), and DBnomics can trail that calendar. Values, estimates, and projections reflect the ${resolved} vintage, not necessarily the IMF's current release.`;
 }
 
 /** Mark per-observation projection notes. See weoProjectionNote for the tag format. */
@@ -906,8 +911,9 @@ export async function getIndicatorAtEdition(
   if (!def.dbnomics) {
     throw new ToolError(`'${def.key}' has no dated IMF WEO source; editions cannot be pinned.`, { indicator: def.key });
   }
-  const [provider, datasetTemplate, codeTemplate] = def.dbnomics;
+  const [provider, datasetTemplate, rawCodeTemplate] = def.dbnomics;
   const dataset = datasetTemplate.replace(/:latest$/, `:${edition}`);
+  const codeTemplate = dbnomicsCodeForEdition(rawCodeTemplate, edition);
 
   // FIRST-PARTY vintage before the aggregator. The IMF publishes a handful of
   // dated WEO vintage dataflows on api.imf.org, and it publishes them as soon
@@ -934,7 +940,7 @@ export async function getIndicatorAtEdition(
     const msg = e instanceof Error ? e.message : String(e);
     throw new ToolError(
       `Could not retrieve the ${dataset} vintage of '${def.key}' for ${country.name}: ${msg} ` +
-        `DBnomics's dated WEO editions have been confirmed to exist back to 2010-04; a date far outside that range, or a future date past the current edition, may not have a matching edition ingested.`,
+        `DBnomics's dated WEO editions have been confirmed to exist back to 2008-04 (2011-10 is not loadable there). A date far outside that range, or a future date past the current edition, may not have a matching edition ingested.`,
       { indicator: def.key, country: country.iso3, edition },
       isTransientUpstreamError(e) ? "upstream_unavailable" : undefined,
     );
@@ -954,7 +960,88 @@ export async function getIndicatorAtEdition(
  */
 export const IMF_VINTAGE_FLOWS: Readonly<Record<string, string>> = {
   "2025-10": "IMF.RES/WEO_2025_OCT_VINTAGE/1.0.0",
+  // Present in the live IMF.RES dataflow listing on 2026-11-28 as
+  // "World Economic Outlook (WEO) 2026 April", version 1.0.0.
+  "2026-04": "IMF.RES/WEO_2026_APR_VINTAGE/1.0.0",
 };
+
+/** DBnomics's dated WEO editions before 2010-04 name the growth unit
+ * `annual_pcent_change`, where 2010-04 onward name it `pcent_change`. Verified
+ * live 2026-11-28 on every pre-2010 edition (2008-04, 2008-10, 2009-04,
+ * 2009-10) and on 2010-04. Without this, every pre-2010 edition of gdp_growth
+ * failed as if the archive held nothing. Only the unit is renamed here.
+ *
+ * The fiscal ratios are a different case. The pre-2010 editions do hold
+ * `pcent_gdp` fiscal series, under older subject codes: WEO:2008-04, 2008-10,
+ * 2009-04 and 2009-10 carry gross debt as USA.GGD_NGDP.pcent_gdp and hold no
+ * USA.GGXWDG_NGDP, USA.GGXCNL_NGDP, USA.GGR_NGDP or USA.GGX_NGDP (checked live
+ * 2026-11-28). An older subject code is a different series code, so mapping it
+ * is a decision of its own and it is not made here. See olderSubjectCodeDetail. */
+export function dbnomicsCodeForEdition(codeTemplate: string, edition: string): string {
+  if (isPre2010Edition(edition)) {
+    return codeTemplate.replace(/\.pcent_change$/, ".annual_pcent_change");
+  }
+  return codeTemplate;
+}
+
+function isPre2010Edition(edition: string): boolean {
+  return /^\d{4}-\d{2}$/.test(edition) && edition < "2010-04";
+}
+
+/** Subject codes the fiscal ratios use from 2010-04, and the older code a
+ * pre-2010 edition uses where one has been checked. */
+const PRE_2010_SUBJECT_CODES: Readonly<Record<string, { label: string; older?: string }>> = {
+  GGXWDG_NGDP: { label: "general government gross debt", older: "GGD_NGDP" },
+  GGXCNL_NGDP: { label: "general government net lending or borrowing" },
+  GGR_NGDP: { label: "general government revenue" },
+  GGX_NGDP: { label: "general government total expenditure" },
+};
+
+/** Why a pre-2010 DBnomics edition returned no series under a fiscal code
+ * StatCite maps, worded so it never claims the edition lacks the figure.
+ * Undefined for any other code or edition. */
+export function olderSubjectCodeDetail(codeTemplate: string, edition: string): string | undefined {
+  if (!isPre2010Edition(edition)) return undefined;
+  const subject = /\.([A-Z_]+)\.pcent_gdp$/.exec(codeTemplate)?.[1];
+  const entry = subject ? PRE_2010_SUBJECT_CODES[subject] : undefined;
+  if (!subject || !entry) return undefined;
+  const filed = entry.older
+    ? `WEO editions before 2010-04 file ${entry.label} under the older subject code ${entry.older}, not ${subject}.`
+    : `WEO editions before 2010-04 use older subject codes, and this one returned no series under ${subject}. It may file ${entry.label} under an older code.`;
+  return `${filed} StatCite does not map an older subject code, because it is a different series code, so WEO:${edition} is listed without a value. This is not a claim that the edition lacks the figure.`;
+}
+
+/** The human label and citation for one IMF dated-vintage series. Shared by
+ * the as_of path below and the lab revision records, so the two can never
+ * describe the same IMF series differently. */
+export function imfVintageLabel(flow: string): { flowId: string; label: string } {
+  const [, flowId] = flow.split("/");
+  const m = /^WEO_(\d{4})_([A-Z]{3})_VINTAGE$/.exec(flowId ?? "");
+  // No "IMF" prefix: the attribution string is built as "Source: International
+  // Monetary Fund, <dataset>, <link>", so a prefixed label reads "International
+  // Monetary Fund, IMF World Economic Outlook" (observed live 2026-08-10).
+  const label = m
+    ? `World Economic Outlook, ${m[2] === "APR" ? "April" : m[2] === "OCT" ? "October" : m[2]} ${m[1]} vintage`
+    : (flowId ?? flow);
+  return { flowId: flowId ?? flow, label };
+}
+
+export function imfVintageCitation(
+  ctx: Ctx,
+  opts: { flow: string; key: string; seriesName: string; apiUrl: string },
+): Citation {
+  const { flowId, label } = imfVintageLabel(opts.flow);
+  const sourceUrl = `https://api.imf.org/external/sdmx/3.0/data/dataflow/${opts.flow}/${opts.key}?format=sdmx-json`;
+  return sdmxCitation(ctx, {
+    provider: "IMF",
+    flow: flowId,
+    key: opts.key,
+    seriesName: opts.seriesName,
+    sourceUrl,
+    apiUrl: opts.apiUrl,
+    datasetLabel: label,
+  });
+}
 
 /** Fetch one dated WEO vintage straight from api.imf.org (SDMX 3.0). */
 async function indicatorFromImfVintage(
@@ -975,15 +1062,7 @@ async function indicatorFromImfVintage(
   if (s.observations.length === 0) {
     throw new Error(`IMF vintage ${flow} returned no observations for ${key}`);
   }
-  const [, flowId] = flow.split("/");
-  const m = /^WEO_(\d{4})_([A-Z]{3})_VINTAGE$/.exec(flowId ?? "");
-  // No "IMF" prefix: the attribution string is built as "Source: International
-  // Monetary Fund, <dataset>, <link>", so a prefixed label reads "International
-  // Monetary Fund, IMF World Economic Outlook" (observed live 2026-08-10).
-  const label = m
-    ? `World Economic Outlook, ${m[2] === "APR" ? "April" : m[2] === "OCT" ? "October" : m[2]} ${m[1]} vintage`
-    : (flowId ?? flow);
-  const sourceUrl = `https://api.imf.org/external/sdmx/3.0/data/dataflow/${flow}/${key}?format=sdmx-json`;
+  const { flowId } = imfVintageLabel(flow);
   return finishSeries(
     {
       series_id: `imf-sdmx/${flowId}/${key}`,
@@ -991,15 +1070,7 @@ async function indicatorFromImfVintage(
       country: { iso3: country.iso3, name: country.name },
       unit: def.unit,
       observations: s.observations,
-      citation: sdmxCitation(ctx, {
-        provider: "IMF",
-        flow: flowId ?? flow,
-        key,
-        seriesName: `${def.label}, ${country.name}`,
-        sourceUrl,
-        apiUrl: s.apiUrl,
-        datasetLabel: label,
-      }),
+      citation: imfVintageCitation(ctx, { flow, key, seriesName: `${def.label}, ${country.name}`, apiUrl: s.apiUrl }),
       notes: [
         `Served from the IMF's own dated vintage dataflow (${flowId}) rather than an aggregator, so it reflects the ${edition} edition exactly as the IMF published it.`,
       ],

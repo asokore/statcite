@@ -1358,8 +1358,11 @@ async function fetchWbMulti(countryCode, indicatorIds, opts = {}) {
 
 // ../server/src/adapters/dbnomics.ts
 var BASE2 = "https://api.db.nomics.world/v22";
+function dbnomicsSeriesApiUrl(providerCode, datasetCode, seriesCode) {
+  return `${BASE2}/series/${encodeURIComponent(providerCode)}/${encodeURIComponent(datasetCode)}/${encodeURIComponent(seriesCode)}?observations=1`;
+}
 async function fetchDbnomicsSeries(providerCode, datasetCode, seriesCode, opts = {}) {
-  const apiUrl = `${BASE2}/series/${encodeURIComponent(providerCode)}/${encodeURIComponent(datasetCode)}/${encodeURIComponent(seriesCode)}?observations=1`;
+  const apiUrl = dbnomicsSeriesApiUrl(providerCode, datasetCode, seriesCode);
   const data = await fetchJson(apiUrl, { ttlSeconds: 21600, hostState: opts.hostState });
   const docs = data.series?.docs ?? [];
   if (docs.length === 0) {
@@ -1629,7 +1632,7 @@ function httpsUrl(value) {
 
 // ../server/src/core/citations.ts
 var FRED_NOTICE = "This product uses the FRED\xAE API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.";
-var IMF_LICENSE = 'Published IMF statistical data may be copied, redistributed, and used (including in derivative works) with attribution to the IMF as source. Conditions: attribute as "Source: International Monetary Fund, <database>, <link>"; do not alter the data in ways affecting its accuracy, and state explicitly if it is materially transformed; anyone redistributing it downstream must take reasonable efforts to communicate these terms to their own users; and if sold as a standalone product, purchasers must be told the data is available free of charge from the IMF. Some statistical products incorporate third-party information under separate terms';
+var IMF_LICENSE = `Published IMF statistical data may be downloaded, copied, used in derivative works, published and distributed with attribution to the IMF as source. Commercial reuse needs the IMF's permission, requested at copyright@imf.org. Conditions: attribute as "Source: International Monetary Fund, <database>, <link>". Do not alter the data in ways affecting its accuracy, and state explicitly if it is materially transformed. Anyone redistributing it downstream must take reasonable efforts to communicate these terms to their own users. If it is sold as a standalone product, purchasers must be told the data is available free of charge from the IMF. Some statistical products incorporate third-party information under separate terms`;
 var STATCITE_URL = "https://statcite.com";
 function retrievedVia(date, through) {
   const chain = through ? `${through} and StatCite` : "StatCite";
@@ -1892,12 +1895,50 @@ var BIS_POLICY_RATE_AREAS = {
   // The euro area: BIS "XM", StatCite ISO3 "EMU". This single line is the bug fix.
   EMU: "XM"
 };
-function buildUrl(provider, flow, key, lastN) {
+var IMF_GROUP_ATTRIBUTES = ["BASE_YEAR", "LATEST_ACTUAL_ANNUAL_DATA"];
+function countryIndicatorGroupKey(structure, seriesKey) {
+  const seriesDims = structure?.dimensions?.series ?? [];
+  const obsDims = structure?.dimensions?.observation ?? [];
+  const all = [...seriesDims, ...obsDims];
+  const posOf = (d, i) => typeof d.keyPosition === "number" ? d.keyPosition : i;
+  const seriesParts = seriesKey.split(":");
+  const parts = Array(all.length).fill("");
+  let found = 0;
+  seriesDims.forEach((d, i) => {
+    if (d?.id === "COUNTRY" || d?.id === "INDICATOR") {
+      const part = seriesParts[i];
+      if (part === void 0 || part === "") return;
+      parts[posOf(d, i)] = part;
+      found += 1;
+    }
+  });
+  return found === 2 ? parts.join(":") : void 0;
+}
+function readGroupAttributes(root, structure, seriesKey) {
+  const out = {};
+  const defs = structure?.attributes?.dimensionGroup ?? [];
+  const groups = root?.dataSets?.[0]?.dimensionGroupAttributes ?? {};
+  const groupKey = countryIndicatorGroupKey(structure, seriesKey);
+  const entry = groupKey === void 0 ? void 0 : groups[groupKey];
+  if (!Array.isArray(entry)) return out;
+  for (const id of IMF_GROUP_ATTRIBUTES) {
+    const idx = defs.findIndex((d) => d?.id === id);
+    if (idx < 0) continue;
+    const raw = entry[idx];
+    let v;
+    if (Array.isArray(raw)) v = raw[0];
+    else if (typeof raw === "number") v = defs[idx]?.values?.[raw]?.id ?? defs[idx]?.values?.[raw]?.value;
+    else v = raw;
+    if (typeof v === "string" && v.trim() !== "") out[id] = v.trim();
+  }
+  return out;
+}
+function buildUrl(provider, flow, key, lastN, attributes = false) {
   if (provider === "BIS") {
     return `https://stats.bis.org/api/v2/data/dataflow/BIS/${flow}/1.0/${key}?lastNObservations=${lastN}&format=sdmx-json`;
   }
   if (provider === "IMF") {
-    return `https://api.imf.org/external/sdmx/3.0/data/dataflow/${flow}/${key}?format=sdmx-json`;
+    return `https://api.imf.org/external/sdmx/3.0/data/dataflow/${flow}/${key}?format=sdmx-json${attributes ? "&attributes=all" : ""}`;
   }
   return `https://data-api.ecb.europa.eu/service/data/${flow}/${key}?format=jsondata&lastNObservations=${lastN}`;
 }
@@ -1913,7 +1954,8 @@ function monthsBetween(latestPeriod, now) {
 }
 async function fetchSdmxSeries(provider, flow, key, opts = {}) {
   const lastN = opts.lastN ?? 60;
-  const apiUrl = buildUrl(provider, flow, key, lastN);
+  const withAttributes = provider === "IMF" && opts.attributes === true;
+  const apiUrl = buildUrl(provider, flow, key, lastN, withAttributes);
   const body = await fetchJson(apiUrl, {
     ttlSeconds: opts.ttlSeconds ?? 3600,
     timeoutMs: 8e3,
@@ -1952,7 +1994,9 @@ async function fetchSdmxSeries(provider, flow, key, opts = {}) {
   const out = {
     observations,
     name: structure?.name,
-    apiUrl
+    apiUrl,
+    // The attributes belong to the same series the observations were read from.
+    ...withAttributes ? { groupAttributes: readGroupAttributes(root, structure, Object.keys(seriesMap)[0] ?? "") } : {}
   };
   const latest = provider === "IMF" ? void 0 : observations.filter((o) => o.value != null).at(-1);
   if (latest) {
@@ -2916,7 +2960,7 @@ function weoVintageStaleNote(datasetCode, now = /* @__PURE__ */ new Date(), chan
   if (channel === "datamapper") {
     return `${kind} vintage ${resolved} is the edition currently served via the IMF DataMapper API; the IMF has likely published a newer release (expected ${expected}) that the DataMapper API has not yet loaded. Values, estimates, and projections reflect the ${resolved} vintage, not necessarily the IMF's current release.`;
   }
-  return `IMF WEO vintage ${resolved} is the newest edition available via DBnomics (this server's IMF data path); the IMF has likely published a newer WEO release (expected ${expected}) that DBnomics has not yet ingested. Values, estimates, and projections reflect the ${resolved} vintage, not necessarily the IMF's current release.`;
+  return `IMF WEO vintage ${resolved} is the edition served here via DBnomics, this server's fallback path for dated IMF editions. Newer editions may exist: on the IMF's release calendar a newer WEO release is due by now (expected ${expected}), and DBnomics can trail that calendar. Values, estimates, and projections reflect the ${resolved} vintage, not necessarily the IMF's current release.`;
 }
 function markWeoProjections(vintageTag, observations) {
   const m = vintageTag.match(/^(WEO|FM):(\d{4})/);
@@ -3349,8 +3393,9 @@ async function getIndicatorAtEdition(ctx, def, country, edition, opts = {}) {
   if (!def.dbnomics) {
     throw new ToolError(`'${def.key}' has no dated IMF WEO source; editions cannot be pinned.`, { indicator: def.key });
   }
-  const [provider, datasetTemplate, codeTemplate] = def.dbnomics;
+  const [provider, datasetTemplate, rawCodeTemplate] = def.dbnomics;
   const dataset = datasetTemplate.replace(/:latest$/, `:${edition}`);
+  const codeTemplate = dbnomicsCodeForEdition(rawCodeTemplate, edition);
   const imfVintage = IMF_VINTAGE_FLOWS[edition];
   if (imfVintage) {
     try {
@@ -3364,15 +3409,46 @@ async function getIndicatorAtEdition(ctx, def, country, edition, opts = {}) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     throw new ToolError(
-      `Could not retrieve the ${dataset} vintage of '${def.key}' for ${country.name}: ${msg} DBnomics's dated WEO editions have been confirmed to exist back to 2010-04; a date far outside that range, or a future date past the current edition, may not have a matching edition ingested.`,
+      `Could not retrieve the ${dataset} vintage of '${def.key}' for ${country.name}: ${msg} DBnomics's dated WEO editions have been confirmed to exist back to 2008-04 (2011-10 is not loadable there). A date far outside that range, or a future date past the current edition, may not have a matching edition ingested.`,
       { indicator: def.key, country: country.iso3, edition },
       isTransientUpstreamError(e) ? "upstream_unavailable" : void 0
     );
   }
 }
 var IMF_VINTAGE_FLOWS = {
-  "2025-10": "IMF.RES/WEO_2025_OCT_VINTAGE/1.0.0"
+  "2025-10": "IMF.RES/WEO_2025_OCT_VINTAGE/1.0.0",
+  // Present in the live IMF.RES dataflow listing on 2026-11-28 as
+  // "World Economic Outlook (WEO) 2026 April", version 1.0.0.
+  "2026-04": "IMF.RES/WEO_2026_APR_VINTAGE/1.0.0"
 };
+function dbnomicsCodeForEdition(codeTemplate, edition) {
+  if (isPre2010Edition(edition)) {
+    return codeTemplate.replace(/\.pcent_change$/, ".annual_pcent_change");
+  }
+  return codeTemplate;
+}
+function isPre2010Edition(edition) {
+  return /^\d{4}-\d{2}$/.test(edition) && edition < "2010-04";
+}
+function imfVintageLabel(flow) {
+  const [, flowId] = flow.split("/");
+  const m = /^WEO_(\d{4})_([A-Z]{3})_VINTAGE$/.exec(flowId ?? "");
+  const label = m ? `World Economic Outlook, ${m[2] === "APR" ? "April" : m[2] === "OCT" ? "October" : m[2]} ${m[1]} vintage` : flowId ?? flow;
+  return { flowId: flowId ?? flow, label };
+}
+function imfVintageCitation(ctx, opts) {
+  const { flowId, label } = imfVintageLabel(opts.flow);
+  const sourceUrl = `https://api.imf.org/external/sdmx/3.0/data/dataflow/${opts.flow}/${opts.key}?format=sdmx-json`;
+  return sdmxCitation(ctx, {
+    provider: "IMF",
+    flow: flowId,
+    key: opts.key,
+    seriesName: opts.seriesName,
+    sourceUrl,
+    apiUrl: opts.apiUrl,
+    datasetLabel: label
+  });
+}
 async function indicatorFromImfVintage(ctx, def, country, edition, flow, codeTemplate, opts) {
   const imfCode = codeTemplate.split(".")[1];
   if (!imfCode) throw new Error(`cannot derive an IMF indicator code from '${codeTemplate}'`);
@@ -3381,10 +3457,7 @@ async function indicatorFromImfVintage(ctx, def, country, edition, flow, codeTem
   if (s.observations.length === 0) {
     throw new Error(`IMF vintage ${flow} returned no observations for ${key}`);
   }
-  const [, flowId] = flow.split("/");
-  const m = /^WEO_(\d{4})_([A-Z]{3})_VINTAGE$/.exec(flowId ?? "");
-  const label = m ? `World Economic Outlook, ${m[2] === "APR" ? "April" : m[2] === "OCT" ? "October" : m[2]} ${m[1]} vintage` : flowId ?? flow;
-  const sourceUrl = `https://api.imf.org/external/sdmx/3.0/data/dataflow/${flow}/${key}?format=sdmx-json`;
+  const { flowId } = imfVintageLabel(flow);
   return finishSeries(
     {
       series_id: `imf-sdmx/${flowId}/${key}`,
@@ -3392,15 +3465,7 @@ async function indicatorFromImfVintage(ctx, def, country, edition, flow, codeTem
       country: { iso3: country.iso3, name: country.name },
       unit: def.unit,
       observations: s.observations,
-      citation: sdmxCitation(ctx, {
-        provider: "IMF",
-        flow: flowId ?? flow,
-        key,
-        seriesName: `${def.label}, ${country.name}`,
-        sourceUrl,
-        apiUrl: s.apiUrl,
-        datasetLabel: label
-      }),
+      citation: imfVintageCitation(ctx, { flow, key, seriesName: `${def.label}, ${country.name}`, apiUrl: s.apiUrl }),
       notes: [
         `Served from the IMF's own dated vintage dataflow (${flowId}) rather than an aggregator, so it reflects the ${edition} edition exactly as the IMF published it.`
       ]
@@ -5091,8 +5156,8 @@ var SOURCES = [
     access: "No key. Queried live from www.imf.org/external/datamapper (primary) and api.db.nomics.world v22 (fallback)",
     license: IMF_LICENSE,
     license_verdict: "served",
-    license_note: `The IMF's SPECIAL TERMS for published statistical data (effective 2024-10-11) expressly permit copying, redistribution, derivative works and use with attribution. They form a separate regime, more permissive than the general IMF Content terms, and open with "Notwithstanding the general prohibition on the commercial use of IMF Content...". Named datasets include the WEO database, IFS, BOP, DOT, GFS, Primary Commodity Prices and data on the iData Portal. StatCite must attribute data in the IMF's format (database and link). It must never alter data in ways affecting accuracy, and must declare any material transformation. It must communicate these terms downstream to its own users, which it does through this ledger, /v1/sources and the licence field on every citation. Where data is sold as a standalone product, it must tell purchasers the data is free from the IMF, which the Apify actor listing does. Corrected 2026-08-10: the previous note claimed commercial reuse 'may require IMF permission', which conflated the Content regime with the Data regime and both understated the permission and overstated the restriction.`,
-    license_verified_on: "2026-08-10",
+    license_note: `The Data section of the IMF's Copyright and Usage terms (effective 2024-10-11, read 2026-11-28) permits downloading, copying, derivative works, publishing and distribution of IMF Data with attribution. It ends: "For any potential commercial reuse of IMF Data, please email copyright@imf.org to request permission." So reuse with attribution is permitted, and commercial reuse needs the IMF's permission. The general terms still apply alongside it, and they prohibit bulk downloading by automated technology without explicit permission. StatCite fetches only the series each request names. Named datasets include the WEO database, IFS, BOP, DOT, GFS, Primary Commodity Prices and data on the iData Portal. StatCite must attribute data in the IMF's format (database and link). It must never alter data in ways affecting accuracy, and must declare any material transformation. It must communicate these terms downstream to its own users, which it does through this ledger, /v1/sources and the licence field on every citation. Where data is sold as a standalone product, the seller must tell purchasers the data is free from the IMF, which the Apify actor listing does. Corrected 2026-11-28: the note of 2026-08-10 read the Data terms as permitting commercial reuse, which they do not without the IMF's permission.`,
+    license_verified_on: "2026-11-28",
     attribution_required: "Source: International Monetary Fund, <database name>, <link to the dataset>",
     url: "https://www.imf.org/en/Publications/WEO",
     terms_url: "https://www.imf.org/en/About/copyright-and-terms"
@@ -5100,12 +5165,12 @@ var SOURCES = [
   {
     id: "imf_sdmx_vintage",
     name: "IMF, dated World Economic Outlook vintages (api.imf.org, SDMX 3.0)",
-    coverage: "Frozen dated WEO editions published as first-party SDMX 3.0 dataflows. StatCite uses them ONLY on the dated-vintage path (as_of verification and the revision probe), never in the live chain, and only for editions enumerated in IMF_VINTAGE_FLOWS from the live dataflow listing. The IMF exposes a small number of recent vintages, not an archive. DBnomics remains the deep historical fallback back to 2010-04, so this source narrows the newest-edition gap rather than replacing the aggregator",
-    access: "No key and no account. The api.imf.org host serves this data anonymously (verified 2026-08-10). The sign-in wall on portal.api.imf.org guards the developer console, not the data. Rate limits are undocumented outside that console and no RateLimit/Retry-After headers are returned. A 31-request unpaced burst was accepted without throttling (2026-08-10), which establishes headroom rather than an absence of limits. StatCite issues one upstream call per as_of/revision-probe lookup, cached one hour",
+    coverage: "Frozen dated WEO editions published as first-party SDMX 3.0 dataflows. StatCite uses them ONLY on the dated-vintage paths (as_of verification, the revision probe and the lab tool revision_records), never in the live chain, and only for editions enumerated in IMF_VINTAGE_FLOWS from the live dataflow listing. The IMF exposes a small number of recent vintages, not an archive. DBnomics remains the deep historical fallback back to 2008-04 (WEO:2011-10 is not loadable there), so this source narrows the newest-edition gap rather than replacing the aggregator",
+    access: "No key and no account. The api.imf.org host serves this data anonymously (verified 2026-08-10). The sign-in wall on portal.api.imf.org guards the developer console, not the data. Rate limits are undocumented outside that console and no RateLimit/Retry-After headers are returned. A 31-request unpaced burst was accepted without throttling (2026-08-10), which establishes headroom rather than an absence of limits. StatCite issues one upstream call per vintage for each as_of, revision-probe or revision_records lookup, cached one hour",
     license: IMF_LICENSE,
     license_verdict: "served",
-    license_note: "This source is governed by the same IMF special terms for statistical data as imf_weo. The WEO database is named in them explicitly, and the delivery endpoint does not change the licence on the data. The api.imf.org service itself imposes no additional terms on anonymous use: the API-management terms sit behind the portal sign-in and govern subscription keys, which StatCite does not hold and does not need. This was verified by a direct anonymous call on 2026-08-10.",
-    license_verified_on: "2026-08-10",
+    license_note: "This source is governed by the same Data section of the IMF's terms as imf_weo: reuse with attribution is permitted, and commercial reuse needs the IMF's permission, requested at copyright@imf.org. The general terms' bar on automated bulk downloading applies here too, and StatCite fetches only the series each request names. The WEO database is named in the terms explicitly, and the delivery endpoint does not change the licence on the data. The api.imf.org service itself imposes no additional terms on anonymous use: the API-management terms sit behind the portal sign-in and govern subscription keys, which StatCite does not hold and does not need. This was verified by a direct anonymous call on 2026-08-10. The licence wording was corrected on 2026-11-28.",
+    license_verified_on: "2026-11-28",
     attribution_required: "Source: International Monetary Fund, <database name>, <link to the dataset>",
     url: "https://data.imf.org/",
     terms_url: "https://www.imf.org/en/About/copyright-and-terms"

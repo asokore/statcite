@@ -30,8 +30,10 @@ rate-limited, pay-per-event endpoint with the citation, verification and
 diagnostic work already done, billed per successful item.
 
 This notice is also a licence obligation: the IMF's terms for published
-statistical data require that where the data is sold as part of a product,
-purchasers are told it is available free of charge from the IMF. Every response
+statistical data require that where the data is sold as a standalone product,
+purchasers are told it is available free of charge from the IMF. Those terms
+also say commercial reuse of IMF data needs the IMF's permission, requested at
+copyright@imf.org. Every response
 additionally carries the source's own licence and required attribution string in
 its `citation` object, so those terms travel with the data.
 

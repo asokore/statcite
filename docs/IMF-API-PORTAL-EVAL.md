@@ -144,6 +144,10 @@ Two obligations this creates that StatCite does not yet fully meet:
    conflation. The corrected licence (v1.8.2) states the Data regime's actual
    conditions, and the "and sell" question is answered by the free-of-charge
    disclosure condition rather than a permission request. Kept for the record.]
+   [REVERSED 2026-11-28: the Data section of the live terms, read in a
+   browser that day, still ends with the commercial-reuse permission request
+   quoted above. The licence line and the ledger now say commercial reuse
+   needs the IMF's permission. The operator question in this item stands.]
 
 ## BLOCKER before any implementation (CLEARED 2026-08-10: see status note at top)
 

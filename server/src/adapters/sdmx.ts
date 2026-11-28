@@ -78,9 +78,68 @@ export interface SdmxSeries {
   /** Set when the newest observation is older than the freshness budget for
    * this frequency — a 200 with stale data is the failure mode that hides. */
   stalenessNote?: string;
+  /** IMF only, and only when the caller asked for `attributes: true`: the
+   * country-and-indicator attributes the IMF attaches to a dated WEO vintage
+   * (BASE_YEAR, LATEST_ACTUAL_ANNUAL_DATA), read verbatim as strings. A missing
+   * attribute is absent from the map, never defaulted. */
+  groupAttributes?: Record<string, string>;
 }
 
-function buildUrl(provider: SdmxProvider, flow: string, key: string, lastN: number): string {
+/** The IMF attaches BASE_YEAR and LATEST_ACTUAL_ANNUAL_DATA at the
+ * dimension-group level (COUNTRY x INDICATOR), and returns them only when the
+ * request carries `attributes=all` (verified live on WEO_2026_APR_VINTAGE,
+ * 2026-11-28). Each entry is either an index into the attribute's value list
+ * or an inline array holding the value itself.
+ *
+ * The payload carries several dimension groups, keyed by position over every
+ * dimension with blanks for those outside the group: "0:0::" is COUNTRY x
+ * INDICATOR, ":0::" is INDICATOR alone. Only the entry whose COUNTRY and
+ * INDICATOR positions match the series read, with every other position blank,
+ * is used. Another group's value is never taken in its place. */
+const IMF_GROUP_ATTRIBUTES = ["BASE_YEAR", "LATEST_ACTUAL_ANNUAL_DATA"];
+
+/** The dimension-group key for the COUNTRY x INDICATOR group of one series, or
+ * undefined when the structure does not name both dimensions. */
+function countryIndicatorGroupKey(structure: any, seriesKey: string): string | undefined {
+  const seriesDims: Array<{ id?: string; keyPosition?: number }> = structure?.dimensions?.series ?? [];
+  const obsDims: Array<{ id?: string; keyPosition?: number }> = structure?.dimensions?.observation ?? [];
+  const all = [...seriesDims, ...obsDims];
+  const posOf = (d: { keyPosition?: number }, i: number) => (typeof d.keyPosition === "number" ? d.keyPosition : i);
+  const seriesParts = seriesKey.split(":");
+  const parts: string[] = Array(all.length).fill("");
+  let found = 0;
+  seriesDims.forEach((d, i) => {
+    if (d?.id === "COUNTRY" || d?.id === "INDICATOR") {
+      const part = seriesParts[i];
+      if (part === undefined || part === "") return;
+      parts[posOf(d, i)] = part;
+      found += 1;
+    }
+  });
+  return found === 2 ? parts.join(":") : undefined;
+}
+
+function readGroupAttributes(root: any, structure: any, seriesKey: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const defs: Array<{ id?: string; values?: Array<{ id?: string; value?: string }> }> = structure?.attributes?.dimensionGroup ?? [];
+  const groups: Record<string, unknown[]> = root?.dataSets?.[0]?.dimensionGroupAttributes ?? {};
+  const groupKey = countryIndicatorGroupKey(structure, seriesKey);
+  const entry = groupKey === undefined ? undefined : groups[groupKey];
+  if (!Array.isArray(entry)) return out;
+  for (const id of IMF_GROUP_ATTRIBUTES) {
+    const idx = defs.findIndex((d) => d?.id === id);
+    if (idx < 0) continue;
+    const raw = entry[idx];
+    let v: unknown;
+    if (Array.isArray(raw)) v = raw[0];
+    else if (typeof raw === "number") v = defs[idx]?.values?.[raw]?.id ?? defs[idx]?.values?.[raw]?.value;
+    else v = raw;
+    if (typeof v === "string" && v.trim() !== "") out[id] = v.trim();
+  }
+  return out;
+}
+
+function buildUrl(provider: SdmxProvider, flow: string, key: string, lastN: number, attributes = false): string {
   if (provider === "BIS") {
     // The documented contract is the Accept header; `format=sdmx-json` also
     // works but appears nowhere in the official OpenAPI spec, so it could
@@ -93,7 +152,7 @@ function buildUrl(provider: SdmxProvider, flow: string, key: string, lastN: numb
     // a dated vintage is wanted whole, and the parameter is not documented for
     // this endpoint. `format=sdmx-json` is the only negotiation that works —
     // the vendor media type BIS uses returns XML here, and ;version=2.0.0 500s.
-    return `https://api.imf.org/external/sdmx/3.0/data/dataflow/${flow}/${key}?format=sdmx-json`;
+    return `https://api.imf.org/external/sdmx/3.0/data/dataflow/${flow}/${key}?format=sdmx-json${attributes ? "&attributes=all" : ""}`;
   }
   return `https://data-api.ecb.europa.eu/service/data/${flow}/${key}?format=jsondata&lastNObservations=${lastN}`;
 }
@@ -117,10 +176,11 @@ export async function fetchSdmxSeries(
   provider: SdmxProvider,
   flow: string,
   key: string,
-  opts: { lastN?: number; now?: Date; ttlSeconds?: number } = {},
+  opts: { lastN?: number; now?: Date; ttlSeconds?: number; attributes?: boolean } = {},
 ): Promise<SdmxSeries> {
   const lastN = opts.lastN ?? 60;
-  const apiUrl = buildUrl(provider, flow, key, lastN);
+  const withAttributes = provider === "IMF" && opts.attributes === true;
+  const apiUrl = buildUrl(provider, flow, key, lastN, withAttributes);
   const body = await fetchJson(apiUrl, {
     ttlSeconds: opts.ttlSeconds ?? 3600,
     timeoutMs: 8000,
@@ -177,6 +237,8 @@ export async function fetchSdmxSeries(
     observations,
     name: structure?.name,
     apiUrl,
+    // The attributes belong to the same series the observations were read from.
+    ...(withAttributes ? { groupAttributes: readGroupAttributes(root, structure, Object.keys(seriesMap)[0] ?? "") } : {}),
   };
 
   // Staleness is a LIVE-flow concept. A dated vintage is deliberately frozen —

@@ -11,19 +11,18 @@ export const FRED_NOTICE =
 /** The one IMF license line, shared by every IMF citation builder and the sources
  * registry so the wording cannot drift.
  *
- * Corrected 2026-08-10 against the IMF's actual special terms for statistical
- * data (imf.org/en/About/copyright-and-terms, effective 2024-10-11). The
- * previous wording said commercial reuse "may require IMF permission" — that
- * is true of IMF *Content* (publications) but NOT of published statistical
- * Data, which is governed by a separate, permissive regime opening
- * "Notwithstanding the general prohibition on the commercial use of IMF
- * Content...". Conflating the two understated the permission and overstated
- * the restriction.
+ * Corrected 2026-11-28 against the Data section of the IMF's Copyright and
+ * Usage page (imf.org/en/About/copyright-and-terms, effective 2024-10-11). That
+ * section permits download, copying, derivative works, publishing and
+ * distribution of Data with attribution, and ends by asking anyone with a
+ * potential commercial reuse to email copyright@imf.org for permission. The
+ * 2026-08-10 wording read the Data section as a permissive regime with no such
+ * condition, which overstated the permission.
  *
  * Still deliberately NOT a categorical "free reuse" claim: the permission is
- * conditional, and every condition below is in the terms verbatim. */
+ * conditional. */
 export const IMF_LICENSE =
-  "Published IMF statistical data may be copied, redistributed, and used (including in derivative works) with attribution to the IMF as source. Conditions: attribute as \"Source: International Monetary Fund, <database>, <link>\"; do not alter the data in ways affecting its accuracy, and state explicitly if it is materially transformed; anyone redistributing it downstream must take reasonable efforts to communicate these terms to their own users; and if sold as a standalone product, purchasers must be told the data is available free of charge from the IMF. Some statistical products incorporate third-party information under separate terms";
+  "Published IMF statistical data may be downloaded, copied, used in derivative works, published and distributed with attribution to the IMF as source. Commercial reuse needs the IMF's permission, requested at copyright@imf.org. Conditions: attribute as \"Source: International Monetary Fund, <database>, <link>\". Do not alter the data in ways affecting its accuracy, and state explicitly if it is materially transformed. Anyone redistributing it downstream must take reasonable efforts to communicate these terms to their own users. If it is sold as a standalone product, purchasers must be told the data is available free of charge from the IMF. Some statistical products incorporate third-party information under separate terms";
 
 /**
  * The "retrieved via" clause, in one place.

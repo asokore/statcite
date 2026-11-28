@@ -39,8 +39,9 @@ import type { Ctx } from "./core/types.ts";
 import { ToolError } from "./core/types.ts";
 import { UpstreamError, ShapeError } from "./core/upstream.ts";
 import { toolErrorCode } from "./core/types.ts";
-import { TOOLS, toolByName, callTool, shapeErrorPayload, CLIENT_TRANSPORT_KEYS, closestKey } from "./tools.ts";
-import { listRegistry } from "./core/series.ts";
+import { TOOLS, toolByName, callTool, shapeErrorPayload, CLIENT_TRANSPORT_KEYS, closestKey, type ToolDef } from "./tools.ts";
+import { LAB_TOOLS, labToolByName } from "./lab-tools.ts";
+import { listRegistry, IMF_VINTAGE_FLOWS } from "./core/series.ts";
 import { SOURCES } from "./core/sources.ts";
 import { sidsCountries } from "./core/countries.ts";
 import { readBodyCapped, MAX_BODY_BYTES } from "./body.ts";
@@ -292,6 +293,138 @@ const RESOURCES = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Surfaces. One dispatcher serves three routes, each with its own tool set,
+// instructions, identity and GET descriptor:
+//   /mcp      the 12 core tools, exactly as before (MAIN_SURFACE)
+//   /lab/mcp  the lab tools only
+//   /all/mcp  the core tools plus the lab tools
+// MAIN_SURFACE is built from the same constants the route always used, and a
+// test compares its tools/list, initialize and GET bytes with a capture taken
+// before the other two routes existed.
+// ---------------------------------------------------------------------------
+
+export interface McpSurface {
+  id: "main" | "lab" | "all";
+  tools: ToolDef[];
+  toolByName: Map<string, ToolDef>;
+  instructions: string;
+  serverInfo: typeof SERVER_INFO;
+  prompts: typeof PROMPTS;
+  /** The resources this route lists and reads. The core registries name
+   * jurisdictions the lab tools do not cover, so /lab/mcp serves none. */
+  resources: typeof RESOURCES;
+  getDescriptor: () => Record<string, unknown>;
+}
+
+const GET_ERROR = "Use POST with JSON-RPC 2.0. This is a stateless MCP endpoint; there is no SSE stream.";
+
+function mcpDescriptor(name: string): Record<string, unknown> {
+  return {
+    name,
+    version: SERVER_VERSION,
+    transport: "streamable-http",
+    protocol_versions: SUPPORTED_PROTOCOL_VERSIONS,
+    note: "2026-07-28 requests must also send the Mcp-Method header.",
+  };
+}
+
+export const MAIN_SURFACE: McpSurface = {
+  id: "main",
+  tools: TOOLS,
+  toolByName,
+  instructions: INSTRUCTIONS,
+  serverInfo: SERVER_INFO,
+  prompts: PROMPTS,
+  resources: RESOURCES,
+  getDescriptor: () => ({
+    error: GET_ERROR,
+    mcp: mcpDescriptor("statcite"),
+    service: "Official economic statistics with citations: World Bank, IMF, BIS, ECB, and Caribbean central banks (ECCB, Central Bank of Barbados).",
+    docs: "https://statcite.com/docs",
+    rest_api: "https://statcite.com/v1",
+    openapi: "https://statcite.com/openapi.json",
+    llms_txt: "https://statcite.com/llms.txt",
+  }),
+};
+
+const LAB_INSTRUCTIONS =
+  "StatCite Lab serves IMF World Economic Outlook edition records with full citations. " +
+  "revision_records lists, for one indicator, country and year, the value in every WEO edition StatCite can reach, from 2008-04 to the current edition. " +
+  "Each value carries its own citation naming the edition, the series id and the retrieval date. Reproduce citation_text when presenting a value. " +
+  "An edition StatCite cannot reach is listed as missing with the reason, and is never filled from another edition. " +
+  "Where the IMF's dated vintage states them, a record also carries BASE_YEAR and LATEST_ACTUAL_ANNUAL_DATA. " +
+  "method_rules gives the cited definitions behind the records: what an edition is, first release, the actual or projection boundary, the base-year flag and missing editions. " +
+  "The records list published values only. They carry no score and no evaluation of forecasts. " +
+  "Some jurisdictions and all regional or income aggregates are not covered by the lab tools. " +
+  "The core StatCite tools are served at /mcp, and /all/mcp serves both sets. " +
+  "Free service, please keep request volumes reasonable.";
+
+const ALL_INSTRUCTIONS =
+  INSTRUCTIONS +
+  " This endpoint also serves the lab tools. revision_records lists the value of one indicator, country and year in every IMF WEO edition StatCite can reach, each value with its own citation, and missing editions listed as missing, never filled. " +
+  "method_rules gives the cited definitions behind those records. Some jurisdictions and all regional or income aggregates are not covered by the lab tools.";
+
+const LAB_TOOL_SET = [...LAB_TOOLS];
+const ALL_TOOL_SET = [...TOOLS, ...LAB_TOOLS];
+
+export const LAB_SURFACE: McpSurface = {
+  id: "lab",
+  tools: LAB_TOOL_SET,
+  toolByName: new Map(LAB_TOOL_SET.map((t) => [t.name, t])),
+  instructions: LAB_INSTRUCTIONS,
+  serverInfo: {
+    ...SERVER_INFO,
+    name: "statcite-lab",
+    title: "StatCite Lab, WEO edition records",
+    description: "Every reachable IMF WEO edition of one figure, each value with its own citation. The records carry no score.",
+  },
+  // The core prompts direct the client to tools this route does not serve.
+  prompts: [],
+  // No resources either. The core registries describe the core tools, and the
+  // indicator and source registries name jurisdictions outside lab coverage.
+  resources: [],
+  getDescriptor: () => ({
+    error: GET_ERROR,
+    mcp: mcpDescriptor("statcite-lab"),
+    service: "StatCite Lab: the value of one indicator, country and year in every IMF World Economic Outlook edition StatCite can reach, each with its own citation, plus the cited definitions behind those records.",
+    tools: LAB_TOOL_SET.map((t) => t.name),
+    coverage: "Some jurisdictions and all regional or income aggregates are not covered by the lab tools.",
+    core_endpoint: "https://statcite.com/mcp",
+    combined_endpoint: "https://statcite.com/all/mcp",
+    docs: "https://statcite.com/docs#lab",
+    llms_txt: "https://statcite.com/llms.txt",
+  }),
+};
+
+export const ALL_SURFACE: McpSurface = {
+  id: "all",
+  tools: ALL_TOOL_SET,
+  toolByName: new Map(ALL_TOOL_SET.map((t) => [t.name, t])),
+  instructions: ALL_INSTRUCTIONS,
+  serverInfo: {
+    ...SERVER_INFO,
+    name: "statcite-all",
+    title: "StatCite, core and lab tools",
+    description: "Official economic statistics with citations, verification of claimed figures, and the lab's WEO edition records.",
+  },
+  prompts: PROMPTS,
+  resources: RESOURCES,
+  getDescriptor: () => ({
+    error: GET_ERROR,
+    mcp: mcpDescriptor("statcite-all"),
+    service: "Every StatCite tool on one endpoint: official economic statistics with citations from the World Bank, IMF, BIS, ECB and Caribbean central banks, verification of claimed figures, and the lab's WEO edition records.",
+    tools: ALL_TOOL_SET.map((t) => t.name),
+    coverage: "Some jurisdictions and all regional or income aggregates are not covered by the lab tools.",
+    core_endpoint: "https://statcite.com/mcp",
+    lab_endpoint: "https://statcite.com/lab/mcp",
+    docs: "https://statcite.com/docs#lab",
+    rest_api: "https://statcite.com/v1",
+    openapi: "https://statcite.com/openapi.json",
+    llms_txt: "https://statcite.com/llms.txt",
+  }),
+};
+
 interface JsonRpcMessage {
   jsonrpc?: string;
   id?: unknown;
@@ -429,7 +562,7 @@ export function validateModernHeaders(
  * SHOULD-level `serverInfo`, and the CacheableResult fields where the spec
  * requires them. Applied only to modern responses, so legacy payloads stay
  * byte-identical to what shipped before this revision. */
-function toModernResult(method: string, result: unknown): unknown {
+function toModernResult(method: string, result: unknown, serverInfo: McpSurface["serverInfo"] = SERVER_INFO): unknown {
   if (result === null || typeof result !== "object" || Array.isArray(result)) return result;
   const r = result as Record<string, unknown>;
   const existingMeta = (r._meta ?? {}) as Record<string, unknown>;
@@ -439,7 +572,7 @@ function toModernResult(method: string, result: unknown): unknown {
     ...(CACHEABLE_METHODS.has(method) ? { ttlMs: CACHE_TTL_MS, cacheScope: CACHE_SCOPE } : {}),
     _meta: {
       ...existingMeta,
-      [META_SERVER_INFO]: SERVER_INFO,
+      [META_SERVER_INFO]: serverInfo,
     },
   };
 }
@@ -449,10 +582,16 @@ function toModernResult(method: string, result: unknown): unknown {
 const BATCH_WORK_BUDGET = 15;
 
 /** Rough upstream cost of one batch message. Non-tool methods cost nothing. */
-function batchWorkWeight(m: unknown): number {
+function batchWorkWeight(m: unknown, surface: McpSurface = MAIN_SURFACE): number {
   const msg = m as { method?: unknown; params?: { name?: unknown; arguments?: { claims?: unknown } } };
   if (msg?.method !== "tools/call") return 0;
   const name = msg.params?.name;
+  // Lab tools are weighted only where they are served, so /mcp's budget is
+  // exactly what it was. revision_records reads one DBnomics request plus one
+  // per IMF dated vintage.
+  if (typeof name === "string" && surface.toolByName.has(name) && labToolByName.has(name)) {
+    return name === "revision_records" ? 1 + Object.keys(IMF_VINTAGE_FLOWS).length : 0;
+  }
   if (name === "verify_claims") {
     const claims = msg.params?.arguments?.claims;
     return Array.isArray(claims) ? Math.max(1, claims.length) : 1;
@@ -489,7 +628,9 @@ async function dispatchCore(
   msg: JsonRpcMessage,
   ctx: Ctx,
   era: Era,
+  surface: McpSurface,
 ): Promise<{ body: Record<string, unknown> | null; httpStatus: number }> {
+  const { tools: TOOLS, toolByName, instructions: INSTRUCTIONS, serverInfo: SERVER_INFO, prompts: PROMPTS, resources: RESOURCES } = surface;
   if (!msg || typeof msg !== "object" || Array.isArray(msg) || msg.jsonrpc !== "2.0") {
     return { body: errorObj(null, -32600, "Invalid Request: expected a JSON-RPC 2.0 message."), httpStatus: 400 };
   }
@@ -742,14 +883,15 @@ export async function dispatchMessage(
   msg: JsonRpcMessage,
   ctx: Ctx,
   era: Era = "legacy",
+  surface: McpSurface = MAIN_SURFACE,
 ): Promise<{ body: Record<string, unknown> | null; httpStatus: number }> {
-  const out = await dispatchCore(msg, ctx, era);
+  const out = await dispatchCore(msg, ctx, era, surface);
   if (era !== "modern" || !out.body || out.body.result === undefined) return out;
   const method = typeof msg.method === "string" ? msg.method : "";
-  return { ...out, body: { ...out.body, result: toModernResult(method, out.body.result) } };
+  return { ...out, body: { ...out.body, result: toModernResult(method, out.body.result, surface.serverInfo) } };
 }
 
-export async function handleMcp(request: Request, ctx: Ctx): Promise<Response> {
+export async function handleMcp(request: Request, ctx: Ctx, surface: McpSurface = MAIN_SURFACE): Promise<Response> {
   // ORIGIN IS NOT VALIDATED, deliberately. The spec asks servers to check it to
   // stop DNS rebinding, which protects servers on localhost or a private
   // network. This endpoint is public, has no login, no cookies and no private
@@ -768,21 +910,7 @@ export async function handleMcp(request: Request, ctx: Ctx): Promise<Response> {
     // semantics (no client can mistake it for an SSE stream) while turning
     // every sniff into a working start.
     return new Response(
-      JSON.stringify({
-        error: "Use POST with JSON-RPC 2.0. This is a stateless MCP endpoint; there is no SSE stream.",
-        mcp: {
-          name: "statcite",
-          version: SERVER_VERSION,
-          transport: "streamable-http",
-          protocol_versions: SUPPORTED_PROTOCOL_VERSIONS,
-          note: "2026-07-28 requests must also send the Mcp-Method header.",
-        },
-        service: "Official economic statistics with citations: World Bank, IMF, BIS, ECB, and Caribbean central banks (ECCB, Central Bank of Barbados).",
-        docs: "https://statcite.com/docs",
-        rest_api: "https://statcite.com/v1",
-        openapi: "https://statcite.com/openapi.json",
-        llms_txt: "https://statcite.com/llms.txt",
-      }),
+      JSON.stringify(surface.getDescriptor()),
       {
         status: 405,
         headers: { allow: "POST, OPTIONS", "content-type": "application/json", ...corsHeaders() },
@@ -856,7 +984,7 @@ export async function handleMcp(request: Request, ctx: Ctx): Promise<Response> {
     const bodies: Record<string, unknown>[] = [];
     let workUsed = 0;
     for (const m of parsed) {
-      const weight = batchWorkWeight(m);
+      const weight = batchWorkWeight(m, surface);
       if (weight > 0 && workUsed + weight > BATCH_WORK_BUDGET) {
         const mid = (m as JsonRpcMessage)?.id;
         if (mid !== undefined && mid !== null) {
@@ -870,7 +998,7 @@ export async function handleMcp(request: Request, ctx: Ctx): Promise<Response> {
         continue;
       }
       workUsed += weight;
-      const r = await dispatchMessage(m as JsonRpcMessage, ctx);
+      const r = await dispatchMessage(m as JsonRpcMessage, ctx, "legacy", surface);
       if (r.body) bodies.push(r.body);
     }
     if (bodies.length === 0) return new Response(null, { status: 202, headers: corsHeaders() });
@@ -895,7 +1023,7 @@ export async function handleMcp(request: Request, ctx: Ctx): Promise<Response> {
     }
   }
 
-  const r = await dispatchMessage(msg, ctx, era);
+  const r = await dispatchMessage(msg, ctx, era, surface);
   if (r.body === null) return new Response(null, { status: 202, headers: corsHeaders() });
   return json(r.httpStatus, r.body);
 }

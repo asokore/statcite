@@ -52,6 +52,24 @@ test("IMF citation license text states the real conditions and never overclaims"
   assert.match(IMF_LICENSE, /downstream/i, "must carry the downstream-communication duty");
   assert.match(IMF_LICENSE, /free of charge/i, "must carry the sold-as-standalone disclosure duty");
   assert.match(IMF_LICENSE, /third-party/i, "must flag that some products carry third-party terms");
+  // 2026-11-28: the Data section of the IMF terms ends by asking commercial
+  // reusers to request permission at copyright@imf.org. The line must say so,
+  // and must never call commercial reuse permitted outright.
+  assert.match(IMF_LICENSE, /commercial reuse needs the IMF's permission/i, "must carry the commercial-permission condition");
+  assert.match(IMF_LICENSE, /copyright@imf\.org/, "must say where permission is requested");
+});
+
+test("the IMF ledger notes state the commercial-permission condition and never claim commercial reuse outright", async () => {
+  const { SOURCES } = await import("../src/core/sources.ts");
+  for (const id of ["imf_weo", "imf_sdmx_vintage"]) {
+    const entry = SOURCES.find((s) => s.id === id)!;
+    assert.ok(entry, `${id} missing from the ledger`);
+    const note = entry.license_note;
+    assert.match(note, /reuse with attribution is permitted/i, `${id} must state that reuse with attribution is permitted`);
+    assert.match(note, /commercial reuse needs the IMF's permission/i, `${id} must state that commercial reuse needs permission`);
+    assert.doesNotMatch(note, /Notwithstanding the general prohibition on the commercial use/i, `${id} carries the retired reading of the Data terms`);
+    assert.doesNotMatch(note, /commercial (re)?use (is )?(expressly )?permitted|more permissive than the general/i, `${id} claims commercial reuse is permitted`);
+  }
 });
 test("apify/core.bundle.mjs is byte-identical to a fresh build of core-entry.ts", async () => {
   // The bundle is a committed build artifact and it is what the paid Apify actor
@@ -265,11 +283,18 @@ test("the retired IMF commercial-permission wording appears on no public surface
   ];
   assert.ok(surfaces.length >= 10, `surface sweep looks too small to be real: ${surfaces.length}`);
   for (const rel of surfaces) {
-    const text = readFileSync(path.join(repoRoot, rel), "utf8");
+    // Apostrophes are entity-escaped on the generated pages (IMF&#39;s).
+    const text = readFileSync(path.join(repoRoot, rel), "utf8").replace(/&#39;|&apos;/g, "'");
     assert.ok(
       !/commercial (re)?use may require/i.test(text),
-      `${rel} carries the retired IMF commercial-permission wording — the current terms grant redistribution with conditions (see IMF_LICENSE in core/citations.ts)`,
+      `${rel} carries the retired IMF commercial-permission wording. The current line says commercial reuse needs the IMF's permission (see IMF_LICENSE in core/citations.ts)`,
     );
+    // 2026-11-28: a surface that restates the IMF data terms (it names the
+    // free-of-charge disclosure duty) must also carry the commercial-permission
+    // condition, so no public page reads as permitting the sale of IMF data.
+    if (/free (of charge )?from the IMF|available free of charge from the IMF/i.test(text)) {
+      assert.match(text, /commercial reuse (of IMF data )?needs the IMF's permission/i, `${rel} restates the IMF data terms without the commercial-permission condition`);
+    }
   }
 });
 

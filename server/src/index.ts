@@ -1,7 +1,7 @@
 // StatCite Worker entry: routes /mcp (MCP Streamable HTTP), /v1 (REST), /health;
 // everything else falls through to static assets (the website in ../site).
 
-import { handleMcp, corsHeaders, SERVER_VERSION } from "./mcp.ts";
+import { handleMcp, corsHeaders, SERVER_VERSION, LAB_SURFACE, ALL_SURFACE } from "./mcp.ts";
 import { handleRest } from "./rest.ts";
 import type { Ctx } from "./core/types.ts";
 
@@ -31,7 +31,12 @@ function makeCtx(env: Env): Ctx {
 /** The Worker's own routes. Everything else is a static asset, which gets its
  * headers from site/_headers instead. */
 function isWorkerRoute(path: string): boolean {
-  return path === "/mcp" || path === "/mcp/" || path === "/v1" || path.startsWith("/v1/") || path === "/health";
+  return (
+    path === "/mcp" || path === "/mcp/" ||
+    path === "/lab/mcp" || path === "/lab/mcp/" ||
+    path === "/all/mcp" || path === "/all/mcp/" ||
+    path === "/v1" || path.startsWith("/v1/") || path === "/health"
+  );
 }
 
 /** Security headers every Worker response carries, whatever produced it. */
@@ -66,6 +71,10 @@ async function routeWorker(request: Request, env: Env, url: URL): Promise<Respon
   const path = url.pathname;
   const ctx = makeCtx(env);
   if (path === "/mcp" || path === "/mcp/") return handleMcp(request, ctx);
+  // Lab tools on their own route, and every tool on one combined route. /mcp
+  // above is unchanged and never serves a lab tool.
+  if (path === "/lab/mcp" || path === "/lab/mcp/") return handleMcp(request, ctx, LAB_SURFACE);
+  if (path === "/all/mcp" || path === "/all/mcp/") return handleMcp(request, ctx, ALL_SURFACE);
   if (path === "/v1" || path.startsWith("/v1/")) return handleRest(request, ctx);
   return new Response(JSON.stringify({ ok: true, service: "statcite", version: SERVER_VERSION }), {
     headers: { "content-type": "application/json", "cache-control": "no-store", "x-robots-tag": "noindex", ...corsHeaders() },
