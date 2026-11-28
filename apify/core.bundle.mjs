@@ -4162,26 +4162,32 @@ var USD_PEGS = [
     sourceRead: "2026-11-27"
   },
   {
-    // Read 2026-11-15. "Cayman Islands currency is issued on demand only
-    // against United States currency at the rate of one Cayman Islands dollar
-    // per 1.20 US dollars." The report gives no start date, so effectiveFrom is
-    // the first day of the financial year it covers (1 July 2011 to 30 June
-    // 2012). Earlier periods stay on the World Bank rail. Read 2026-11-27, the
-    // Monetary Authority Law (2020 Revision), section 22, leaves the value of
-    // the Cayman dollar to an Order of the Cabinet, and section 53 keeps the
-    // Cayman Islands Currency Order, 1974 in force. The text of that Order was
-    // not found on legislation.gov.ky or cima.ky, and CIMA's currency pages
-    // give no start date, so the start stays where it is.
+    // Read 2026-11-27, rendered, printed page 46 under Currency Operations:
+    // "at the rate of one Cayman Islands dollar per 1.20 U.S. dollars". The
+    // report gives no start date, so effectiveFrom is the first day of the
+    // period it covers (1 January 2003 to 30 June 2004). Earlier periods stay
+    // on the World Bank rail. CIMA's annual reports for 1997 to 2002, read the
+    // same day, describe currency issued against the US dollar and give no
+    // rate. The reports for 2004-05, 2005-06, 2006-07 and 2011-12 state the
+    // same rate. Read 2026-11-27, the Monetary Authority Law (2020 Revision),
+    // section 22, leaves the value of the Cayman dollar to an Order of the
+    // Cabinet, and section 53 keeps the Cayman Islands Currency Order, 1974 in
+    // force. The text of that Order was not found on legislation.gov.ky or
+    // cima.ky, and CIMA's live currency page gives no rate or start date. A
+    // 2014 web.archive.org copy of CIMA's former currency page dates the
+    // Currency Law of 1974 to 1 April 1974 but not the parity itself, and it is
+    // an archive copy, not a page on CIMA's live site, so this row does not
+    // cite it.
     currency: "KYD",
     lcu: 1,
     usd: 1.2,
-    parityAsPublished: "one Cayman Islands dollar per 1.20 US dollars",
-    effectiveFrom: "2011-07-01",
+    parityAsPublished: "one Cayman Islands dollar per 1.20 U.S. dollars",
+    effectiveFrom: "2003-01-01",
     effectiveFromAsPublished: null,
     authority: "Cayman Islands Monetary Authority",
-    sourceTitle: "Annual Report 2011-12",
-    sourceUrl: "https://www.cima.ky/upimages/publicationdoc/AnnualReportandAu_1499163437.pdf",
-    sourceRead: "2026-11-15"
+    sourceTitle: "18-Month Report, January 1, 2003 to June 30, 2004",
+    sourceUrl: "https://www.cima.ky/upimages/publicationdoc/AnnualReport-18M_1499165425.pdf",
+    sourceRead: "2026-11-27"
   },
   {
     // Read 2026-11-22. A paper by the Governor, published on SAMA's site:

@@ -30,7 +30,8 @@ supplement of 10 June 2014, whose chronology gives B$1 = US$1 from 1973.
 Other periods fall back to the World Bank as before, with a note.
 
 For KYD the source states the rate but no start date, so the peg is used
-only from the date of the document, and the note says the peg itself may be
+only from the start of the period the document covers (1 January 2003, in
+CIMA's 18-month report to June 2004), and the note says the peg itself may be
 older. The Monetary Authority Law (2020 Revision) leaves the rate to a
 Cabinet Order and keeps the Cayman Islands Currency Order, 1974 in force,
 but the text of that Order could not be found.

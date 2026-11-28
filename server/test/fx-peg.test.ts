@@ -46,7 +46,7 @@ const wbBrb = [wbHeader, [
 ]];
 const wbJam = [wbHeader, [wbRow("JAM", "JM", "Jamaica", "2025", 158.2), wbRow("JAM", "JM", "Jamaica", "2020", 142.75)]];
 const wbSyr = [wbHeader, [wbRow("SYR", "SY", "Syrian Arab Republic", "2022", 2512.5)]];
-const wbCym = [wbHeader, [wbRow("CYM", "KY", "Cayman Islands", "2005", 0.83333)]];
+const wbCym = [wbHeader, [wbRow("CYM", "KY", "Cayman Islands", "2002", 0.83333)]];
 const wbBhs = [wbHeader, [wbRow("BHS", "BS", "Bahamas, The", "1973", 0.9871)]];
 
 let fetched: string[] = [];
@@ -308,11 +308,11 @@ test("a source with no start date is described as confirming the peg only from i
   const r = await fxConvert(ctx, 1, "KYD", "USD");
   const note = r.notes.find((n) => n.startsWith("KYD is converted"));
   assert.ok(note, JSON.stringify(r.notes));
-  assert.match(note!, /confirmed by the cited source only from 2011-07-01/);
+  assert.match(note!, /confirmed by the cited source only from 2003-01-01/);
   assert.match(note!, /may be older/);
   assert.match(note!, /earlier dates use the World Bank rate/);
   assert.doesNotMatch(note!, /in force since/);
-  assert.match(r.citations[0].citation_text, /confirmed by this source from 2011-07-01/);
+  assert.match(r.citations[0].citation_text, /confirmed by this source from 2003-01-01/);
   // A citation describes the source, never StatCite's own fallback rule.
   assert.doesNotMatch(r.citations[0].citation_text, /World Bank/);
   const b = await fxConvert(ctx, 1, "BBD", "USD");
@@ -342,11 +342,29 @@ test("BSD is 1 to 1 from 1974, cited to the Central Bank of The Bahamas, and fal
   assert.ok(wbCalls().some((u) => u.includes("/BHS/")), "the fallback must use the World Bank series for The Bahamas");
 });
 
+test("KYD is pegged from 2003-01-01, cited to CIMA's 18-month report, and falls back the day before", async () => {
+  const start = await fxConvert(ctx, 1, "KYD", "USD", "2003-01-01");
+  assert.equal(start.precision, "fixed_peg");
+  assert.equal(start.rate, 1.2);
+  assert.deepEqual(start.citations.map((c) => c.source), ["Cayman Islands Monetary Authority"]);
+  assert.match(start.citations[0].citation_text, /^Cayman Islands Monetary Authority, 18-Month Report, January 1, 2003 to June 30, 2004: KYD fixed to the US dollar at one Cayman Islands dollar per 1\.20 U\.S\. dollars, confirmed by this source from 2003-01-01\. /);
+  assert.ok(start.citations[0].citation_text.endsWith(" https://www.cima.ky/upimages/publicationdoc/AnnualReport-18M_1499165425.pdf"), start.citations[0].citation_text);
+  assert.equal(start.citations[0].retrieved_at, "2026-11-27");
+  const year = await fxConvert(ctx, 1, "KYD", "USD", "2003");
+  assert.equal(year.precision, "fixed_peg");
+  assert.equal(wbCalls().length, 0, `World Bank was called: ${wbCalls().join(", ")}`);
+  const before = await fxConvert(ctx, 1, "KYD", "USD", "2002-12-31");
+  assert.equal(before.precision, "annual_average");
+  assert.ok(Math.abs(before.rate - 1 / 0.83333) < 1e-6, String(before.rate));
+  assert.ok(before.notes.some((n) => /only from 2003-01-01/.test(n) && /not applied to 2002-12-31/.test(n)), JSON.stringify(before.notes));
+  assert.ok(wbCalls().some((u) => u.includes("/CYM/")), "the fallback must use the World Bank series for the Cayman Islands");
+});
+
 test("KYD before its confirmed date falls back to the World Bank series for the Cayman Islands", async () => {
-  const r = await fxConvert(ctx, 1, "KYD", "USD", "2005");
+  const r = await fxConvert(ctx, 1, "KYD", "USD", "2002");
   assert.equal(r.precision, "annual_average");
   assert.ok(Math.abs(r.rate - 1 / 0.83333) < 1e-6);
-  assert.ok(r.notes.some((n) => /only from 2011-07-01/.test(n) && /not applied to the whole of 2005/.test(n)), JSON.stringify(r.notes));
+  assert.ok(r.notes.some((n) => /only from 2003-01-01/.test(n) && /not applied to the whole of 2002/.test(n)), JSON.stringify(r.notes));
 });
 
 test("the licence ledger names every pegged currency and authority, and no other", () => {
