@@ -4141,11 +4141,37 @@ var USD_PEGS = [
     sourceRead: "2026-11-15"
   },
   {
+    // Read 2026-11-27. The bank's 40th anniversary newspaper supplement, dated
+    // 10 June 2014 and linked from its news page of 20 June 2019, has a table
+    // "A Chronology of Currency Developments in The Bahamas" whose 1973 row
+    // reads "Devaluation of Bahamian Dollar to B$1 = US$1." (read from the
+    // rendered page 7). Page 6 of the same document speaks of "the fixed
+    // parity between The Bahamian and United States dollars that has
+    // prevailed since 1973". The source names the year only. The bank's web
+    // chronology dates the devaluation to February 1973 but does not restate
+    // the rate there, so this row cites the supplement.
+    currency: "BSD",
+    lcu: 1,
+    usd: 1,
+    parityAsPublished: "B$1 = US$1",
+    effectiveFrom: "1974-01-01",
+    effectiveFromAsPublished: "1973",
+    authority: "Central Bank of The Bahamas",
+    sourceTitle: "40th Anniversary Newspaper Supplement, 10 June 2014",
+    sourceUrl: "https://cdn.centralbankbahamas.com/tenantcbob_prod/assets/documents/2019-06-20-05-41-37-CBOBs-40th-Anniversary-Newspaper-Supplement-3-1776210645-o8XX3l.pdf",
+    sourceRead: "2026-11-27"
+  },
+  {
     // Read 2026-11-15. "Cayman Islands currency is issued on demand only
     // against United States currency at the rate of one Cayman Islands dollar
     // per 1.20 US dollars." The report gives no start date, so effectiveFrom is
     // the first day of the financial year it covers (1 July 2011 to 30 June
-    // 2012). Earlier periods stay on the World Bank rail.
+    // 2012). Earlier periods stay on the World Bank rail. Read 2026-11-27, the
+    // Monetary Authority Law (2020 Revision), section 22, leaves the value of
+    // the Cayman dollar to an Order of the Cabinet, and section 53 keeps the
+    // Cayman Islands Currency Order, 1974 in force. The text of that Order was
+    // not found on legislation.gov.ky or cima.ky, and CIMA's currency pages
+    // give no start date, so the start stays where it is.
     currency: "KYD",
     lcu: 1,
     usd: 1.2,
@@ -5190,7 +5216,7 @@ var SOURCES = [
   {
     id: "usd_pegs",
     name: "Legal US dollar pegs published by issuing monetary authorities",
-    coverage: "The fixed US dollar parities fx_convert uses as exact legs: BBD (Central Bank of Barbados), XCD (Eastern Caribbean Central Bank), BZD (Central Bank of Belize), AWG (Centrale Bank van Aruba), BMD (Bermuda Monetary Authority), KYD (Cayman Islands Monetary Authority), SAR (Saudi Central Bank), QAR (Qatar Central Bank) and OMR (Central Bank of Oman). Each parity is applied from the date its source confirms it and never to a future period. Other dates use the World Bank annual average.",
+    coverage: "The fixed US dollar parities fx_convert uses as exact legs: BBD (Central Bank of Barbados), XCD (Eastern Caribbean Central Bank), BZD (Central Bank of Belize), AWG (Centrale Bank van Aruba), BMD (Bermuda Monetary Authority), BSD (Central Bank of The Bahamas), KYD (Cayman Islands Monetary Authority), SAR (Saudi Central Bank), QAR (Qatar Central Bank) and OMR (Central Bank of Oman). Each parity is applied from the date its source confirms it and never to a future period. Other dates use the World Bank annual average.",
     access: "Held as constants in core/pegs.ts, each read from the authority's own published page or report on the date recorded with it. No upstream call is made at request time",
     license: "No dataset licence applies: a published legal exchange-rate parity is a fact",
     license_verdict: "served",

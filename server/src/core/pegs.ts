@@ -16,16 +16,6 @@
 //   - ANG stays on the World Bank rail. The Netherlands Antilles guilder is
 //     being replaced by the Caribbean guilder (XCG), so a parity for ANG would
 //     describe a currency in the middle of being withdrawn.
-//   - BSD stays on the World Bank rail. Read 2026-11-22, the Central Bank of
-//     The Bahamas states the rate and the start on two different pages: "About
-//     us" says the dollar "is fixed at a 1:1 parity with the United States
-//     dollar" with no date, and "Foreign Exchange" speaks of "the fixed parity
-//     between the Bahamian and U.S. dollars that has prevailed since 1973"
-//     without the rate. Its chronology adds that the rate was B$0.97 = US$1.00
-//     from June 1972. "About us" alone would fall under the no-start rule
-//     below, but the page carries no date at all, so it would give no
-//     effectiveFrom earlier than the day it was read and never cover a whole
-//     past year. A row citing the start from a second page is A-078.
 //   - BHD stays on the World Bank rail. Read 2026-11-22, the Central Bank of
 //     Bahrain states its parity two ways. Its rate table cites Decree 48 of
 //     2001, "1 BHD= 2.659 USD", and lists USD at 0.376081, which is 1 / 2.659.
@@ -37,6 +27,9 @@
 //   - AED stays on the World Bank rail until a Central Bank of the UAE page
 //     stating the parity is opened and read. Searches on 2026-11-22 found only
 //     VAT reference tables and an annual report PDF that could not be read.
+//     Read 2026-11-27, the bank's page "How the monetary system works" gives
+//     dealing rates of 3.672 and 3.673 and no start date. Two dealing rates
+//     are not one stated parity, so that page does not qualify either.
 //
 // effectiveFrom is the earliest date on which the cited source establishes
 // that the parity was in force. Where the source names a day, it is that day.
@@ -163,11 +156,38 @@ export const USD_PEGS: readonly UsdPeg[] = [
     sourceRead: "2026-11-15",
   },
   {
+    // Read 2026-11-27. The bank's 40th anniversary newspaper supplement, dated
+    // 10 June 2014 and linked from its news page of 20 June 2019, has a table
+    // "A Chronology of Currency Developments in The Bahamas" whose 1973 row
+    // reads "Devaluation of Bahamian Dollar to B$1 = US$1." (read from the
+    // rendered page 7). Page 6 of the same document speaks of "the fixed
+    // parity between The Bahamian and United States dollars that has
+    // prevailed since 1973". The source names the year only. The bank's web
+    // chronology dates the devaluation to February 1973 but does not restate
+    // the rate there, so this row cites the supplement.
+    currency: "BSD",
+    lcu: 1.0,
+    usd: 1.0,
+    parityAsPublished: "B$1 = US$1",
+    effectiveFrom: "1974-01-01",
+    effectiveFromAsPublished: "1973",
+    authority: "Central Bank of The Bahamas",
+    sourceTitle: "40th Anniversary Newspaper Supplement, 10 June 2014",
+    sourceUrl:
+      "https://cdn.centralbankbahamas.com/tenantcbob_prod/assets/documents/2019-06-20-05-41-37-CBOBs-40th-Anniversary-Newspaper-Supplement-3-1776210645-o8XX3l.pdf",
+    sourceRead: "2026-11-27",
+  },
+  {
     // Read 2026-11-15. "Cayman Islands currency is issued on demand only
     // against United States currency at the rate of one Cayman Islands dollar
     // per 1.20 US dollars." The report gives no start date, so effectiveFrom is
     // the first day of the financial year it covers (1 July 2011 to 30 June
-    // 2012). Earlier periods stay on the World Bank rail.
+    // 2012). Earlier periods stay on the World Bank rail. Read 2026-11-27, the
+    // Monetary Authority Law (2020 Revision), section 22, leaves the value of
+    // the Cayman dollar to an Order of the Cabinet, and section 53 keeps the
+    // Cayman Islands Currency Order, 1974 in force. The text of that Order was
+    // not found on legislation.gov.ky or cima.ky, and CIMA's currency pages
+    // give no start date, so the start stays where it is.
     currency: "KYD",
     lcu: 1.0,
     usd: 1.2,

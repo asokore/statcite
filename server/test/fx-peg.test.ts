@@ -47,6 +47,7 @@ const wbBrb = [wbHeader, [
 const wbJam = [wbHeader, [wbRow("JAM", "JM", "Jamaica", "2025", 158.2), wbRow("JAM", "JM", "Jamaica", "2020", 142.75)]];
 const wbSyr = [wbHeader, [wbRow("SYR", "SY", "Syrian Arab Republic", "2022", 2512.5)]];
 const wbCym = [wbHeader, [wbRow("CYM", "KY", "Cayman Islands", "2005", 0.83333)]];
+const wbBhs = [wbHeader, [wbRow("BHS", "BS", "Bahamas, The", "1973", 0.9871)]];
 
 let fetched: string[] = [];
 const routes: Array<{ test: (u: string) => boolean; body: () => unknown }> = [
@@ -56,6 +57,7 @@ const routes: Array<{ test: (u: string) => boolean; body: () => unknown }> = [
   { test: (u) => u.includes("api.worldbank.org") && u.includes("PA.NUS.FCRF") && u.includes("/JAM/"), body: () => wbJam },
   { test: (u) => u.includes("api.worldbank.org") && u.includes("PA.NUS.FCRF") && u.includes("/SYR/"), body: () => wbSyr },
   { test: (u) => u.includes("api.worldbank.org") && u.includes("PA.NUS.FCRF") && u.includes("/CYM/"), body: () => wbCym },
+  { test: (u) => u.includes("api.worldbank.org") && u.includes("PA.NUS.FCRF") && u.includes("/BHS/"), body: () => wbBhs },
   // A Saturday: Frankfurter answers with the Friday before.
   { test: (u) => u.includes("api.frankfurter.dev/v1/2024-03-16") && u.includes("base=EUR"), body: () => ({ base: "EUR", date: "2024-03-15", rates: { USD: 1.0890 } }) },
 ];
@@ -130,11 +132,12 @@ test("QAR, OMR and SAR are exact, each in the direction its authority prints, wi
 });
 
 test("a start given as a month or a year covers whole years only from the first full year after it", () => {
-  // QAR: July 2001. OMR and SAR: 1986.
+  // QAR: July 2001. OMR and SAR: 1986. BSD: 1973.
   for (const [cur, startYear, firstWhole, firstDay] of [
     ["QAR", "2001", "2002", "2001-08-01"],
     ["OMR", "1986", "1987", "1987-01-01"],
     ["SAR", "1986", "1987", "1987-01-01"],
+    ["BSD", "1973", "1974", "1974-01-01"],
   ] as const) {
     const before = pegDecision(cur, startYear, TODAY);
     assert.equal(before?.applies, false, `${cur} ${startYear} must not be treated as whole`);
@@ -319,6 +322,26 @@ test("a source with no start date is described as confirming the peg only from i
   }
 });
 
+test("BSD is 1 to 1 from 1974, cited to the Central Bank of The Bahamas, and falls back the day before", async () => {
+  const r = await fxConvert(ctx, 100, "USD", "BSD", "1974");
+  assert.equal(r.converted_amount, 100, "B$1 = US$1");
+  assert.equal(r.precision, "fixed_peg");
+  assert.deepEqual(r.citations.map((c) => c.source), ["Central Bank of The Bahamas"]);
+  assert.equal(r.citations[0].series_id, "peg/BSDUSD");
+  assert.match(r.citations[0].citation_text, /^Central Bank of The Bahamas, 40th Anniversary Newspaper Supplement, 10 June 2014: BSD fixed to the US dollar at B\$1 = US\$1, in force since 1973\. /);
+  assert.ok(r.citations[0].citation_text.endsWith(" https://cdn.centralbankbahamas.com/tenantcbob_prod/assets/documents/2019-06-20-05-41-37-CBOBs-40th-Anniversary-Newspaper-Supplement-3-1776210645-o8XX3l.pdf"), r.citations[0].citation_text);
+  assert.equal(r.citations[0].retrieved_at, "2026-11-27");
+  const d = await fxConvert(ctx, 100, "BSD", "USD", "1974-01-01");
+  assert.equal(d.precision, "fixed_peg");
+  assert.equal(d.rate, 1);
+  assert.equal(wbCalls().length, 0, `World Bank was called: ${wbCalls().join(", ")}`);
+  const before = await fxConvert(ctx, 100, "BSD", "USD", "1973-12-31");
+  assert.equal(before.precision, "annual_average");
+  assert.ok(Math.abs(before.rate - 1 / 0.9871) < 1e-6, String(before.rate));
+  assert.ok(before.notes.some((n) => /not applied to 1973-12-31/.test(n) && /in force since 1973/.test(n)), JSON.stringify(before.notes));
+  assert.ok(wbCalls().some((u) => u.includes("/BHS/")), "the fallback must use the World Bank series for The Bahamas");
+});
+
 test("KYD before its confirmed date falls back to the World Bank series for the Cayman Islands", async () => {
   const r = await fxConvert(ctx, 1, "KYD", "USD", "2005");
   assert.equal(r.precision, "annual_average");
@@ -339,7 +362,7 @@ test("the licence ledger names every pegged currency and authority, and no other
 
 test("the peg table holds only sourced hard pegs", () => {
   const codes = USD_PEGS.map((p) => p.currency);
-  for (const banned of ["HKD", "ANG", "BSD", "BHD", "AED"]) assert.ok(!codes.includes(banned), `${banned} must stay on the World Bank rail`);
+  for (const banned of ["HKD", "ANG", "BHD", "AED"]) assert.ok(!codes.includes(banned), `${banned} must stay on the World Bank rail`);
   assert.equal(new Set(codes).size, codes.length, "duplicate currency in the peg table");
   for (const p of USD_PEGS) {
     assert.match(p.currency, /^[A-Z]{3}$/);
@@ -359,7 +382,7 @@ test("each peg cites its own authority's site, read on or before today", () => {
   // link fails here, as does a new row added without a reviewed domain.
   const HOSTS: Record<string, string> = {
     BBD: "www.centralbank.org.bb", XCD: "www.eccb-centralbank.org", BZD: "www.centralbank.org.bz",
-    AWG: "www.cbaruba.org", BMD: "www.bma.bm", KYD: "www.cima.ky", SAR: "www.sama.gov.sa",
+    AWG: "www.cbaruba.org", BMD: "www.bma.bm", BSD: "cdn.centralbankbahamas.com", KYD: "www.cima.ky", SAR: "www.sama.gov.sa",
     QAR: "www.qcb.gov.qa", OMR: "cbo.gov.om",
   };
   assert.deepEqual(USD_PEGS.map((p) => p.currency).sort(), Object.keys(HOSTS).sort(), "a peg row has no reviewed authority domain");

@@ -183,7 +183,7 @@ export const SOURCES = [
     id: "usd_pegs",
     name: "Legal US dollar pegs published by issuing monetary authorities",
     coverage:
-      "The fixed US dollar parities fx_convert uses as exact legs: BBD (Central Bank of Barbados), XCD (Eastern Caribbean Central Bank), BZD (Central Bank of Belize), AWG (Centrale Bank van Aruba), BMD (Bermuda Monetary Authority), KYD (Cayman Islands Monetary Authority), SAR (Saudi Central Bank), QAR (Qatar Central Bank) and OMR (Central Bank of Oman). Each parity is applied from the date its source confirms it and never to a future period. Other dates use the World Bank annual average.",
+      "The fixed US dollar parities fx_convert uses as exact legs: BBD (Central Bank of Barbados), XCD (Eastern Caribbean Central Bank), BZD (Central Bank of Belize), AWG (Centrale Bank van Aruba), BMD (Bermuda Monetary Authority), BSD (Central Bank of The Bahamas), KYD (Cayman Islands Monetary Authority), SAR (Saudi Central Bank), QAR (Qatar Central Bank) and OMR (Central Bank of Oman). Each parity is applied from the date its source confirms it and never to a future period. Other dates use the World Bank annual average.",
     access: "Held as constants in core/pegs.ts, each read from the authority's own published page or report on the date recorded with it. No upstream call is made at request time",
     license: "No dataset licence applies: a published legal exchange-rate parity is a fact",
     license_verdict: "served" as LicenseVerdict,
