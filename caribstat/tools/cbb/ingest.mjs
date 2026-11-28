@@ -20,7 +20,7 @@ import { openListing, extractListingCards, resolveAttachment, downloadAttachment
 import { readXlsx } from "../xlsx.mjs";
 import { extractWorkbook } from "./tables.mjs";
 import { compareWithExisting, classifyChange, QUIET_STATES } from "../changed.mjs";
-import { loadLedger, saveLedger, noteCheck } from "../checkpoint.mjs";
+import { loadLedger, saveLedger, noteCheck, fullFetchWithinBound } from "../checkpoint.mjs";
 
 export const DATA_DIR = path.resolve(process.cwd(), "data", "cbb");
 
@@ -244,6 +244,25 @@ export async function heldPublication(dataDir, categoryId) {
 }
 
 /**
+ * May the incremental run skip downloading a workbook whose URL we already
+ * hold?
+ *
+ * A URL match alone is not enough. The URL cannot see a file replaced in place,
+ * and the only thing that bounds such a change is a full re-read. The Sunday
+ * deep run is meant to provide one, but a deep run can die and still be
+ * reported as a success (22 Nov 2026: an expired token, 12 days with no CBB
+ * re-read). So the skip also needs the last full fetch to sit inside the same
+ * age bound the ECCB content skip uses. Past it, the incremental run does the
+ * re-read itself.
+ */
+export function heldUploadAllowsSkip({ held, attachmentUrl, ledger, key, now }) {
+  if (!held || held.attachmentUrl !== attachmentUrl) return { skip: false, why: "newest upload is not the one held" };
+  const fresh = fullFetchWithinBound(ledger?.entries?.[key]?.last_full_fetch_at, now);
+  if (!fresh.ok) return { skip: false, why: fresh.why, ageRefetch: true };
+  return { skip: true, why: `upload unchanged, last full fetch ${fresh.lastFullFetchAt}` };
+}
+
+/**
  * Ingest the newest publication(s) for one CBB category.
  *
  * `deep` forces the workbook to be downloaded and re-parsed even when the
@@ -255,7 +274,8 @@ export async function heldPublication(dataDir, categoryId) {
  * The URL is a safe key because CBB's CDN puts a publication timestamp IN the
  * filename, so a new publication is necessarily a new URL. What the shortcut
  * cannot see is a file replaced in place under an unchanged URL, and that is
- * precisely what the weekly deep run is for.
+ * precisely what the weekly deep run is for. If that run is missed, the skip
+ * stops once the last full fetch passes the age bound (heldUploadAllowsSkip).
  */
 /**
  * Which items to fetch from a listing.
@@ -380,12 +400,15 @@ export async function ingestCategory(listing, { maxItems = 1, dataDir = DATA_DIR
       // is nothing to download. Checked AFTER the title/attachment agreement
       // test above, so a category we refused to ingest on citation grounds
       // cannot be skipped into looking settled.
+      let ageRefetch;
       if (!deep) {
         const held = await heldPublication(dataDir, listing.id);
-        if (held && held.attachmentUrl === attachmentUrl) {
+        const verdict = heldUploadAllowsSkip({ held, attachmentUrl, ledger: await loadLedger(dataDir), key: listing.id, now: retrievedAt });
+        if (verdict.skip) {
           results.push({ item: itemUrl, ok: true, state: "unchanged", skipped: true, publishedAt, attachmentUrl, heldSheets: held.sheets });
           continue;
         }
+        if (verdict.ageRefetch) ageRefetch = verdict.why;
       }
 
       const buf = await downloadAttachment(attachmentUrl);
@@ -414,7 +437,7 @@ export async function ingestCategory(listing, { maxItems = 1, dataDir = DATA_DIR
           continue;
         }
         const obs = doc.series.reduce((a, s) => a + s.observations.filter((o) => o.value != null).length, 0);
-        results.push({ item: itemUrl, sheet: sheet.name, ok: true, state, periods: doc.periods.length, series: doc.series.length, observations: obs, publishedAt });
+        results.push({ item: itemUrl, sheet: sheet.name, ok: true, state, periods: doc.periods.length, series: doc.series.length, observations: obs, publishedAt, ageRefetch });
       }
     } catch (e) {
       results.push({ item: itemUrl, ok: false, problems: [String(e.message ?? e)] });
@@ -426,12 +449,17 @@ export async function ingestCategory(listing, { maxItems = 1, dataDir = DATA_DIR
   if (results.length && results.every((r) => r.ok)) {
     const ledger = await loadLedger(dataDir);
     const skipped = results.every((r) => r.skipped);
+    // A full fetch means the held workbook itself was re-read. If any item
+    // was skipped (the newest held upload, say, beside an older edition that
+    // was downloaded), last_full_fetch_at must not move, or the age bound in
+    // heldUploadAllowsSkip could be renewed without the held file being read.
+    const fetchedAll = !results.some((r) => r.skipped);
     noteCheck(ledger, listing.id, {
       checkedAt: retrievedAt,
       sourceStamp: results[0].publishedAt ?? null,
       window: null,
       action: skipped ? "skipped" : deep ? "deep-fetch" : "fetch",
-      fetched: !skipped,
+      fetched: fetchedAll,
     });
     await saveLedger(dataDir, ledger);
   }

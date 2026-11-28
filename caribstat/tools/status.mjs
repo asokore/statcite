@@ -19,7 +19,7 @@
 
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { loadLedger } from "./checkpoint.mjs";
+import { loadLedger, fullFetchWithinBound, MAX_CONTENT_SKIP_AGE_MS } from "./checkpoint.mjs";
 
 const DATA = path.resolve(process.cwd(), "data");
 const asJson = process.argv.includes("--json");
@@ -83,6 +83,11 @@ function monthsBehind(period) {
 }
 
 const rows = [];
+const nowIso = new Date().toISOString();
+// A full fetch past the skip bound means the skips are no longer covered by a
+// recent re-read: a missed or failed deep run. The same bound the skip paths
+// use, from the same function, so the flag and the skip cannot disagree.
+const fullFetchStale = (at) => !fullFetchWithinBound(at, nowIso).ok;
 
 // --- ECCB: data/eccb/<table>/<freq>/<ISO3>.json ---------------------------
 const eccbDir = path.join(DATA, "eccb");
@@ -116,6 +121,7 @@ for (const table of await listDirs(eccbDir)) {
       last_checked: led.checked_at?.slice(0, 10),
       last_action: led.action ? `${led.action}${led.basis ? ` (${led.basis})` : ""}` : undefined,
       last_full_fetch: led.last_full_fetch_at?.slice(0, 10),
+      full_fetch_stale: fullFetchStale(led.last_full_fetch_at),
       months_behind: monthsBehind(newest),
     });
   }
@@ -140,6 +146,7 @@ for (const category of await listDirs(cbbDir)) {
     newest_period: newest, source_stamp: pub,
     last_checked: led.checked_at?.slice(0, 10), last_action: led.action,
     last_full_fetch: led.last_full_fetch_at?.slice(0, 10),
+    full_fetch_stale: fullFetchStale(led.last_full_fetch_at),
     months_behind: monthsBehind(newest),
   });
 }
@@ -156,12 +163,16 @@ for (const src of ["eccb", "cbb"]) {
   const mine = rows.filter((r) => r.source === src);
   if (!mine.length) continue;
   console.log(src.toUpperCase());
-  console.log(`  ${pad("table / category", 36)} ${pad("fq", 2)} ${lpad("n", 3)} ${pad("newest", 10)} ${lpad("lag", 4)} ${pad("source stamp", 12)} ${pad("checked", 10)} action`);
+  console.log(`  ${pad("table / category", 36)} ${pad("fq", 2)} ${lpad("n", 3)} ${pad("newest", 10)} ${lpad("lag", 4)} ${pad("source stamp", 12)} ${pad("checked", 10)} ${pad("full", 11)} action`);
   for (const r of mine.sort((a, b) => a.unit.localeCompare(b.unit) || a.freq.localeCompare(b.freq))) {
     const lag = r.months_behind == null ? "-" : `${r.months_behind}m`;
-    console.log(`  ${pad(r.unit, 36)} ${pad(r.freq, 2)} ${lpad(r.members, 3)} ${pad(r.newest_period, 10)} ${lpad(lag, 4)} ${pad(r.source_stamp, 12)} ${pad(r.last_checked, 10)} ${r.last_action ?? "-"}`);
+    const full = `${r.last_full_fetch ?? "-"}${r.full_fetch_stale ? "!" : ""}`;
+    console.log(`  ${pad(r.unit, 36)} ${pad(r.freq, 2)} ${lpad(r.members, 3)} ${pad(r.newest_period, 10)} ${lpad(lag, 4)} ${pad(r.source_stamp, 12)} ${pad(r.last_checked, 10)} ${pad(full, 11)} ${r.last_action ?? "-"}`);
   }
   console.log("");
 }
+const staleCount = rows.filter((r) => r.full_fetch_stale).length;
 console.log("lag = whole months between the newest period held and today. Descriptive only:");
 console.log("several of these series are genuinely not republished more often than that.");
+console.log(`full = last full re-read of the source. "!" marks one older than ${MAX_CONTENT_SKIP_AGE_MS / 86400000} days, or none on record:`);
+console.log(`a missed or failed deep run. ${staleCount} of ${rows.length} row(s) flagged.`);

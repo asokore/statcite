@@ -12,8 +12,8 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { loadLedger, saveLedger, noteCheck, canSkip, ledgerAllowsContentSkip, windowKey } from "./checkpoint.mjs";
-import { heldPublication } from "./cbb/ingest.mjs";
+import { loadLedger, saveLedger, noteCheck, canSkip, ledgerAllowsContentSkip, windowKey, fullFetchWithinBound, MAX_CONTENT_SKIP_AGE_MS } from "./checkpoint.mjs";
+import { heldPublication, heldUploadAllowsSkip } from "./cbb/ingest.mjs";
 import { storedStampsAgree, storedContentAgrees } from "./eccb/ingest.mjs";
 
 const KEY = "some-table/a";
@@ -168,6 +168,56 @@ test("the ledger gate enforces the seven-day bound itself, not by trusting the d
   assert.equal(ledgerAllowsContentSkip(e, KEY, { window: WIN, now: "2026-09-23T13:36:47.441Z" }).ok, true, "three days after a deep run is inside the bound");
   assert.equal(ledgerAllowsContentSkip(e, KEY, { window: WIN, now: "garbage" }).ok, false, "an unreadable clock is no licence to skip");
   assert.equal(ledgerAllowsContentSkip(e, KEY, { window: WIN, now: "2026-09-19T00:00:00Z" }).ok, false, "a full fetch dated in the future is corruption, not freshness");
+});
+
+// --- the full-fetch age bound, shared by every skip path ---------------------
+
+test("the full-fetch bound is 7.5 days and refuses missing, garbled or future fetches", () => {
+  assert.equal(MAX_CONTENT_SKIP_AGE_MS, 7.5 * 86400000);
+  const at = "2026-11-15T11:49:00.543Z";
+  assert.equal(fullFetchWithinBound(at, "2026-11-22T23:49:00.543Z").ok, true, "exactly 7.5 days is still inside");
+  assert.equal(fullFetchWithinBound(at, "2026-11-22T23:49:00.544Z").ok, false, "one millisecond past is outside");
+  assert.equal(fullFetchWithinBound(undefined, "2026-11-16T00:00:00Z").ok, false);
+  assert.equal(fullFetchWithinBound(null, "2026-11-16T00:00:00Z").ok, false);
+  assert.equal(fullFetchWithinBound("not a date", "2026-11-16T00:00:00Z").ok, false);
+  assert.equal(fullFetchWithinBound(at, "2026-11-14T00:00:00Z").ok, false, "a fetch in the future is not freshness");
+});
+
+// --- CBB: a held upload URL is a skip only while the last full read is recent --
+//
+// The case that prompted this: the 22 Nov 2026 deep run died on an expired
+// token yet was reported as succeeded, and the incremental runs went on
+// skipping on the URL match with no age bound. The ledger below is the real
+// state of the gross-domestic-product entry on 25 Nov 2026.
+
+const CBB_KEY = "gross-domestic-product";
+const CBB_URL = "https://www.centralbank.org.bb/storage/x/GDP-2026-08-01-120000.xlsx";
+const CBB_HELD = { attachmentUrl: CBB_URL, sheets: 3 };
+const cbbLedger = (lastFull) => ({
+  entries: { [CBB_KEY]: { checked_at: "2026-11-25T15:14:55.083Z", source_stamp: "2026-08-01", window: null, action: "skipped", last_full_fetch_at: lastFull } },
+});
+
+test("CBB skips a held upload while the last full fetch is inside the bound", () => {
+  const v = heldUploadAllowsSkip({ held: CBB_HELD, attachmentUrl: CBB_URL, ledger: cbbLedger("2026-11-22T07:30:00.000Z"), key: CBB_KEY, now: "2026-11-25T15:14:55.083Z" });
+  assert.equal(v.skip, true);
+});
+
+test("CBB re-reads a held upload once the last full fetch is past the bound (missed deep run)", () => {
+  const v = heldUploadAllowsSkip({ held: CBB_HELD, attachmentUrl: CBB_URL, ledger: cbbLedger("2026-11-15T11:49:00.543Z"), key: CBB_KEY, now: "2026-11-25T15:14:55.083Z" });
+  assert.equal(v.skip, false, "ten days after the last full fetch, a URL match is not grounds to skip");
+  assert.equal(v.ageRefetch, true);
+  assert.match(v.why, /older than the 7\.5-day bound/);
+});
+
+test("CBB never skips with no full fetch on record, no ledger entry, or a different upload", () => {
+  const now = "2026-11-25T15:14:55.083Z";
+  assert.equal(heldUploadAllowsSkip({ held: CBB_HELD, attachmentUrl: CBB_URL, ledger: cbbLedger(null), key: CBB_KEY, now }).skip, false);
+  assert.equal(heldUploadAllowsSkip({ held: CBB_HELD, attachmentUrl: CBB_URL, ledger: { entries: {} }, key: CBB_KEY, now }).skip, false);
+  assert.equal(heldUploadAllowsSkip({ held: CBB_HELD, attachmentUrl: CBB_URL, ledger: undefined, key: CBB_KEY, now }).skip, false);
+  const moved = heldUploadAllowsSkip({ held: CBB_HELD, attachmentUrl: CBB_URL.replace("120000", "130000"), ledger: cbbLedger("2026-11-25T00:00:00Z"), key: CBB_KEY, now });
+  assert.equal(moved.skip, false);
+  assert.equal(moved.ageRefetch, undefined, "a new upload is fetched for being new, not for age");
+  assert.equal(heldUploadAllowsSkip({ held: undefined, attachmentUrl: CBB_URL, ledger: cbbLedger("2026-11-25T00:00:00Z"), key: CBB_KEY, now }).skip, false);
 });
 
 const cgeos = [{ code: "1", iso3: "AIA" }, { code: "9", iso3: "XCU" }];

@@ -58,6 +58,9 @@ for (const t of targets) {
     continue;
   }
   console.log(`\n${t.id} — ${ok.length} sheet(s) ingested`);
+  // The URL matched, but the last full read was too old to skip on.
+  const aged = r.results.find((x) => x.ageRefetch)?.ageRefetch;
+  if (aged) console.log(`  re-read although the upload is unchanged: ${aged}`);
   for (const x of r.results) {
     if (x.ok) {
       sheets++;

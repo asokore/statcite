@@ -115,13 +115,26 @@ export function canSkip(ledger, key, { liveStamp, window }) {
 // missed or failed deep run), the incremental run does the re-read instead.
 export const MAX_CONTENT_SKIP_AGE_MS = 7.5 * 24 * 3600 * 1000;
 
+/**
+ * Is the last full fetch recent enough to lean on?
+ *
+ * The one place the full-fetch age bound is computed. Every skip path that
+ * rests on an earlier read (ECCB's content skip, CBB's held-upload skip) and
+ * the status report's staleness flag call this, so the bound cannot drift
+ * between them. A missing, unparseable or future-dated fetch is never fresh.
+ */
+export function fullFetchWithinBound(lastFullFetchAt, now, maxAgeMs = MAX_CONTENT_SKIP_AGE_MS) {
+  if (!lastFullFetchAt) return { ok: false, why: "no full fetch on record" };
+  const age = Date.parse(now) - Date.parse(lastFullFetchAt);
+  if (!Number.isFinite(age) || age < 0) return { ok: false, why: "cannot tell how old the last full fetch is" };
+  if (age > maxAgeMs) return { ok: false, why: `last full fetch ${lastFullFetchAt} is older than the ${maxAgeMs / 86400000}-day bound` };
+  return { ok: true, lastFullFetchAt };
+}
+
 export function ledgerAllowsContentSkip(ledger, key, { window, now, maxAgeMs = MAX_CONTENT_SKIP_AGE_MS }) {
   const e = ledger.entries[key];
   if (!e) return { ok: false, why: "no prior check recorded" };
   if (e.window !== window) return { ok: false, why: `query window changed (${e.window} -> ${window})` };
   if (!e.last_full_fetch_at) return { ok: false, why: "no full fetch on record to compare against" };
-  const age = Date.parse(now) - Date.parse(e.last_full_fetch_at);
-  if (!Number.isFinite(age) || age < 0) return { ok: false, why: "cannot tell how old the last full fetch is" };
-  if (age > maxAgeMs) return { ok: false, why: `last full fetch ${e.last_full_fetch_at} is older than the ${maxAgeMs / 86400000}-day bound` };
-  return { ok: true, lastFullFetchAt: e.last_full_fetch_at };
+  return fullFetchWithinBound(e.last_full_fetch_at, now, maxAgeMs);
 }
